@@ -7,16 +7,16 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 
 public interface Mask {
 
-  MaskInfo getInfo();
+	MaskInfo getInfo();
 
-  RandomAccessibleInterval<UnsignedLongType> getRai();
+	RandomAccessibleInterval<UnsignedLongType> getRai();
 
-  RandomAccessibleInterval<VolatileUnsignedLongType> getVolatileRai();
+	RandomAccessibleInterval<VolatileUnsignedLongType> getVolatileRai();
 
-  Invalidate<?> getInvalidate();
+	Invalidate<?> getInvalidate();
 
-  Invalidate<?> getInvalidateVolatile();
+	Invalidate<?> getInvalidateVolatile();
 
-  Runnable getShutdown();
+	Runnable getShutdown();
 
 }

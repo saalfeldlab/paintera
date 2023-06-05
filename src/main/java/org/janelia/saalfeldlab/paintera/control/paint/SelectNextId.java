@@ -10,29 +10,29 @@ import java.util.function.BiConsumer;
 
 public class SelectNextId {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final IdService idService;
+	private final IdService idService;
 
-  private final SelectedIds selectedIds;
+	private final SelectedIds selectedIds;
 
-  public SelectNextId(final IdService idService, final SelectedIds selectedIds) {
+	public SelectNextId(final IdService idService, final SelectedIds selectedIds) {
 
-	super();
-	this.idService = idService;
-	this.selectedIds = selectedIds;
-  }
+		super();
+		this.idService = idService;
+		this.selectedIds = selectedIds;
+	}
 
-  public long getNextId() {
+	public long getNextId() {
 
-	return getNextId(SelectedIds::activate);
-  }
+		return getNextId(SelectedIds::activate);
+	}
 
-  public long getNextId(final BiConsumer<SelectedIds, Long> action) {
+	public long getNextId(final BiConsumer<SelectedIds, Long> action) {
 
-	long next = idService.next();
-	action.accept(selectedIds, next);
-	return next;
-  }
+		long next = idService.next();
+		action.accept(selectedIds, next);
+		return next;
+	}
 
 }

@@ -7,30 +7,30 @@ import java.lang.invoke.MethodHandles;
 
 public class IndividualMeshProgress extends ObservableMeshProgress {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public void set(final int numTasks, final int numCompletedTasks) {
+	public void set(final int numTasks, final int numCompletedTasks) {
 
-	this.numTasks.set(numTasks);
-	this.numCompletedTasks.set(numCompletedTasks);
-	stateChanged();
-  }
+		this.numTasks.set(numTasks);
+		this.numCompletedTasks.set(numCompletedTasks);
+		stateChanged();
+	}
 
-  public void setNumTasks(final int numTasks) {
+	public void setNumTasks(final int numTasks) {
 
-	this.numTasks.set(numTasks);
-	stateChanged();
-  }
+		this.numTasks.set(numTasks);
+		stateChanged();
+	}
 
-  public void setNumCompletedTasks(final int numCompletedTasks) {
+	public void setNumCompletedTasks(final int numCompletedTasks) {
 
-	this.numCompletedTasks.set(numCompletedTasks);
-	stateChanged();
-  }
+		this.numCompletedTasks.set(numCompletedTasks);
+		stateChanged();
+	}
 
-  public void incrementNumCompletedTasks() {
+	public void incrementNumCompletedTasks() {
 
-	this.numCompletedTasks.incrementAndGet();
-	stateChanged();
-  }
+		this.numCompletedTasks.incrementAndGet();
+		stateChanged();
+	}
 }

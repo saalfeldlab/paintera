@@ -15,10 +15,10 @@ import org.junit.Test;
 
 import java.util.function.Predicate;
 
-public class SourceInfoTest
-{
+public class SourceInfoTest {
 
 	private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+
 		@Override
 		public void invalidate(Long key) {
 
@@ -78,8 +78,8 @@ public class SourceInfoTest
 	);
 
 	@Test(expected = HasDependents.class)
-	public void testThrowsHasDependents() throws HasDependents
-	{
+	public void testThrowsHasDependents() throws HasDependents {
+
 		final SourceInfo si = new SourceInfo();
 		si.addState(state1);
 		si.addState(state2);
@@ -88,8 +88,8 @@ public class SourceInfoTest
 	}
 
 	@Test()
-	public void testForceRemoveDependents() throws HasDependents
-	{
+	public void testForceRemoveDependents() throws HasDependents {
+
 		final SourceInfo si = new SourceInfo();
 		si.addState(state1);
 		si.addState(state2);
@@ -101,8 +101,8 @@ public class SourceInfoTest
 	}
 
 	@Test()
-	public void testRemove() throws HasDependents
-	{
+	public void testRemove() throws HasDependents {
+
 		final SourceInfo si = new SourceInfo();
 		si.addState(state1);
 		si.addState(state2);
@@ -114,8 +114,8 @@ public class SourceInfoTest
 	}
 
 	@Test()
-	public void testRemoveAll() throws HasDependents
-	{
+	public void testRemoveAll() throws HasDependents {
+
 		final SourceInfo si = new SourceInfo();
 		si.addState(state1);
 		si.addState(state2);

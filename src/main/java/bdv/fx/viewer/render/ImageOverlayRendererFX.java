@@ -36,13 +36,12 @@ package bdv.fx.viewer.render;
 import javafx.scene.image.Image;
 import net.imglib2.img.ImgView;
 import net.imglib2.img.array.ArrayImg;
-import net.imglib2.ui.Renderer;
 
 import java.util.function.Consumer;
 
 /**
  * {@link OverlayRendererGeneric} drawing an {@link ArrayImg}, scaled to fill an {@link ImgView}. It can be used as a
- * {@link RenderTargetGeneric}, such that the {@link ArrayImg} to draw is set by a {@link Renderer}.
+ * {@link RenderTargetGeneric}, such that the {@link ArrayImg} to draw is set by a {@link bdv.viewer.RequestRepaint}.
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
@@ -50,86 +49,97 @@ import java.util.function.Consumer;
 public class ImageOverlayRendererFX
 		implements OverlayRendererGeneric<Consumer<Image>>, RenderTargetGeneric<PixelBufferWritableImage> {
 
-  protected PixelBufferWritableImage bufferedImage;
+	protected PixelBufferWritableImage bufferedImage;
 
-  /**
-   * An {@link ArrayImg} that has been previously set for painting. Whenever a
-   * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
-   * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
-   * swapped into pendingImage. This is used for double-buffering.
-   */
-  protected PixelBufferWritableImage pendingImage;
+	/**
+	 * An {@link ArrayImg} that has been previously set for painting. Whenever a
+	 * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
+	 * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
+	 * swapped into pendingImage. This is used for double-buffering.
+	 */
+	protected PixelBufferWritableImage pendingImage;
 
-  /**
-   * Whether an image is pending.
-   */
-  protected boolean pending;
+	/**
+	 * Whether an image is pending.
+	 */
+	protected boolean pending;
 
-  /**
-   * The current canvas width.
-   */
-  protected volatile int width;
+	/**
+	 * The current canvas width.
+	 */
+	protected volatile int width;
 
-  /**
-   * The current canvas height.
-   */
-  protected volatile int height;
+	/**
+	 * The current canvas height.
+	 */
+	protected volatile int height;
 
-  public ImageOverlayRendererFX() {
+	public ImageOverlayRendererFX() {
 
-	bufferedImage = null;
-	pendingImage = null;
-	pending = false;
-	width = 0;
-	height = 0;
-  }
-
-  /**
-   * Set the {@link ArrayImg} that is to be drawn on the canvas.
-   *
-   * @param img image to draw (may be null).
-   */
-  @Override
-  public synchronized PixelBufferWritableImage setBufferedImage(final PixelBufferWritableImage img) {
-
-	final PixelBufferWritableImage tmp = pendingImage;
-	pendingImage = img;
-	pending = true;
-	return tmp;
-  }
-
-  @Override
-  public int getWidth() {
-
-	return width;
-  }
-
-  @Override
-  public int getHeight() {
-
-	return height;
-  }
-
-  @Override
-  public void drawOverlays(final Consumer<Image> g) {
-
-	synchronized (this) {
-	  if (pending) {
-		final PixelBufferWritableImage tmp = bufferedImage;
-		bufferedImage = pendingImage;
-		pendingImage = tmp;
+		bufferedImage = null;
+		pendingImage = null;
 		pending = false;
-	  }
+		width = 0;
+		height = 0;
 	}
-	if (bufferedImage != null) {
-	  g.accept(bufferedImage);
+
+	/**
+	 * Set the {@link ArrayImg} that is to be drawn on the canvas.
+	 *
+	 * @param img image to draw (may be null).
+	 */
+	@Override
+	public synchronized PixelBufferWritableImage setBufferedImage(final PixelBufferWritableImage img) {
+
+		final PixelBufferWritableImage tmp = pendingImage;
+		pendingImage = img;
+		pending = true;
+		return tmp;
 	}
-  }
 
-  @Override
-  public void setCanvasSize(final int width, final int height) {
+	@Override
+	public int getWidth() {
 
-	this.width = width;
-	this.height = height;
-  }
+		return width;
+	}
+
+	@Override
+	public int getHeight() {
+
+		return height;
+	}
+
+	public Image getPendingImage() {
+
+		return pendingImage;
+	}
+
+	public Image getBufferedImage() {
+
+		return bufferedImage;
+	}
+
+
+	@Override
+	public void drawOverlays(final Consumer<Image> g) {
+
+		synchronized (this) {
+			if (pending) {
+				final PixelBufferWritableImage tmp = bufferedImage;
+				bufferedImage = pendingImage;
+				pendingImage = tmp;
+				pending = false;
+			}
+		}
+		if (bufferedImage != null) {
+			g.accept(bufferedImage);
+		}
+	}
+
+	@Override
+	public void setCanvasSize(final int width, final int height) {
+
+		this.width = width;
+		this.height = height;
+	}
 }

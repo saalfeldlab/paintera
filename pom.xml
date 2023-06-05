@@ -3,14 +3,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>30.0.0</version>
+		<version>34.1.0</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.33.1-SNAPSHOT</version>
+	<version>0.34.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -28,7 +28,7 @@
 
 	<properties>
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
-		<paintera.commandline.args />
+		<paintera.commandline.args/>
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 		<scijava.jvm.version>11</scijava.jvm.version>
 
@@ -45,7 +45,7 @@
 		<groovy.version>2.5.14</groovy.version>
 
 		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.6.0</kotlin.version>
+		<kotlin.version>1.8.0</kotlin.version>
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
@@ -55,11 +55,10 @@
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<!-- NB: TODO JavaDoc generation is not supported for kotlin code. Look into something like Dokka perhaps-->
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.5.1</saalfx.version>
+		<saalfx.version>0.6.0</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
@@ -70,8 +69,8 @@
 		<!-- JavaFx Version-->
 		<javafx.version>18.0.1</javafx.version>
 
-		<n5.version>2.5.0</n5.version>
-		<n5-hdf5.version>1.3.0</n5-hdf5.version>
+		<n5.version>2.5.1</n5.version>
+		<n5-hdf5.version>1.4.2</n5-hdf5.version>
 		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
 		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
 		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
@@ -79,11 +78,38 @@
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
 		<jna.version>5.11.0</jna.version>
-		<!--<enforcer.skip>true</enforcer.skip>-->
+		<enforcer.skip>true</enforcer.skip>
+
+		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
+		<app.name>Paintera</app.name>
+		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>18</maven.compiler.source>
+		<maven.compiler.target>18</maven.compiler.target>
+		<windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>
+		<macos.sign></macos.sign>
+		<macos.sign.identity></macos.sign.identity>
+
 	</properties>
 
 
 	<dependencies>
+
+		<dependency>
+			<groupId>com.microsoft.onnxruntime</groupId>
+			<artifactId>onnxruntime</artifactId>
+			<version>1.14.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpmime</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-universe</artifactId>
+			<version>0.1.0</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -188,17 +214,13 @@
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-ui</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
 			<version>3.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.11.4</version>
+			<version>0.11.5</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -249,7 +271,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-n5</artifactId>
-			<version>0.3.1</version>
+			<version>0.3.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.controlsfx</groupId>
@@ -555,7 +577,7 @@
 		<dependency>
 			<groupId>org.jetbrains.kotlinx</groupId>
 			<artifactId>kotlinx-coroutines-core</artifactId>
-			<version>${kotlin.version}</version>
+			<version>1.6.4</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
@@ -565,7 +587,7 @@
 			<id>hanslovsky</id>
 			<name>Philipp Hanslovsky</name>
 			<email>hanslovskyp@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -580,7 +602,7 @@
 			<id>axtimwalde</id>
 			<name>Stephan Saalfeld</name>
 			<email>saalfelds@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -594,7 +616,7 @@
 			<id>cmhulbert</id>
 			<name>Caleb Hulbert</name>
 			<email>hulbertc@hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -607,7 +629,7 @@
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -664,11 +686,38 @@
 		</repository>
 		<repository>
 			<id>jzy3d</id>
-			<url>http://maven.jzy3d.org/releases</url>
+			<url>https://maven.jzy3d.org/releases</url>
 		</repository>
 	</repositories>
 
 	<build>
+		<extensions>
+			<!-- Used to inject the OS and architecture values in a consistent manner -->
+			<!-- https://github.com/trustin/os-maven-plugin -->
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.7.0</version>
+			</extension>
+		</extensions>
+		<resources>
+			<resource>
+				<!-- Here we are processing the platform-specific jpackage command files, adding in Maven
+				properties for configuration. -->
+				<directory>${project.basedir}/src/packaging</directory>
+				<filtering>true</filtering>
+				<targetPath>${project.build.directory}/packaging</targetPath>
+			</resource>
+			<!-- Add the default resource path back in - by overriding above it disables the default -->
+			<resource>
+				<directory>${project.basedir}/src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+			<resource>
+				<directory>${project.basedir}/src/main/resources/build-info/</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
 		<pluginManagement>
 			<plugins>
 				<plugin>
@@ -679,49 +728,40 @@
 						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
 					</configuration>
 				</plugin>
-				<plugin>
-					<groupId>com.github.akman</groupId>
-					<artifactId>jpackage-maven-plugin</artifactId>
-					<version>0.1.3</version>
-					<configuration>
-						<mainclass>org.janelia.saalfeldlab.paintera.Paintera</mainclass>
-						<mainjar>${project.artifactId}-${project.version}.jar</mainjar>
-						<input>${project.basedir}/target</input>
-						<appversion>${project.version}</appversion>
-						<icon>${project.basedir}/img/icon-draft.svg</icon>
-						<linuxpackagename>paintera</linuxpackagename>
-						<linuxappcategory>Utilities</linuxappcategory>
-						<linuxmenugroup>Utilities</linuxmenugroup>
-						<linuxapprelease>Paintera</linuxapprelease>
-						<linuxshortcut>true</linuxshortcut>
-						<modulepath>
-							<dependencysets>
-								<dependencyset>
-									<includeoutput>true</includeoutput>
-									<excludeautomatic>true</excludeautomatic>
-								</dependencyset>
-							</dependencysets>
-						</modulepath>
-						<addmodules>
-							<addmodule>javafx.base</addmodule>
-							<addmodule>javafx.controls</addmodule>
-							<addmodule>javafx.fxml</addmodule>
-							<addmodule>javafx.media</addmodule>
-							<addmodule>javafx.swing</addmodule>
-							<addmodule>javafx.web</addmodule>
-							<addmodule>javafx.graphics</addmodule>
-							<addmodule>java.naming</addmodule>
-							<addmodule>java.management</addmodule>
-							<addmodule>java.sql</addmodule>
-						</addmodules>
-						<!--@formatter:off-->
-						<javaoptions>--illegal-access=permit --add-opens=javafx.base/javafx.util=ALL-UNNAMED --add-opens=javafx.base/javafx.event=ALL-UNNAMED --add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED --add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</javaoptions>
-						<!--@formatter:on-->
-					</configuration>
-				</plugin>
 			</plugins>
 		</pluginManagement>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- This copies the jar files declared by the Maven build into a single directory.
+						This makes it easy to assemble the final installer package -->
+						<id>copy-dependencies</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<!-- Include only compile stage dependencies (no test dependencies) -->
+							<includeScope>compile</includeScope>
+							<!-- The JavaFX libraries are bundled into the custom JVM, so we don't want to duplicate
+							them in the bundled app and installer. This command skips all of the JavaFX by groupId. -->
+							<excludeGroupIds>org.openjfx</excludeGroupIds>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<!-- Put the application jar generated by the project into the dependency folder - the default folder
+				for the maven-dependency-plugin output. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<outputDirectory>${project.build.directory}/dependency</outputDirectory>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.jetbrains.dokka</groupId>
 				<artifactId>dokka-maven-plugin</artifactId>
@@ -798,6 +838,10 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven-compiler-plugin.version}</version>
+				<configuration>
+					<source>${maven.compiler.source}</source>
+					<target>${maven.compiler.target}</target>
+				</configuration>
 				<executions>
 					<!-- Replacing default-compile as it is treated specially by maven -->
 					<execution>
@@ -830,6 +874,11 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
 				<version>${maven-resources-plugin.version}</version>
+				<configuration>
+					<nonFilteredFileExtensions>
+						<nonFilteredFileExtension>onnx</nonFilteredFileExtension>
+					</nonFilteredFileExtensions>
+				</configuration>
 				<executions>
 					<execution>
 						<id>copy-readme-md</id>
@@ -888,53 +937,15 @@
 				</configuration>
 			</plugin>
 
-			<!--		editorconfig-->
-			<plugin>
-				<groupId>org.ec4j.maven</groupId>
-				<artifactId>editorconfig-maven-plugin</artifactId>
-				<version>0.1.1</version>
-				<executions>
-					<execution>
-						<id>check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<!-- See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference -->
-					<excludes>
-						<!-- Note that maven submodule directories and many non-source file patterns are excluded by default -->
-						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
-						<!-- You can exclude further files from processing: -->
-						<!--						<exclude>src/main/**/*.whatever</exclude>-->
-						<exclude>**/ci-build.sh</exclude>
-						<exclude>**/ci-setup-github-actions.sh</exclude>
-					</excludes>
-					<!-- All files are included by default:
-					<includes>
-						<include>**</include>
-					</includes>
-					-->
-				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>com.github.akman</groupId>
-				<artifactId>jpackage-maven-plugin</artifactId>
-				<version>0.1.3</version>
-			</plugin>
-
 			<plugin>
 				<groupId>org.openjfx</groupId>
 				<artifactId>javafx-maven-plugin</artifactId>
-				<version>0.0.5</version>
+				<version>0.0.8</version>
 				<executions>
 					<execution>
 						<id>default-cli</id>
 						<configuration>
-							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+							<mainClass>${main-class}</mainClass>
 							<options>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
@@ -1013,6 +1024,103 @@
 	</build>
 	<profiles>
 		<profile>
+		<id>build-installer</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<phase>prepare-package</phase>
+								<id>normalize-app-version1</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>app._normalVersion</name>
+									<value>${project.version}</value>
+									<regex>\.([0-9]+)-SNAPSHOT</regex>
+									<replacement>.000$1</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
+								</configuration>
+							</execution>
+							<execution>
+								<phase>prepare-package</phase>
+								<id>normalize-app-version2</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>app.normalVersion</name>
+									<!--suppress UnresolvedMavenProperty -->
+									<value>${app._normalVersion}</value>
+									<regex>^0\.</regex>
+									<replacement>99.</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
+						<groupId>io.github.wiverson</groupId>
+						<artifactId>jtoolprovider-plugin</artifactId>
+						<version>1.0.34</version>
+						<executions>
+							<!-- This command runs jlink, generating a custom JVM by combining the JavaFX modules bundled in
+							this project with the JDK modules. -->
+							<execution>
+								<id>jlink</id>
+								<phase>package</phase>
+								<goals>
+									<goal>java-tool</goal>
+								</goals>
+								<configuration>
+									<toolName>jlink</toolName>
+									<removeDirectories>${project.build.directory}/jvm-image/</removeDirectories>
+									<addModules>${jvm.modules}</addModules>
+									<output>${project.build.directory}/jvm-image</output>
+									<args>
+										<arg>--strip-native-commands</arg>
+										<arg>--no-header-files</arg>
+										<arg>--strip-debug</arg>
+										<arg>--no-man-pages</arg>
+										<arg>--compress=2</arg>
+									</args>
+								</configuration>
+							</execution>
+							<!-- The command that actually generates the installer. The options for each platform
+							are found the /src/packaging directory. These files are copied into the target directory by
+							the Maven resources plugin, which does the filtering to replace the original values with
+							the actual Maven properties.
+							https://github.com/wiverson/jtoolprovider-plugin/blob/main/java-tool-doc.md
+							-->
+							<execution>
+								<id>jpackage</id>
+								<phase>install</phase>
+								<goals>
+									<goal>java-tool</goal>
+								</goals>
+								<configuration>
+									<!--suppress UnresolvedMavenProperty -->
+									<appVersion>${app.normalVersion}</appVersion>
+									<mainJar>${project.build.finalName}.jar</mainJar>
+									<toolName>jpackage</toolName>
+									<writeOutputToLog>true</writeOutputToLog>
+									<writeErrorsToLog>true</writeErrorsToLog>
+									<failOnError>true</failOnError>
+									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
+									<args>@${project.build.directory}/packaging/${os.detected.name}-jpackage.txt</args>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>skip-kapt</id>
 			<build>
 				<plugins>
@@ -1036,6 +1144,62 @@
 						</executions>
 						<configuration>
 							<jvmTarget>11</jvmTarget>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+
+		<!-- We use the built-in Maven profile activation system to set the platform property.
+		These properties are then use to build the directory paths to the platform specific resources.
+		It would be great if Maven automatically added the os family as a property by default
+		 -->
+
+		<profile>
+			<id>macos-sign</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<properties>
+				<macos.sign>--mac-sign</macos.sign>
+				<!-- You will have to replace this with your own dev information from your Apple identity -->
+				<macos.sign.identity>--mac-signing-key-user-name "Company Name, Inc. (BXPXTXC35S)"</macos.sign.identity>
+			</properties>
+		</profile>
+
+		<profile>
+			<id>windows-active</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<!-- This adds a "launch on finish" to the Windows msi installer. This just tweaks the Windows
+						 installer package to run the executable after the installer runs, simplifying the user experience.
+						  If you don't want this behavior, just delete this plug execution. -->
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<phase>install</phase>
+								<id>add-launch-to-msi</id>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<executable>cscript</executable>
+							<outputFile>${project.build.directory}/msi-result.log</outputFile>
+							<workingDirectory>${project.build.directory}</workingDirectory>
+							<arguments>
+								<argument>${project.build.directory}/packaging/add-launch-to-msi.js</argument>
+							</arguments>
 						</configuration>
 					</plugin>
 				</plugins>

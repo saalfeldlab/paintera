@@ -8,228 +8,229 @@ import kotlin.math.max
 import kotlin.math.min
 
 class MeshSettings @JvmOverloads constructor(
-    val numScaleLevels: Int,
-    val defaults: Defaults = Defaults.IMMUTABLE_INSTANCE
+	val numScaleLevels: Int,
+	val defaults: Defaults = Defaults.IMMUTABLE_INSTANCE
 ) {
 
-    // Currently, all source states use the default defaults, i.e. MeshSettings.Defaults.IMMUTABLE_INSTANCE
-    interface Defaults {
-        val simplificationIterations: Int
-        val smoothingIterations: Int
-        val smoothingLambda: Double
-        val opacity: Double
-        val drawMode: DrawMode
-        val cullFace: CullFace
-        val inflate: Double
-        val isVisible: Boolean
-        val minLabelRatio: Double
-        val levelOfDetail: Int
+	// Currently, all source states use the default defaults, i.e. MeshSettings.Defaults.IMMUTABLE_INSTANCE
+	interface Defaults {
+		val simplificationIterations: Int
+		val smoothingIterations: Int
+		val smoothingLambda: Double
+		val opacity: Double
+		val drawMode: DrawMode
+		val cullFace: CullFace
+		val inflate: Double
+		val isVisible: Boolean
+		val minLabelRatio: Double
+		val levelOfDetail: Int
 
 
-        object Values {
-            @JvmStatic
-            val simplificationIterations = 0
+		object Values {
+			@JvmStatic
+			val simplificationIterations = 0
 
-            @JvmStatic
-            val smoothingIterations = Smooth.DEFAULT_ITERATIONS
+			@JvmStatic
+			val smoothingIterations = Smooth.DEFAULT_ITERATIONS
 
-            @JvmStatic
-            val smoothingLambda = Smooth.DEFAULT_LAMBDA
+			@JvmStatic
+			val smoothingLambda = Smooth.DEFAULT_LAMBDA
 
-            @JvmStatic
-            val opacity = 1.0
+			@JvmStatic
+			val opacity = 1.0
 
-            @JvmStatic
-            val drawMode = DrawMode.FILL
+			@JvmStatic
+			val drawMode = DrawMode.FILL
 
-            @JvmStatic
-            val cullFace = CullFace.FRONT
+			@JvmStatic
+			val cullFace = CullFace.FRONT
 
-            @JvmStatic
-            val inflate = 1.0
+			@JvmStatic
+			val inflate = 1.0
 
-            @JvmStatic
-            val isVisible = true
+			@JvmStatic
+			val isVisible = true
 
-            @JvmStatic
-            val minLabelRatio = 0.25
+			@JvmStatic
+			val minLabelRatio = 0.25
 
-            @JvmStatic
-            val minLevelOfDetail = 1
+			@JvmStatic
+			val minLevelOfDetail = 1
 
-            @JvmStatic
-            val maxLevelOfDetail = 10
+			@JvmStatic
+			val maxLevelOfDetail = 10
 
-            @JvmStatic
-            val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
-        }
+			@JvmStatic
+			val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
+		}
 
-        companion object {
-            @JvmStatic
-            val IMMUTABLE_INSTANCE = MutableDefaults().asImmutable
+		companion object {
+			@JvmStatic
+			val IMMUTABLE_INSTANCE = MutableDefaults().asImmutable
 
-            @JvmStatic
-            fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
+			@JvmStatic
+			fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
 
-            @JvmStatic
-            fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
-        }
-    }
+			@JvmStatic
+			fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
+		}
+	}
 
-    class MutableDefaults() : Defaults {
-        override var simplificationIterations: Int = Defaults.Values.simplificationIterations
-        override var smoothingIterations: Int = Defaults.Values.smoothingIterations
-        override var smoothingLambda: Double = Defaults.Values.smoothingLambda
-        override var opacity: Double = Defaults.Values.opacity
-        override var drawMode: DrawMode = Defaults.Values.drawMode
-        override var cullFace: CullFace = Defaults.Values.cullFace
-        override var inflate: Double = Defaults.Values.inflate
-        override var isVisible: Boolean = Defaults.Values.isVisible
-        override var minLabelRatio: Double = Defaults.Values.minLabelRatio
-        override var levelOfDetail: Int = Defaults.Values.levelOfDetail
+	class MutableDefaults() : Defaults {
+		override var simplificationIterations: Int = Defaults.Values.simplificationIterations
+		override var smoothingIterations: Int = Defaults.Values.smoothingIterations
+		override var smoothingLambda: Double = Defaults.Values.smoothingLambda
+		override var opacity: Double = Defaults.Values.opacity
+		override var drawMode: DrawMode = Defaults.Values.drawMode
+		override var cullFace: CullFace = Defaults.Values.cullFace
+		override var inflate: Double = Defaults.Values.inflate
+		override var isVisible: Boolean = Defaults.Values.isVisible
+		override var minLabelRatio: Double = Defaults.Values.minLabelRatio
+		override var levelOfDetail: Int = Defaults.Values.levelOfDetail
 
-        val asImmutable: Defaults
-            get() = ImmutableDefaults(this)
-    }
+		val asImmutable: Defaults
+			get() = ImmutableDefaults(this)
+	}
 
-    class ImmutableDefaults(private val delegate: Defaults) : Defaults by delegate
+	class ImmutableDefaults(private val delegate: Defaults) : Defaults by delegate
 
-    // TODO should scaleLevel actually be part of the MeshSettings?
-    val coarsestScaleLevelProperty = SimpleIntegerProperty(Defaults.getDefaultCoarsestScaleLevel(numScaleLevels))
-    val finestScaleLevelProperty = SimpleIntegerProperty(Defaults.getDefaultFinestScaleLevel(numScaleLevels))
-    val simplificationIterationsProperty = SimpleIntegerProperty(defaults.simplificationIterations)
-    val smoothingLambdaProperty: DoubleProperty = SimpleDoubleProperty(defaults.smoothingLambda)
-    val smoothingIterationsProperty: IntegerProperty = SimpleIntegerProperty(defaults.smoothingIterations)
-    val opacityProperty: DoubleProperty = SimpleDoubleProperty(defaults.opacity)
-    val drawModeProperty: ObjectProperty<DrawMode> = SimpleObjectProperty(defaults.drawMode)
-    val cullFaceProperty: ObjectProperty<CullFace> = SimpleObjectProperty(defaults.cullFace)
-    val inflateProperty: DoubleProperty = SimpleDoubleProperty(defaults.inflate)
-    val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(defaults.isVisible)
-    val minLabelRatioProperty: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
-    val levelOfDetailProperty: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
+	// TODO should scaleLevel actually be part of the MeshSettings?
+	val coarsestScaleLevelProperty = SimpleIntegerProperty(Defaults.getDefaultCoarsestScaleLevel(numScaleLevels))
+	val finestScaleLevelProperty = SimpleIntegerProperty(Defaults.getDefaultFinestScaleLevel(numScaleLevels))
+	val simplificationIterationsProperty = SimpleIntegerProperty(defaults.simplificationIterations)
+	val smoothingLambdaProperty: DoubleProperty = SimpleDoubleProperty(defaults.smoothingLambda)
+	val smoothingIterationsProperty: IntegerProperty = SimpleIntegerProperty(defaults.smoothingIterations)
+	val opacityProperty: DoubleProperty = SimpleDoubleProperty(defaults.opacity)
+	val drawModeProperty: ObjectProperty<DrawMode> = SimpleObjectProperty(defaults.drawMode)
+	val cullFaceProperty: ObjectProperty<CullFace> = SimpleObjectProperty(defaults.cullFace)
+	val inflateProperty: DoubleProperty = SimpleDoubleProperty(defaults.inflate)
+	val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(defaults.isVisible)
+	val minLabelRatioProperty: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
+	val levelOfDetailProperty: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
 
-    var coarsestScaleLevel by coarsestScaleLevelProperty.nonnull()
-    var finestScaleLevel by finestScaleLevelProperty.nonnull()
-    var simplificationIterations by simplificationIterationsProperty.nonnull()
-    var smoothingLambda by smoothingLambdaProperty.nonnull()
-    var smoothingIterations by smoothingIterationsProperty.nonnull()
-    var opacity by opacityProperty.nonnull()
-    var drawMode by drawModeProperty.nonnull()
-    var cullFace by cullFaceProperty.nonnull()
-    var inflate by inflateProperty.nonnull()
-    var isVisible by isVisibleProperty.nonnull()
-    var minLabelRatio by minLabelRatioProperty.nonnull()
-    var levelOfDetail by levelOfDetailProperty.nonnull()
+	var coarsestScaleLevel by coarsestScaleLevelProperty.nonnull()
+	var finestScaleLevel by finestScaleLevelProperty.nonnull()
+	var simplificationIterations by simplificationIterationsProperty.nonnull()
+	var smoothingLambda by smoothingLambdaProperty.nonnull()
+	var smoothingIterations by smoothingIterationsProperty.nonnull()
+	var opacity by opacityProperty.nonnull()
+	var drawMode by drawModeProperty.nonnull()
+	var cullFace by cullFaceProperty.nonnull()
+	var inflate by inflateProperty.nonnull()
+	var isVisible by isVisibleProperty.nonnull()
+	var minLabelRatio by minLabelRatioProperty.nonnull()
+	var levelOfDetail by levelOfDetailProperty.nonnull()
 
-    init {
-        levelOfDetailProperty.addListener { _, _, new ->
-            // TODO can we do this without the bound check?
-            if (!levelOfDetailProperty.isBound)
-                levelOfDetail = min(Defaults.Values.maxLevelOfDetail, max(Defaults.Values.minLevelOfDetail, new.toInt()))
-        }
-    }
+	init {
+		levelOfDetailProperty.addListener { _, _, new ->
+			// TODO can we do this without the bound check?
+			if (!levelOfDetailProperty.isBound)
+				levelOfDetail = min(Defaults.Values.maxLevelOfDetail, max(Defaults.Values.minLevelOfDetail, new.toInt()))
+		}
+	}
 
-    @JvmOverloads
-    fun copy(defaults: Defaults = this.defaults): MeshSettings {
-        val that = MeshSettings(numScaleLevels, defaults)
-        that.setTo(this)
-        return that
-    }
+	@JvmOverloads
+	fun copy(defaults: Defaults = this.defaults): MeshSettings {
+		val that = MeshSettings(numScaleLevels, defaults)
+		that.setTo(this)
+		return that
+	}
 
-    fun setTo(that: MeshSettings) {
-        levelOfDetail = that.levelOfDetail
-        coarsestScaleLevel = that.coarsestScaleLevel
-        finestScaleLevel = that.finestScaleLevel
-        simplificationIterations = that.simplificationIterations
-        smoothingLambda = that.smoothingLambda
-        smoothingIterations = that.smoothingIterations
-        opacity = that.opacity
-        drawMode = that.drawMode
-        cullFace = that.cullFace
-        inflate = that.inflate
-        isVisible = that.isVisible
-    }
+	fun setTo(that: MeshSettings) {
+		levelOfDetail = that.levelOfDetail
+		coarsestScaleLevel = that.coarsestScaleLevel
+		finestScaleLevel = that.finestScaleLevel
+		simplificationIterations = that.simplificationIterations
+		smoothingLambda = that.smoothingLambda
+		smoothingIterations = that.smoothingIterations
+		minLabelRatio = that.minLabelRatio
+		opacity = that.opacity
+		drawMode = that.drawMode
+		cullFace = that.cullFace
+		inflate = that.inflate
+		isVisible = that.isVisible
+	}
 
-    fun resetToDefaults() = setTo(defaults)
+	fun resetToDefaults() = setTo(defaults)
 
-    private fun setTo(defaults: Defaults): MeshSettings {
-        setTo(MeshSettings(numScaleLevels, defaults))
-        coarsestScaleLevel = numScaleLevels - 1
-        finestScaleLevel = 0
-        return this
-    }
+	private fun setTo(defaults: Defaults): MeshSettings {
+		setTo(MeshSettings(numScaleLevels, defaults))
+		coarsestScaleLevel = numScaleLevels - 1
+		finestScaleLevel = 0
+		return this
+	}
 
-    fun bindTo(that: MeshSettings) {
-        levelOfDetailProperty.bind(that.levelOfDetailProperty)
-        coarsestScaleLevelProperty.bind(that.coarsestScaleLevelProperty)
-        finestScaleLevelProperty.bind(that.finestScaleLevelProperty)
-        simplificationIterationsProperty.bind(that.simplificationIterationsProperty)
-        smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
-        smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
-        minLabelRatioProperty.bind(that.minLabelRatioProperty)
-        opacityProperty.bind(that.opacityProperty)
-        drawModeProperty.bind(that.drawModeProperty)
-        cullFaceProperty.bind(that.cullFaceProperty)
-        inflateProperty.bind(that.inflateProperty)
-        isVisibleProperty.bind(that.isVisibleProperty)
-    }
+	fun bindTo(that: MeshSettings) {
+		levelOfDetailProperty.bind(that.levelOfDetailProperty)
+		coarsestScaleLevelProperty.bind(that.coarsestScaleLevelProperty)
+		finestScaleLevelProperty.bind(that.finestScaleLevelProperty)
+		simplificationIterationsProperty.bind(that.simplificationIterationsProperty)
+		smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
+		smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
+		minLabelRatioProperty.bind(that.minLabelRatioProperty)
+		opacityProperty.bind(that.opacityProperty)
+		drawModeProperty.bind(that.drawModeProperty)
+		cullFaceProperty.bind(that.cullFaceProperty)
+		inflateProperty.bind(that.inflateProperty)
+		isVisibleProperty.bind(that.isVisibleProperty)
+	}
 
-    fun unbind() {
-        levelOfDetailProperty.unbind()
-        coarsestScaleLevelProperty.unbind()
-        finestScaleLevelProperty.unbind()
-        simplificationIterationsProperty.unbind()
-        smoothingLambdaProperty.unbind()
-        smoothingIterationsProperty.unbind()
-        minLabelRatioProperty.unbind()
-        opacityProperty.unbind()
-        drawModeProperty.unbind()
-        cullFaceProperty.unbind()
-        inflateProperty.unbind()
-        isVisibleProperty.unbind()
-    }
+	fun unbind() {
+		levelOfDetailProperty.unbind()
+		coarsestScaleLevelProperty.unbind()
+		finestScaleLevelProperty.unbind()
+		simplificationIterationsProperty.unbind()
+		smoothingLambdaProperty.unbind()
+		smoothingIterationsProperty.unbind()
+		minLabelRatioProperty.unbind()
+		opacityProperty.unbind()
+		drawModeProperty.unbind()
+		cullFaceProperty.unbind()
+		inflateProperty.unbind()
+		isVisibleProperty.unbind()
+	}
 
-    fun bindBidirectionalTo(that: MeshSettings) {
-        levelOfDetailProperty.bindBidirectional(that.levelOfDetailProperty)
-        coarsestScaleLevelProperty.bindBidirectional(that.coarsestScaleLevelProperty)
-        finestScaleLevelProperty.bindBidirectional(that.finestScaleLevelProperty)
-        simplificationIterationsProperty.bindBidirectional(that.simplificationIterationsProperty)
-        smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
-        smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
-        minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
-        opacityProperty.bindBidirectional(that.opacityProperty)
-        drawModeProperty.bindBidirectional(that.drawModeProperty)
-        cullFaceProperty.bindBidirectional(that.cullFaceProperty)
-        inflateProperty.bindBidirectional(that.inflateProperty)
-        isVisibleProperty.bindBidirectional(that.isVisibleProperty)
-    }
+	fun bindBidirectionalTo(that: MeshSettings) {
+		levelOfDetailProperty.bindBidirectional(that.levelOfDetailProperty)
+		coarsestScaleLevelProperty.bindBidirectional(that.coarsestScaleLevelProperty)
+		finestScaleLevelProperty.bindBidirectional(that.finestScaleLevelProperty)
+		simplificationIterationsProperty.bindBidirectional(that.simplificationIterationsProperty)
+		smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
+		smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
+		minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
+		opacityProperty.bindBidirectional(that.opacityProperty)
+		drawModeProperty.bindBidirectional(that.drawModeProperty)
+		cullFaceProperty.bindBidirectional(that.cullFaceProperty)
+		inflateProperty.bindBidirectional(that.inflateProperty)
+		isVisibleProperty.bindBidirectional(that.isVisibleProperty)
+	}
 
-    fun unbindBidrectional(that: MeshSettings) {
-        levelOfDetailProperty.unbindBidirectional(that.levelOfDetailProperty)
-        coarsestScaleLevelProperty.unbindBidirectional(that.coarsestScaleLevelProperty)
-        finestScaleLevelProperty.unbindBidirectional(that.finestScaleLevelProperty)
-        simplificationIterationsProperty.unbindBidirectional(that.simplificationIterationsProperty)
-        smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
-        smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
-        minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
-        opacityProperty.unbindBidirectional(that.opacityProperty)
-        drawModeProperty.unbindBidirectional(that.drawModeProperty)
-        cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
-        inflateProperty.unbindBidirectional(that.inflateProperty)
-        isVisibleProperty.unbindBidirectional(that.isVisibleProperty)
-    }
+	fun unbindBidrectional(that: MeshSettings) {
+		levelOfDetailProperty.unbindBidirectional(that.levelOfDetailProperty)
+		coarsestScaleLevelProperty.unbindBidirectional(that.coarsestScaleLevelProperty)
+		finestScaleLevelProperty.unbindBidirectional(that.finestScaleLevelProperty)
+		simplificationIterationsProperty.unbindBidirectional(that.simplificationIterationsProperty)
+		smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
+		smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
+		minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
+		opacityProperty.unbindBidirectional(that.opacityProperty)
+		drawModeProperty.unbindBidirectional(that.drawModeProperty)
+		cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
+		inflateProperty.unbindBidirectional(that.inflateProperty)
+		isVisibleProperty.unbindBidirectional(that.isVisibleProperty)
+	}
 
-    fun hasOnlyDefaultValues(): Boolean {
-        return coarsestScaleLevel == Defaults.getDefaultCoarsestScaleLevel(numScaleLevels)
-            && finestScaleLevel == Defaults.getDefaultFinestScaleLevel(numScaleLevels)
-            && simplificationIterations == defaults.simplificationIterations
-            && smoothingLambda == defaults.smoothingLambda
-            && smoothingIterations == defaults.smoothingIterations
-            && opacity == defaults.opacity
-            && defaults.drawMode == drawMode
-            && defaults.cullFace == cullFace
-            && inflate == defaults.inflate
-            && isVisible == defaults.isVisible
-    }
+	fun hasOnlyDefaultValues(): Boolean {
+		return coarsestScaleLevel == Defaults.getDefaultCoarsestScaleLevel(numScaleLevels)
+				&& finestScaleLevel == Defaults.getDefaultFinestScaleLevel(numScaleLevels)
+				&& simplificationIterations == defaults.simplificationIterations
+				&& smoothingLambda == defaults.smoothingLambda
+				&& smoothingIterations == defaults.smoothingIterations
+				&& opacity == defaults.opacity
+				&& defaults.drawMode == drawMode
+				&& defaults.cullFace == cullFace
+				&& inflate == defaults.inflate
+				&& isVisible == defaults.isVisible
+	}
 
 }

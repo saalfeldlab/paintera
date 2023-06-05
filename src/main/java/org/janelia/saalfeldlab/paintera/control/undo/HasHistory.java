@@ -4,6 +4,6 @@ import javafx.collections.ObservableList;
 
 public interface HasHistory<T> {
 
-  ObservableList<T> events();
+	ObservableList<T> events();
 
 }

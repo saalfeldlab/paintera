@@ -22,9 +22,9 @@ import net.imglib2.type.Type;
  */
 public class CompositeCopy<A extends Type<A>> implements Composite<A, A> {
 
-  @Override
-  public void compose(final A a, final A b) {
+	@Override
+	public void compose(final A a, final A b) {
 
-	a.set(b);
-  }
+		a.set(b);
+	}
 }

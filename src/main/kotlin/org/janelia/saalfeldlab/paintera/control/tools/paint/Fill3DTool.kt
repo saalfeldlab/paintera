@@ -32,105 +32,107 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
 class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
-    override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "fill-3d") } }
+	override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "fill-3d") } }
 
-    override val name = "Fill 3D"
-    override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
+	override val name = "Fill 3D"
+	override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
 
 
-    private val floodFillStateProperty = SimpleObjectProperty<FloodFillState?>()
-    private var floodFillState: FloodFillState? by floodFillStateProperty.nullable()
+	private val floodFillStateProperty = SimpleObjectProperty<FloodFillState?>()
+	private var floodFillState: FloodFillState? by floodFillStateProperty.nullable()
 
-    val fill by LazyForeignValue({ statePaintContext }) {
-        with(it!!) {
-            FloodFill(
-                activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
-                dataSource,
-                assignment,
-                { paintera.baseView.orthogonalViews().requestRepaint() },
-                { MeshSettings.Defaults.Values.isVisible },
-                { floodFillState = it }
-            )
-        }
-    }
+	val fill by LazyForeignValue({ statePaintContext }) {
+		with(it!!) {
+			FloodFill(
+				activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
+				dataSource,
+				assignment,
+				{ paintera.baseView.orthogonalViews().requestRepaint() },
+				{ MeshSettings.Defaults.Values.isVisible },
+				{ floodFillState = it }
+			)
+		}
+	}
 
-    private val overlay by lazy {
-        Fill3DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
-    }
+	private val overlay by lazy {
+		Fill3DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
+	}
 
-    override fun activate() {
-        super.activate()
-        overlay.visible = true
-    }
+	override fun activate() {
+		super.activate()
+		overlay.visible = true
+	}
 
-    override fun deactivate() {
-        overlay.visible = false
-        super.deactivate()
-    }
+	override fun deactivate() {
+		overlay.visible = false
+		super.deactivate()
+	}
 
-    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-        mutableListOf(
-            *super<PaintTool>.actionSets.toTypedArray(),
-            painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
-                ScrollEvent.SCROLL {
-                    keysExclusive = false
-                    onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
-                }
-            },
-            painteraActionSet("fill", PaintActionType.Fill) {
-                MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
-                    keysExclusive = false
-                    verifyEventNotNull()
-                    onAction {
-                        lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
-                        setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
-                            if (isBusy) {
-                                overlay.cursor = Cursor.WAIT
-                            } else {
-                                overlay.cursor = Cursor.CROSSHAIR
-                                if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
-                                    InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
-                                }
-                                obs.removeListener(setFalseAndRemoveListener)
-                            }
-                        }
+	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
+		mutableListOf(
+			*super<PaintTool>.actionSets.toTypedArray(),
+			painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+				ScrollEvent.SCROLL {
+					keysExclusive = false
+					onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+				}
+			},
+			painteraActionSet("fill", PaintActionType.Fill) {
+				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+					keysExclusive = false
+					verifyEventNotNull()
+					onAction {
+						lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+						setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+							if (isBusy) {
+								overlay.cursor = Cursor.WAIT
+							} else {
+								overlay.cursor = Cursor.CROSSHAIR
+								if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+									InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+								}
+								obs.removeListener(setFalseAndRemoveListener)
+							}
+						}
 
-                        fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
+						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
 
-                            paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
-                            val disableUntilDone = SimpleBooleanProperty(true)
-                            paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
+							val disableUntilDone = SimpleBooleanProperty(true, "Fill3D is Running")
+							paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
 
-                            if (task.isDone) {
-                                /* If its already done, do this now*/
-                                disableUntilDone.set(false)
-                                paintera.baseView.disabledPropertyBindings -= this
-                            } else {
-                                /* Otherwise, do it when it's done */
-                                task.onEnd {
-                                    disableUntilDone.set(false)
-                                    paintera.baseView.disabledPropertyBindings -= this
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            painteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL, ignoreDisable = true) {
-                KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
-                    graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
-                    filter = true
-                    verify { floodFillState != null }
-                    onAction {
-                        floodFillState!!.interrupt.run()
-                        mode?.switchTool(mode.defaultTool)
-                    }
-                }
-            }
-        )
-    }
+							if (task.isDone) {
+								/* If its already done, do this now*/
+								disableUntilDone.set(false)
+								paintera.baseView.disabledPropertyBindings -= this
+								statePaintContext?.refreshMeshes?.invoke()
+							} else {
+								/* Otherwise, do it when it's done */
+								task.onEnd {
+									disableUntilDone.set(false)
+									paintera.baseView.disabledPropertyBindings -= this
+									statePaintContext?.refreshMeshes?.invoke()
+								}
+							}
+						}
+					}
+				}
+			},
+			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
+				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
+					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
+					filter = true
+					verify { floodFillState != null }
+					onAction {
+						floodFillState!!.interrupt.run()
+						mode?.switchTool(mode.defaultTool)
+					}
+				}
+			}
+		)
+	}
 
-    private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :
-        CursorOverlayWithText(viewerProperty)
+	private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :
+		CursorOverlayWithText(viewerProperty)
 }
 

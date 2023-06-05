@@ -34,92 +34,92 @@ import java.util.stream.IntStream;
 public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<RandomAccessibleInterval<T>>
 		implements RandomAccessibleInterval<T> {
 
-  private final TLongSet visitedBlocks;
+	private final TLongSet visitedBlocks;
 
-  private final int[] blockSize;
+	private final int[] blockSize;
 
-  private final long[] blockGridDimensions;
+	private final long[] blockGridDimensions;
 
-  public AccessedBlocksRandomAccessible(final RandomAccessibleInterval<T> source, final CellGrid grid) {
+	public AccessedBlocksRandomAccessible(final RandomAccessibleInterval<T> source, final CellGrid grid) {
 
-	this(
-			source,
-			IntStream.range(0, grid.numDimensions()).map(grid::cellDimension).toArray(),
-			grid.getGridDimensions()
-	);
-  }
+		this(
+				source,
+				IntStream.range(0, grid.numDimensions()).map(grid::cellDimension).toArray(),
+				grid.getGridDimensions()
+		);
+	}
 
-  public AccessedBlocksRandomAccessible(final RandomAccessibleInterval<T> source, final int[] blockSize, final
-  long[] blockGridDimensions) {
+	public AccessedBlocksRandomAccessible(final RandomAccessibleInterval<T> source, final int[] blockSize, final
+	long[] blockGridDimensions) {
 
-	super(source);
-	this.visitedBlocks = new TLongHashSet();
-	this.blockSize = blockSize;
-	this.blockGridDimensions = blockGridDimensions;
-  }
+		super(source);
+		this.visitedBlocks = new TLongHashSet();
+		this.blockSize = blockSize;
+		this.blockGridDimensions = blockGridDimensions;
+	}
 
-  public void clear() {
+	public void clear() {
 
-	this.visitedBlocks.clear();
-  }
+		this.visitedBlocks.clear();
+	}
 
-  protected void addBlockId(final long id) {
+	protected void addBlockId(final long id) {
 
-	this.visitedBlocks.add(id);
-  }
+		this.visitedBlocks.add(id);
+	}
 
-  public long[] listBlocks() {
+	public long[] listBlocks() {
 
-	return visitedBlocks.toArray();
-  }
+		return visitedBlocks.toArray();
+	}
 
-  public CellGrid getGrid() {
+	public CellGrid getGrid() {
 
-	return new CellGrid(Intervals.dimensionsAsLongArray(getSource()), blockSize);
-  }
-
-  @Override
-  public RandomAccess<T> randomAccess() {
-
-	return new TrackingRandomAccess(getSource().randomAccess());
-  }
-
-  @Override
-  public RandomAccess<T> randomAccess(final Interval interval) {
-
-	return new TrackingRandomAccess(getSource().randomAccess(interval));
-  }
-
-  public class TrackingRandomAccess extends AbstractConvertedRandomAccess<T, T> {
-
-	private final long[] blockGridPosition;
-
-	public TrackingRandomAccess(final RandomAccess<T> source) {
-
-	  super(source);
-	  this.blockGridPosition = new long[source.numDimensions()];
+		return new CellGrid(Intervals.dimensionsAsLongArray(getSource()), blockSize);
 	}
 
 	@Override
-	public T get() {
+	public RandomAccess<T> randomAccess() {
 
-	  /* Calculate the blockId from the current grid position and dimension.
-	   * NOTE: Previously we used IntervalIndexer.positionToIndex, but this was SLOW, since it required us to pass in the `blockGridPosition`
-	   * 	as an array. Arrays.setAll was taking an obnoxious about of time. */
-
-	  final int maxDim = blockGridDimensions.length - 1;
-	  long blockId = (source.getLongPosition(maxDim) / blockSize[maxDim]);
-	  for (int d = maxDim - 1; d >= 0; --d)
-		blockId = blockId * blockGridDimensions[d] + (source.getLongPosition(d) / blockSize[d]);
-	  addBlockId(blockId);
-	  return source.get();
+		return new TrackingRandomAccess(getSource().randomAccess());
 	}
 
 	@Override
-	public AbstractConvertedRandomAccess<T, T> copy() {
+	public RandomAccess<T> randomAccess(final Interval interval) {
 
-	  return new TrackingRandomAccess(source.copyRandomAccess());
+		return new TrackingRandomAccess(getSource().randomAccess(interval));
 	}
 
-  }
+	public class TrackingRandomAccess extends AbstractConvertedRandomAccess<T, T> {
+
+		private final long[] blockGridPosition;
+
+		public TrackingRandomAccess(final RandomAccess<T> source) {
+
+			super(source);
+			this.blockGridPosition = new long[source.numDimensions()];
+		}
+
+		@Override
+		public T get() {
+
+			/* Calculate the blockId from the current grid position and dimension.
+			 * NOTE: Previously we used IntervalIndexer.positionToIndex, but this was SLOW, since it required us to pass in the `blockGridPosition`
+			 * 	as an array. Arrays.setAll was taking an obnoxious about of time. */
+
+			final int maxDim = blockGridDimensions.length - 1;
+			long blockId = (source.getLongPosition(maxDim) / blockSize[maxDim]);
+			for (int d = maxDim - 1; d >= 0; --d)
+				blockId = blockId * blockGridDimensions[d] + (source.getLongPosition(d) / blockSize[d]);
+			addBlockId(blockId);
+			return source.get();
+		}
+
+		@Override
+		public AbstractConvertedRandomAccess<T, T> copy() {
+
+			return new TrackingRandomAccess(source.copyRandomAccess());
+		}
+
+	}
 }

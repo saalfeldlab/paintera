@@ -2,10 +2,10 @@ package org.janelia.saalfeldlab.paintera.serialization
 
 import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
+import bdv.viewer.TransformListener
 import com.google.gson.annotations.Expose
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.ui.TransformListener
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 

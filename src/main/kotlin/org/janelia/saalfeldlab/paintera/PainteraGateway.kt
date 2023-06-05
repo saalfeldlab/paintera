@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
 import org.scijava.AbstractGateway
 import org.scijava.Context
 import org.scijava.Gateway
@@ -12,24 +11,18 @@ import org.scijava.service.Service
 @Plugin(type = Gateway::class)
 class PainteraGateway(context: Context) : AbstractGateway(Constants.NAME, context) {
 
-    constructor() : this(Context(*DEFAULT_SERVICES))
+	constructor() : this(Context(*DEFAULT_SERVICES))
 
-    fun openDialogMenu() = this[OpenDialogMenu::class.java]
+	fun triangleMeshFormat() = this[TriangleMeshFormatService::class.java]
 
-    val openDialogMenu: OpenDialogMenu
-        get() = openDialogMenu()
+	val triangleMeshFormat: TriangleMeshFormatService
+		get() = triangleMeshFormat()
 
-    fun triangleMeshFormat() = this[TriangleMeshFormatService::class.java]
-
-    val triangleMeshFormat: TriangleMeshFormatService
-        get() = triangleMeshFormat()
-
-    companion object {
-        private val DEFAULT_SERVICES = arrayOf<Class<out Service>>(
-            OpenDialogMenu::class.java,
-            TriangleMeshFormatService::class.java,
-            ScriptService::class.java
-        )
-    }
+	companion object {
+		private val DEFAULT_SERVICES = arrayOf<Class<out Service>>(
+			TriangleMeshFormatService::class.java,
+			ScriptService::class.java
+		)
+	}
 
 }

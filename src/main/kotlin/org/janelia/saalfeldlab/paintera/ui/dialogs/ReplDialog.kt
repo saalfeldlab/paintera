@@ -10,24 +10,24 @@ import org.scijava.Context
 import org.scijava.scripting.fx.SciJavaReplFXDialog
 
 internal class ReplDialog(
-    private val context: Context,
-    private val window: () -> Window,
-    private vararg val bindings: Pair<String, *>,
+	private val context: Context,
+	private val window: () -> Window,
+	private vararg val bindings: Pair<String, *>,
 ) {
-    private val dialog by lazy {
-        SciJavaReplFXDialog(context, *bindings).apply {
-            initOwner(window())
-            title = "${Constants.NAME} - Scripting REPL"
-        }
-    }
+	private val dialog by lazy {
+		SciJavaReplFXDialog(context, *bindings).apply {
+			initOwner(window())
+			title = "${Constants.NAME} - Scripting REPL"
+		}
+	}
 
-    fun show() {
-        dialog.show()
-        dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {
-            if (KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(it)) {
-                it.consume()
-                dialog.hide()
-            }
-        }
-    }
+	fun show() {
+		dialog.show()
+		dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {
+			if (KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(it)) {
+				it.consume()
+				dialog.hide()
+			}
+		}
+	}
 }

@@ -31,188 +31,188 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.util.Locale
 
 class KeyAndMouseConfigNode(
-    private val config: KeyAndMouseConfig,
-    private val sourceInfo: SourceInfo
+	private val config: KeyAndMouseConfig,
+	private val sourceInfo: SourceInfo
 ) {
 
-    private val sources: ObservableList<SourceState<*, *>> = FXCollections.observableArrayList()
+	private val sources: ObservableList<SourceState<*, *>> = FXCollections.observableArrayList()
 
-    private val sourcesByClass: ObservableMap<Class<out SourceState<*, *>>, MutableList<SourceState<*, *>>> = FXCollections.observableHashMap()
+	private val sourcesByClass: ObservableMap<Class<out SourceState<*, *>>, MutableList<SourceState<*, *>>> = FXCollections.observableHashMap()
 
-    private val hasSources = Bindings.createBooleanBinding({ sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
+	private val hasSources = Bindings.createBooleanBinding({ sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
 
-    init {
-        sources.addListener(
-            InvalidationListener {
-                sourcesByClass.clear()
-                sources.forEach {
-                    sourcesByClass.computeIfAbsent(it::class.java) { mutableListOf() }.add(it)
-                }
-            }
-        )
-        sourceInfo.trackSources().addListener(InvalidationListener { sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) }) })
-        sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) })
-    }
+	init {
+		sources.addListener(
+			InvalidationListener {
+				sourcesByClass.clear()
+				sources.forEach {
+					sourcesByClass.computeIfAbsent(it::class.java) { mutableListOf() }.add(it)
+				}
+			}
+		)
+		sourceInfo.trackSources().addListener(InvalidationListener { sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) }) })
+		sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) })
+	}
 
-    fun makeNode(): Accordion {
-        val painteraPane = KeyAndMouseBindingsNode(
-            "Paintera",
-            "TODO", /* TODO */
-            "TODO", /*TODO */
-            ControlMode.keyAndMouseBindings
-        ).makeNode()
+	fun makeNode(): Accordion {
+		val painteraPane = KeyAndMouseBindingsNode(
+			"Paintera",
+			"TODO", /* TODO */
+			"TODO", /*TODO */
+			ControlMode.keyAndMouseBindings
+		).makeNode()
 
-        val navigationPane = KeyAndMouseBindingsNode(
-            "Navigation",
-            "TODO", /* TODO */
-            "TODO", /* TODO */
-            NavigationTool.keyAndMouseBindings
-        ).makeNode()
-
-
-        val sourceSpecificConfigPanes = Accordion()
-
-        val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-            headerText = "Source-Specific Bindings"
-            contentText = "Source states with source-specific functionality provide key bindings as listed below."
-        }
-
-        val tpGraphics = HBox(
-            Label("Source-Specific Bindings"),
-            NamedNode.bufferNode(),
-            Button("?").apply { onAction = EventHandler { helpDialog.show() } }
-        ).apply { alignment = Pos.CENTER }
-        val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
-            graphicsOnly(tpGraphics)
-            alignment = Pos.CENTER_RIGHT
-        }
-
-        sourceSpecificBindings.visibleProperty().bind(hasSources)
-        sourceSpecificBindings.managedProperty().bind(sourceSpecificBindings.visibleProperty())
-
-        sourcesByClass.addListener(InvalidationListener {
-            val sortedKeys = sourcesByClass.keys.sortedBy { it.simpleName }
-            sourceSpecificConfigPanes.panes.setAll(sortedKeys
-                .filter { config.hasConfigFor(it) }
-                .map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).makeNode() })
-        }.apply { invalidated(sourcesByClass) })
-
-        return Accordion(painteraPane, navigationPane, sourceSpecificBindings).apply {
-            expandedPane = painteraPane
-        }
-    }
-
-    class SourceSpecificKeyAndMouseBindingsNode(
-        val sourceInfo: SourceInfo,
-        val sourceClass: Class<out SourceState<*, *>>,
-        val sources: List<SourceState<*, *>>,
-        val bindings: KeyAndMouseBindings
-    ) {
-
-        val indexColumn = TableColumn<Pair<Int, String>, String>("Index").apply { cellValueFactory = PropertyValueFactory("first") }
-        val nameColumn = TableColumn<Pair<Int, String>, String>("Name").apply { cellValueFactory = PropertyValueFactory("second") }
-
-        fun makeNode(): TitledPane {
-
-            val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
-            val sortedNames = sortedStates.map { it.nameProperty().value }
-
-            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-                initModality(Modality.NONE)
-                headerText = "Bindings for sources of type ${sourceClass.simpleName}"
-                dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) })).apply {
-                    columns.add(indexColumn)
-                    columns.add(nameColumn)
-                }
-            }
+		val navigationPane = KeyAndMouseBindingsNode(
+			"Navigation",
+			"TODO", /* TODO */
+			"TODO", /* TODO */
+			NavigationTool.keyAndMouseBindings
+		).makeNode()
 
 
-            val tpGraphics = HBox(
-                Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
-                NamedNode.bufferNode(),
-                Button("?").apply { onAction = EventHandler { helpDialog.show() } }
-            ).apply { alignment = Pos.CENTER }
+		val sourceSpecificConfigPanes = Accordion()
 
-            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
-                graphicsOnly(tpGraphics)
-                alignment = Pos.CENTER_RIGHT
-            }
-        }
-    }
+		val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+			headerText = "Source-Specific Bindings"
+			contentText = "Source states with source-specific functionality provide key bindings as listed below."
+		}
 
-    class KeyAndMouseBindingsNode(
-        val title: String,
-        val shortDescription: String,
-        val description: String,
-        val bindings: KeyAndMouseBindings
-    ) {
+		val tpGraphics = HBox(
+			Label("Source-Specific Bindings"),
+			NamedNode.bufferNode(),
+			Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+		).apply { alignment = Pos.CENTER }
+		val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
+			graphicsOnly(tpGraphics)
+			alignment = Pos.CENTER_RIGHT
+		}
 
-        fun makeNode(): TitledPane {
+		sourceSpecificBindings.visibleProperty().bind(hasSources)
+		sourceSpecificBindings.managedProperty().bind(sourceSpecificBindings.visibleProperty())
 
-            val tpGraphics: HBox
-            val titleLabel = Label(title)
-            if (description.isNotEmpty() && description.trim().uppercase(Locale.getDefault()) != "TODO") {
+		sourcesByClass.addListener(InvalidationListener {
+			val sortedKeys = sourcesByClass.keys.sortedBy { it.simpleName }
+			sourceSpecificConfigPanes.panes.setAll(sortedKeys
+				.filter { config.hasConfigFor(it) }
+				.map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).makeNode() })
+		}.apply { invalidated(sourcesByClass) })
 
-                val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-                    initModality(Modality.NONE)
-                    headerText = title
-                    contentText = description
-                }
+		return Accordion(painteraPane, navigationPane, sourceSpecificBindings).apply {
+			expandedPane = painteraPane
+		}
+	}
 
-                val helpButtonIfDescription = Button("?").apply { onAction = EventHandler { helpDialog.show() } }
-                tpGraphics = HBox(titleLabel, NamedNode.bufferNode(), helpButtonIfDescription).apply { alignment = Pos.CENTER }
-            } else {
-                tpGraphics = HBox(titleLabel).apply { alignment = Pos.CENTER }
-            }
+	class SourceSpecificKeyAndMouseBindingsNode(
+		val sourceInfo: SourceInfo,
+		val sourceClass: Class<out SourceState<*, *>>,
+		val sources: List<SourceState<*, *>>,
+		val bindings: KeyAndMouseBindings
+	) {
+
+		val indexColumn = TableColumn<Pair<Int, String>, String>("Index").apply { cellValueFactory = PropertyValueFactory("first") }
+		val nameColumn = TableColumn<Pair<Int, String>, String>("Name").apply { cellValueFactory = PropertyValueFactory("second") }
+
+		fun makeNode(): TitledPane {
+
+			val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
+			val sortedNames = sortedStates.map { it.nameProperty().value }
+
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+				initModality(Modality.NONE)
+				headerText = "Bindings for sources of type ${sourceClass.simpleName}"
+				dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) })).apply {
+					columns.add(indexColumn)
+					columns.add(nameColumn)
+				}
+			}
+
+
+			val tpGraphics = HBox(
+				Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
+				NamedNode.bufferNode(),
+				Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+			).apply { alignment = Pos.CENTER }
+
+			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
+				graphicsOnly(tpGraphics)
+				alignment = Pos.CENTER_RIGHT
+			}
+		}
+	}
+
+	class KeyAndMouseBindingsNode(
+		val title: String,
+		val shortDescription: String,
+		val description: String,
+		val bindings: KeyAndMouseBindings
+	) {
+
+		fun makeNode(): TitledPane {
+
+			val tpGraphics: HBox
+			val titleLabel = Label(title)
+			if (description.isNotEmpty() && description.trim().uppercase(Locale.getDefault()) != "TODO") {
+
+				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+					initModality(Modality.NONE)
+					headerText = title
+					contentText = description
+				}
+
+				val helpButtonIfDescription = Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				tpGraphics = HBox(titleLabel, NamedNode.bufferNode(), helpButtonIfDescription).apply { alignment = Pos.CENTER }
+			} else {
+				tpGraphics = HBox(titleLabel).apply { alignment = Pos.CENTER }
+			}
 
 
 
-            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
-                graphicsOnly(tpGraphics)
-                alignment = Pos.CENTER_RIGHT
-            }
-        }
+			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
+				graphicsOnly(tpGraphics)
+				alignment = Pos.CENTER_RIGHT
+			}
+		}
 
-    }
+	}
 
-    class KeyBindingsGridNode(val bindings: NamedKeyCombination.CombinationMap) {
+	class KeyBindingsGridNode(val bindings: NamedKeyCombination.CombinationMap) {
 
-        val node: Node
-            get() = makeNode()
+		val node: Node
+			get() = makeNode()
 
-        private fun makeNode(): Node {
-            val grid = GridPane().apply { alignment = Pos.CENTER_LEFT }
-            bindings.keys.sorted().forEachIndexed { index, s ->
-                val combination = bindings[s]!!
-                grid.add(Labels.withTooltip(combination.name).also { GridPane.setHgrow(it, Priority.ALWAYS) }, 0, index)
-                grid.add(Buttons.withTooltip("${combination.primaryCombination}") {}.also { it.prefWidth = BUTTON_PREF_WIDTH }, 1, index)
-            }
-            return grid
-        }
-    }
+		private fun makeNode(): Node {
+			val grid = GridPane().apply { alignment = Pos.CENTER_LEFT }
+			bindings.keys.sorted().forEachIndexed { index, s ->
+				val combination = bindings[s]!!
+				grid.add(Labels.withTooltip(combination.name).also { GridPane.setHgrow(it, Priority.ALWAYS) }, 0, index)
+				grid.add(Buttons.withTooltip("${combination.primaryCombination}") {}.also { it.prefWidth = BUTTON_PREF_WIDTH }, 1, index)
+			}
+			return grid
+		}
+	}
 
-    class KeyBindingsNode(val bindings: NamedKeyCombination.CombinationMap) {
+	class KeyBindingsNode(val bindings: NamedKeyCombination.CombinationMap) {
 
-        val node: Node
-            get() = makeNode()
+		val node: Node
+			get() = makeNode()
 
-        val nameColumn = TableColumn<String, String>("Name").apply {
-            cellValueFactory = Callback { SimpleStringProperty(it.value) }
-        }
-        val bindingColumn = TableColumn<String, KeyCodeCombination>("Binding").apply {
-            cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
-        }
+		val nameColumn = TableColumn<String, String>("Name").apply {
+			cellValueFactory = Callback { SimpleStringProperty(it.value) }
+		}
+		val bindingColumn = TableColumn<String, KeyCodeCombination>("Binding").apply {
+			cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
+		}
 
-        private fun makeNode(): Node = TableView(FXCollections.observableArrayList(bindings.keys.sorted())).apply {
-            columns.clear()
-            columns.add(nameColumn)
-            columns.add(bindingColumn)
-        }
-    }
+		private fun makeNode(): Node = TableView(FXCollections.observableArrayList(bindings.keys.sorted())).apply {
+			columns.clear()
+			columns.add(nameColumn)
+			columns.add(bindingColumn)
+		}
+	}
 
-    companion object {
-        private const val BUTTON_PREF_WIDTH = 100.0
-    }
+	companion object {
+		private const val BUTTON_PREF_WIDTH = 100.0
+	}
 }
 
 

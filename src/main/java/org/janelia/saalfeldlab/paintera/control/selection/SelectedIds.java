@@ -1,138 +1,137 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-
 import gnu.trove.TCollections;
 import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.type.label.Label;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 
 public class SelectedIds extends ObservableWithListenersList {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final TLongHashSet selectedIds;
+	private final TLongHashSet selectedIds;
 
-  private long lastSelection = Label.INVALID;
+	private long lastSelection = Label.INVALID;
 
-  public SelectedIds() {
+	public SelectedIds() {
 
-	this(new TLongHashSet());
-  }
-
-  public SelectedIds(final TLongHashSet selectedIds) {
-
-	super();
-	this.selectedIds = selectedIds;
-	updateLastSelection();
-  }
-
-  public boolean isActive(final long id) {
-
-	return selectedIds.contains(id);
-  }
-
-  public void activate(final long... ids) {
-
-	deactivateAll(false);
-	activateAlso(ids);
-	LOG.debug("Activated " + Arrays.toString(ids) + " " + selectedIds);
-  }
-
-  public void activateAlso(final long... ids) {
-
-	for (final long id : ids) {
-	  selectedIds.add(id);
+		this(new TLongHashSet());
 	}
-	if (ids.length > 0)
-	  this.lastSelection = ids[0];
-	stateChanged();
-  }
 
-  public void deactivateAll() {
+	public SelectedIds(final TLongHashSet selectedIds) {
 
-	deactivateAll(true);
-  }
+		super();
+		this.selectedIds = selectedIds;
+		updateLastSelection();
+	}
 
-  private void deactivateAll(final boolean notify) {
+	public boolean isActive(final long id) {
 
-	selectedIds.clear();
-	lastSelection = Label.INVALID;
-	if (notify)
-	  stateChanged();
-  }
+		return selectedIds.contains(id);
+	}
 
-  public void deactivate(final long... ids) {
+	public void activate(final long... ids) {
 
-	for (final long id : ids) {
-	  selectedIds.remove(id);
-	  if (id == lastSelection)
+		deactivateAll(false);
+		activateAlso(ids);
+		LOG.debug("Activated " + Arrays.toString(ids) + " " + selectedIds);
+	}
+
+	public void activateAlso(final long... ids) {
+
+		for (final long id : ids) {
+			selectedIds.add(id);
+		}
+		if (ids.length > 0)
+			this.lastSelection = ids[0];
+		stateChanged();
+	}
+
+	public void deactivateAll() {
+
+		deactivateAll(true);
+	}
+
+	private void deactivateAll(final boolean notify) {
+
+		selectedIds.clear();
 		lastSelection = Label.INVALID;
+		if (notify)
+			stateChanged();
 	}
-	LOG.debug("Deactivated {}, {}", Arrays.toString(ids), selectedIds);
-	stateChanged();
-  }
 
-  public boolean isOnlyActiveId(final long id) {
+	public void deactivate(final long... ids) {
 
-	return selectedIds.size() == 1 && isActive(id);
-  }
-
-  public TLongSet getActiveIds() {
-
-	return TCollections.unmodifiableSet(this.selectedIds);
-  }
-
-  public long[] getActiveIdsCopyAsArray() {
-
-	return this.selectedIds.toArray();
-  }
-
-  public boolean isEmpty() {
-
-	return this.selectedIds.isEmpty();
-  }
-
-  public long getLastSelection() {
-
-	return this.lastSelection;
-  }
-
-  public boolean isLastSelection(final long id) {
-
-	return this.lastSelection == id;
-  }
-
-  public boolean isLastSelectionValid() {
-
-	return this.lastSelection != Label.INVALID;
-  }
-
-  @Override
-  public String toString() {
-
-	return selectedIds.toString();
-  }
-
-  private void updateLastSelection() {
-
-	if (selectedIds.size() > 0) {
-	  lastSelection = selectedIds.iterator().next();
+		for (final long id : ids) {
+			selectedIds.remove(id);
+			if (id == lastSelection)
+				lastSelection = Label.INVALID;
+		}
+		LOG.debug("Deactivated {}, {}", Arrays.toString(ids), selectedIds);
+		stateChanged();
 	}
-  }
 
-  /**
-   * Package protected for {@link SelectedSegments} internal use.
-   *
-   * @return
-   */
-  TLongHashSet getSet() {
+	public boolean isOnlyActiveId(final long id) {
 
-	return selectedIds;
-  }
+		return selectedIds.size() == 1 && isActive(id);
+	}
+
+	public TLongSet getActiveIds() {
+
+		return TCollections.unmodifiableSet(this.selectedIds);
+	}
+
+	public long[] getActiveIdsCopyAsArray() {
+
+		return this.selectedIds.toArray();
+	}
+
+	public boolean isEmpty() {
+
+		return this.selectedIds.isEmpty();
+	}
+
+	public long getLastSelection() {
+
+		return this.lastSelection;
+	}
+
+	public boolean isLastSelection(final long id) {
+
+		return this.lastSelection == id;
+	}
+
+	public boolean isLastSelectionValid() {
+
+		return this.lastSelection != Label.INVALID;
+	}
+
+	@Override
+	public String toString() {
+
+		return selectedIds.toString();
+	}
+
+	private void updateLastSelection() {
+
+		if (selectedIds.size() > 0) {
+			lastSelection = selectedIds.iterator().next();
+		}
+	}
+
+	/**
+	 * Package protected for {@link SelectedSegments} internal use.
+	 *
+	 * @return
+	 */
+	TLongHashSet getSet() {
+
+		return selectedIds;
+	}
 }

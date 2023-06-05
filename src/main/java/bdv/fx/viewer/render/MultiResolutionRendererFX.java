@@ -35,13 +35,11 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.RenderTarget;
-import net.imglib2.ui.Renderer;
 
 import java.util.concurrent.ExecutorService;
 
 /**
- * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
+ * A renderer that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
  * the canvas resolution is rendered. Then, increasingly larger images are rendered, until the full canvas resolution is
  * reached.
  * <p>
@@ -86,55 +84,55 @@ import java.util.concurrent.ExecutorService;
  */
 public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<PixelBufferWritableImage> {
 
-  public static class MakeWritableImage
-		  implements MultiResolutionRendererGeneric.ImageGenerator<PixelBufferWritableImage> {
+	public static class MakeWritableImage
+			implements MultiResolutionRendererGeneric.ImageGenerator<PixelBufferWritableImage> {
 
-	@Override
-	public PixelBufferWritableImage create(final int width, final int height) {
+		@Override
+		public PixelBufferWritableImage create(final int width, final int height) {
 
-	  try {
-		return PixelBufferWritableImage.newImage(width, height);
-	  } catch (final Exception e) {
-		throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
-	  }
+			try {
+				return PixelBufferWritableImage.newImage(width, height);
+			} catch (final Exception e) {
+				throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
+			}
+		}
+
+		@Override
+		public PixelBufferWritableImage create(final int width, final int height, final PixelBufferWritableImage other) {
+			// TODO can we somehow re-use smaller image?
+			return create(width, height);
+		}
+
 	}
 
-	@Override
-	public PixelBufferWritableImage create(final int width, final int height, final PixelBufferWritableImage other) {
-	  // TODO can we somehow re-use smaller image?
-	  return create(width, height);
+	public MultiResolutionRendererFX(
+			final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
+			final PainterThread painterThread,
+			final double[] screenScales,
+			final long targetRenderNanos,
+			final boolean doubleBuffered,
+			final int numRenderingThreads,
+			final ExecutorService renderingExecutorService,
+			final boolean useVolatileIfAvailable,
+			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
+			final CacheControl cacheControl) {
+
+		super(
+				display,
+				painterThread,
+				screenScales,
+				targetRenderNanos,
+				doubleBuffered,
+				numRenderingThreads,
+				renderingExecutorService,
+				useVolatileIfAvailable,
+				accumulateProjectorFactory,
+				cacheControl,
+				PixelBufferWritableImage::asArrayImg,
+				new MakeWritableImage(),
+				img -> (int)img.getWidth(),
+				img -> (int)img.getHeight()
+		);
 	}
-
-  }
-
-  public MultiResolutionRendererFX(
-		  final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
-		  final PainterThread painterThread,
-		  final double[] screenScales,
-		  final long targetRenderNanos,
-		  final boolean doubleBuffered,
-		  final int numRenderingThreads,
-		  final ExecutorService renderingExecutorService,
-		  final boolean useVolatileIfAvailable,
-		  final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
-		  final CacheControl cacheControl) {
-
-	super(
-			display,
-			painterThread,
-			screenScales,
-			targetRenderNanos,
-			doubleBuffered,
-			numRenderingThreads,
-			renderingExecutorService,
-			useVolatileIfAvailable,
-			accumulateProjectorFactory,
-			cacheControl,
-			PixelBufferWritableImage::asArrayImg,
-			new MakeWritableImage(),
-			img -> (int)img.getWidth(),
-			img -> (int)img.getHeight()
-	);
-  }
 
 }

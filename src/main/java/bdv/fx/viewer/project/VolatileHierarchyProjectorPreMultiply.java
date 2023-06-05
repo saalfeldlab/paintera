@@ -1,7 +1,11 @@
 package bdv.fx.viewer.project;
 
 import com.sun.javafx.image.PixelUtils;
-import net.imglib2.*;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
@@ -13,7 +17,9 @@ import java.util.concurrent.ExecutorService;
 
 public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extends VolatileHierarchyProjector<A, ARGBType> {
 
-	public VolatileHierarchyProjectorPreMultiply(List<? extends RandomAccessible<A>> sources, Converter<? super A, ARGBType> converter, RandomAccessibleInterval<ARGBType> target, RandomAccessibleInterval<ByteType> mask, int numThreads, ExecutorService executorService) {
+	public VolatileHierarchyProjectorPreMultiply(List<? extends RandomAccessible<A>> sources, Converter<? super A, ARGBType> converter,
+			RandomAccessibleInterval<ARGBType> target, RandomAccessibleInterval<ByteType> mask, int numThreads, ExecutorService executorService) {
+
 		super(sources, converter, target, mask, numThreads, executorService);
 	}
 
@@ -25,14 +31,14 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extend
 
 		final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
 		final RandomAccess<A> sourceRandomAccess = sources.get(resolutionIndex).randomAccess(sourceInterval);
-		final int width = (int) target.dimension(0);
+		final int width = (int)target.dimension(0);
 		final long[] smin = Intervals.minAsLongArray(sourceInterval);
 		int myNumInvalidPixels = 0;
 
 		final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-		maskCursor.jumpFwd((long) startHeight * width);
+		maskCursor.jumpFwd((long)startHeight * width);
 
-		final int targetMin = (int) target.min(1);
+		final int targetMin = (int)target.min(1);
 		for (int y = startHeight; y < endHeight; ++y) {
 			if (canceled.get())
 				return;
@@ -60,5 +66,7 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extend
 			}
 		}
 		numInvalidPixels.addAndGet(myNumInvalidPixels);
+		if (myNumInvalidPixels != 0)
+			valid = false;
 	}
 }

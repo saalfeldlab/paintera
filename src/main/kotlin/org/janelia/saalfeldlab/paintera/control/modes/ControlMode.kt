@@ -7,8 +7,8 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 
 object AppControlMode : ControlMode {
 
-    override val allowedActions = AllowedActions.APP_CONTROL
-    override val statusProperty: StringProperty = SimpleStringProperty()
+	override val allowedActions = AllowedActions.APP_CONTROL
+	override val statusProperty: StringProperty = SimpleStringProperty()
 
 }
 

@@ -2,29 +2,29 @@ package org.janelia.saalfeldlab.paintera.exception;
 
 public abstract class PainteraException extends Exception {
 
-  protected PainteraException() {
+	protected PainteraException() {
 
-	super();
-  }
+		super();
+	}
 
-  protected PainteraException(String message) {
+	protected PainteraException(String message) {
 
-	super(message);
-  }
+		super(message);
+	}
 
-  protected PainteraException(String message, Throwable cause) {
+	protected PainteraException(String message, Throwable cause) {
 
-	super(message, cause);
-  }
+		super(message, cause);
+	}
 
-  protected PainteraException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+	protected PainteraException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
 
-	super(message, cause, enableSuppression, writableStackTrace);
-  }
+		super(message, cause, enableSuppression, writableStackTrace);
+	}
 
-  protected PainteraException(Throwable cause) {
+	protected PainteraException(Throwable cause) {
 
-	super(cause);
-  }
+		super(cause);
+	}
 
 }

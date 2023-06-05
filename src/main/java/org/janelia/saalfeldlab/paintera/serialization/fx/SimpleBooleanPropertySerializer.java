@@ -15,24 +15,24 @@ import java.util.Optional;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class SimpleBooleanPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleBooleanProperty> {
 
-  @Override
-  public SimpleBooleanProperty deserialize(final JsonElement json, final Type typeOfT, final
-  JsonDeserializationContext context)
-		  throws JsonParseException {
+	@Override
+	public SimpleBooleanProperty deserialize(final JsonElement json, final Type typeOfT, final
+	JsonDeserializationContext context)
+			throws JsonParseException {
 
-	return new SimpleBooleanProperty(Optional.ofNullable((Boolean)context.deserialize(json, boolean.class)).orElse(false));
-  }
+		return new SimpleBooleanProperty(Optional.ofNullable((Boolean)context.deserialize(json, boolean.class)).orElse(false));
+	}
 
-  @Override
-  public JsonElement serialize(final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
 
-	return new JsonPrimitive(src.get());
-  }
+		return new JsonPrimitive(src.get());
+	}
 
-  @Override
-  public Class<SimpleBooleanProperty> getTargetClass() {
+	@Override
+	public Class<SimpleBooleanProperty> getTargetClass() {
 
-	return SimpleBooleanProperty.class;
-  }
+		return SimpleBooleanProperty.class;
+	}
 }
 

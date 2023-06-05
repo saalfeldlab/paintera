@@ -48,241 +48,241 @@ import net.imglib2.util.Triple;
  */
 public class RandomAccessibleTriple<A, B, C> implements RandomAccessible<Triple<A, B, C>> {
 
-  final protected RandomAccessible<A> sourceA;
+	final protected RandomAccessible<A> sourceA;
 
-  final protected RandomAccessible<B> sourceB;
+	final protected RandomAccessible<B> sourceB;
 
-  final protected RandomAccessible<C> sourceC;
+	final protected RandomAccessible<C> sourceC;
 
-  public class RandomAccess implements Triple<A, B, C>, net.imglib2.RandomAccess<Triple<A, B, C>> {
+	public class RandomAccess implements Triple<A, B, C>, net.imglib2.RandomAccess<Triple<A, B, C>> {
 
-	final protected net.imglib2.RandomAccess<A> a;
+		final protected net.imglib2.RandomAccess<A> a;
 
-	final protected net.imglib2.RandomAccess<B> b;
+		final protected net.imglib2.RandomAccess<B> b;
 
-	final protected net.imglib2.RandomAccess<C> c;
+		final protected net.imglib2.RandomAccess<C> c;
 
-	public RandomAccess() {
+		public RandomAccess() {
 
-	  a = sourceA.randomAccess();
-	  b = sourceB.randomAccess();
-	  c = sourceC.randomAccess();
+			a = sourceA.randomAccess();
+			b = sourceB.randomAccess();
+			c = sourceC.randomAccess();
+		}
+
+		@Override
+		public A getA() {
+
+			return a.get();
+		}
+
+		@Override
+		public B getB() {
+
+			return b.get();
+		}
+
+		@Override
+		public C getC() {
+
+			return c.get();
+		}
+
+		@Override
+		public void localize(final int[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public void localize(final long[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public int getIntPosition(final int d) {
+
+			return a.getIntPosition(d);
+		}
+
+		@Override
+		public long getLongPosition(final int d) {
+
+			return a.getLongPosition(d);
+		}
+
+		@Override
+		public void localize(final float[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public void localize(final double[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public float getFloatPosition(final int d) {
+
+			return a.getFloatPosition(d);
+		}
+
+		@Override
+		public double getDoublePosition(final int d) {
+
+			return a.getDoublePosition(d);
+		}
+
+		@Override
+		public int numDimensions() {
+
+			return RandomAccessibleTriple.this.numDimensions();
+		}
+
+		@Override
+		public void fwd(final int d) {
+
+			a.fwd(d);
+			b.fwd(d);
+			c.fwd(d);
+		}
+
+		@Override
+		public void bck(final int d) {
+
+			a.bck(d);
+			b.bck(d);
+			c.bck(d);
+		}
+
+		@Override
+		public void move(final int distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final long distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final Localizable localizable) {
+
+			a.move(localizable);
+			b.move(localizable);
+			c.move(localizable);
+		}
+
+		@Override
+		public void move(final int[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void move(final long[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void setPosition(final Localizable localizable) {
+
+			a.setPosition(localizable);
+			b.setPosition(localizable);
+			c.setPosition(localizable);
+		}
+
+		@Override
+		public void setPosition(final int[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final long[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final int position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public void setPosition(final long position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public Triple<A, B, C> get() {
+
+			return this;
+		}
+
+		@Override
+		public RandomAccess copy() {
+
+			final RandomAccess copy = new RandomAccess();
+			copy.setPosition(this);
+			return copy;
+		}
+
+		@Override
+		public RandomAccess copyRandomAccess() {
+
+			return copy();
+		}
 	}
 
-	@Override
-	public A getA() {
+	public RandomAccessibleTriple(
+			final RandomAccessible<A> sourceA,
+			final RandomAccessible<B> sourceB,
+			final RandomAccessible<C> sourceC) {
 
-	  return a.get();
-	}
-
-	@Override
-	public B getB() {
-
-	  return b.get();
-	}
-
-	@Override
-	public C getC() {
-
-	  return c.get();
-	}
-
-	@Override
-	public void localize(final int[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public void localize(final long[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public int getIntPosition(final int d) {
-
-	  return a.getIntPosition(d);
-	}
-
-	@Override
-	public long getLongPosition(final int d) {
-
-	  return a.getLongPosition(d);
-	}
-
-	@Override
-	public void localize(final float[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public void localize(final double[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public float getFloatPosition(final int d) {
-
-	  return a.getFloatPosition(d);
-	}
-
-	@Override
-	public double getDoublePosition(final int d) {
-
-	  return a.getDoublePosition(d);
+		this.sourceA = sourceA;
+		this.sourceB = sourceB;
+		this.sourceC = sourceC;
 	}
 
 	@Override
 	public int numDimensions() {
 
-	  return RandomAccessibleTriple.this.numDimensions();
+		return sourceA.numDimensions();
 	}
 
 	@Override
-	public void fwd(final int d) {
+	public RandomAccess randomAccess() {
 
-	  a.fwd(d);
-	  b.fwd(d);
-	  c.fwd(d);
+		return new RandomAccess();
 	}
 
 	@Override
-	public void bck(final int d) {
+	public RandomAccess randomAccess(final Interval interval) {
 
-	  a.bck(d);
-	  b.bck(d);
-	  c.bck(d);
+		return new RandomAccess();
 	}
-
-	@Override
-	public void move(final int distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final long distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final Localizable localizable) {
-
-	  a.move(localizable);
-	  b.move(localizable);
-	  c.move(localizable);
-	}
-
-	@Override
-	public void move(final int[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void move(final long[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void setPosition(final Localizable localizable) {
-
-	  a.setPosition(localizable);
-	  b.setPosition(localizable);
-	  c.setPosition(localizable);
-	}
-
-	@Override
-	public void setPosition(final int[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final long[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final int position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public void setPosition(final long position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public Triple<A, B, C> get() {
-
-	  return this;
-	}
-
-	@Override
-	public RandomAccess copy() {
-
-	  final RandomAccess copy = new RandomAccess();
-	  copy.setPosition(this);
-	  return copy;
-	}
-
-	@Override
-	public RandomAccess copyRandomAccess() {
-
-	  return copy();
-	}
-  }
-
-  public RandomAccessibleTriple(
-		  final RandomAccessible<A> sourceA,
-		  final RandomAccessible<B> sourceB,
-		  final RandomAccessible<C> sourceC) {
-
-	this.sourceA = sourceA;
-	this.sourceB = sourceB;
-	this.sourceC = sourceC;
-  }
-
-  @Override
-  public int numDimensions() {
-
-	return sourceA.numDimensions();
-  }
-
-  @Override
-  public RandomAccess randomAccess() {
-
-	return new RandomAccess();
-  }
-
-  @Override
-  public RandomAccess randomAccess(final Interval interval) {
-
-	return new RandomAccess();
-  }
 }

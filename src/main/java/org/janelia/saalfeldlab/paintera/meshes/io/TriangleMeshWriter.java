@@ -8,5 +8,5 @@ import java.nio.file.Path;
 
 public interface TriangleMeshWriter extends SciJavaPlugin {
 
-  void writeMesh(TriangleMesh mesh, Path path) throws IOException;
+	void writeMesh(TriangleMesh mesh, Path path) throws IOException;
 }

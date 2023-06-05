@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import ai.onnxruntime.OnnxTensor
+import bdv.util.Affine3DHelpers
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -7,23 +9,34 @@ import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
+import javafx.event.EventHandler
+import javafx.scene.control.ButtonBase
+import javafx.scene.control.ToggleButton
+import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
+import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
+import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
+import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.CANCEL
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_APPLY_MASK
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION
@@ -44,8 +57,11 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import kotlin.collections.component1
@@ -67,7 +83,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         init {
             bind(keyAndMouseBindingsProperty.createNullableValueBinding {
                 it?.let {
-                    ShapeInterpolationTool(controller, it.keyCombinations, previousMode, this@ShapeInterpolationMode)
+                    ShapeInterpolationTool(
+                        controller,
+                        it.keyCombinations,
+                        previousMode,
+                        this@ShapeInterpolationMode,
+                        this@ShapeInterpolationMode.fill2DTool
+                    )
                 }
             })
         }
@@ -94,7 +116,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 NavigationTool.midiSliceActions(),
                 NavigationTool.midiZoomActions()
             )
-            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting } }
+            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting && activeTool != samTool } }
             return midiNavActions
         }
 
@@ -123,7 +145,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         }
 
         override fun activate() {
-            /* Don't allow painting with depth during shape interpolation */
+            fillLabel = { controller.interpolationId }
+            /* Don't allow filling with depth during shape interpolation */
             brushProperties?.brushDepth = 1.0
             super.activate()
             fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
@@ -138,10 +161,38 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
             super.actionSets.also { it += additionalFloodFillActions(this) }
         }
 
+    }
+
+    private val samTool : SamTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
+
+        private var lastEmbedding: OnnxTensor? = null
+        private var globalTransformAtEmbedding = AffineTransform3D()
+
         init {
-            fillLabel = { controller.currentFillValueProperty.get() }
+            activeViewerProperty.unbind()
+            activeViewerProperty.bind(mode!!.activeViewerProperty)
         }
 
+        override fun activate() {
+            maskedSource?.resetMasks(false)
+            viewerMask = controller.getMask()
+            providedEmbedding = if (Affine3DHelpers.equals(paintera.baseView.manager().transform, globalTransformAtEmbedding)) lastEmbedding else null
+            super.activate()
+        }
+
+        override fun deactivate() {
+            super.deactivate()
+            lastEmbedding = getImageEmbeddingTask.get()!!
+            globalTransformAtEmbedding.set(paintera.baseView.manager().transform)
+        }
+
+        override fun setCurrentLabelToSelection() {
+            currentLabelToPaint = controller.interpolationId
+        }
+
+        override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
+            super.actionSets.also { it += additionalSamActions(this) }
+        }
     }
 
     override val modeActions by lazy { modeActions() }
@@ -157,7 +208,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         old?.viewer()?.apply { modeActions.forEach { removeActionSet(it) } }
     }
 
-    override val tools: ObservableList<Tool> by lazy { FXCollections.observableArrayList(shapeInterpolationTool, paintBrushTool, fill2DTool) }
+    override val tools: ObservableList<Tool> by lazy { FXCollections.observableArrayList(shapeInterpolationTool, paintBrushTool, fill2DTool, samTool) }
 
     override fun enter() {
         activeViewerProperty.addListener(toolTriggerListener)
@@ -167,6 +218,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         activeViewerProperty.unbind()
         /* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
         activeViewerProperty.get()?.viewer()?.let {
+            disableUnfocusedViewers()
             shapeInterpolationTool?.let { shapeInterpolationTool ->
                 controller.apply {
                     if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
@@ -181,6 +233,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     override fun exit() {
         super.exit()
+        enableAllViewers()
         paintera.baseView.disabledPropertyBindings.remove(controller)
         controller.resetFragmentAlpha()
         activeViewerProperty.removeListener(toolTriggerListener)
@@ -232,12 +285,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     onAction { switchTool(shapeInterpolationTool) }
                 }
 
-                KEY_PRESSED(KeyCode.F) {
+                KEY_PRESSED(*fill2DTool.keyTrigger.toTypedArray()) {
                     name = "switch to fill2d tool"
                     verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
                     onAction { switchTool(fill2DTool) }
                 }
-                KEY_RELEASED(KeyCode.F) {
+                KEY_RELEASED(*fill2DTool.keyTrigger.toTypedArray()) {
                     name = "switch to shape interpolation tool from fill2d"
                     filter = true
                     verify { activeTool is Fill2DTool }
@@ -246,32 +299,108 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                         switchTool(shapeInterpolationTool)
                     }
                 }
+                KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+                    name = "toggle SAM tool"
+                    verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                    onAction {
+                        val nextTool = if (activeTool != samTool) samTool else shapeInterpolationTool
+                        switchTool(nextTool)
+                    }
+                }
+            },
+            painteraActionSet("key slice navigation") {
+                keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION, shapeInterpolationTool!!.keyCombinations)
+                keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION_EDIT_LAST_SELECTION, shapeInterpolationTool!!.keyCombinations)
+                keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, shapeInterpolationTool!!.keyCombinations)
+                keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, shapeInterpolationTool!!.keyCombinations)
             },
             DeviceManager.xTouchMini?.let { device ->
                 activeViewerProperty.get()?.viewer()?.let { viewer ->
                     painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
-                        MidiButtonEvent.BUTTON_PRESED(8) {
+                        val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
+                        activeToolProperty.addListener { obs, old, new ->
+                            toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
+                            toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
+                        }
+                        toggleToolActionMap[shapeInterpolationTool!!] = MidiToggleEvent.BUTTON_TOGGLE(0) {
                             name = "midi switch back to shape interpolation tool"
                             filter = true
-                            verify { activeTool !is ShapeInterpolationTool }
                             onAction {
                                 InvokeOnJavaFXApplicationThread {
                                     if (activeTool is Fill2DTool) {
                                         fill2DTool.fill2D.release()
                                     }
-                                    switchTool(shapeInterpolationTool)
+                                    if (activeTool != shapeInterpolationTool)
+                                        switchTool(shapeInterpolationTool)
+                                    /* If triggered, ensure toggle is on. Only can be off when switching to another tool */
+                                    updateControlSilently(MCUButtonControl.TOGGLE_ON)
                                 }
                             }
                         }
-                        MidiButtonEvent.BUTTON_PRESED(9) {
+                        toggleToolActionMap[paintBrushTool] = MidiToggleEvent.BUTTON_TOGGLE(1) {
                             name = "midi switch to paint tool"
                             verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-                            onAction { InvokeOnJavaFXApplicationThread { switchTool(paintBrushTool) } }
+                            onAction {
+                                InvokeOnJavaFXApplicationThread {
+                                    if (activeTool == paintBrushTool) {
+                                        switchTool(shapeInterpolationTool)
+                                    } else {
+                                        switchTool(paintBrushTool)
+                                        paintBrushTool.enteredWithoutKeyTrigger = true
+                                    }
+                                }
+                            }
                         }
-                        MidiButtonEvent.BUTTON_PRESED(10) {
+                        toggleToolActionMap[fill2DTool] = MidiToggleEvent.BUTTON_TOGGLE(2) {
                             name = "midi switch to fill2d tool"
                             verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-                            onAction { InvokeOnJavaFXApplicationThread { switchTool(fill2DTool) } }
+                            onAction {
+                                InvokeOnJavaFXApplicationThread {
+                                    if (activeTool == fill2DTool) {
+                                        switchTool(shapeInterpolationTool)
+                                    } else {
+                                        switchTool(fill2DTool)
+                                    }
+                                }
+                            }
+                        }
+                        toggleToolActionMap[samTool] = MidiToggleEvent.BUTTON_TOGGLE(3) {
+                            name = "midi switch to sam tool"
+                            verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                            onAction {
+                                InvokeOnJavaFXApplicationThread {
+                                    if (activeTool == samTool) {
+                                        switchTool(shapeInterpolationTool)
+                                    } else {
+                                        switchTool(samTool)
+                                    }
+                                }
+                            }
+                        }
+                        with(controller) {
+                            MidiButtonEvent.BUTTON_PRESED(9) {
+                                name = "midi go to first slice"
+                                verify { controllerState != Moving }
+                                onAction { editSelection(EditSelectionChoice.First) }
+
+                            }
+                            MidiButtonEvent.BUTTON_PRESED(10) {
+                                name = "midi go to previous slice"
+                                verify { controllerState != Moving }
+                                onAction { editSelection(EditSelectionChoice.Previous) }
+
+                            }
+                            MidiButtonEvent.BUTTON_PRESED(11) {
+                                name = "midi go to next slice"
+                                verify { controllerState != Moving }
+                                onAction { editSelection(EditSelectionChoice.Next) }
+
+                            }
+                            MidiButtonEvent.BUTTON_PRESED(12) {
+                                name = "midi go to last slice"
+                                verify { controllerState != Moving }
+                                onAction { editSelection(EditSelectionChoice.Last) }
+                            }
                         }
                     }
                 }
@@ -320,9 +449,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     /* On click, generate a new mask, */
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
                         paintClickOrDrag!!.let { paintController ->
+                            val previousMask: SourceMask? = source.currentMask
                             source.resetMasks(false)
-                            controller.currentViewerMask = controller.getMask()
-                            paintController.provideMask(controller.currentViewerMask!!)
+                            paintController.provideMask(controller.getMask())
                         }
                     }
                 }
@@ -335,7 +464,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     paintClickOrDrag?.apply {
-                        currentLabelToPaint = controller.currentFillValueProperty.get()
+                        currentLabelToPaint = controller.interpolationId
                     }
                 }
             }
@@ -382,8 +511,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
                         fill2DTool.fill2D.let { fillController ->
                             source.resetMasks(false)
-                            controller.currentViewerMask = controller.getMask()
-                            fillController.provideMask(controller.currentViewerMask!!)
+                            fillController.provideMask(controller.getMask())
                         }
                     }
                 }
@@ -391,6 +519,79 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
             switchAndApplyShapeInterpolation()
         }
     }
+
+
+    /**
+     * Additional SAM actions for Shape Interpolation
+     *
+     * @param samTool
+     * @return the additional ActionSet
+     *
+     * */
+    private fun additionalSamActions(samTool: SamTool): ActionSet {
+        return painteraActionSet("Shape Interpolation SAM Actions", PaintActionType.ShapeInterpolation) {
+            KEY_PRESSED(KeyCode.ENTER) {
+                name = "submit sam mask to shape interpolation controller"
+                verify { activeTool == samTool }
+                onAction {
+                    samTool.lastPrediction?.let { prediction ->
+                        controller.paint(prediction.maskInterval)
+                    }
+                    switchTool(shapeInterpolationTool)
+                }
+            }
+            KEY_PRESSED(KeyCode.ESCAPE) {
+                name = "toggle off sam tool, back to shapeinterpolation "
+                filter = true
+                verify { activeTool == samTool }
+                onAction {
+                    switchTool(shapeInterpolationTool)
+                }
+            }
+            MOUSE_CLICKED(MouseButton.PRIMARY) {
+                name = "submit sam mask to shape interpolation controller"
+                verifyEventNotNull()
+                verify("Control cannot be down") { it?.isControlDown == false }
+                verify { activeTool == samTool }
+                onAction {
+                    samTool.lastPrediction?.let { prediction ->
+                        controller.paint(prediction.maskInterval)
+                    }
+                    switchTool(shapeInterpolationTool)
+                }
+            }
+            switchAndApplyShapeInterpolation()
+        }
+    }
+
+    private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, keyName: String, keyCombinations: NamedKeyCombination.CombinationMap) =
+        with(controller) {
+            KEY_PRESSED(keyCombinations, keyName) {
+                graphic = when (choice) {
+                    EditSelectionChoice.First -> {
+                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
+                    }
+
+                    EditSelectionChoice.Previous -> {
+                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
+                    }
+
+                    EditSelectionChoice.Next -> {
+                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
+                    }
+
+                    EditSelectionChoice.Last -> {
+                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
+                    }
+                }
+                verify { controllerState != Moving }
+                onAction { editSelection(choice) }
+                handleException {
+                    exitShapeInterpolation(false)
+                    paintera.baseView.changeMode(previousMode)
+                }
+            }
+        }
 }
 
 
@@ -398,7 +599,8 @@ class ShapeInterpolationTool(
     private val controller: ShapeInterpolationController<*>,
     val keyCombinations: NamedKeyCombination.CombinationMap,
     private val previousMode: ControlMode,
-    mode: ToolMode? = null
+    mode: ToolMode? = null,
+    private var fill2D: Fill2DTool
 ) : ViewerTool(mode) {
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
@@ -408,11 +610,11 @@ class ShapeInterpolationTool(
     override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
     override val name: String = "Shape Interpolation"
     override val keyTrigger = listOf(KeyCode.S)
+    private var currentTask: UtilityTask<*>? = null
 
     override fun activate() {
 
         super.activate()
-        disableUnfocusedViewers()
         /* This action set allows us to translate through the unfocused viewers */
         paintera.baseView.orthogonalViews().viewerAndTransforms()
             .filter { !it.viewer().isFocusable }
@@ -484,6 +686,7 @@ class ShapeInterpolationTool(
                         }
                     }
                     handleException {
+                        it.printStackTrace()
                         paintera.baseView.changeMode(previousMode)
                     }
                 }
@@ -520,11 +723,6 @@ class ShapeInterpolationTool(
                         onAction { deleteCurrentSlice() }
                     }
                 }
-
-                keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION, keyCombinations)
-                keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION_EDIT_LAST_SELECTION, keyCombinations)
-                keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, keyCombinations)
-                keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, keyCombinations)
                 MOUSE_CLICKED {
                     name = "select object in current slice"
 
@@ -533,11 +731,10 @@ class ShapeInterpolationTool(
                     verify { !paintera.mouseTracker.isDragging }
                     verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
                     verify { controllerState != Interpolate } // need to be in the select state
-                    onAction {
-                        source.resetMasks(false)
-                        controller.currentViewerMask = controller.getMask()
-                        val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
-                        selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), true)
+                    onAction { event ->
+                        /* get value at position */
+                        deleteCurrentSliceOrInterpolant()
+                        currentTask = fillObjectInSlice(event!!)
                     }
                 }
                 MOUSE_CLICKED {
@@ -550,53 +747,38 @@ class ShapeInterpolationTool(
                         val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
                         triggerByRightClick || triggerByCtrlLeftClick
                     }
+                    onAction { event ->
+                        currentTask = fillObjectInSlice(event!!)
+                    }
+                }
+                KEY_PRESSED(keyCombinations, CANCEL) {
+                    name = "cancel current shape interpolation tool  task"
+                    filter = true
+                    verify { currentTask != null }
                     onAction {
-                        source.resetMasks(false)
-                        controller.currentViewerMask = controller.getMask()
-                        verifyEventNotNull()
-                        val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
-                        selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), false)
+                        currentTask?.cancel()
+                        currentTask = null
                     }
                 }
             }
         }
     }
 
-    private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, keyName: String, keyCombinations: NamedKeyCombination.CombinationMap) =
+    private fun fillObjectInSlice(event: MouseEvent): UtilityTask<Interval> {
         with(controller) {
-            KEY_PRESSED(keyCombinations, keyName) {
-                graphic = when (choice) {
-                    EditSelectionChoice.First -> {
-                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
-                    }
+            source.resetMasks(false)
+            val mask = getMask()
 
-                    EditSelectionChoice.Previous -> {
-                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
-                    }
-
-                    EditSelectionChoice.Next -> {
-                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
-                    }
-
-                    EditSelectionChoice.Last -> {
-                        { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
-                    }
-                }
-                verify { controllerState != Moving }
-                onAction { editSelection(choice) }
-                handleException {
-                    exitShapeInterpolation(false)
-                    paintera.baseView.changeMode(previousMode)
-                }
+            fill2D.fill2D.provideMask(mask)
+            val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
+            val maskLabel = mask.rai[pointInMask].get()
+            fill2D.brushProperties?.brushDepth = 1.0
+            fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
+            return fill2D.executeFill2DAction(event.x, event.y) {
+                paint(it)
+                currentTask = null
             }
         }
-
-    private fun disableUnfocusedViewers() {
-        val orthoViews = paintera.baseView.orthogonalViews()
-        orthoViews.views()
-            .stream()
-            .filter { activeViewer!! != it }
-            .forEach { orthoViews.disableView(it) }
     }
 
     companion object {

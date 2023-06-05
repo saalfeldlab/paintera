@@ -7,11 +7,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class MeshWorkerPriorityTest
-{
+public class MeshWorkerPriorityTest {
+
 	@Test
-	public void test()
-	{
+	public void test() {
+
 		final List<MeshWorkerPriority> expected = new ArrayList<>();
 		expected.add(new MeshWorkerPriority(0.0, 4));
 		expected.add(new MeshWorkerPriority(0.1, 3));

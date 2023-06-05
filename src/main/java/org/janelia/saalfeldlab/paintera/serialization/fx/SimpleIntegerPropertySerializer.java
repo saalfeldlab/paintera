@@ -15,26 +15,26 @@ import java.util.Optional;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class SimpleIntegerPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleIntegerProperty> {
 
-  @Override
-  public SimpleIntegerProperty deserialize(
-		  final JsonElement json,
-		  final Type typeOfT,
-		  final JsonDeserializationContext context)
-		  throws JsonParseException {
+	@Override
+	public SimpleIntegerProperty deserialize(
+			final JsonElement json,
+			final Type typeOfT,
+			final JsonDeserializationContext context)
+			throws JsonParseException {
 
-	final var value = Optional.of((Integer)context.deserialize(json, Integer.class)).orElse(0);
-	return new SimpleIntegerProperty(value);
-  }
+		final var value = Optional.of((Integer)context.deserialize(json, Integer.class)).orElse(0);
+		return new SimpleIntegerProperty(value);
+	}
 
-  @Override
-  public JsonElement serialize(final SimpleIntegerProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(final SimpleIntegerProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
 
-	return new JsonPrimitive(src.get());
-  }
+		return new JsonPrimitive(src.get());
+	}
 
-  @Override
-  public Class<SimpleIntegerProperty> getTargetClass() {
+	@Override
+	public Class<SimpleIntegerProperty> getTargetClass() {
 
-	return SimpleIntegerProperty.class;
-  }
+		return SimpleIntegerProperty.class;
+	}
 }

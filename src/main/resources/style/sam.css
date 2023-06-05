@@ -1,0 +1,18 @@
+@import url(glyphs.css);
+
+.sam-point {
+    -fx-stroke: white;
+    -fx-stroke-width: 2.0;
+}
+
+.sam-point.sam-include-point {
+    -fx-fill: -accept;
+}
+
+.sam-point.sam-exclude-point {
+    -fx-fill: -reject;
+}
+
+.glyph-icon.sam-select {
+    -glyph-name: "MAGIC";
+}

@@ -15,26 +15,26 @@ import java.util.Optional;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class SimpleLongPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleLongProperty> {
 
-  @Override
-  public SimpleLongProperty deserialize(
-		  final JsonElement json,
-		  final Type typeOfT,
-		  final JsonDeserializationContext context)
-		  throws JsonParseException {
+	@Override
+	public SimpleLongProperty deserialize(
+			final JsonElement json,
+			final Type typeOfT,
+			final JsonDeserializationContext context)
+			throws JsonParseException {
 
-	final Long value = Optional.ofNullable((Long)context.deserialize(json, Long.class)).orElse(0L);
-	return new SimpleLongProperty(value);
-  }
+		final Long value = Optional.ofNullable((Long)context.deserialize(json, Long.class)).orElse(0L);
+		return new SimpleLongProperty(value);
+	}
 
-  @Override
-  public JsonElement serialize(final SimpleLongProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(final SimpleLongProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
 
-	return new JsonPrimitive(src.get());
-  }
+		return new JsonPrimitive(src.get());
+	}
 
-  @Override
-  public Class<SimpleLongProperty> getTargetClass() {
+	@Override
+	public Class<SimpleLongProperty> getTargetClass() {
 
-	return SimpleLongProperty.class;
-  }
+		return SimpleLongProperty.class;
+	}
 }

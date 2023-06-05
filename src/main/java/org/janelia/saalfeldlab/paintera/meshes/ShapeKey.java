@@ -10,178 +10,178 @@ import java.util.function.ToIntFunction;
 
 public class ShapeKey<T> {
 
-  private final T shapeId;
+	private final T shapeId;
 
-  private final int scaleIndex;
+	private final int scaleIndex;
 
-  private final int simplificationIterations;
+	private final int simplificationIterations;
 
-  private final double smoothingLambda;
+	private final double smoothingLambda;
 
-  private final int smoothingIterations;
+	private final int smoothingIterations;
 
-  private final double minLabelRatio;
+	private final double minLabelRatio;
 
-  private final long[] min;
+	private final long[] min;
 
-  private final long[] max;
+	private final long[] max;
 
-  private final ToIntFunction<T> shapeIdHashCode;
+	private final ToIntFunction<T> shapeIdHashCode;
 
-  private final BiPredicate<T, Object> shapeIdEquals;
+	private final BiPredicate<T, Object> shapeIdEquals;
 
-  public ShapeKey(
-		  final T shapeId,
-		  final int scaleIndex,
-		  final int simplificationIterations,
-		  final double smoothingLambda,
-		  final int smoothingIterations,
-		  final double minLabelRatio,
-		  final long[] min,
-		  final long[] max) {
+	public ShapeKey(
+			final T shapeId,
+			final int scaleIndex,
+			final int simplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
+			final double minLabelRatio,
+			final long[] min,
+			final long[] max) {
 
-	this(
-			shapeId,
-			scaleIndex,
-			simplificationIterations,
-			smoothingLambda,
-			smoothingIterations,
-			minLabelRatio,
-			min,
-			max,
-			Objects::hashCode,
-			Objects::equals);
-  }
-
-  public ShapeKey(
-		  final T shapeId,
-		  final int scaleIndex,
-		  final int simplificationIterations,
-		  final double smoothingLambda,
-		  final int smoothingIterations,
-		  final double minLabelRatio,
-		  final long[] min,
-		  final long[] max,
-		  final ToIntFunction<T> shapeIdHashCode,
-		  final BiPredicate<T, Object> shapeIdEquals) {
-
-	this.shapeId = shapeId;
-	this.scaleIndex = scaleIndex;
-	this.simplificationIterations = simplificationIterations;
-	this.smoothingLambda = smoothingLambda;
-	this.smoothingIterations = smoothingIterations;
-	this.minLabelRatio = minLabelRatio;
-	this.min = min;
-	this.max = max;
-	this.shapeIdHashCode = shapeIdHashCode;
-	this.shapeIdEquals = shapeIdEquals;
-  }
-
-  @Override
-  public String toString() {
-
-	return String.format(
-			"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%.2f, smoothings=%d, minLabelRatio=%.2f, min=%s, max=%s}",
-			shapeId,
-			scaleIndex,
-			simplificationIterations,
-			smoothingLambda,
-			smoothingIterations,
-			minLabelRatio,
-			Arrays.toString(min),
-			Arrays.toString(max));
-  }
-
-  @Override
-  public int hashCode() {
-
-	int result = scaleIndex;
-	// shapeId may be null, e.g. when using Void as shape Key
-	result = 31 * result + shapeIdHashCode.applyAsInt(shapeId);
-	result = 31 * result + simplificationIterations;
-	result = 31 * result + Double.hashCode(smoothingLambda);
-	result = 31 * result + smoothingIterations;
-	result = 31 * result + Double.hashCode(minLabelRatio);
-	result = 31 * result + Arrays.hashCode(this.min);
-	result = 31 * result + Arrays.hashCode(this.max);
-	return result;
-  }
-
-  @Override
-  public boolean equals(final Object obj) {
-
-	if (super.equals(obj))
-	  return true;
-
-	if (obj instanceof ShapeKey<?>) {
-	  final ShapeKey<?> other = (ShapeKey<?>)obj;
-	  return
-			  shapeIdEquals.test(shapeId, other.shapeId) &&
-					  scaleIndex == other.scaleIndex &&
-					  simplificationIterations == other.simplificationIterations &&
-					  smoothingLambda == other.smoothingLambda &&
-					  smoothingIterations == other.smoothingIterations &&
-					  minLabelRatio == other.minLabelRatio &&
-					  Arrays.equals(min, other.min) &&
-					  Arrays.equals(max, other.max);
+		this(
+				shapeId,
+				scaleIndex,
+				simplificationIterations,
+				smoothingLambda,
+				smoothingIterations,
+				minLabelRatio,
+				min,
+				max,
+				Objects::hashCode,
+				Objects::equals);
 	}
 
-	return false;
-  }
+	public ShapeKey(
+			final T shapeId,
+			final int scaleIndex,
+			final int simplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
+			final double minLabelRatio,
+			final long[] min,
+			final long[] max,
+			final ToIntFunction<T> shapeIdHashCode,
+			final BiPredicate<T, Object> shapeIdEquals) {
 
-  public T shapeId() {
+		this.shapeId = shapeId;
+		this.scaleIndex = scaleIndex;
+		this.simplificationIterations = simplificationIterations;
+		this.smoothingLambda = smoothingLambda;
+		this.smoothingIterations = smoothingIterations;
+		this.minLabelRatio = minLabelRatio;
+		this.min = min;
+		this.max = max;
+		this.shapeIdHashCode = shapeIdHashCode;
+		this.shapeIdEquals = shapeIdEquals;
+	}
 
-	return shapeId;
-  }
+	@Override
+	public String toString() {
 
-  public int scaleIndex() {
+		return String.format(
+				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%.2f, smoothings=%d, minLabelRatio=%.2f, min=%s, max=%s}",
+				shapeId,
+				scaleIndex,
+				simplificationIterations,
+				smoothingLambda,
+				smoothingIterations,
+				minLabelRatio,
+				Arrays.toString(min),
+				Arrays.toString(max));
+	}
 
-	return scaleIndex;
-  }
+	@Override
+	public int hashCode() {
 
-  public int simplificationIterations() {
+		int result = scaleIndex;
+		// shapeId may be null, e.g. when using Void as shape Key
+		result = 31 * result + shapeIdHashCode.applyAsInt(shapeId);
+		result = 31 * result + simplificationIterations;
+		result = 31 * result + Double.hashCode(smoothingLambda);
+		result = 31 * result + smoothingIterations;
+		result = 31 * result + Double.hashCode(minLabelRatio);
+		result = 31 * result + Arrays.hashCode(this.min);
+		result = 31 * result + Arrays.hashCode(this.max);
+		return result;
+	}
 
-	return simplificationIterations;
-  }
+	@Override
+	public boolean equals(final Object obj) {
 
-  public double smoothingLambda() {
+		if (super.equals(obj))
+			return true;
 
-	return smoothingLambda;
-  }
+		if (obj instanceof ShapeKey<?>) {
+			final ShapeKey<?> other = (ShapeKey<?>)obj;
+			return
+					shapeIdEquals.test(shapeId, other.shapeId) &&
+							scaleIndex == other.scaleIndex &&
+							simplificationIterations == other.simplificationIterations &&
+							smoothingLambda == other.smoothingLambda &&
+							smoothingIterations == other.smoothingIterations &&
+							minLabelRatio == other.minLabelRatio &&
+							Arrays.equals(min, other.min) &&
+							Arrays.equals(max, other.max);
+		}
 
-  public int smoothingIterations() {
+		return false;
+	}
 
-	return smoothingIterations;
-  }
+	public T shapeId() {
 
-  public double minLabelRatio() {
+		return shapeId;
+	}
 
-	return minLabelRatio;
-  }
+	public int scaleIndex() {
 
-  public long[] min() {
+		return scaleIndex;
+	}
 
-	return min.clone();
-  }
+	public int simplificationIterations() {
 
-  public long[] max() {
+		return simplificationIterations;
+	}
 
-	return max.clone();
-  }
+	public double smoothingLambda() {
 
-  public void min(final long[] min) {
+		return smoothingLambda;
+	}
 
-	System.arraycopy(this.min, 0, min, 0, min.length);
-  }
+	public int smoothingIterations() {
 
-  public void max(final long[] max) {
+		return smoothingIterations;
+	}
 
-	System.arraycopy(this.max, 0, max, 0, max.length);
-  }
+	public double minLabelRatio() {
 
-  public Interval interval() {
+		return minLabelRatio;
+	}
 
-	return new FinalInterval(min, max);
-  }
+	public long[] min() {
+
+		return min.clone();
+	}
+
+	public long[] max() {
+
+		return max.clone();
+	}
+
+	public void min(final long[] min) {
+
+		System.arraycopy(this.min, 0, min, 0, min.length);
+	}
+
+	public void max(final long[] max) {
+
+		System.arraycopy(this.max, 0, max, 0, max.length);
+	}
+
+	public Interval interval() {
+
+		return new FinalInterval(min, max);
+	}
 
 }

@@ -4,14 +4,14 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 
 public class UnableToUpdateLabelBlockLookup extends PainteraException {
 
-  public UnableToUpdateLabelBlockLookup(String message) {
+	public UnableToUpdateLabelBlockLookup(String message) {
 
-	super(message);
-  }
+		super(message);
+	}
 
-  public UnableToUpdateLabelBlockLookup(String message, Throwable cause) {
+	public UnableToUpdateLabelBlockLookup(String message, Throwable cause) {
 
-	super(message, cause);
-  }
+		super(message, cause);
+	}
 
 }

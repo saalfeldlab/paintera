@@ -9,31 +9,31 @@ import java.io.IOException;
 
 public class DatasetSpec {
 
-  public final N5Writer container;
+	public final N5Writer container;
 
-  public final String dataset;
+	public final String dataset;
 
-  public final DatasetAttributes attributes;
+	public final DatasetAttributes attributes;
 
-  public final CellGrid grid;
+	public final CellGrid grid;
 
-  public final long[] dimensions;
+	public final long[] dimensions;
 
-  public final int[] blockSize;
+	public final int[] blockSize;
 
-  public DatasetSpec(final N5Writer container, final String dataset) throws IOException {
+	public DatasetSpec(final N5Writer container, final String dataset) throws IOException {
 
-	this.container = container;
-	this.dataset = dataset;
-	this.attributes = N5Helpers.getDatasetAttributes(container, dataset);
-	this.grid = N5Helpers.asCellGrid(this.attributes);
-	this.dimensions = this.attributes.getDimensions().clone();
-	this.blockSize = this.attributes.getBlockSize().clone();
-  }
+		this.container = container;
+		this.dataset = dataset;
+		this.attributes = N5Helpers.getDatasetAttributes(container, dataset);
+		this.grid = N5Helpers.asCellGrid(this.attributes);
+		this.dimensions = this.attributes.getDimensions().clone();
+		this.blockSize = this.attributes.getBlockSize().clone();
+	}
 
-  public static DatasetSpec of(final N5Writer container, final String dataset) throws IOException {
+	public static DatasetSpec of(final N5Writer container, final String dataset) throws IOException {
 
-	return new DatasetSpec(container, dataset);
-  }
+		return new DatasetSpec(container, dataset);
+	}
 
 }

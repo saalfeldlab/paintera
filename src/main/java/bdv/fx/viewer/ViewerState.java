@@ -14,99 +14,103 @@ import java.util.List;
 
 public class ViewerState extends ObservableWithListenersList {
 
-  private final AffineTransform3D viewerTransform = new AffineTransform3D();
+	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-  private final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
+	private final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
 
-  private final int numTimepoints;
+	private final int numTimepoints;
 
-  private final ViewerPanelFX viewer;
+	private final ViewerPanelFX viewer;
 
-  private int timepoint;
+	private int timepoint;
 
-  public ViewerState(final int numTimepoints, final ViewerPanelFX viewer) {
+	public ViewerState(final int numTimepoints, final ViewerPanelFX viewer) {
 
-	this.numTimepoints = numTimepoints;
-	this.viewer = viewer;
-  }
-
-  protected void setViewerTransform(final AffineTransform3D to) {
-
-	synchronized (this) {
-	  this.viewerTransform.set(to);
+		this.numTimepoints = numTimepoints;
+		this.viewer = viewer;
 	}
-	stateChanged();
-  }
 
-  public synchronized void getViewerTransform(final AffineTransform3D to) {
+	protected void setViewerTransform(final AffineTransform3D to) {
 
-	to.set(this.viewerTransform);
-  }
-
-  public void setTimepoint(final int timepoint) {
-
-	synchronized (this) {
-	  this.timepoint = timepoint;
+		synchronized (this) {
+			this.viewerTransform.set(to);
+		}
+		stateChanged();
 	}
-	stateChanged();
-  }
 
-  public synchronized int getTimepoint() {
+	public synchronized void getViewerTransform(final AffineTransform3D to) {
 
-	return this.timepoint;
-  }
-
-  public synchronized List<SourceAndConverter<?>> getSources() {
-
-	return Collections.unmodifiableList(sourcesAndConverters);
-  }
-
-  public void setSources(final Collection<? extends SourceAndConverter<?>> newSources) {
-
-	synchronized (this) {
-	  this.sourcesAndConverters.clear();
-	  this.sourcesAndConverters.addAll(newSources);
+		to.set(this.viewerTransform);
 	}
-	stateChanged();
-  }
 
-  public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source,
-		  final int timepoint) {
+	public void setTimepoint(final int timepoint) {
 
-	final AffineTransform3D screenTransform = new AffineTransform3D();
-	getViewerTransform(screenTransform);
-	screenTransform.preConcatenate(screenScaleTransform);
+		synchronized (this) {
+			this.timepoint = timepoint;
+		}
+		stateChanged();
+	}
 
-	return MipmapTransforms.getBestMipMapLevel(screenTransform, source, timepoint);
-  }
+	public synchronized int getTimepoint() {
 
-  public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source) {
+		return this.timepoint;
+	}
 
-	return getBestMipMapLevel(screenScaleTransform, source, timepoint);
-  }
+	public synchronized List<SourceAndConverter<?>> getSources() {
 
-  public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final int sourceIndex) {
+		return Collections.unmodifiableList(sourcesAndConverters);
+	}
 
-	return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
-  }
+	public void setSources(final Collection<? extends SourceAndConverter<?>> newSources) {
 
-  public synchronized int getBestMipMapLevel() {
+		synchronized (this) {
+			this.sourcesAndConverters.clear();
+			this.sourcesAndConverters.addAll(newSources);
+		}
+		stateChanged();
+	}
 
-	final var currentSource = Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get();
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source,
+			final int timepoint) {
 
-	final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-	viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-	final int level = getBestMipMapLevel(screenScaleTransform, currentSource);
-	return getBestMipMapLevel(screenScaleTransform, currentSource);
-  }
+		final AffineTransform3D screenTransform = new AffineTransform3D();
+		getViewerTransform(screenTransform);
+		screenTransform.preConcatenate(screenScaleTransform);
 
-  public synchronized ViewerState copy() {
+		return MipmapTransforms.getBestMipMapLevel(screenTransform, source, timepoint);
+	}
 
-	final ViewerState state = new ViewerState(this.numTimepoints, this.viewer);
-	state.setViewerTransform(this.viewerTransform);
-	state.setTimepoint(this.timepoint);
-	state.setSources(this.sourcesAndConverters);
-	return state;
-  }
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source) {
+
+		return getBestMipMapLevel(screenScaleTransform, source, timepoint);
+	}
+
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final int sourceIndex) {
+
+		return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
+	}
+
+	public boolean isVisible() {
+
+		return viewer.isVisible();
+	}
+
+	public synchronized int getBestMipMapLevel() {
+
+		final var currentSource = Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get();
+
+		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+		viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+		return getBestMipMapLevel(screenScaleTransform, currentSource);
+	}
+
+	public synchronized ViewerState copy() {
+
+		final ViewerState state = new ViewerState(this.numTimepoints, this.viewer);
+		state.setViewerTransform(this.viewerTransform);
+		state.setTimepoint(this.timepoint);
+		state.setSources(this.sourcesAndConverters);
+		return state;
+	}
 
 }

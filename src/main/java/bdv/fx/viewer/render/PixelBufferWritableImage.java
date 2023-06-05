@@ -16,46 +16,46 @@ import java.nio.IntBuffer;
 
 public class PixelBufferWritableImage extends WritableImage {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final PixelBuffer<IntBuffer> pixelBuffer;
+	private final PixelBuffer<IntBuffer> pixelBuffer;
 
-  public PixelBufferWritableImage(PixelBuffer<IntBuffer> buffer) {
+	public PixelBufferWritableImage(PixelBuffer<IntBuffer> buffer) {
 
-	super(buffer);
-	this.pixelBuffer = buffer;
-  }
+		super(buffer);
+		this.pixelBuffer = buffer;
+	}
 
-  public static bdv.fx.viewer.render.PixelBufferWritableImage newImage(int width, int height) {
+	public static PixelBufferWritableImage newImage(int width, int height) {
 
-	IntBuffer intBuffer = IntBuffer.allocate(width * height);
-	PixelBuffer<IntBuffer> pixelBuffer = new PixelBuffer<>(width, height, intBuffer, PixelFormat.getIntArgbPreInstance());
-	return new PixelBufferWritableImage(pixelBuffer);
-  }
+		IntBuffer intBuffer = IntBuffer.allocate(width * height);
+		PixelBuffer<IntBuffer> pixelBuffer = new PixelBuffer<>(width, height, intBuffer, PixelFormat.getIntArgbPreInstance());
+		return new PixelBufferWritableImage(pixelBuffer);
+	}
 
-  private int[] getPixels() {
+	private int[] getPixels() {
 
-	return pixelBuffer.getBuffer().array();
-  }
+		return pixelBuffer.getBuffer().array();
+	}
 
-  public PixelBuffer<IntBuffer> getPixelBuffer() {
+	public PixelBuffer<IntBuffer> getPixelBuffer() {
 
-	return pixelBuffer;
-  }
+		return pixelBuffer;
+	}
 
-  public IntBuffer getBuffer() {
+	public IntBuffer getBuffer() {
 
-	return pixelBuffer.getBuffer();
-  }
+		return pixelBuffer.getBuffer();
+	}
 
-  public void setPixelsDirty() {
+	public void setPixelsDirty() {
 
-	this.pixelBuffer.updateBuffer(buffer -> null);
-  }
+		this.pixelBuffer.updateBuffer(buffer -> null);
+	}
 
-  public ArrayImg<ARGBType, IntAccess> asArrayImg() {
+	public ArrayImg<ARGBType, IntAccess> asArrayImg() {
 
-	return ArrayImgs.argbs(new IntArray(getPixels()), (long)getWidth(), (long)getHeight());
-  }
+		return ArrayImgs.argbs(new IntArray(getPixels()), (long)getWidth(), (long)getHeight());
+	}
 
 }

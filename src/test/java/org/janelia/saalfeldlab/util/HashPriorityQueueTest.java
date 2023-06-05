@@ -6,11 +6,11 @@ import org.junit.Test;
 import java.util.Comparator;
 import java.util.TreeSet;
 
-public class HashPriorityQueueTest
-{
+public class HashPriorityQueueTest {
+
 	@Test
-	public void test()
-	{
+	public void test() {
+
 		final HashPriorityQueue<Integer, String> pq = new HashPriorityQueue<>(Comparator.reverseOrder());
 		pq.addOrUpdate(2, "q");
 		pq.addOrUpdate(5, "abc");
@@ -22,9 +22,9 @@ public class HashPriorityQueueTest
 
 		Assert.assertEquals(5, pq.size());
 		Assert.assertArrayEquals(
-				new String[] {"123", "r", "abc", "q", "xyz"},
+				new String[]{"123", "r", "abc", "q", "xyz"},
 				pq.poll(5).toArray(new String[0])
-			);
+		);
 		Assert.assertTrue(pq.isEmpty());
 
 		pqOther.addOrUpdate(12, "q");
@@ -41,11 +41,11 @@ public class HashPriorityQueueTest
 		Assert.assertEquals("q", pqOther.poll());
 		Assert.assertEquals("123", pqOther.poll());
 		Assert.assertEquals(
-				new String[] {"r", "xyz"},
+				new String[]{"r", "xyz"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
-			);
+		);
 		Assert.assertEquals(
-				new String[] {"abc", "www"},
+				new String[]{"abc", "www"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
 		);
 		Assert.assertTrue(pqOther.isEmpty());

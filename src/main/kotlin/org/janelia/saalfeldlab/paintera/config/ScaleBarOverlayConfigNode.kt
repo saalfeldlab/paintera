@@ -14,61 +14,61 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField
 
 class ScaleBarOverlayConfigNode() : TitledPane("Scale Bar", null) {
 
-    constructor(config: ScaleBarOverlayConfig) : this() {
-        bindBidirectionalTo(config)
-    }
+	constructor(config: ScaleBarOverlayConfig) : this() {
+		bindBidirectionalTo(config)
+	}
 
-    private val isShowing = CheckBox()
+	private val isShowing = CheckBox()
 
-    private val targetScaleBarLength = NumberField.doubleField(1.0, { v -> true }, *ObjectField.SubmitOn.values())
+	private val targetScaleBarLength = NumberField.doubleField(1.0, { v -> true }, *ObjectField.SubmitOn.values())
 
-    private val foregroundColorPicker = ColorPicker()
+	private val foregroundColorPicker = ColorPicker()
 
-    private val backgroundColorPicker = ColorPicker()
+	private val backgroundColorPicker = ColorPicker()
 
-    private val font = SimpleObjectProperty(Font("SansSerif", 18.0))
+	private val font = SimpleObjectProperty(Font("SansSerif", 18.0))
 
-    private val fontSize = NumberField.doubleField(font.get().size, { v -> v > 0.0 }, *ObjectField.SubmitOn.values())
+	private val fontSize = NumberField.doubleField(font.get().size, { v -> v > 0.0 }, *ObjectField.SubmitOn.values())
 
-    init {
-        val grid = GridPane()
-        content = grid
-        graphic = isShowing
-        isExpanded = false
-        grid.add(Label("Scale Bar Size"), 0, 0)
-        grid.add(targetScaleBarLength.textField, 1, 0)
-        grid.add(Label("Font Size"), 0, 1)
-        grid.add(fontSize.textField, 1, 1)
-        grid.add(Label("Foreground Color"), 0, 2)
-        grid.add(Label("Background Color"), 0, 3)
-        grid.add(foregroundColorPicker, 1, 2)
-        grid.add(backgroundColorPicker, 1, 3)
-        grid.hgap = 5.0
+	init {
+		val grid = GridPane()
+		content = grid
+		graphic = isShowing
+		isExpanded = false
+		grid.add(Label("Scale Bar Size"), 0, 0)
+		grid.add(targetScaleBarLength.textField, 1, 0)
+		grid.add(Label("Font Size"), 0, 1)
+		grid.add(fontSize.textField, 1, 1)
+		grid.add(Label("Foreground Color"), 0, 2)
+		grid.add(Label("Background Color"), 0, 3)
+		grid.add(foregroundColorPicker, 1, 2)
+		grid.add(backgroundColorPicker, 1, 3)
+		grid.hgap = 5.0
 
-        GridPane.setHgrow(targetScaleBarLength.textField, Priority.ALWAYS)
-        GridPane.setHgrow(fontSize.textField, Priority.ALWAYS)
-        GridPane.setHgrow(foregroundColorPicker, Priority.ALWAYS)
-        GridPane.setHgrow(backgroundColorPicker, Priority.ALWAYS)
+		GridPane.setHgrow(targetScaleBarLength.textField, Priority.ALWAYS)
+		GridPane.setHgrow(fontSize.textField, Priority.ALWAYS)
+		GridPane.setHgrow(foregroundColorPicker, Priority.ALWAYS)
+		GridPane.setHgrow(backgroundColorPicker, Priority.ALWAYS)
 
-        foregroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
-        backgroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
+		foregroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
+		backgroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
 
-        font.addListener { obs, oldv, newv -> fontSize.valueProperty().set(newv.size) }
-        fontSize.valueProperty().addListener { obs, oldv, newv -> font.set(Font(font.get().name, newv.toDouble())) }
-    }
+		font.addListener { obs, oldv, newv -> fontSize.valueProperty().set(newv.size) }
+		fontSize.valueProperty().addListener { obs, oldv, newv -> font.set(Font(font.get().name, newv.toDouble())) }
+	}
 
-    fun bindBidirectionalTo(config: ScaleBarOverlayConfig) {
-        this.targetScaleBarLength.valueProperty().bindBidirectional(config.targetScaleBarLengthProperty())
-        this.isShowing.selectedProperty().bindBidirectional(config.isShowingProperty)
-        this.foregroundColorPicker.valueProperty().bindBidirectional(config.foregroundColorProperty())
-        this.backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty())
-        this.font.bindBidirectional(config.overlayFontProperty())
+	fun bindBidirectionalTo(config: ScaleBarOverlayConfig) {
+		this.targetScaleBarLength.valueProperty().bindBidirectional(config.targetScaleBarLengthProperty())
+		this.isShowing.selectedProperty().bindBidirectional(config.isShowingProperty)
+		this.foregroundColorPicker.valueProperty().bindBidirectional(config.foregroundColorProperty())
+		this.backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty())
+		this.font.bindBidirectional(config.overlayFontProperty())
 
-        this.targetScaleBarLength.valueProperty().set(config.targetScaleBarLength)
-        this.isShowing.isSelected = config.isShowing
-        this.foregroundColorPicker.value = config.foregroundColor
-        this.backgroundColorPicker.value = config.backgroundColor
-        this.font.set(config.overlayFont)
-    }
+		this.targetScaleBarLength.valueProperty().set(config.targetScaleBarLength)
+		this.isShowing.isSelected = config.isShowing
+		this.foregroundColorPicker.value = config.foregroundColor
+		this.backgroundColorPicker.value = config.backgroundColor
+		this.font.set(config.overlayFont)
+	}
 
 }

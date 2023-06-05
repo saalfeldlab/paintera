@@ -32,210 +32,211 @@ import java.util.function.Supplier;
 
 public class IdSelector {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final DataSource<? extends IntegerType<?>, ?> source;
+	private final DataSource<? extends IntegerType<?>, ?> source;
 
-  private final SelectedIds selectedIds;
+	private final SelectedIds selectedIds;
 
-  private final Supplier<ViewerPanelFX> activeViewerSupplier;
+	private final Supplier<ViewerPanelFX> activeViewerSupplier;
 
-  private final LongPredicate foregroundCheck;
+	private final LongPredicate foregroundCheck;
 
-  public IdSelector(
-		  final DataSource<? extends IntegerType<?>, ?> source,
-		  final SelectedIds selectedIds,
-		  final Supplier<ViewerPanelFX> activeViewerSupplier,
-		  final LongPredicate foregroundCheck) {
+	public IdSelector(
+			final DataSource<? extends IntegerType<?>, ?> source,
+			final SelectedIds selectedIds,
+			final Supplier<ViewerPanelFX> activeViewerSupplier,
+			final LongPredicate foregroundCheck) {
 
-	super();
-	this.source = source;
-	this.selectedIds = selectedIds;
-	this.activeViewerSupplier = activeViewerSupplier;
-	this.foregroundCheck = foregroundCheck;
-  }
-
-  public MouseAction selectFragmentWithMaximumCountAction() {
-
-	return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new SelectFragmentWithMaximumCount(!event.isAltDown()).accept(event));
-
-  }
-
-  public MouseAction appendFragmentWithMaximumCountAction() {
-
-	return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new AppendFragmentWithMaximumCount().accept(event));
-  }
-
-  // TODO: use unique labels to collect all ids; caching
-  public void selectAll() {
-
-	final TLongSet allIds = new TLongHashSet();
-	if (source.getDataType() instanceof LabelMultisetType)
-	  selectAllLabelMultisetType(allIds);
-	else
-	  selectAllPrimitiveType(allIds);
-	if (Thread.interrupted()) {
-	  LOG.debug("Select All Ids was Interrupted");
-	  allIds.clear();
-	  selectedIds.deactivateAll();
-	  return;
+		super();
+		this.source = source;
+		this.selectedIds = selectedIds;
+		this.activeViewerSupplier = activeViewerSupplier;
+		this.foregroundCheck = foregroundCheck;
 	}
-	LOG.debug("Collected {} ids", allIds.size());
-	selectedIds.activate(allIds.toArray());
-  }
 
-  private void selectAllLabelMultisetType(final TLongSet allIds) {
+	public MouseAction selectFragmentWithMaximumCountAction() {
 
-	@SuppressWarnings("unchecked") final RandomAccessibleInterval<LabelMultisetType> data = (RandomAccessibleInterval<LabelMultisetType>)
-			source.getDataSource(0, source.getNumMipmapLevels() - 1);
+		return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new SelectFragmentWithMaximumCount(!event.isAltDown()).accept(event));
 
-	final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
-	final var entry = new LabelMultisetEntry();
-	while (cursor.hasNext()) {
-	  if (Thread.interrupted()) {
-		return;
-	  }
-	  final LabelMultisetType lmt = cursor.next();
-	  for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
-		final long id = iterEntry.getElement().id();
-		if (foregroundCheck.test(id))
-		  allIds.add(id);
-	  }
 	}
-  }
 
-  private void selectAllPrimitiveType(final TLongSet allIds) {
-	LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
-	final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
-	final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
-	while (cursor.hasNext()) {
-	  if (Thread.interrupted()) {
-		return;
-	  }
-	  final long id = cursor.next().getIntegerLong();
-	  if (foregroundCheck.test(id))
-		allIds.add(id);
+	public MouseAction appendFragmentWithMaximumCountAction() {
+
+		return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new AppendFragmentWithMaximumCount().accept(event));
 	}
-  }
 
-  public void selectAllInCurrentView(final ViewerPanelFX viewer) {
+	// TODO: use unique labels to collect all ids; caching
+	public void selectAll() {
 
-	final TLongSet idsInCurrentView = new TLongHashSet();
-	if (source.getDataType() instanceof LabelMultisetType)
-	  selectAllInCurrentViewLabelMultisetType(viewer, idsInCurrentView);
-	else
-	  selectAllInCurrentViewPrimitiveType(viewer, idsInCurrentView);
-	LOG.debug("Collected {} ids in current view", idsInCurrentView.size());
-	selectedIds.activate(idsInCurrentView.toArray());
-  }
+		final TLongSet allIds = new TLongHashSet();
+		if (source.getDataType() instanceof LabelMultisetType)
+			selectAllLabelMultisetType(allIds);
+		else
+			selectAllPrimitiveType(allIds);
+		if (Thread.interrupted()) {
+			LOG.debug("Select All Ids was Interrupted");
+			allIds.clear();
+			selectedIds.deactivateAll();
+			return;
+		}
+		LOG.debug("Collected {} ids", allIds.size());
+		selectedIds.activate(allIds.toArray());
+	}
 
-  @SuppressWarnings("unchecked")
-  private void selectAllInCurrentViewLabelMultisetType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView) {
+	private void selectAllLabelMultisetType(final TLongSet allIds) {
 
-	VisitEveryDisplayPixel.visitEveryDisplayPixel(
-			(DataSource<LabelMultisetType, ?>)source,
-			viewer,
-			lmt -> {
-			  for (final Entry<Label> entry : lmt.entrySet()) {
-				final long id = entry.getElement().id();
+		@SuppressWarnings("unchecked") final RandomAccessibleInterval<LabelMultisetType> data = (RandomAccessibleInterval<LabelMultisetType>)
+				source.getDataSource(0, source.getNumMipmapLevels() - 1);
+
+		final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
+		final var entry = new LabelMultisetEntry();
+		while (cursor.hasNext()) {
+			if (Thread.interrupted()) {
+				return;
+			}
+			final LabelMultisetType lmt = cursor.next();
+			for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+				final long id = iterEntry.getElement().id();
 				if (foregroundCheck.test(id))
-				  idsInCurrentView.add(id);
-			  }
+					allIds.add(id);
 			}
-	);
-  }
+		}
+	}
 
-  private void selectAllInCurrentViewPrimitiveType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView) {
+	private void selectAllPrimitiveType(final TLongSet allIds) {
 
-	VisitEveryDisplayPixel.visitEveryDisplayPixel(
-			source,
-			viewer,
-			val -> {
-			  final long id = val.getIntegerLong();
-			  if (foregroundCheck.test(id))
-				idsInCurrentView.add(id);
+		LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
+		final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
+		final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
+		while (cursor.hasNext()) {
+			if (Thread.interrupted()) {
+				return;
 			}
-	);
-  }
-
-  public void toggleLock(final FragmentSegmentAssignment assignment, final LockedSegments lock) {
-
-	final long lastSelection = selectedIds.getLastSelection();
-	if (!Label.regular(lastSelection))
-	  return;
-
-	final long segment = assignment.getSegment(lastSelection);
-	if (lock.isLocked(segment))
-	  lock.unlock(segment);
-	else
-	  lock.lock(segment);
-  }
-
-  private abstract class SelectMaximumCount implements Consumer<MouseEvent> {
-
-	@Override
-	public void accept(final MouseEvent e) {
-
-	  final var activeViewer = activeViewerSupplier.get();
-	  if (activeViewer == null)
-		return;
-
-	  final AffineTransform3D affine = new AffineTransform3D();
-	  final ViewerState viewerState = activeViewer.getState().copy();
-	  viewerState.getViewerTransform(affine);
-	  final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-	  activeViewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-	  final int level = viewerState.getBestMipMapLevel(screenScaleTransform, source);
-
-	  source.getSourceTransform(0, level, affine);
-	  final var interpolatedDataSource = source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR);
-	  final var access = RealViews.transformReal(interpolatedDataSource, affine).realRandomAccess();
-	  activeViewer.getMouseCoordinates(access);
-	  access.setPosition(0L, 2);
-	  activeViewer.displayToGlobalCoordinates(access);
-	  final IntegerType<?> val = access.get();
-	  final long id = val.getIntegerLong();
-	  actOn(id);
-	}
-
-	protected abstract void actOn(final long id);
-  }
-
-  private class SelectFragmentWithMaximumCount extends SelectMaximumCount {
-
-	private final boolean foregroundOnly;
-
-	public SelectFragmentWithMaximumCount(boolean foregroundOnly) {
-
-	  this.foregroundOnly = foregroundOnly;
-	}
-
-	@Override
-	protected void actOn(final long id) {
-
-	  if (!foregroundOnly || foregroundCheck.test(id)) {
-		if (selectedIds.isOnlyActiveId(id)) {
-		  selectedIds.deactivate(id);
-		} else {
-		  selectedIds.activate(id);
+			final long id = cursor.next().getIntegerLong();
+			if (foregroundCheck.test(id))
+				allIds.add(id);
 		}
-	  }
 	}
-  }
 
-  private class AppendFragmentWithMaximumCount extends SelectMaximumCount {
+	public void selectAllInCurrentView(final ViewerPanelFX viewer) {
 
-	@Override
-	protected void actOn(final long id) {
+		final TLongSet idsInCurrentView = new TLongHashSet();
+		if (source.getDataType() instanceof LabelMultisetType)
+			selectAllInCurrentViewLabelMultisetType(viewer, idsInCurrentView);
+		else
+			selectAllInCurrentViewPrimitiveType(viewer, idsInCurrentView);
+		LOG.debug("Collected {} ids in current view", idsInCurrentView.size());
+		selectedIds.activate(idsInCurrentView.toArray());
+	}
 
-	  if (foregroundCheck.test(id)) {
-		if (selectedIds.isActive(id)) {
-		  selectedIds.deactivate(id);
-		} else {
-		  selectedIds.activateAlso(id);
+	@SuppressWarnings("unchecked")
+	private void selectAllInCurrentViewLabelMultisetType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView) {
+
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(
+				(DataSource<LabelMultisetType, ?>)source,
+				viewer,
+				lmt -> {
+					for (final Entry<Label> entry : lmt.entrySet()) {
+						final long id = entry.getElement().id();
+						if (foregroundCheck.test(id))
+							idsInCurrentView.add(id);
+					}
+				}
+		);
+	}
+
+	private void selectAllInCurrentViewPrimitiveType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView) {
+
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(
+				source,
+				viewer,
+				val -> {
+					final long id = val.getIntegerLong();
+					if (foregroundCheck.test(id))
+						idsInCurrentView.add(id);
+				}
+		);
+	}
+
+	public void toggleLock(final FragmentSegmentAssignment assignment, final LockedSegments lock) {
+
+		final long lastSelection = selectedIds.getLastSelection();
+		if (!Label.regular(lastSelection))
+			return;
+
+		final long segment = assignment.getSegment(lastSelection);
+		if (lock.isLocked(segment))
+			lock.unlock(segment);
+		else
+			lock.lock(segment);
+	}
+
+	private abstract class SelectMaximumCount implements Consumer<MouseEvent> {
+
+		@Override
+		public void accept(final MouseEvent e) {
+
+			final var activeViewer = activeViewerSupplier.get();
+			if (activeViewer == null)
+				return;
+
+			final AffineTransform3D affine = new AffineTransform3D();
+			final ViewerState viewerState = activeViewer.getState().copy();
+			viewerState.getViewerTransform(affine);
+			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+			activeViewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+			final int level = viewerState.getBestMipMapLevel(screenScaleTransform, source);
+
+			source.getSourceTransform(0, level, affine);
+			final var interpolatedDataSource = source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR);
+			final var access = RealViews.transformReal(interpolatedDataSource, affine).realRandomAccess();
+			activeViewer.getMouseCoordinates(access);
+			access.setPosition(0L, 2);
+			activeViewer.displayToGlobalCoordinates(access);
+			final IntegerType<?> val = access.get();
+			final long id = val.getIntegerLong();
+			actOn(id);
 		}
-	  }
+
+		protected abstract void actOn(final long id);
 	}
-  }
+
+	private class SelectFragmentWithMaximumCount extends SelectMaximumCount {
+
+		private final boolean foregroundOnly;
+
+		public SelectFragmentWithMaximumCount(boolean foregroundOnly) {
+
+			this.foregroundOnly = foregroundOnly;
+		}
+
+		@Override
+		protected void actOn(final long id) {
+
+			if (!foregroundOnly || foregroundCheck.test(id)) {
+				if (selectedIds.isOnlyActiveId(id)) {
+					selectedIds.deactivate(id);
+				} else {
+					selectedIds.activate(id);
+				}
+			}
+		}
+	}
+
+	private class AppendFragmentWithMaximumCount extends SelectMaximumCount {
+
+		@Override
+		protected void actOn(final long id) {
+
+			if (foregroundCheck.test(id)) {
+				if (selectedIds.isActive(id)) {
+					selectedIds.deactivate(id);
+				} else {
+					selectedIds.activateAlso(id);
+				}
+			}
+		}
+	}
 
 }

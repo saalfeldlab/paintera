@@ -1,12 +1,12 @@
 [**java]
-indent_style    = tab
-tab_width       = unset
-indent_size     = unset
+indent_style = tab
+tab_width = unset
+indent_size = unset
 
 # max_line_length = 140
 
 [**kt]
-indent_style    = space
-indent_size     = 4
+indent_style = space
+indent_size = 4
 
 # max_line_length = 140

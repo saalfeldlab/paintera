@@ -11,26 +11,26 @@ import java.util.function.Consumer;
 
 public class BrowseRecentFavorites {
 
-  public static MenuButton menuButton(
-		  final String name,
-		  final List<String> recent,
-		  final List<String> favorites,
-		  final EventHandler<ActionEvent> onBrowseFoldersClicked,
-		  final EventHandler<ActionEvent> onBrowseFilesClicked,
-		  final Consumer<String> processSelected
-  ) {
-	  /* TODO Caleb: Maybe a custom component to let you choose files or folders? */
-	  final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
-	  final MenuItem browseFilesButton = new MenuItem("_Browse Files");
+	public static MenuButton menuButton(
+			final String name,
+			final List<String> recent,
+			final List<String> favorites,
+			final EventHandler<ActionEvent> onBrowseFoldersClicked,
+			final EventHandler<ActionEvent> onBrowseFilesClicked,
+			final Consumer<String> processSelected
+	) {
+		/* TODO Caleb: Maybe a custom component to let you choose files or folders? */
+		final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
+		final MenuItem browseFilesButton = new MenuItem("_Browse Files");
 
-	  final MatchSelectionMenu recentMatcher = new MatchSelectionMenu(recent, "_Recent", 400.0, processSelected);
-	  final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu(favorites, "_Favorites", 400.0, processSelected);
+		final MatchSelectionMenu recentMatcher = new MatchSelectionMenu(recent, "_Recent", 400.0, processSelected);
+		final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu(favorites, "_Favorites", 400.0, processSelected);
 
-	  browseFoldersButton.setOnAction(onBrowseFoldersClicked);
-	  browseFilesButton.setOnAction(onBrowseFilesClicked);
-	  recentMatcher.setDisable(recent.size() == 0);
-	  favoritesMatcher.setDisable(favorites.size() == 0);
-	  return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher, favoritesMatcher);
-  }
+		browseFoldersButton.setOnAction(onBrowseFoldersClicked);
+		browseFilesButton.setOnAction(onBrowseFilesClicked);
+		recentMatcher.setDisable(recent.size() == 0);
+		favoritesMatcher.setDisable(favorites.size() == 0);
+		return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher, favoritesMatcher);
+	}
 
 }

@@ -6,7 +6,6 @@ import javafx.util.Duration
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
 def sources     = paintera.baseView.sourceInfo()
@@ -14,15 +13,15 @@ def labelSource = sources.currentSourceProperty().get()
 def labels      = sources.getState(labelSource)
 
 
-if (!(labels instanceof LabelSourceState || labels instanceof ConnectomicsLabelState)) {
+if (!labels instanceof ConnectomicsLabelState) {
     throw new RuntimeException("Need to select label data first!")
 }
 
 
-labels = labels instanceof LabelSourceState ? labels as LabelSourceState : labels as ConnectomicsLabelState
+labels = labels as ConnectomicsLabelState
 
-def lockedSegments = labels instanceof LabelSourceState ? labels.lockedSegments() : labels.getLockedSegments()
-def assignment     = labels instanceof LabelSourceState ? labels.assignment : labels.getFragmentSegmentAssignment()
+def lockedSegments = labels.getLockedSegments()
+def assignment     = labels.getFragmentSegmentAssignment()
 def source         = labelSource.getDataSource(0, 0)
 def min            = Intervals.minAsLongArray(source)
 def max            = Intervals.maxAsLongArray(source)

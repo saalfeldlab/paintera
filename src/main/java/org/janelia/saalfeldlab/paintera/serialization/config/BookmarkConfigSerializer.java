@@ -18,46 +18,46 @@ import java.util.List;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class BookmarkConfigSerializer implements PainteraSerialization.PainteraAdapter<BookmarkConfig> {
 
-  private static final String BOOKMARKS_KEY = "bookmarks";
+	private static final String BOOKMARKS_KEY = "bookmarks";
 
-  private static final String TRANSITION_TIME_KEY = "transitionTime";
+	private static final String TRANSITION_TIME_KEY = "transitionTime";
 
-  @Override
-  public BookmarkConfig deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+	@Override
+	public BookmarkConfig deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
 
-	final JsonObject map = json.getAsJsonObject();
-	final BookmarkConfig config = new BookmarkConfig();
-	if (map.has(BOOKMARKS_KEY)) {
-	  final JsonArray bookmarks = map.get(BOOKMARKS_KEY).getAsJsonArray();
-	  for (int i = 0; i < bookmarks.size(); ++i) {
-		config.addBookmark(context.deserialize(bookmarks.get(i), BookmarkConfig.Bookmark.class));
-	  }
+		final JsonObject map = json.getAsJsonObject();
+		final BookmarkConfig config = new BookmarkConfig();
+		if (map.has(BOOKMARKS_KEY)) {
+			final JsonArray bookmarks = map.get(BOOKMARKS_KEY).getAsJsonArray();
+			for (int i = 0; i < bookmarks.size(); ++i) {
+				config.addBookmark(context.deserialize(bookmarks.get(i), BookmarkConfig.Bookmark.class));
+			}
+		}
+		if (map.has(TRANSITION_TIME_KEY))
+			config.setTransitionTime(context.deserialize(map.get(TRANSITION_TIME_KEY), Duration.class));
+		return config;
 	}
-	if (map.has(TRANSITION_TIME_KEY))
-	  config.setTransitionTime(context.deserialize(map.get(TRANSITION_TIME_KEY), Duration.class));
-	return config;
-  }
 
-  @Override
-  public JsonElement serialize(BookmarkConfig config, Type typeOfSrc, JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(BookmarkConfig config, Type typeOfSrc, JsonSerializationContext context) {
 
-	final JsonObject map = new JsonObject();
-	final List<BookmarkConfig.Bookmark> bookmarks = new ArrayList<>(config.getUnmodifiableBookmarks());
-	if (bookmarks.size() > 0)
-	  map.add(BOOKMARKS_KEY, context.serialize(bookmarks.toArray()));
-	map.add(TRANSITION_TIME_KEY, context.serialize(config.getTransitionTime()));
-	return map;
-  }
+		final JsonObject map = new JsonObject();
+		final List<BookmarkConfig.Bookmark> bookmarks = new ArrayList<>(config.getUnmodifiableBookmarks());
+		if (bookmarks.size() > 0)
+			map.add(BOOKMARKS_KEY, context.serialize(bookmarks.toArray()));
+		map.add(TRANSITION_TIME_KEY, context.serialize(config.getTransitionTime()));
+		return map;
+	}
 
-  @Override
-  public Class<BookmarkConfig> getTargetClass() {
+	@Override
+	public Class<BookmarkConfig> getTargetClass() {
 
-	return BookmarkConfig.class;
-  }
+		return BookmarkConfig.class;
+	}
 
-  @Override
-  public boolean isHierarchyAdapter() {
+	@Override
+	public boolean isHierarchyAdapter() {
 
-	return false;
-  }
+		return false;
+	}
 }

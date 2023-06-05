@@ -27,85 +27,85 @@ import java.util.List;
 
 public interface SourceState<D, T> {
 
-  Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  DataSource<D, T> getDataSource();
+	DataSource<D, T> getDataSource();
 
-  Converter<T, ARGBType> converter();
+	Converter<T, ARGBType> converter();
 
-  ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
+	ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
 
-  StringProperty nameProperty();
+	StringProperty nameProperty();
 
-  ReadOnlyStringProperty statusTextProperty();
+	ReadOnlyStringProperty statusTextProperty();
 
-  BooleanProperty isVisibleProperty();
+	BooleanProperty isVisibleProperty();
 
-  ObjectProperty<Interpolation> interpolationProperty();
+	ObjectProperty<Interpolation> interpolationProperty();
 
-  SourceState<?, ?>[] dependsOn();
+	SourceState<?, ?>[] dependsOn();
 
-  default Node getDisplayStatus() {
+	default Node getDisplayStatus() {
 
-	return null;
-  }
+		return null;
+	}
 
-  default SourceAndConverter<T> getSourceAndConverter() {
+	default SourceAndConverter<T> getSourceAndConverter() {
 
-	return new SourceAndConverter<>(getDataSource(), converter());
-  }
+		return new SourceAndConverter<>(getDataSource(), converter());
+	}
 
-  default List<ActionSet> getViewerActionSets() {
+	default List<ActionSet> getViewerActionSets() {
 
-	LOG.trace("Default Viewer Action Sets; Not handling anything. ");
-	return List.of();
-  }
+		LOG.trace("Default Viewer Action Sets; Not handling anything. ");
+		return List.of();
+	}
 
-  default List<ActionSet> getGlobalActionSets() {
+	default List<ActionSet> getGlobalActionSets() {
 
-	LOG.trace("Default Global Action Sets; Not handling anything. ");
-	return List.of();
-  }
+		LOG.trace("Default Global Action Sets; Not handling anything. ");
+		return List.of();
+	}
 
-  default void onAdd(PainteraBaseView paintera) {
+	default void onAdd(PainteraBaseView paintera) {
 
-	LOG.debug("Running default onAdd");
-  }
+		LOG.debug("Running default onAdd");
+	}
 
-  default void onRemoval(SourceInfo paintera) {
+	default void onRemoval(SourceInfo paintera) {
 
-	LOG.debug("Running default onRemoval");
-  }
+		LOG.debug("Running default onRemoval");
+	}
 
-  default void onShutdown(PainteraBaseView paintera) {
+	default void onShutdown(PainteraBaseView paintera) {
 
-	LOG.debug("Running default onShutdown");
-  }
+		LOG.debug("Running default onShutdown");
+	}
 
-  default Node preferencePaneNode() {
+	default Node preferencePaneNode() {
 
-	return defaultPreferencePaneNode(compositeProperty());
-  }
+		return defaultPreferencePaneNode(compositeProperty());
+	}
 
-  default KeyAndMouseBindings createKeyAndMouseBindings() {
+	default KeyAndMouseBindings createKeyAndMouseBindings() {
 
-	return new KeyAndMouseBindings();
-  }
+		return new KeyAndMouseBindings();
+	}
 
-  default ControlMode getDefaultMode() {
+	default ControlMode getDefaultMode() {
 
-	return NavigationControlMode.INSTANCE;
-  }
+		return NavigationControlMode.INSTANCE;
+	}
 
-  static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
+	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
 
-	final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
-	titledPane.minWidthProperty().set(0.0);
-	final VBox vbox = new VBox(titledPane);
-	vbox.setSpacing(0.0);
-	vbox.setPadding(Insets.EMPTY);
-	vbox.minWidthProperty().set(0.0);
-	return vbox;
-  }
+		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
+		titledPane.minWidthProperty().set(0.0);
+		final VBox vbox = new VBox(titledPane);
+		vbox.setSpacing(0.0);
+		vbox.setPadding(Insets.EMPTY);
+		vbox.minWidthProperty().set(0.0);
+		return vbox;
+	}
 
 }

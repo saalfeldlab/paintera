@@ -4,61 +4,61 @@ import java.util.stream.LongStream;
 
 public class LocalIdService implements IdService {
 
-  private long next;
-  private long nextTemp = IdService.FIRST_TEMPORARY_ID;
+	private long next;
+	private long nextTemp = IdService.FIRST_TEMPORARY_ID;
 
-  public LocalIdService() {
+	public LocalIdService() {
 
-	this(0);
-  }
+		this(0);
+	}
 
-  @Override public long nextTemporary() {
+	@Override public long nextTemporary() {
 
-	final var temp = nextTemp;
-	nextTemp += 1;
-	return temp;
-  }
+		final var temp = nextTemp;
+		nextTemp += 1;
+		return temp;
+	}
 
-  @Override public long[] nextTemporary(int n) {
+	@Override public long[] nextTemporary(int n) {
 
-	final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
-	nextTemp += n;
-	return tempIds;
-  }
+		final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
+		nextTemp += n;
+		return tempIds;
+	}
 
-  public LocalIdService(final long maxId) {
+	public LocalIdService(final long maxId) {
 
-	this.next = maxId;
-  }
+		this.next = maxId;
+	}
 
-  @Override
-  public synchronized void invalidate(final long id) {
+	@Override
+	public synchronized void invalidate(final long id) {
 
-	next = IdService.max(next, id + 1);
-  }
+		next = IdService.max(next, id + 1);
+	}
 
-  public void setNext(final long id) {
+	public void setNext(final long id) {
 
-	next = id;
-  }
+		next = id;
+	}
 
-  @Override
-  public synchronized long next() {
+	@Override
+	public synchronized long next() {
 
-	return next++;
-  }
+		return next++;
+	}
 
-  @Override
-  public synchronized long[] next(final int n) {
+	@Override
+	public synchronized long[] next(final int n) {
 
-	final long[] ids = LongStream.range(next, next + n).toArray();
-	next += n;
-	return ids;
-  }
+		final long[] ids = LongStream.range(next, next + n).toArray();
+		next += n;
+		return ids;
+	}
 
-  @Override
-  public synchronized boolean isInvalidated(final long id) {
+	@Override
+	public synchronized boolean isInvalidated(final long id) {
 
-	return id < this.next;
-  }
+		return id < this.next;
+	}
 }

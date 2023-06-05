@@ -47,30 +47,31 @@ import java.util.function.Supplier;
  */
 final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAccess<A, B> {
 
-  private final Converter<? super A, ? super B> converter;
+	private final Converter<? super A, ? super B> converter;
 
-  private final Supplier<B> supplier;
+	private final Supplier<B> supplier;
 
-  private final B converted;
+	private final B converted;
 
-  public ConvertedRandomAccess(final RandomAccess<A> source, final Converter<? super A, ? super B> converter, final
-  Supplier<B> b) {
+	public ConvertedRandomAccess(final RandomAccess<A> source, final Converter<? super A, ? super B> converter, final
+	Supplier<B> b) {
 
-	super(source);
-	this.converter = converter;
-	this.supplier = b;
-	this.converted = b.get();
-  }
+		super(source);
+		this.converter = converter;
+		this.supplier = b;
+		this.converted = b.get();
+	}
 
-  @Override
-  public B get() {
-	converter.convert(source.get(), converted);
-	return converted;
-  }
+	@Override
+	public B get() {
 
-  @Override
-  public ConvertedRandomAccess<A, B> copy() {
+		converter.convert(source.get(), converted);
+		return converted;
+	}
 
-	return new ConvertedRandomAccess<>(source.copyRandomAccess(), converter, supplier);
-  }
+	@Override
+	public ConvertedRandomAccess<A, B> copy() {
+
+		return new ConvertedRandomAccess<>(source.copyRandomAccess(), converter, supplier);
+	}
 }

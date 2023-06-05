@@ -9,83 +9,84 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.BrushOverlay;
 
 public class PaintActions2D {
 
-  private static final double BRUSH_RADIUS_SCALE_FACTOR = 1.1;
+	private static final double BRUSH_RADIUS_SCALE_FACTOR = 1.1;
 
-  private final ObservableValue<ViewerPanelFX> viewerProperty;
+	private final ObservableValue<ViewerPanelFX> viewerProperty;
 
-  private final BrushOverlay brushOverlay;
+	private final BrushOverlay brushOverlay;
 
-  private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
+	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
 
-  private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
+	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
-  public PaintActions2D(final ObservableValue<ViewerPanelFX> viewerProperty) {
+	public PaintActions2D(final ObservableValue<ViewerPanelFX> viewerProperty) {
 
-	super();
-	this.viewerProperty = viewerProperty;
-	this.brushOverlay = new BrushOverlay(this.viewerProperty);
-	this.brushOverlay.getPhysicalRadiusProperty().bind(brushRadius);
-	this.brushOverlay.getBrushDepthProperty().bind(brushDepth);
-  }
-
-  public void setBrushOverlayVisible(final boolean visible) {
-
-	this.brushOverlay.setVisible(visible);
-  }
-
-  public void setBrushCursor(final Cursor cursor) {
-	  this.brushOverlay.setCursor(cursor);
-  }
-
-  public void setBrushOverlayValid(final boolean valid, final String reason) {
-
-	brushOverlay.setCanPaint(valid);
-	brushOverlay.setReason(reason);
-  }
-
-  public void setBrushOverlayValid(final boolean valid) {
-
-	brushOverlay.setCanPaint(valid);
-  }
-
-  public void changeBrushRadius(final double sign) {
-
-	if (sign > 0) {
-	  decreaseBrushRadius();
-	} else if (sign < 0) {
-	  increaseBrushRadius();
+		super();
+		this.viewerProperty = viewerProperty;
+		this.brushOverlay = new BrushOverlay(this.viewerProperty);
+		this.brushOverlay.getPhysicalRadiusProperty().bind(brushRadius);
+		this.brushOverlay.getBrushDepthProperty().bind(brushDepth);
 	}
-  }
 
-  public void changeBrushDepth(final double sign) {
+	public void setBrushOverlayVisible(final boolean visible) {
 
-	final double newDepth = brushDepth.get() + (sign > 0 ? -1 : 1);
-	this.brushDepth.set(Math.max(Math.min(newDepth, 2.0), 1.0));
-  }
+		this.brushOverlay.setVisible(visible);
+	}
 
-  public void decreaseBrushRadius() {
+	public void setBrushCursor(final Cursor cursor) {
 
-	setBrushRadius(brushRadius.get() / BRUSH_RADIUS_SCALE_FACTOR);
-  }
+		this.brushOverlay.setCursor(cursor);
+	}
 
-  public void increaseBrushRadius() {
+	public void setBrushOverlayValid(final boolean valid, final String reason) {
 
-	setBrushRadius(brushRadius.get() * BRUSH_RADIUS_SCALE_FACTOR);
-  }
+		brushOverlay.setCanPaint(valid);
+		brushOverlay.setReason(reason);
+	}
 
-  public void setBrushRadius(final double radius) {
+	public void setBrushOverlayValid(final boolean valid) {
 
-	if (radius > 0)
-	  this.brushRadius.set(radius);
-  }
+		brushOverlay.setCanPaint(valid);
+	}
 
-  public DoubleProperty brushRadiusProperty() {
+	public void changeBrushRadius(final double sign) {
 
-	return this.brushRadius;
-  }
+		if (sign > 0) {
+			decreaseBrushRadius();
+		} else if (sign < 0) {
+			increaseBrushRadius();
+		}
+	}
 
-  public DoubleProperty brushDepthProperty() {
+	public void changeBrushDepth(final double sign) {
 
-	return this.brushDepth;
-  }
+		final double newDepth = brushDepth.get() + (sign > 0 ? -1 : 1);
+		this.brushDepth.set(Math.max(Math.min(newDepth, 2.0), 1.0));
+	}
+
+	public void decreaseBrushRadius() {
+
+		setBrushRadius(brushRadius.get() / BRUSH_RADIUS_SCALE_FACTOR);
+	}
+
+	public void increaseBrushRadius() {
+
+		setBrushRadius(brushRadius.get() * BRUSH_RADIUS_SCALE_FACTOR);
+	}
+
+	public void setBrushRadius(final double radius) {
+
+		if (radius > 0)
+			this.brushRadius.set(radius);
+	}
+
+	public DoubleProperty brushRadiusProperty() {
+
+		return this.brushRadius;
+	}
+
+	public DoubleProperty brushDepthProperty() {
+
+		return this.brushDepth;
+	}
 }

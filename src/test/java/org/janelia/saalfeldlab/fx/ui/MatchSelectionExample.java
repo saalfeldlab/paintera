@@ -30,32 +30,34 @@ public class MatchSelectionExample {
 			final Consumer<String> processSelection,
 			final List<String> options) {
 
-
 		final Menu menu = new Menu(menuText);
-	  final Consumer<String> hideAndProcess = selection -> {
-		menu.getParentMenu();
-		menu.hide();
+		final Consumer<String> hideAndProcess = selection -> {
+			menu.getParentMenu();
+			menu.hide();
 
-		for (Menu m = menu.getParentMenu(); m != null; m = m.getParentMenu())
-		  m.hide();
-		Optional.ofNullable(menu.getParentPopup()).ifPresent(ContextMenu::hide);
+			for (Menu m = menu.getParentMenu(); m != null; m = m.getParentMenu())
+				m.hide();
+			Optional.ofNullable(menu.getParentPopup()).ifPresent(ContextMenu::hide);
 
-		processSelection.accept(selection);
-	  };
-	  final MatchSelection fuzzyMatch = MatchSelection.fuzzySorted(options, hideAndProcess, 50);
-	  fuzzyMatch.setMaxWidth(200);
+			processSelection.accept(selection);
+		};
+		final MatchSelection fuzzyMatch = MatchSelection.fuzzySorted(options, hideAndProcess, 50);
+		fuzzyMatch.setMaxWidth(200);
 
-	  final CustomMenuItem cmi = new CustomMenuItem(fuzzyMatch, false);
-	  menu.setOnShown(e -> fuzzyMatch.requestFocus());
-	  menu.getItems().setAll(cmi);
+		final CustomMenuItem cmi = new CustomMenuItem(fuzzyMatch, false);
+		menu.setOnShown(e -> fuzzyMatch.requestFocus());
+		menu.getItems().setAll(cmi);
 
-	  return menu;
+		return menu;
 	}
 
 	public static void main(String[] args) throws IOException {
-		final List<String> filenames = Files.list(Paths.get(System.getProperty("user.home"))).map(Path::toAbsolutePath).map(Path::toString).collect(Collectors.toList());
+
+		final List<String> filenames = Files.list(Paths.get(System.getProperty("user.home"))).map(Path::toAbsolutePath).map(Path::toString)
+				.collect(Collectors.toList());
 		Collections.sort(filenames);
-		PlatformImpl.startup(() -> {});
+		PlatformImpl.startup(() -> {
+		});
 		Platform.setImplicitExit(true);
 		Platform.runLater(() -> {
 
@@ -68,7 +70,6 @@ public class MatchSelectionExample {
 					chooserButton,
 					MatchSelectionExample.menu("Recent...", System.out::println, filenames),
 					MatchSelectionExample.menu("Favorites...", System.out::println, filenames));
-
 
 			final Stage stage = new Stage();
 			final Scene scene = new Scene(button);

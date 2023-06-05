@@ -15,11 +15,11 @@ import java.util.concurrent.Executors;
 /**
  * Test the order of prioritized task execution.
  */
-public class PriorityExecutorServiceTest
-{
+public class PriorityExecutorServiceTest {
+
 	@Test
-	public void test() throws InterruptedException
-	{
+	public void test() throws InterruptedException {
+
 		final PriorityExecutorService<Integer> priorityExecutorService = PriorityExecutors.newPriorityFixedThreadPool(1);
 		final List<Integer> result = new ArrayList<>();
 
@@ -28,8 +28,7 @@ public class PriorityExecutorServiceTest
 		final int numTasksWithNullPriority = 5;
 		final CountDownLatch countDownLatch = new CountDownLatch(numTotalTasks);
 
-		for (int i = 0; i < numTotalTasks; ++i)
-		{
+		for (int i = 0; i < numTotalTasks; ++i) {
 			final Integer priority = i < numTotalTasks - numTasksWithNullPriority ? i : null;
 			final Runnable task = () -> {
 				result.add(priority);
@@ -41,8 +40,7 @@ public class PriorityExecutorServiceTest
 
 		final List<Callable<Object>> tasks = new ArrayList<>();
 		final List<Integer> priorities = new ArrayList<>();
-		for (final Pair<Runnable, Integer> taskAndPriority : tasksAndPriorities)
-		{
+		for (final Pair<Runnable, Integer> taskAndPriority : tasksAndPriorities) {
 			tasks.add(Executors.callable(taskAndPriority.getA()));
 			priorities.add(taskAndPriority.getB());
 		}

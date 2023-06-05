@@ -10,19 +10,19 @@ import java.lang.invoke.MethodHandles;
 
 public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>, V extends Volatile<I>> extends HighlightingStreamConverter<V> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public HighlightingStreamConverterIntegerType(final AbstractHighlightingARGBStream stream) {
+	public HighlightingStreamConverterIntegerType(final AbstractHighlightingARGBStream stream) {
 
-	super(stream);
-	LOG.debug("Created {} from stream {}", this.getClass(), stream);
-  }
+		super(stream);
+		LOG.debug("Created {} from stream {}", this.getClass(), stream);
+	}
 
-  @Override
-  public void convert(final V input, final ARGBType output) {
+	@Override
+	public void convert(final V input, final ARGBType output) {
 
-	output.set(stream.argb(input.get().getIntegerLong()));
-	//		LOG.trace("Converted input {} to output {}", input, output);
-  }
+		output.set(stream.argb(input.get().getIntegerLong()));
+		//		LOG.trace("Converted input {} to output {}", input, output);
+	}
 
 }

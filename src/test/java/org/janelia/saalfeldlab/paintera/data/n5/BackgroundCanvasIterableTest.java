@@ -1,25 +1,24 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.ValuePair;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 public class BackgroundCanvasIterableTest {
 
 	@Test
-	public void test()
-	{
+	public void test() {
+
 		final UnsignedLongType[] canvas = {
-		new UnsignedLongType(1),
+				new UnsignedLongType(1),
 				new UnsignedLongType(Label.INVALID),
 				new UnsignedLongType(Label.BACKGROUND),
 				new UnsignedLongType(Label.TRANSPARENT)
@@ -58,12 +57,10 @@ public class BackgroundCanvasIterableTest {
 		Assert.assertEquals(Label.BACKGROUND, v2.entrySet().iterator().next().getElement().id());
 		Assert.assertEquals(Label.BACKGROUND, v2.argMax());
 
-
 		final LabelMultisetType v3 = iterator.next();
 		// Transparent should remove only in canvas and not be propagated into background
 		// As discussed in saalfeldlab/paintera#305
 		Assert.assertSame(background[3], v3);
 	}
-
 
 }

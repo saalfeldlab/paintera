@@ -9,18 +9,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class ObservableMeshProgress extends ObservableWithListenersList {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  protected final AtomicInteger numTasks = new AtomicInteger();
-  protected final AtomicInteger numCompletedTasks = new AtomicInteger();
+	protected final AtomicInteger numTasks = new AtomicInteger();
+	protected final AtomicInteger numCompletedTasks = new AtomicInteger();
 
-  public int getNumTasks() {
+	public int getNumTasks() {
 
-	return this.numTasks.get();
-  }
+		return this.numTasks.get();
+	}
 
-  public int getNumCompletedTasks() {
+	public int getNumCompletedTasks() {
 
-	return this.numCompletedTasks.get();
-  }
+		return this.numCompletedTasks.get();
+	}
 }

@@ -12,28 +12,28 @@ import java.util.Set;
 @Plugin(type = TriangleMeshFormat.class)
 public class ObjFormat implements TriangleMeshFormat, SciJavaPlugin {
 
-  @Override
-  public String formatName() {
+	@Override
+	public String formatName() {
 
-	return "OBJ";
-  }
+		return "OBJ";
+	}
 
-  @Override
-  public Set<String> knownExtensions() {
+	@Override
+	public Set<String> knownExtensions() {
 
-	return Collections.singleton("obj");
-  }
+		return Collections.singleton("obj");
+	}
 
-  @Override
-  public TriangleMeshWriter getWriter() {
+	@Override
+	public TriangleMeshWriter getWriter() {
 
-	return new ObjWriter();
-  }
+		return new ObjWriter();
+	}
 
-  @Override
-  public TriangleMeshLoader getLoader() {
+	@Override
+	public TriangleMeshLoader getLoader() {
 
-	return new ObjLoader();
-  }
+		return new ObjLoader();
+	}
 
 }

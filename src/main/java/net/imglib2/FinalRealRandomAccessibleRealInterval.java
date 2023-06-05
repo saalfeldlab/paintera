@@ -36,29 +36,29 @@ package net.imglib2;
 
 public final class FinalRealRandomAccessibleRealInterval<T> extends AbstractRealInterval implements RealRandomAccessibleRealInterval<T> {
 
-  private final RealRandomAccessible<T> src;
+	private final RealRandomAccessible<T> src;
 
-  public FinalRealRandomAccessibleRealInterval(final RealRandomAccessible<T> src, final RealInterval interval) {
+	public FinalRealRandomAccessibleRealInterval(final RealRandomAccessible<T> src, final RealInterval interval) {
 
-	super(interval);
-	this.src = src;
-  }
+		super(interval);
+		this.src = src;
+	}
 
-  public FinalRealRandomAccessibleRealInterval(final RealRandomAccessible<T> src, final double[] min, final double[] max) {
+	public FinalRealRandomAccessibleRealInterval(final RealRandomAccessible<T> src, final double[] min, final double[] max) {
 
-	super(min, max);
-	this.src = src;
-  }
+		super(min, max);
+		this.src = src;
+	}
 
-  @Override
-  public RealRandomAccess<T> realRandomAccess() {
+	@Override
+	public RealRandomAccess<T> realRandomAccess() {
 
-	return src.realRandomAccess();
-  }
+		return src.realRandomAccess();
+	}
 
-  @Override
-  public RealRandomAccess<T> realRandomAccess(final RealInterval interval) {
+	@Override
+	public RealRandomAccess<T> realRandomAccess(final RealInterval interval) {
 
-	return src.realRandomAccess(interval);
-  }
+		return src.realRandomAccess(interval);
+	}
 }

@@ -17,32 +17,32 @@ import java.lang.reflect.Type;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class LabelBlockLookupPainteraAdapter implements PainteraSerialization.PainteraAdapter<LabelBlockLookup> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final LabelBlockLookupAdapter adapter = LabelBlockLookupAdapter.getJsonAdapter();
+	private static final LabelBlockLookupAdapter adapter = LabelBlockLookupAdapter.getJsonAdapter();
 
-  @Override
-  public LabelBlockLookup deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext context) throws JsonParseException {
+	@Override
+	public LabelBlockLookup deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext context) throws JsonParseException {
 
-	LOG.debug("Deserializing {} of type {}", jsonElement, type);
-	return adapter.deserialize(jsonElement, type, context);
-  }
+		LOG.debug("Deserializing {} of type {}", jsonElement, type);
+		return adapter.deserialize(jsonElement, type, context);
+	}
 
-  @Override
-  public JsonElement serialize(LabelBlockLookup labelBlockLookup, Type type, JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(LabelBlockLookup labelBlockLookup, Type type, JsonSerializationContext context) {
 
-	return adapter.serialize(labelBlockLookup, type, context);
-  }
+		return adapter.serialize(labelBlockLookup, type, context);
+	}
 
-  @Override
-  public Class<LabelBlockLookup> getTargetClass() {
+	@Override
+	public Class<LabelBlockLookup> getTargetClass() {
 
-	return LabelBlockLookup.class;
-  }
+		return LabelBlockLookup.class;
+	}
 
-  @Override
-  public boolean isHierarchyAdapter() {
+	@Override
+	public boolean isHierarchyAdapter() {
 
-	return true;
-  }
+		return true;
+	}
 }

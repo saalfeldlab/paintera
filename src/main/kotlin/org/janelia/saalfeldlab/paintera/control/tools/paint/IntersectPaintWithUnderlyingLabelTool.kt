@@ -20,46 +20,46 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
 
 class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
-    PaintTool(activeSourceStateProperty, mode) {
+	PaintTool(activeSourceStateProperty, mode) {
 
-    override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "intersect-tool") } }
-    override val name = "Intersect Paint with Underlying Label"
-    override val keyTrigger = listOf(KeyCode.R, KeyCode.SHIFT)
+	override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "intersect-tool") } }
+	override val name = "Intersect Paint with Underlying Label"
+	override val keyTrigger = listOf(KeyCode.R, KeyCode.SHIFT)
 
-    private val overlay by lazy {
-        IntersecttOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
-    }
+	private val overlay by lazy {
+		IntersecttOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
+	}
 
-    override fun activate() {
-        super.activate()
-        overlay.visible = true
-    }
+	override fun activate() {
+		super.activate()
+		overlay.visible = true
+	}
 
-    override fun deactivate() {
-        overlay.visible = false
-        super.deactivate()
-    }
+	override fun deactivate() {
+		overlay.visible = false
+		super.deactivate()
+	}
 
-    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
-        mutableListOf(
-            *super<PaintTool>.actionSets.toTypedArray(),
-            painteraActionSet("intersect", PaintActionType.Intersect) {
-                MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
-                    keysExclusive = false
-                    verifyEventNotNull()
-                    onAction { intersector?.intersectAt(it!!.x, it.y) }
-                }
-            }
-        )
-    }
+	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
+		mutableListOf(
+			*super<PaintTool>.actionSets.toTypedArray(),
+			painteraActionSet("intersect", PaintActionType.Intersect) {
+				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+					keysExclusive = false
+					verifyEventNotNull()
+					onAction { intersector?.intersectAt(it!!.x, it.y) }
+				}
+			}
+		)
+	}
 
-    private val intersector: IntersectPainting?
-        get() = activeViewer?.let { viewer ->
-            statePaintContext?.let { ctx ->
-                IntersectPainting(viewer, paintera.baseView.sourceInfo(), paintera.baseView.orthogonalViews()::requestRepaint, ctx::getMaskForLabel)
-            }
-        }
+	private val intersector: IntersectPainting?
+		get() = activeViewer?.let { viewer ->
+			statePaintContext?.let { ctx ->
+				IntersectPainting(viewer, paintera.baseView.sourceInfo(), paintera.baseView.orthogonalViews()::requestRepaint, ctx::getMaskForLabel)
+			}
+		}
 
-    private class IntersecttOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Intersect") :
-        CursorOverlayWithText(viewerProperty)
+	private class IntersecttOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Intersect") :
+		CursorOverlayWithText(viewerProperty)
 }

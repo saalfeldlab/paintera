@@ -34,277 +34,278 @@ import java.util.stream.Collectors;
  */
 public class OrthogonalViews<BR extends Node> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  /**
-   * Utility class that holds {@link ViewerPanelFX} and related objects.
-   */
-  public static class ViewerAndTransforms {
+	/**
+	 * Utility class that holds {@link ViewerPanelFX} and related objects.
+	 */
+	public static class ViewerAndTransforms {
 
-	private final ViewerPanelFX viewer;
+		private final ViewerPanelFX viewer;
+
+		private final GlobalTransformManager manager;
+
+		private final AffineTransformWithListeners displayTransform;
+
+		private final AffineTransformWithListeners globalToViewerTransform;
+
+		private final TransformConcatenator concatenator;
+
+		/**
+		 * @param viewer                  viewer
+		 * @param manager                 manages the transform from world coordinates to shared viewer space
+		 * @param displayTransform        accounts for scale after all other translations are applied
+		 * @param globalToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 *                                only, without scaling or rotation.
+		 */
+		public ViewerAndTransforms(
+				final ViewerPanelFX viewer,
+				final GlobalTransformManager manager,
+				final AffineTransformWithListeners displayTransform,
+				final AffineTransformWithListeners globalToViewerTransform) {
+
+			super();
+			this.viewer = viewer;
+			this.manager = manager;
+			this.displayTransform = displayTransform;
+			this.globalToViewerTransform = globalToViewerTransform;
+
+			this.concatenator = new TransformConcatenator(
+					this.manager,
+					displayTransform,
+					globalToViewerTransform,
+					manager
+			);
+			this.concatenator.setTransformListener(viewer);
+		}
+
+		/**
+		 * @return display transform ({@link #ViewerAndTransforms constructor} for details)
+		 */
+		public AffineTransformWithListeners displayTransform() {
+
+			return this.displayTransform;
+		}
+
+		/**
+		 * @return global to viewer transform ({@link #ViewerAndTransforms constructor} for details)
+		 */
+		public AffineTransformWithListeners globalToViewerTransform() {
+
+			return this.globalToViewerTransform;
+		}
+
+		/**
+		 * @return {@link ViewerPanelFX viewer} associated with this.
+		 */
+		public ViewerPanelFX viewer() {
+
+			return viewer;
+		}
+	}
+
+	private final DynamicCellPane pane;
 
 	private final GlobalTransformManager manager;
 
-	private final AffineTransformWithListeners displayTransform;
+	private final ViewerAndTransforms topLeft;
 
-	private final AffineTransformWithListeners globalToViewerTransform;
+	private final ViewerAndTransforms topRight;
 
-	private final TransformConcatenator concatenator;
+	private final ViewerAndTransforms bottomLeft;
+
+	private final BR bottomRight;
+
+	private final CacheControl queue;
 
 	/**
-	 * @param viewer                  viewer
-	 * @param manager                 manages the transform from world coordinates to shared viewer space
-	 * @param displayTransform        accounts for scale after all other translations are applied
-	 * @param globalToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
-	 *                                only, without scaling or rotation.
+	 * @param manager       manages the transform from world coordinates to shared viewer space and is shared by all {@link ViewerPanelFX viewers}.
+	 * @param cacheControl  shared between all {@link ViewerPanelFX viewers}
+	 * @param optional      Options for {@link ViewerPanelFX}
+	 * @param bottomRight   bottom right child
+	 * @param interpolation {@link Interpolation interpolation} lookup for every {@link Source}
 	 */
-	public ViewerAndTransforms(
-			final ViewerPanelFX viewer,
+	public OrthogonalViews(
 			final GlobalTransformManager manager,
-			final AffineTransformWithListeners displayTransform,
-			final AffineTransformWithListeners globalToViewerTransform) {
+			final CacheControl cacheControl,
+			final ViewerOptions optional,
+			final BR bottomRight,
+			final Function<Source<?>, Interpolation> interpolation) {
 
-	  super();
-	  this.viewer = viewer;
-	  this.manager = manager;
-	  this.displayTransform = displayTransform;
-	  this.globalToViewerTransform = globalToViewerTransform;
+		this.manager = manager;
+		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
+		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
+		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
+		this.bottomRight = bottomRight;
+		this.pane = new DynamicCellPane();
+		resetPane();
 
-	  this.concatenator = new TransformConcatenator(
-			  this.manager,
-			  displayTransform,
-			  globalToViewerTransform,
-			  manager
-	  );
-	  this.concatenator.setTransformListener(viewer);
+		this.queue = cacheControl;
 	}
 
 	/**
-	 * @return display transform ({@link #ViewerAndTransforms constructor} for details)
+	 * @return underlying {@link DynamicCellPane}
 	 */
-	public AffineTransformWithListeners displayTransform() {
+	public DynamicCellPane pane() {
 
-	  return this.displayTransform;
+		return this.pane;
 	}
-
-	/**
-	 * @return global to viewer transform ({@link #ViewerAndTransforms constructor} for details)
-	 */
-	public AffineTransformWithListeners globalToViewerTransform() {
-
-	  return this.globalToViewerTransform;
-	}
-
-	/**
-	 * @return {@link ViewerPanelFX viewer} associated with this.
-	 */
-	public ViewerPanelFX viewer() {
-
-	  return viewer;
-	}
-  }
-
-  private final DynamicCellPane pane;
-
-  private final GlobalTransformManager manager;
-
-  private final ViewerAndTransforms topLeft;
-
-  private final ViewerAndTransforms topRight;
-
-  private final ViewerAndTransforms bottomLeft;
-
-  private final BR bottomRight;
-
-  private final CacheControl queue;
-
-  /**
-   * @param manager       manages the transform from world coordinates to shared viewer space and is shared by all {@link ViewerPanelFX viewers}.
-   * @param cacheControl  shared between all {@link ViewerPanelFX viewers}
-   * @param optional      Options for {@link ViewerPanelFX}
-   * @param bottomRight   bottom right child
-   * @param interpolation {@link Interpolation interpolation} lookup for every {@link Source}
-   */
-  public OrthogonalViews(
-		  final GlobalTransformManager manager,
-		  final CacheControl cacheControl,
-		  final ViewerOptions optional,
-		  final BR bottomRight,
-		  final Function<Source<?>, Interpolation> interpolation) {
-
-	this.manager = manager;
-	this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
-	this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
-	this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
-	this.bottomRight = bottomRight;
-	this.pane = new DynamicCellPane();
-	resetPane();
-
-	this.queue = cacheControl;
-  }
-
-  /**
-   * @return underlying {@link DynamicCellPane}
-   */
-  public DynamicCellPane pane() {
-
-	return this.pane;
-  }
 
 	/**
 	 * reset the DynamicCellPane to match the initial configuration.
 	 */
 	public void resetPane() {
+
 		this.pane.removeAll();
 		this.pane.addRow(topLeft.viewer, topRight.viewer);
 		this.pane.addRow(bottomLeft.viewer, bottomRight);
 
 	}
 
-  /**
-   * @param apply Apply this to all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-   */
-  public void applyToAll(final Consumer<ViewerPanelFX> apply) {
+	/**
+	 * @param apply Apply this to all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 */
+	public void applyToAll(final Consumer<ViewerPanelFX> apply) {
 
-	apply.accept(topLeft.viewer);
-	apply.accept(topRight.viewer);
-	apply.accept(bottomLeft.viewer);
-  }
+		apply.accept(topLeft.viewer);
+		apply.accept(topRight.viewer);
+		apply.accept(bottomLeft.viewer);
+	}
 
-  /**
-   * {@link ViewerPanelFX#requestRepaint()}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-   */
-  public void requestRepaint() {
+	/**
+	 * {@link ViewerPanelFX#requestRepaint()}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 */
+	public void requestRepaint() {
 
-	applyToAll(ViewerPanelFX::requestRepaint);
-  }
+		applyToAll(ViewerPanelFX::requestRepaint);
+	}
 
-  public void requestRepaint(final RealInterval intervalInGlobalSpace) {
+	public void requestRepaint(final RealInterval intervalInGlobalSpace) {
 
-	this.applyToAll(v -> v.requestRepaint(intervalInGlobalSpace));
-  }
+		this.applyToAll(v -> v.requestRepaint(intervalInGlobalSpace));
+	}
 
-  /**
-   * {@link ViewerPanelFX#setAllSources(Collection)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-   *
-   * @param sources Will replace all current sources.
-   */
-  public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources) {
+	/**
+	 * {@link ViewerPanelFX#setAllSources(Collection)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @param sources Will replace all current sources.
+	 */
+	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources) {
 
-	applyToAll(viewer -> viewer.setAllSources(sources));
-  }
+		applyToAll(viewer -> viewer.setAllSources(sources));
+	}
 
-  /**
-   * {@link ViewerPanelFX#addEventFilter(EventType, EventHandler)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-   *
-   * @see Node#addEventFilter(EventType, EventHandler) for details.
-   */
-  public <E extends Event> void addEventFilter(final EventType<E> eventType, final EventHandler<E> handler) {
+	/**
+	 * {@link ViewerPanelFX#addEventFilter(EventType, EventHandler)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @see Node#addEventFilter(EventType, EventHandler) for details.
+	 */
+	public <E extends Event> void addEventFilter(final EventType<E> eventType, final EventHandler<E> handler) {
 
-	applyToAll(viewer -> viewer.addEventFilter(eventType, handler));
-  }
+		applyToAll(viewer -> viewer.addEventFilter(eventType, handler));
+	}
 
-  public List<ViewerPanelFX> views() {
+	public List<ViewerPanelFX> views() {
 
-	return viewerAndTransforms().stream().map(ViewerAndTransforms::viewer).collect(Collectors.toList());
-  }
+		return viewerAndTransforms().stream().map(ViewerAndTransforms::viewer).collect(Collectors.toList());
+	}
 
-  public List<ViewerAndTransforms> viewerAndTransforms() {
+	public List<ViewerAndTransforms> viewerAndTransforms() {
 
-	return List.of(getTopLeft(), getTopRight(), getBottomLeft());
-  }
+		return List.of(getTopLeft(), getTopRight(), getBottomLeft());
+	}
 
-  /**
-   * @return top left {@link ViewerPanelFX viewer}
-   */
-  public ViewerAndTransforms getTopLeft() {
+	/**
+	 * @return top left {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms getTopLeft() {
 
-	return this.topLeft;
-  }
+		return this.topLeft;
+	}
 
-  /**
-   * @return top right {@link ViewerPanelFX viewer}
-   */
-  public ViewerAndTransforms getTopRight() {
+	/**
+	 * @return top right {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms getTopRight() {
 
-	return this.topRight;
-  }
+		return this.topRight;
+	}
 
-  /**
-   * @return bottom left {@link ViewerPanelFX viewer}
-   */
-  public ViewerAndTransforms getBottomLeft() {
+	/**
+	 * @return bottom left {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms getBottomLeft() {
 
-	return this.bottomLeft;
-  }
+		return this.bottomLeft;
+	}
 
-  public BR getBottomRight() {
+	public BR getBottomRight() {
 
-	return this.bottomRight;
-  }
+		return this.bottomRight;
+	}
 
-  public void disableView(final ViewerPanelFX viewer) {
+	public void disableView(final ViewerPanelFX viewer) {
 
-	viewer.setFocusable(false);
-	final var grayedOut = new ColorAdjust();
-	grayedOut.setContrast(-0.2);
-	grayedOut.setBrightness(-0.5);
-	viewer.setEffect(grayedOut);
-  }
+		viewer.setFocusable(false);
+		final var grayedOut = new ColorAdjust();
+		grayedOut.setContrast(-0.2);
+		grayedOut.setBrightness(-0.5);
+		viewer.setEffect(grayedOut);
+	}
 
-  public void enableView(final ViewerPanelFX viewer) {
+	public void enableView(final ViewerPanelFX viewer) {
 
-	viewer.setFocusable(true);
-	viewer.setEffect(null);
-  }
+		viewer.setFocusable(true);
+		viewer.setEffect(null);
+	}
 
-  /**
-   * Delegates to {@link #setScreenScales(double[], boolean) setScreenScales(screenScales, true)}
-   *
-   * @param screenScales subject to following constraints:
-   *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
-   *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
-   */
-  public void setScreenScales(final double[] screenScales) {
+	/**
+	 * Delegates to {@link #setScreenScales(double[], boolean) setScreenScales(screenScales, true)}
+	 *
+	 * @param screenScales subject to following constraints:
+	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
+	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
+	 */
+	public void setScreenScales(final double[] screenScales) {
 
-	this.setScreenScales(screenScales, true);
-  }
+		this.setScreenScales(screenScales, true);
+	}
 
-  /**
-   * {@link ViewerPanelFX#setScreenScales(double[])}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-   *
-   * @param screenScales     subject to following constraints:
-   *                         1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
-   *                         2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
-   * @param doRequestRepaint if {@code true}, also run {@link #requestRepaint()}
-   */
-  public void setScreenScales(final double[] screenScales, final boolean doRequestRepaint) {
+	/**
+	 * {@link ViewerPanelFX#setScreenScales(double[])}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @param screenScales     subject to following constraints:
+	 *                         1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
+	 *                         2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
+	 * @param doRequestRepaint if {@code true}, also run {@link #requestRepaint()}
+	 */
+	public void setScreenScales(final double[] screenScales, final boolean doRequestRepaint) {
 
-	LOG.debug("Setting screen scales to {} for all panels.", screenScales);
-	applyToAll(vp -> vp.setScreenScales(screenScales));
-	if (doRequestRepaint)
-	  requestRepaint();
-  }
+		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
+		applyToAll(vp -> vp.setScreenScales(screenScales));
+		if (doRequestRepaint)
+			requestRepaint();
+	}
 
-  private static ViewerAndTransforms create(
-		  final GlobalTransformManager manager,
-		  final CacheControl cacheControl,
-		  final ViewerOptions optional,
-		  final ViewerAxis axis,
-		  final Function<Source<?>, Interpolation> interpolation) {
+	private static ViewerAndTransforms create(
+			final GlobalTransformManager manager,
+			final CacheControl cacheControl,
+			final ViewerOptions optional,
+			final ViewerAxis axis,
+			final Function<Source<?>, Interpolation> interpolation) {
 
-	final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer(axis);
-	LOG.debug("Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer);
-	final ViewerPanelFX viewer = new ViewerPanelFX(
-			1,
-			cacheControl,
-			optional,
-			interpolation
-	);
-	final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
-	final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners(globalToViewer);
+		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer(axis);
+		LOG.debug("Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer);
+		final ViewerPanelFX viewer = new ViewerPanelFX(
+				1,
+				cacheControl,
+				optional,
+				interpolation
+		);
+		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
+		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners(globalToViewer);
 
-	return new ViewerAndTransforms(viewer, manager, displayTransform, globalToViewerTransform);
-  }
+		return new ViewerAndTransforms(viewer, manager, displayTransform, globalToViewerTransform);
+	}
 
 }

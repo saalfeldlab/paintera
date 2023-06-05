@@ -9,20 +9,20 @@ typealias DisplayPoint = RealPoint
 typealias SourcePoint = RealPoint
 typealias GlobalPoint = RealPoint
 
-private val RealPoint.x : Double
-    get() = getDoublePosition(0)
+private val RealPoint.x: Double
+	get() = getDoublePosition(0)
 
-private val RealPoint.y : Double
-    get() = getDoublePosition(0)
+private val RealPoint.y: Double
+	get() = getDoublePosition(0)
 
-fun DisplayPoint.toSourcePoint(viewer: ViewerPanelFX, sourceTransform : AffineTransform3D) : SourcePoint {
-    return SourcePoint(numDimensions()).also {
-        viewer.displayToSourceCoordinates(x, y, sourceTransform, it)
-    }
+fun DisplayPoint.toSourcePoint(viewer: ViewerPanelFX, sourceTransform: AffineTransform3D): SourcePoint {
+	return SourcePoint(numDimensions()).also {
+		viewer.displayToSourceCoordinates(x, y, sourceTransform, it)
+	}
 }
 
-fun DisplayPoint.toGlobalPoint(viewer: ViewerPanelFX, sourceTransform : AffineTransform3D) : SourcePoint {
-    return SourcePoint(numDimensions()).also {
-        viewer.displayToSourceCoordinates(x, y, sourceTransform, it)
-    }
+fun DisplayPoint.toGlobalPoint(viewer: ViewerPanelFX, sourceTransform: AffineTransform3D): SourcePoint {
+	return SourcePoint(numDimensions()).also {
+		viewer.displayToSourceCoordinates(x, y, sourceTransform, it)
+	}
 }

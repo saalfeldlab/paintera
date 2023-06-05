@@ -21,11 +21,11 @@ package org.janelia.saalfeldlab.paintera.composition;
 @FunctionalInterface
 public interface Composite<A, B> {
 
-  /**
-   * Composes a and b into a.
-   *
-   * @param a
-   * @param b
-   */
-  void compose(final A a, final B b);
+	/**
+	 * Composes a and b into a.
+	 *
+	 * @param a
+	 * @param b
+	 */
+	void compose(final A a, final B b);
 }

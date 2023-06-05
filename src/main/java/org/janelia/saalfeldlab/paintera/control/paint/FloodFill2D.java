@@ -7,7 +7,13 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
-import net.imglib2.*;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.Point;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.converter.Converters;
@@ -49,9 +55,6 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	private final ObservableValue<ViewerPanelFX> activeViewerProperty;
 
 	private final MaskedSource<T, ?> source;
-
-	private final FragmentSegmentAssignment assignment;
-
 	private final BooleanSupplier isVisible;
 
 	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(2.0);
@@ -65,18 +68,15 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	public FloodFill2D(
 			final ObservableValue<ViewerPanelFX> activeViewerProperty,
 			final MaskedSource<T, ?> source,
-			final FragmentSegmentAssignment assignment,
 			final BooleanSupplier isVisible) {
 
 		super();
 		Objects.requireNonNull(activeViewerProperty);
 		Objects.requireNonNull(source);
-		Objects.requireNonNull(assignment);
 		Objects.requireNonNull(isVisible);
 
 		this.activeViewerProperty = activeViewerProperty;
 		this.source = source;
-		this.assignment = assignment;
 		this.isVisible = isVisible;
 	}
 
@@ -101,7 +101,34 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		return this.maskIntervalProperty.get();
 	}
 
-	public UtilityTask<Interval> fillAt(final double currentViewerX, final double currentViewerY, Long fill) {
+	public UtilityTask<Interval> fillViewerAt(final double viewerSeedX, final double viewerSeedY, Long fill, FragmentSegmentAssignment assignment) {
+		if (fill == null) {
+			LOG.info("Received invalid label {} -- will not fill.", fill);
+			return null;
+		}
+
+		if (!isVisible.getAsBoolean()) {
+			LOG.info("Selected source is not visible -- will not fill");
+			return null;
+		}
+
+		final ViewerPanelFX viewer = activeViewerProperty.getValue();
+
+		final ViewerMask mask;
+		if (this.viewerMask == null) {
+			final int level = viewer.getState().getBestMipMapLevel();
+			final int time = viewer.getState().getTimepoint();
+			final MaskInfo maskInfo = new MaskInfo(time, level);
+			mask = ViewerMask.createViewerMask(source, maskInfo, viewer, this.fillDepth.get());
+		} else {
+			mask = viewerMask;
+		}
+		final var maskPos = mask.displayPointToInitialMaskPoint(viewerSeedX, viewerSeedY);
+		final var filter = getBackgorundLabelMaskForAssignment(maskPos, mask, assignment, fill);
+		return fillMaskAt(maskPos, mask, fill, filter);
+	}
+
+	public UtilityTask<Interval> fillViewerAt(final double currentViewerX, final double currentViewerY, Long fill, RandomAccessibleInterval<BoolType> filter) {
 
 		if (fill == null) {
 			LOG.info("Received invalid label {} -- will not fill.", fill);
@@ -119,16 +146,21 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		if (this.viewerMask == null) {
 			final int level = viewer.getState().getBestMipMapLevel();
 			final int time = viewer.getState().getTimepoint();
-			final MaskInfo maskInfo = new MaskInfo(time, level, new UnsignedLongType(fill));
-			mask = ViewerMask.setNewViewerMask(source, maskInfo, viewer, this.fillDepth.get());
+			final MaskInfo maskInfo = new MaskInfo(time, level);
+			mask = ViewerMask.createViewerMask(source, maskInfo, viewer, this.fillDepth.get());
 		} else {
 			mask = viewerMask;
 		}
 		final var maskPos = mask.displayPointToInitialMaskPoint(currentViewerX, currentViewerY);
+		return fillMaskAt(maskPos, mask, fill, filter);
+	}
+
+	@NotNull
+	private UtilityTask<Interval> fillMaskAt(Point maskPos, ViewerMask mask, Long fill, RandomAccessibleInterval<BoolType> filter) {
 		final var floodFillTask = createViewerFloodFillTask(
 				maskPos,
 				mask,
-				assignment,
+				filter,
 				fill,
 				this.viewerMask == null
 		);
@@ -149,7 +181,6 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 		floodFillTask.submit();
 
-
 		refreshDuringFloodFill(floodFillTask).start();
 		return floodFillTask;
 	}
@@ -157,13 +188,12 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	public static UtilityTask<Interval> createViewerFloodFillTask(
 			Point maskPos,
 			ViewerMask mask,
-			FragmentSegmentAssignment assignment,
-			long fill,
+			RandomAccessibleInterval<BoolType> floodFillFilter, long fill,
 			Boolean apply) {
+
 		return Tasks.<Interval>createTask(task -> {
 
-			final var backgroundLabelMaskInViewer = getBackgorundLabelMaskForAssignment(maskPos, mask, assignment, fill);
-			if (backgroundLabelMaskInViewer == null) {
+			if (floodFillFilter == null) {
 				if (apply) {
 					try {
 						mask.getSource().resetMasks(true);
@@ -173,7 +203,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 				}
 				return new FinalInterval(0, 0, 0);
 			} else {
-				return viewerMaskFloodFill(maskPos, mask, backgroundLabelMaskInViewer, fill, apply);
+				return viewerMaskFloodFill(maskPos, mask, floodFillFilter, fill, apply);
 			}
 		}).onCancelled((state, task) -> {
 			try {
@@ -190,23 +220,48 @@ public class FloodFill2D<T extends IntegerType<T>> {
 			final RandomAccessibleInterval<BoolType> filter,
 			final long fill,
 			final Boolean apply) {
+
 		final var fillIntervalInMask = fillViewerMaskAt(maskPos, mask, filter, fill);
 
-		final Interval affectedSourceInterval = Intervals.smallestContainingInterval(mask.getCurrentMaskToSourceWithDepthTransform().estimateBounds(fillIntervalInMask));
+		final Interval affectedSourceInterval = Intervals.smallestContainingInterval(
+				mask.getCurrentMaskToSourceWithDepthTransform().estimateBounds(fillIntervalInMask));
 
 		if (apply) {
 			final MaskedSource<? extends RealType<?>, ?> source = mask.getSource();
 			source.applyMask(source.getCurrentMask(), affectedSourceInterval, FOREGROUND_CHECK);
 		}
-		Paintera.getPaintera().getBaseView().orthogonalViews().requestRepaint();
+		mask.requestRepaint(fillIntervalInMask);
+		return fillIntervalInMask;
+	}
+
+	public static Interval viewerMaskFloodFill(
+			final Point maskPos,
+			final ViewerMask mask,
+			final RandomAccessibleInterval<BoolType> filter,
+			final long fill,
+			final Boolean apply,
+			final RandomAccessibleInterval<UnsignedLongType> maskImage) {
+
+		final var fillIntervalInMask = fillViewerMaskAt(maskPos, maskImage, filter, fill);
+
+		final Interval affectedSourceInterval = Intervals.smallestContainingInterval(
+				mask.getCurrentMaskToSourceWithDepthTransform().estimateBounds(fillIntervalInMask));
+
+		if (apply) {
+			final MaskedSource<? extends RealType<?>, ?> source = mask.getSource();
+			source.applyMask(source.getCurrentMask(), affectedSourceInterval, FOREGROUND_CHECK);
+		}
+		mask.requestRepaint(fillIntervalInMask);
 		return fillIntervalInMask;
 	}
 
 	public static Thread refreshDuringFloodFill() {
+
 		return refreshDuringFloodFill(null);
 	}
 
-	public static Thread refreshDuringFloodFill(Task<?> task) {
+	public static Thread refreshDuringFloodFill(Task<Interval> task) {
+
 		return new Thread(() -> {
 			while (task == null || !task.isDone()) {
 				try {
@@ -330,7 +385,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 					fillNormalAxisInLabelCoordinateSystem
 			);
 			final long slicePos = Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem));
-			final long numSlices = Math.max((long) Math.ceil(fillDepth) - 1, 0);
+			final long numSlices = Math.max((long)Math.ceil(fillDepth) - 1, 0);
 			if (numSlices == 0) {
 				// fill only within the given slice, run 2D flood-fill
 				final long[] seed2D = {
@@ -388,10 +443,12 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	}
 
 	@Nullable
-	public static RandomAccessibleInterval<BoolType> getBackgorundLabelMaskForAssignment(Point initialSeed, ViewerMask mask, FragmentSegmentAssignment assignment, long fillValue) {
+	public static RandomAccessibleInterval<BoolType> getBackgorundLabelMaskForAssignment(Point initialSeed, ViewerMask mask,
+			FragmentSegmentAssignment assignment, long fillValue) {
+
 		final var backgroundViewerRai = ViewerMask.getSourceDataInInitialMaskSpace(mask);
 
-		final var id = (long) backgroundViewerRai.getAt(initialSeed).getRealDouble();
+		final var id = (long)backgroundViewerRai.getAt(initialSeed).getRealDouble();
 		final long seedLabel = assignment != null ? assignment.getSegment(id) : id;
 		LOG.debug("Got seed label {}", seedLabel);
 
@@ -402,7 +459,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		return Converters.convert(
 				backgroundViewerRai,
 				(src, target) -> {
-					long segmentId = (long) src.getRealDouble();
+					long segmentId = (long)src.getRealDouble();
 					if (assignment != null) {
 						segmentId = assignment.getSegment(segmentId);
 					}
@@ -428,7 +485,84 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		// fill only within the given slice, run 2D flood-fill
 		LOG.debug("Flood filling into viewer mask ");
 
-		final RandomAccessible<BoolType> backgroundSlice = Views.hyperSlice(extendedFilter, 2, 0);
+
+		final RandomAccessible<BoolType> backgroundSlice;
+		if (extendedFilter.numDimensions() == 3) {
+			backgroundSlice = Views.hyperSlice(extendedFilter, 2, 0);
+		} else {
+			backgroundSlice = extendedFilter;
+		}
+		final RandomAccessible<UnsignedLongType> viewerFillImg = Views.hyperSlice(sourceAccessTracker, 2, 0);
+
+ 		FloodFill.fill(
+				backgroundSlice,
+				viewerFillImg,
+				initialSeed,
+				new UnsignedLongType(fillValue),
+				new DiamondShape(1)
+		);
+
+		return new FinalInterval(sourceAccessTracker.getMin(), sourceAccessTracker.getMax());
+	}
+
+	public static Interval fillAt(
+			final Point initialSeed,
+			final RandomAccessibleInterval<UnsignedLongType> target,
+			final RandomAccessibleInterval<BoolType> filter,
+			final long fillValue) {
+
+		final RandomAccessible<BoolType> extendedFilter = Views.extendValue(filter, new BoolType(false));
+
+		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> sourceAccessTracker = new
+				AccessBoxRandomAccessibleOnGet<>(
+				Views.extendValue(target, new UnsignedLongType(fillValue)));
+		sourceAccessTracker.initAccessBox();
+
+		// fill only within the given slice, run 2D flood-fill
+		LOG.debug("Flood filling into viewer mask ");
+
+
+		final RandomAccessible<BoolType> backgroundSlice;
+		if (extendedFilter.numDimensions() == 3) {
+			backgroundSlice = Views.hyperSlice(extendedFilter, 2, 0);
+		} else {
+			backgroundSlice = extendedFilter;
+		}
+		final RandomAccessible<UnsignedLongType> viewerFillImg = Views.hyperSlice(sourceAccessTracker, 2, 0);
+
+		FloodFill.fill(
+				backgroundSlice,
+				viewerFillImg,
+				initialSeed,
+				new UnsignedLongType(fillValue),
+				new DiamondShape(1)
+		);
+
+		return new FinalInterval(sourceAccessTracker.getMin(), sourceAccessTracker.getMax());
+	}
+
+	public static Interval fillViewerMaskAt(
+			final Point initialSeed,
+			RandomAccessibleInterval<UnsignedLongType> viewerImg, final RandomAccessibleInterval<BoolType> filter,
+			final long fillValue) {
+
+		final RandomAccessible<BoolType> extendedFilter = Views.extendValue(filter, new BoolType(false));
+
+		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> sourceAccessTracker = new
+				AccessBoxRandomAccessibleOnGet<>(
+				Views.extendValue(viewerImg, new UnsignedLongType(fillValue)));
+		sourceAccessTracker.initAccessBox();
+
+		// fill only within the given slice, run 2D flood-fill
+		LOG.debug("Flood filling into viewer mask ");
+
+
+		final RandomAccessible<BoolType> backgroundSlice;
+		if (extendedFilter.numDimensions() == 3) {
+			backgroundSlice = Views.hyperSlice(extendedFilter, 2, 0);
+		} else {
+			backgroundSlice = extendedFilter;
+		}
 		final RandomAccessible<UnsignedLongType> viewerFillImg = Views.hyperSlice(sourceAccessTracker, 2, 0);
 
 		FloodFill.fill(

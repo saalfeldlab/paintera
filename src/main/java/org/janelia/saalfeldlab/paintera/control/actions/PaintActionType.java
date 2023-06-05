@@ -3,27 +3,27 @@ package org.janelia.saalfeldlab.paintera.control.actions;
 import java.util.EnumSet;
 
 public enum PaintActionType implements ActionType {
-  Paint,
-  Erase,
-  Background,
-  Fill,
-  Intersect,
-  SetBrushSize,
-  SetBrushDepth,
-  ShapeInterpolation;
+	Paint,
+	Erase,
+	Background,
+	Fill,
+	Intersect,
+	SetBrushSize,
+	SetBrushDepth,
+	ShapeInterpolation;
 
-  public static EnumSet<PaintActionType> of(final PaintActionType first, final PaintActionType... rest) {
+	public static EnumSet<PaintActionType> of(final PaintActionType first, final PaintActionType... rest) {
 
-	return EnumSet.of(first, rest);
-  }
+		return EnumSet.of(first, rest);
+	}
 
-  public static EnumSet<PaintActionType> all() {
+	public static EnumSet<PaintActionType> all() {
 
-	return EnumSet.allOf(PaintActionType.class);
-  }
+		return EnumSet.allOf(PaintActionType.class);
+	}
 
-  public static EnumSet<PaintActionType> none() {
+	public static EnumSet<PaintActionType> none() {
 
-	return EnumSet.noneOf(PaintActionType.class);
-  }
+		return EnumSet.noneOf(PaintActionType.class);
+	}
 }

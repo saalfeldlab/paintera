@@ -22,20 +22,20 @@ operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
 
 //@formatter:off
+
 object PainteraBaseKeys {
     const val CYCLE_INTERPOLATION_MODES        = "cycle interpolation modes"
     const val CYCLE_CURRENT_SOURCE_FORWARD     = "cycle current source forward"
     const val CYCLE_CURRENT_SOURCE_BACKWARD    = "cycle current source backward"
-    const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current source visibility"
+	const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current source visibility"
     const val MAXIMIZE_VIEWER                  = "toggle maximize viewer"
     const val DETACH_VIEWER_WINDOW             = "toggle detached viewer window"
     const val RESET_VIEWER_POSITIONS           = "reset viewer positions"
     const val MAXIMIZE_VIEWER_AND_3D           = "toggle maximize viewer and 3D"
-    const val SHOW_OPEN_DATASET_MENU           = "show open dataset menu"
     const val CREATE_NEW_LABEL_DATASET         = "create new label dataset"
     const val SHOW_REPL_TABS                   = "open repl"
     const val TOGGLE_FULL_SCREEN               = "toggle full screen"
-    const val OPEN_DATA                        = "open data"
+    const val OPEN_SOURCE                      = "open source"
     const val SAVE                             = "save"
     const val SAVE_AS                          = "save as"
     const val TOGGLE_MENUBAR_VISIBILITY        = "toggle menubar visibility"
@@ -49,9 +49,12 @@ object PainteraBaseKeys {
     const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
+    const val RESET_3D_LOCATION                = "Reset 3D Location"
+    const val CENTER_3D_LOCATION               = "Center 3D Location"
+    const val SAVE_3D_PNG                      = "Save 3D As PNG"
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
-        OPEN_DATA                                   byKeyCombo CONTROL_DOWN + O,
+        OPEN_SOURCE                                 byKeyCombo CONTROL_DOWN + O,
         SAVE                                        byKeyCombo CONTROL_DOWN + S,
         SAVE_AS                                     byKeyCombo CONTROL_DOWN + SHIFT_DOWN + S,
         TOGGLE_MENUBAR_VISIBILITY                   byKeyCombo F2,
@@ -74,8 +77,9 @@ object PainteraBaseKeys {
         CREATE_NEW_LABEL_DATASET                    byKeyCombo CONTROL_DOWN + SHIFT_DOWN + N,
         SHOW_REPL_TABS                              byKeyCombo SHORTCUT_DOWN + ALT_DOWN + T,
         TOGGLE_FULL_SCREEN                          byKeyCombo F11,
-    )
+	)
 
+	@JvmStatic
     fun namedCombinationsCopy() = NAMED_COMBINATIONS.deepCopy
 
 
@@ -99,11 +103,10 @@ object LabelSourceStateKeys {
     const val ARGB_STREAM_INCREMENT_SEED                   = "argb stream: increment seed"
     const val ARGB_STREAM_DECREMENT_SEED                   = "argb stream: decrement seed"
     const val REFRESH_MESHES                               = "refresh meshes"
-    const val CANCEL_2D_FLOODFILL                          = "2d floodfill: cancel"
-    const val CANCEL_3D_FLOODFILL                          = "3d floodfill: cancel"
+    const val CANCEL                                       = "cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
 
-    private val namedComboMap = NamedKeyCombination.CombinationMap(
+	private val namedComboMap = NamedKeyCombination.CombinationMap(
         SELECT_ALL                                  byKeyCombo A + CONTROL_DOWN,
         SELECT_ALL_IN_CURRENT_VIEW                  byKeyCombo CONTROL_DOWN + SHIFT_DOWN + A,
         LOCK_SEGEMENT                               byKeyCombo L,
@@ -115,18 +118,17 @@ object LabelSourceStateKeys {
         SHAPE_INTERPOLATION_APPLY_MASK              byKeyCombo ENTER,
         SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION    byKeyCombo DIGIT1,
         SHAPE_INTERPOLATION_EDIT_LAST_SELECTION     byKeyCombo DIGIT0,
-        SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION byKeyCombo LEFT,
+		SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION byKeyCombo LEFT,
         SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION     byKeyCombo RIGHT,
         SHAPE_INTERPOLATION_TOGGLE_PREVIEW          byKeyCombo CONTROL_DOWN + P ,
         ARGB_STREAM_INCREMENT_SEED                  byKeyCombo C,
         ARGB_STREAM_DECREMENT_SEED                  byKeyCombo C + SHIFT_DOWN,
         REFRESH_MESHES                              byKeyCombo R,
-        CANCEL_3D_FLOODFILL                         byKeyCombo ESCAPE,
-        CANCEL_2D_FLOODFILL                         byKeyCombo ESCAPE,
+        CANCEL                                      byKeyCombo ESCAPE,
         TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN
-    )
+	)
 
-    fun namedCombinationsCopy() = namedComboMap.deepCopy
+	fun namedCombinationsCopy() = namedComboMap.deepCopy
 
 }
 
@@ -135,8 +137,8 @@ object NavigationKeys {
     const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST  = "translate along normal forward fast"
     const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW  = "translate along normal forward slow"
     const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD      = "translate along normal backward"
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST = "translate along normal backward fast"
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW = "translate along normal backward slow"
+	const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST = "translate along normal backward fast"
+	const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW = "translate along normal backward slow"
     const val BUTTON_ZOOM_OUT                             = "zoom out"
     const val BUTTON_ZOOM_OUT2                            = "zoom out (alternative)"
     const val BUTTON_ZOOM_IN                              = "zoom in"
@@ -152,10 +154,10 @@ object NavigationKeys {
     const val KEY_ROTATE_RIGHT_SLOW                       = "rotate right slow"
     const val REMOVE_ROTATION                             = "remove rotation"
 
-    private val namedComboMap = NamedKeyCombination.CombinationMap(
+	private val namedComboMap = NamedKeyCombination.CombinationMap(
         BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD      byKeyCombo COMMA,
-        BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST byKeyCombo COMMA + SHIFT_DOWN,
-        BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW byKeyCombo COMMA + CONTROL_DOWN,
+		BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST byKeyCombo COMMA + SHIFT_DOWN,
+		BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW byKeyCombo COMMA + CONTROL_DOWN,
         BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD       byKeyCombo PERIOD,
         BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST  byKeyCombo PERIOD + SHIFT_DOWN,
         BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW  byKeyCombo PERIOD + CONTROL_DOWN,
@@ -173,8 +175,8 @@ object NavigationKeys {
         KEY_ROTATE_RIGHT_FAST                       byKeyCombo RIGHT + SHIFT_DOWN,
         KEY_ROTATE_RIGHT_SLOW                       byKeyCombo RIGHT + CONTROL_DOWN,
         REMOVE_ROTATION                             byKeyCombo Z + SHIFT_DOWN
-    )
+	)
 
-    fun namedCombinationsCopy() = namedComboMap.deepCopy
+	fun namedCombinationsCopy() = namedComboMap.deepCopy
 }
 //@formatter:on
