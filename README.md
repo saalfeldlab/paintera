@@ -11,7 +11,7 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
     - [x] Paint Brush
     - [x] 2D and 3D flood fill
     - [x] [Segment Anything](https://segment-anything.com/) aided semi-automatic annotation :exclamation:
-    - [x] Rapid 3D sculpting with interactive shape interpolation
+    - [x] Rapid 3D sculpting with interactive shape interpolation combining all of the above
   - [x] Manual agglomeration
   - [x] 3D visualization as polygon meshes
     - [x] Meshes for each mipmap level
