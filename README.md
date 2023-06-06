@@ -633,23 +633,20 @@ you may end up with unexpected results if the two slices don't overlap at all, o
 
 
 #### Automatic Labelling with Segment Anything
-Paintera utilized Meta's open-source Segment Anything model to predict segmentation based on the current view of the data.
-The label predictions are a two step process:
-1. The image that is currently displayed in the active view is encoded to get an image embedding that the prediction operate on
-    - This occurs only once per image, regardless of the number of predictions. this is **not** real-time
-2. The predictions are made on the image embedding, based on user interaction (cursor movement, or  inside/outside points)
-    - This occurs many times, ideally in real-time
+Paintera utilizes Meta's open-source [Segment Anything](https://segment-anything.com/) model to create automatic 2D segmentations over the current slice view.
+The segmentations are produced by a two step process:
+1. The currently active view is encoded into an image embedding that is later used to interactively generate segmentation proposals
+    - This occurs only once per image, regardless of the number of hypotheses generated.  Generating this embedding is computationally demanding and benefits from a decent GPU (~30s per image on CPU, ~1.5s on GPU).  Similar to [Meta AI's browser demo](https://segment-anything.com/demo), we run a simple and free to use web-service to create these embeddings for you.
+2. The embedding is used by a small and fast segmentation network to interactively create segmentation hypotheses based on user input (cursor movement, threshold , or inside/ outside points), this network runs on your local CPU
+    - This occurs frequently and in real-time as you move your mouse, add control points, or adjust the threshold
 
-Step 2 is quite quick, and can be done more or less in real time, even on CPU. Step 1 however is quite intensive, and
-Paintera employs some tricks to make this features accessible for computers without powerful GPUs.
+To make the experience interactive, Paintera employs some tricks to make this features accessible for computers without powerful GPUs.
 
-Currently, the images are compressed and sent to an external service which generates the embeddings using a cluster of GPUs.
-This incurs some latency for the round-trip, but is much faster than encoding the image locally (unless an equivalent or better GPU is locally available).
+The images are compressed and sent to a small server with some GPUs.  This incurs some latency for the round-trip, but is much faster than encoding the image locally (unless an equivalent or better GPU is locally available).
 Overall, the round-trip time from sending the image to receiving the embedding should be around 2-3 seconds.
-  - Ideally, the option to use your computers GPU instead of an external service will be available in the near future.
+  - The option to use your local GPU instead of an external service will be available soon.
 
-The other "trick" is to suspend navigation during automatic segmentation. It allows you to re-use the embedding for the current image,
-while enabling real-time segmentation predictions.
+Navigation is suspended while exploring segmentations so the same embedding can be re-used.
 
 #### Generating a Segmentation
 ###### Real-time Predictions
