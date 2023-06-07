@@ -53,9 +53,14 @@ interface ToolBarItem {
 				}
 			} ?: ToggleButton(null, graphic())
 
-			return button.also {
-				it.styleClass += "toolbar-button"
-				it.tooltip = Tooltip(
+			return button.also { btn ->
+                btn.graphic?.let {
+                    if ("ignore-disable" !in it.styleClass) {
+                        btn.disableProperty().bind(paintera.baseView.isDisabledProperty)
+                    }
+                }
+				btn.styleClass += "toolbar-button"
+				btn.tooltip = Tooltip(
 					keyTrigger?.let { keys ->
 						"$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
 					} ?: name
