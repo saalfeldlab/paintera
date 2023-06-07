@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -58,19 +59,24 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 		Fill3DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
 	}
 
+    private val fillIsRunningProperty = SimpleBooleanProperty(false, "Flood Fill 3D is running")
+    private var fillIsRunning by fillIsRunningProperty.nonnull()
+
 	override fun activate() {
 		super.activate()
 		overlay.visible = true
 	}
 
 	override fun deactivate() {
+        if (fillIsRunning) return
+
 		overlay.visible = false
 		super.deactivate()
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
-			*super<PaintTool>.actionSets.toTypedArray(),
+			*super.actionSets.toTypedArray(),
 			painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
 				ScrollEvent.SCROLL {
 					keysExclusive = false
@@ -95,21 +101,21 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 							}
 						}
 
+                        fillIsRunningProperty.set(true)
 						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
-							val disableUntilDone = SimpleBooleanProperty(true, "Fill3D is Running")
-							paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+							paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 
 							if (task.isDone) {
 								/* If its already done, do this now*/
-								disableUntilDone.set(false)
+								fillIsRunningProperty.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
 								statePaintContext?.refreshMeshes?.invoke()
 							} else {
 								/* Otherwise, do it when it's done */
 								task.onEnd {
-									disableUntilDone.set(false)
+									fillIsRunningProperty.set(false)
 									paintera.baseView.disabledPropertyBindings -= this
 									statePaintContext?.refreshMeshes?.invoke()
 								}
@@ -120,11 +126,12 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
-					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
+					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
 					filter = true
 					verify { floodFillState != null }
 					onAction {
-						floodFillState!!.interrupt.run()
+                        floodFillState?.interrupt?.run()
+                        fillIsRunningProperty.set(false)
 						mode?.switchTool(mode.defaultTool)
 					}
 				}
