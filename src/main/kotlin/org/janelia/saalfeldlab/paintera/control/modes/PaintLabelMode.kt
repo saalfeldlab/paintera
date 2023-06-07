@@ -89,6 +89,7 @@ object PaintLabelMode : AbstractToolMode() {
 		/* Add tool to switch to interpolation mode */
 		toolBarGrid.add(Button().also { siButton ->
 			siButton.styleClass += "toolbar-button"
+            siButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
 			siButton.graphic = StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "enter-shape-interpolation") }
 			siButton.onAction = EventHandler {
 				/* remove the current tool */

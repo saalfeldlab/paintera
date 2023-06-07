@@ -134,6 +134,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             }
 
             return button.also {
+                it.disableProperty().bind(paintera.baseView.isDisabledProperty)
                 it.styleClass += "toolbar-button"
                 it.tooltip = Tooltip(
                     keyTrigger?.let { keys ->

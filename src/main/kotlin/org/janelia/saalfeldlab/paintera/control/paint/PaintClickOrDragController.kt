@@ -14,6 +14,7 @@ import net.imglib2.util.LinAlgHelpers
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -27,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.union
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -316,7 +318,7 @@ class PaintClickOrDragController(
 			Tasks.createTask {
 				val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
 				val paintIntervalInMask = Paint2D.paintIntoViewer(
-					viewerImg.writableSource!!,
+					viewerImg.writableSource!!.extendValue(Label.INVALID),
 					paintId(),
 					viewerPointToMaskPoint,
 					brushRadius() * xScaleChange
