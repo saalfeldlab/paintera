@@ -644,7 +644,7 @@ To make the experience interactive, Paintera employs some tricks to make this fe
 
 The images are compressed and sent to a small server with some GPUs.  This incurs some latency for the round-trip, but is much faster than encoding the image locally (unless an equivalent or better GPU is locally available).
 Overall, the round-trip time from sending the image to receiving the embedding should be around 2-3 seconds.
-  - The option to use your local GPU instead of an external service will be available soon.
+  - The option to use your local GPU instead of an external service is also available, see [Running Prediction Service Locally](#running-prediction-service-locally).
 
 Navigation is suspended while exploring segmentations so the same embedding can be re-used.
 
