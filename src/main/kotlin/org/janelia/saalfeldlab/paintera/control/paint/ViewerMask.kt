@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -385,7 +386,7 @@ class ViewerMask private constructor(
 
     fun requestRepaint(intervalOverMask: Interval? = null) {
         intervalOverMask?.let {
-            val globalInterval = initialGlobalToMaskTransform.inverse().estimateBounds(it)
+            val globalInterval = IntervalHelpers.extendAndTransformBoundingBox(intervalOverMask, initialGlobalToMaskTransform.inverse(), .5)
             paintera.baseView.orthogonalViews().requestRepaint(globalInterval)
         } ?: paintera.baseView.orthogonalViews().requestRepaint()
     }
