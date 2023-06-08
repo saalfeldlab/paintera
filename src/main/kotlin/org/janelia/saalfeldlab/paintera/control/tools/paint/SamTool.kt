@@ -71,6 +71,8 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
+import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
@@ -135,13 +137,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             }
 
             return button.also {
+                it.userData = this
                 it.disableProperty().bind(paintera.baseView.isDisabledProperty)
                 it.styleClass += "toolbar-button"
-                it.tooltip = Tooltip(
-                    keyTrigger?.let { keys ->
-                        "$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
-                    } ?: name
-                )
+                it.tooltip = Tooltip( "$name: ${KeyTracker.keysToString(*keyTrigger.toTypedArray())}" )
             }
         }
 
@@ -236,6 +235,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
     override fun activate() {
         super.activate()
+        if (mode !is ShapeInterpolationMode<*>) {
+            PaintLabelMode.disableUnfocusedViewers()
+        }
         controlMode = false
         threshold = 5.0
         setCurrentLabelToSelection()
@@ -294,6 +296,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         originalScales = null
         viewerMask = null
         controlMode = false
+        if (mode !is ShapeInterpolationMode<*>) {
+            PaintLabelMode.enableAllViewers()
+        }
+
         super.deactivate()
     }
 
