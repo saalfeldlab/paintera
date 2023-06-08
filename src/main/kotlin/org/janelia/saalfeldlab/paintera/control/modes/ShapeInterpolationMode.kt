@@ -9,10 +9,6 @@ import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
-import javafx.event.EventHandler
-import javafx.scene.control.ButtonBase
-import javafx.scene.control.ToggleButton
-import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
@@ -604,7 +600,8 @@ class ShapeInterpolationTool(
 ) : ViewerTool(mode) {
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
-        shapeInterpolationActions(keyCombinations)
+        shapeInterpolationActions(keyCombinations),
+        cancelShapeInterpolationTask(keyCombinations)
     )
 
     override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
@@ -751,10 +748,18 @@ class ShapeInterpolationTool(
                         currentTask = fillObjectInSlice(event!!)
                     }
                 }
+            }
+        }
+    }
+
+    private fun cancelShapeInterpolationTask(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
+        return painteraActionSet("cancel shape interpolation task", PaintActionType.ShapeInterpolation, ignoreDisable = true) {
+            with(controller) {
+                verifyAll(KEY_PRESSED, "Controller is not active" ) { isControllerActive }
                 KEY_PRESSED(keyCombinations, CANCEL) {
-                    name = "cancel current shape interpolation tool  task"
+                    name = "cancel current shape interpolation tool task"
                     filter = true
-                    verify { currentTask != null }
+                    verify("No task to  cancel") { currentTask != null }
                     onAction {
                         currentTask?.cancel()
                         currentTask = null
@@ -764,13 +769,20 @@ class ShapeInterpolationTool(
         }
     }
 
-    private fun fillObjectInSlice(event: MouseEvent): UtilityTask<Interval> {
+    private fun fillObjectInSlice(event: MouseEvent): UtilityTask<Interval>? {
         with(controller) {
             source.resetMasks(false)
             val mask = getMask()
 
             fill2D.fill2D.provideMask(mask)
             val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
+            val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
+            val info = mask.info
+            val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
+            if (sourceLabel == Label.BACKGROUND || sourceLabel.toULong() > Label.MAX_ID.toULong()) {
+                return null
+            }
+
             val maskLabel = mask.rai[pointInMask].get()
             fill2D.brushProperties?.brushDepth = 1.0
             fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
