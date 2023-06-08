@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OnnxTensorLike
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
+import ai.onnxruntime.*
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnit
 import bdv.util.volatiles.SharedQueue
@@ -48,6 +45,8 @@ import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
+import net.imglib2.util.Intervals
+import net.imglib2.view.BundleView
 import net.imglib2.view.Views
 import org.apache.http.HttpException
 import org.apache.http.client.methods.HttpPost
@@ -70,6 +69,8 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
+import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
@@ -79,6 +80,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
@@ -134,13 +136,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             }
 
             return button.also {
+                it.userData = this
                 it.disableProperty().bind(paintera.baseView.isDisabledProperty)
                 it.styleClass += "toolbar-button"
-                it.tooltip = Tooltip(
-                    keyTrigger?.let { keys ->
-                        "$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
-                    } ?: name
-                )
+                it.tooltip = Tooltip("$name: ${KeyTracker.keysToString(*keyTrigger.toTypedArray())}")
             }
         }
 
@@ -229,21 +228,19 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private var screenScale by Delegates.notNull<Double>()
 
-    private var originalScales: DoubleArray? = null
-
     private var predictionImagePngInputStream = PipedInputStream()
     private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
     override fun activate() {
         super.activate()
+        if (mode !is ShapeInterpolationMode<*>) {
+            PaintLabelMode.disableUnfocusedViewers()
+        }
         controlMode = false
         threshold = 5.0
         setCurrentLabelToSelection()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
         setViewer = activeViewer
-        screenScale = calculateTargetScreenScaleFactor().coerceAtMost(.25)
-        originalScales = setViewer?.renderUnit?.screenScalesProperty?.get()?.copyOf()
-        paintera.baseView.orthogonalViews().viewerAndTransforms().forEach { it.viewer().setScreenScales(doubleArrayOf(screenScale)) }
-        setViewer?.setScreenScales(doubleArrayOf(screenScale))
+        screenScale = calculateTargetScreenScaleFactor()
         statusProperty.set("Preparing SAM")
         paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
         Tasks.createTask {
@@ -285,14 +282,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
         currentViewerMask?.viewer?.children?.removeIf { SamPointStyle.POINT in it.styleClass }
         paintera.baseView.disabledPropertyBindings -= this
-        paintera.baseView.orthogonalViews().viewerAndTransforms().forEach {
-            val viewer = it.viewer()
-            viewer.setScreenScales(originalScales)
-            viewer.requestRepaint()
-        }
-        originalScales = null
+        lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
         viewerMask = null
         controlMode = false
+        if (mode !is ShapeInterpolationMode<*>) {
+            PaintLabelMode.enableAllViewers()
+        }
         super.deactivate()
     }
 
@@ -520,7 +515,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             while (!task.isCancelled) {
                 val (pointsIn, pointsOut, refresh) = predictionQueue.take()
-                val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPrediction(pointsIn, pointsOut, session, embedding)
+                val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPredictionWithRetry(pointsIn, pointsOut, session, embedding)
                 currentPredictionMask = predictionMask
 
                 val paintMask = viewerMask!!
@@ -531,9 +526,26 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         paintMask.getScreenInterval(scaledPoint[0], scaledPoint[1])
                     }
 
+                val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE, 0)
+                val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE, 0)
+
+                var noneAccepted = true
                 val filter = Converters.convert(
-                    predictionMask as RandomAccessibleInterval<FloatType>,
-                    { source, output -> output.set(source.get() >= threshold) },
+                    BundleView(predictionMask),
+                    { sourceRa, output ->
+                        val type = sourceRa.get()
+                        val accept = type.get() >= threshold
+                        output.set(accept)
+                        if (accept) {
+                            noneAccepted = false
+                            val pos = sourceRa.positionAsLongArray()
+                            minPoint[0] = min(minPoint[0], pos[0])
+                            minPoint[1] = min(minPoint[1], pos[1])
+
+                            maxPoint[0] = max(maxPoint[0], pos[0])
+                            maxPoint[1] = max(maxPoint[1], pos[1])
+                        }
+                    },
                     BoolType()
                 )
 
@@ -543,6 +555,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     connectedComponents,
                     StructuringElement.FOUR_CONNECTED
                 )
+
+                val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0 )?.smallestContainingInterval
+                if (noneAccepted) {
+                    val predictionInterval = Intervals.createMinSize(0, 0, 0, 0, 0, 0)
+                    paintMask.requestRepaint(predictionInterval union previousPredictionInterval)
+                    lastPredictionProperty.set(SamTaskInfo(maskSource, predictionInterval))
+                         continue
+                }
 
                 val componentsUnderPointsIn = pointsIn
                     .map { point -> point.scaledPoint(screenScale) }
@@ -555,14 +575,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     BoolType()
                 )
 
+                val alignToMask = AffineTransform3D()
+                    .concatenate(Translation3D(*predictionMaskInterval.minAsDoubleArray()))
+                    .concatenate(Scale3D(screenScale, screenScale, 2.0).inverse())
                 val maskAlignedSelectedComponents = selectedComponents
                     .extendValue(Label.INVALID)
                     .interpolateNearestNeighbor()
-                    .affineReal(
-                        AffineTransform3D()
-                            .concatenate(Translation3D(*predictionMaskInterval.minAsDoubleArray()))
-                            .concatenate(Scale3D(screenScale, screenScale, 2.0).inverse())
-                    ).raster().interval(paintMask.viewerImg)
+                    .affineReal(alignToMask)
+                    .raster()
+                    .interval(paintMask.viewerImg)
 
 
                 val compositeMask = Converters.convertRAI(
@@ -601,12 +622,31 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     writableSourceImages = originalBackingImage to originalVolatileBackingImage
                 )
 
-                paintMask.requestRepaint()
-                lastPredictionProperty.set(SamTaskInfo(maskSource, predictionMaskInterval))
+                val predictionInterval = alignToMask.estimateBounds(Intervals.createMinMax(*minPoint, *maxPoint)).smallestContainingInterval
+                paintMask.requestRepaint(predictionInterval union previousPredictionInterval)
+                lastPredictionProperty.set(SamTaskInfo(maskSource, predictionInterval))
             }
         }
         predictionTask = task
         task.submit(SAM_TASK_SERVICE)
+    }
+
+    private fun runPredictionWithRetry(pointsIn: List<Point>, pointsOut: List<Point>, session: OrtSession, embedding: OnnxTensor): RandomAccessibleInterval<FloatType> {
+        return try {
+            runPrediction(pointsIn, pointsOut, session, embedding)
+        } catch (e: OrtException) {
+            LOG.trace(e.message)
+            runPredictionWithRetry(pointsIn, pointsOut, session, embedding)
+        }
+        /* FIXME: This is a bit hacky, but works for now until a better solution is found.
+        *   Some explenation. When running the SAM predictions, occasionally the following OrtException is thrown:
+        *   [E:onnxruntime:, sequential_executor.cc:494 ExecuteKernel]
+        *       Non-zero status code returned while running Resize node.
+        *       Name:'/Resize_1' Status Message: upsamplebase.h:334 ScalesValidation Scale value should be greater than 0.
+        *   This seems to only happen infrequently, and only when installed via conda (not the platform installer, or running from source).
+        *   The temporary solution here is to just call it again, recursively, until it succeeds. I have not yet seen this
+        *   to be a problem in practice, but ideally it wil be unnecessary in the future. Either by the underlying issue
+        *   no longer occuring, or finding a better solution. */
     }
 
     private fun runPrediction(pointsIn: List<Point>, pointsOut: List<Point>, session: OrtSession, embedding: OnnxTensor): RandomAccessibleInterval<FloatType> {

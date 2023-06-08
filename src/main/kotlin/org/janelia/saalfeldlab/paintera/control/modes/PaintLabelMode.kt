@@ -170,7 +170,6 @@ object PaintLabelMode : AbstractToolMode() {
                 activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
             }
             onAction {
-                disableUnfocusedViewers()
                 switchTool(samTool)
             }
         }
@@ -178,7 +177,6 @@ object PaintLabelMode : AbstractToolMode() {
             verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
             verify { activeTool is SamTool }
             onAction {
-                enableAllViewers()
                 switchTool(defaultTool)
             }
         }
@@ -188,7 +186,6 @@ object PaintLabelMode : AbstractToolMode() {
             filter = true
             consume = false
             onAction {
-                enableAllViewers()
                 switchTool(defaultTool)
             }
         }

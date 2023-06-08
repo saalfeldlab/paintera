@@ -326,9 +326,8 @@ class PaintClickOrDragController(
 				paintIntervalInMask
 			}.onSuccess { _, task ->
 				val paintIntervalInMask = task.get()
-				val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
 				maskInterval = paintIntervalInMask union maskInterval
-				paintera.orthogonalViews().requestRepaint(globalPaintInterval)
+                requestRepaint(paintIntervalInMask)
 			}.submit()
 		}
 

@@ -554,7 +554,7 @@ extract-to-scalar
 command extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details. The `paintera-conversion-helper` is installed with Paintera when installed through [conda](#conda) or [pip](#pip) but may need to be updated to support this feature.
 
 
-## Technical Notes
+# Technical Notes
 
 This section will expand in detail some of the technical aspect of some Paintera features that may be useful to understand.
 #### 2D Viewer-Aligned Painting
