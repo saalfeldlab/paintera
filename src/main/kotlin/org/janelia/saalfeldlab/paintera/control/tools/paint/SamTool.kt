@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OnnxTensorLike
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnit
@@ -520,7 +521,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             while (!task.isCancelled) {
                 val (pointsIn, pointsOut, refresh) = predictionQueue.take()
-                val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPrediction(pointsIn, pointsOut, session, embedding)
+                val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPredictionWithRetry(pointsIn, pointsOut, session, embedding)
                 currentPredictionMask = predictionMask
 
                 val paintMask = viewerMask!!
@@ -607,6 +608,24 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
         predictionTask = task
         task.submit(SAM_TASK_SERVICE)
+    }
+
+    private fun runPredictionWithRetry(pointsIn: List<Point>, pointsOut: List<Point>, session: OrtSession, embedding: OnnxTensor): RandomAccessibleInterval<FloatType> {
+        return try {
+            runPrediction(pointsIn, pointsOut, session, embedding)
+        } catch (e : OrtException) {
+            LOG.trace(e.message)
+            runPredictionWithRetry(pointsIn, pointsOut, session, embedding)
+        }
+        /* FIXME: This is a bit hacky, but works for now until a better solution is found.
+        *   Some explenation. When running the SAM predictions, occasionally the following OrtException is thrown:
+        *   [E:onnxruntime:, sequential_executor.cc:494 ExecuteKernel]
+        *       Non-zero status code returned while running Resize node.
+        *       Name:'/Resize_1' Status Message: upsamplebase.h:334 ScalesValidation Scale value should be greater than 0.
+        *   This seems to only happen infrequently, and only when installed via conda (not the platform installer, or running from source).
+        *   The temporary solution here is to just call it again, recursively, until it succeeds. I have not yet seen this
+        *   to be a problem in practice, but ideally it wil be unnecessary in the future. Either by the underlying issue
+        *   no longer occuring, or finding a better solution. */
     }
 
     private fun runPrediction(pointsIn: List<Point>, pointsOut: List<Point>, session: OrtSession, embedding: OnnxTensor): RandomAccessibleInterval<FloatType> {
