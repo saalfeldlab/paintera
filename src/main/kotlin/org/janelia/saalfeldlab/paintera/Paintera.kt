@@ -60,7 +60,11 @@ class Paintera : Application() {
 		projectPath?.let {
 			notifyPreloader(SplashScreenShowPreloader())
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-		}
+		} ?: let {
+            notifyPreloader(SplashScreenShowPreloader())
+            notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
+            notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
+        }
 		try {
 			paintera.deserialize()
 		} catch (error: Exception) {
@@ -78,7 +82,7 @@ class Paintera : Application() {
 		}
 		projectPath?.let {
 			notifyPreloader(SplashScreenUpdateNotification("Finalizing Project: ${it.path}"))
-		}
+		} ?: notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
 		paintable = true
 		runPaintable()
 		PlatformImpl.runAndWait {
