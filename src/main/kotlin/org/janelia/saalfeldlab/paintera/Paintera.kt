@@ -23,7 +23,7 @@ import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
 
-internal val paintera by lazy { PainteraMainWindow() }
+internal lateinit var paintera : PainteraMainWindow
 internal val properties
 	get() = paintera.properties
 
@@ -66,6 +66,7 @@ class Paintera : Application() {
             notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
         }
 		try {
+			paintera = PainteraMainWindow()
 			paintera.deserialize()
 		} catch (error: Exception) {
 			LOG.error("Unable to deserialize Paintera project `{}'.", projectPath, error)
@@ -259,6 +260,10 @@ class Paintera : Application() {
 			}
 		}
 	}
+
+}
+
+fun loadProejct(projectDirectory : String) {
 
 }
 

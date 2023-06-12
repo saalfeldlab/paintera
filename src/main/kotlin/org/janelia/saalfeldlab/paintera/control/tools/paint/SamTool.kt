@@ -513,7 +513,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         val task = Tasks.createTask { task ->
             val session = createOrtSessionTask.get()
             val embedding = providedEmbedding ?: getImageEmbeddingTask.get()
-
             while (!task.isCancelled) {
                 val (pointsIn, pointsOut, refresh) = predictionQueue.take()
                 val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPredictionWithRetry(pointsIn, pointsOut, session, embedding)

@@ -36,6 +36,7 @@ object PainteraBaseKeys {
     const val SHOW_REPL_TABS                   = "open repl"
     const val TOGGLE_FULL_SCREEN               = "toggle full screen"
     const val OPEN_SOURCE                      = "open source"
+    const val OPEN_PROJECT                     = "open project"
     const val SAVE                             = "save"
     const val SAVE_AS                          = "save as"
     const val TOGGLE_MENUBAR_VISIBILITY        = "toggle menubar visibility"
@@ -55,6 +56,7 @@ object PainteraBaseKeys {
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
         OPEN_SOURCE                                 byKeyCombo CONTROL_DOWN + O,
+        OPEN_PROJECT                                byKeyCombo CONTROL_DOWN + SHIFT_DOWN + O,
         SAVE                                        byKeyCombo CONTROL_DOWN + S,
         SAVE_AS                                     byKeyCombo CONTROL_DOWN + SHIFT_DOWN + S,
         TOGGLE_MENUBAR_VISIBILITY                   byKeyCombo F2,

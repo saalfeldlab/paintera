@@ -24,8 +24,9 @@ enum class PainteraMenuItems(
 	private val icon: FontAwesomeIcon? = null,
 	private val allowedAction: MenuActionType? = null
 ) {
-	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
-	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
+    OPEN_PROJECT("Open _Project", PBK.OPEN_PROJECT, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.OpenProject),
+    OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
+    SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
 	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
 
@@ -61,6 +62,7 @@ enum class PainteraMenuItems(
 		private val namedEventHandler = with(paintera) {
 			val getProjectDirectory = { projectDirectory.actualDirectory.absolutePath }
 			mapOf(
+                PBK.OPEN_PROJECT to EventHandler<ActionEvent> { N5Opener().onAction().accept(baseView, getProjectDirectory) },
 				PBK.OPEN_SOURCE to EventHandler<ActionEvent> { N5Opener().onAction().accept(baseView, getProjectDirectory) },
 				PBK.SAVE to EventHandler<ActionEvent> { saveOrSaveAs() },
 				PBK.SAVE_AS to EventHandler<ActionEvent> { saveAs() },
