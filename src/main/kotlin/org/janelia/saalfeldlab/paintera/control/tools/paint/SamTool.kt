@@ -489,6 +489,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }.onEnd {
             isBusy = false
         }.onFailed { _, task ->
+            LOG.error("Failure retrieving image embedding", task.exception);
             mode?.switchTool(mode.defaultTool)
         }.also {
             getImageEmbeddingTask = it
@@ -556,12 +557,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     StructuringElement.FOUR_CONNECTED
                 )
 
-                val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0 )?.smallestContainingInterval
+                val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
                 if (noneAccepted) {
-                    val predictionInterval = Intervals.createMinSize(0, 0, 0, 0, 0, 0)
-                    paintMask.requestRepaint(predictionInterval union previousPredictionInterval)
-                    lastPredictionProperty.set(SamTaskInfo(maskSource, predictionInterval))
-                         continue
+                    paintMask.requestRepaint(previousPredictionInterval)
+                    lastPredictionProperty.set(null)
+                    continue
                 }
 
                 val componentsUnderPointsIn = pointsIn
