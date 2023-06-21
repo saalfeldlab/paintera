@@ -227,8 +227,8 @@ public class RenderUnit implements PainterThread.Paintable {
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
 		synchronized (RenderUnit.this) {
-			if (renderer != null && renderTarget != null && viewerState.get().isVisible()) {
-				final ViewerState viewerState = RenderUnit.this.viewerState.get();
+			final ViewerState viewerState = this.viewerStateSupplier.get();
+			if (renderer != null && renderTarget != null && viewerState != null && viewerState.isVisible()) {
 				synchronized (viewerState) {
 					viewerState.getViewerTransform(viewerTransform);
 					timepoint = viewerState.getTimepoint();
