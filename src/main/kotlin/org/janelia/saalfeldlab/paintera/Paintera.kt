@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -72,6 +73,7 @@ class Paintera : Application() {
 		projectPath?.let {
 			notifyPreloader(SplashScreenShowPreloader())
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
+			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
 		} ?: let {
             notifyPreloader(SplashScreenShowPreloader())
             notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
