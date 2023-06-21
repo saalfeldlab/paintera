@@ -735,8 +735,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     var timepoint = 0
                     val sacs = mutableListOf<SourceAndConverter<*>>()
                     synchronized(this) {
-                        if (renderer != null && renderTarget != null && viewerState.get().isVisible) {
-                            val viewerState = viewerState.get()
+                        if (renderer != null && renderTarget != null && viewerStateSupplier.get().isVisible) {
+                            val viewerState = viewerStateSupplier.get()
                             synchronized(viewerState) {
                                 viewerState.getViewerTransform(viewerTransform)
                                 timepoint = viewerState.timepoint
