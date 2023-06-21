@@ -86,7 +86,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers
 
-	val pane: Parent
+	internal val pane: Parent
 		get() = paneWithStatus.pane
 
 	private fun initProperties(properties: Properties) {

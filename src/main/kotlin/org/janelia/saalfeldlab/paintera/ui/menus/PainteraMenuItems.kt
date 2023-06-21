@@ -4,6 +4,8 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
+import javafx.stage.DirectoryChooser
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -24,9 +26,10 @@ enum class PainteraMenuItems(
 	private val icon: FontAwesomeIcon? = null,
 	private val allowedAction: MenuActionType? = null
 ) {
-    OPEN_PROJECT("Open _Project", PBK.OPEN_PROJECT, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.OpenProject),
-    OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
-    SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
+	NEW_PROJECT("_New Project", allowedAction = MenuActionType.OpenProject),
+	OPEN_PROJECT("Open _Project", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
+	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
+	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
 	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
 

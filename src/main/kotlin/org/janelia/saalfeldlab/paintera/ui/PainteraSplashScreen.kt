@@ -93,10 +93,13 @@ class PainteraSplashScreen() : Preloader() {
 
 
 	override fun handleApplicationNotification(info: PreloaderNotification) {
-		if (finished)
+		if (finished && info !is SplashScreenShowPreloader)
 			return
 		when (info) {
-			is SplashScreenShowPreloader -> stage.show()
+			is SplashScreenShowPreloader -> {
+				finished = false
+				stage.show()
+			}
 			is SplashScreenUpdateNumItemsNotification -> {
 				if (info.increment) {
 					numItems += info.numItems
