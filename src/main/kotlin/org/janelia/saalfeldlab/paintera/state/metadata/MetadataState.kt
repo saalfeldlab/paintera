@@ -5,7 +5,10 @@ import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.n5.*
+import org.janelia.saalfeldlab.n5.DataType
+import org.janelia.saalfeldlab.n5.DatasetAttributes
+import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
@@ -17,7 +20,7 @@ import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
-import java.util.*
+import java.util.Optional
 
 interface MetadataState {
 

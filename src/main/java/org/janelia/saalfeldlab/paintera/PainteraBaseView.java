@@ -365,8 +365,6 @@ public class PainteraBaseView {
 			final double max,
 			final String name) {
 
-
-
 		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
 				new RaiBackendRaw<D, T>(data, resolution, offset, "test"),
 				getQueue(),
@@ -378,7 +376,6 @@ public class PainteraBaseView {
 		state.converter().setMin(max);
 		return state;
 	}
-
 
 	/**
 	 * Convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsRawState}
@@ -416,7 +413,7 @@ public class PainteraBaseView {
 	 * If only a single scale is provided, the resulting {@link ConnectomicsLabelState} will be single scale.
 	 *
 	 * @param data             array of input data, each should be a scale level, mapping to the resolution and offset
-	 * @param resolution      array of voxel size per scale
+	 * @param resolution       array of voxel size per scale
 	 * @param offset           array of offset in global coordinates per scale
 	 * @param maxId            the maximum value in {@code data}
 	 * @param name             name for source
@@ -474,7 +471,7 @@ public class PainteraBaseView {
 			LabelBlockLookup labelBlockLookup) {
 
 		return this.addConnectomicsLabelSource(
-				new RandomAccessibleInterval[]{ data },
+				new RandomAccessibleInterval[]{data},
 				new double[][]{resolution},
 				new double[][]{offset},
 				maxId,

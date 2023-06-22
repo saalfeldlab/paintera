@@ -102,6 +102,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	}
 
 	public UtilityTask<Interval> fillViewerAt(final double viewerSeedX, final double viewerSeedY, Long fill, FragmentSegmentAssignment assignment) {
+
 		if (fill == null) {
 			LOG.info("Received invalid label {} -- will not fill.", fill);
 			return null;
@@ -157,6 +158,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 	@NotNull
 	private UtilityTask<Interval> fillMaskAt(Point maskPos, ViewerMask mask, Long fill, RandomAccessibleInterval<BoolType> filter) {
+
 		final var floodFillTask = createViewerFloodFillTask(
 				maskPos,
 				mask,
@@ -485,7 +487,6 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		// fill only within the given slice, run 2D flood-fill
 		LOG.debug("Flood filling into viewer mask ");
 
-
 		final RandomAccessible<BoolType> backgroundSlice;
 		if (extendedFilter.numDimensions() == 3) {
 			backgroundSlice = Views.hyperSlice(extendedFilter, 2, 0);
@@ -494,7 +495,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		}
 		final RandomAccessible<UnsignedLongType> viewerFillImg = Views.hyperSlice(sourceAccessTracker, 2, 0);
 
- 		FloodFill.fill(
+		FloodFill.fill(
 				backgroundSlice,
 				viewerFillImg,
 				initialSeed,
@@ -520,7 +521,6 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 		// fill only within the given slice, run 2D flood-fill
 		LOG.debug("Flood filling into viewer mask ");
-
 
 		final RandomAccessible<BoolType> backgroundSlice;
 		if (extendedFilter.numDimensions() == 3) {
@@ -555,7 +555,6 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 		// fill only within the given slice, run 2D flood-fill
 		LOG.debug("Flood filling into viewer mask ");
-
 
 		final RandomAccessible<BoolType> backgroundSlice;
 		if (extendedFilter.numDimensions() == 3) {

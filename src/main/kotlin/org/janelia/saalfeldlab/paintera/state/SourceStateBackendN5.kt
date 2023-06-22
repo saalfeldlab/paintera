@@ -70,11 +70,10 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			}
 
 
-
 		}
 	}
 
-	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride : AffineTransform3D? = null): GridPane {
+	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride: AffineTransform3D? = null): GridPane {
 		val n5ContainerState = metadataState.n5ContainerState
 
 		val resolutionLabel = Labels.withTooltip("Resolution", "Resolution of the source dataset")

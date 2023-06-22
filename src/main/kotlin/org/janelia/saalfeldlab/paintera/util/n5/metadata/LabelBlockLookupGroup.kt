@@ -9,10 +9,10 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.util.n5.metadata.MetadataWriter
 
-internal class LabelBlockLookupGroup(private val basePath: String, private val numScales : Int ) :
+internal class LabelBlockLookupGroup(private val basePath: String, private val numScales: Int) :
 	N5MetadataGroup<N5SingleScaleMetadata>, MetadataWriter {
 
-	val children : Array<N5SingleScaleMetadata> = let {
+	val children: Array<N5SingleScaleMetadata> = let {
 		val staging = mutableListOf<N5SingleScaleMetadata>()
 		for (i in 0..numScales) {
 			staging += N5SingleScaleMetadata(
@@ -30,11 +30,10 @@ internal class LabelBlockLookupGroup(private val basePath: String, private val n
 	}
 
 
-
 	override fun write(n5: N5Writer) {
-        if (!n5.exists(path)) {
-            n5.createGroup(path)
-        }
+		if (!n5.exists(path)) {
+			n5.createGroup(path)
+		}
 		n5.setAttribute(path, "isMultiscale", true)
 		getChildrenMetadata().forEach {
 			n5.createDataset(it.path, it.attributes)

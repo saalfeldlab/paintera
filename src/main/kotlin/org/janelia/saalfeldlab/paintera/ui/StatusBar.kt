@@ -59,7 +59,7 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 
 	private val sourceDisplayStatus = StackPane().apply {
 		/* bind sourceState lambda */
-		val bindSourceState: (SourceState<*, *>?) -> Unit = {sourceState ->
+		val bindSourceState: (SourceState<*, *>?) -> Unit = { sourceState ->
 
 			statusLabel.textProperty().unbind()
 			sourceState?.apply {

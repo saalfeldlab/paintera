@@ -27,8 +27,8 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;

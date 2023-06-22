@@ -30,7 +30,13 @@ package bdv.fx.viewer.project;
 
 import bdv.viewer.render.ProjectorUtils;
 import bdv.viewer.render.VolatileProjector;
-import net.imglib2.*;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
+import net.imglib2.IterableInterval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
 import net.imglib2.converter.Converter;
@@ -262,9 +268,9 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		final long startTimeIo = iostat.getIoNanoTime();
 		final long startTimeIoCumulative = iostat.getCumulativeIoNanoTime();
 
-		final int targetHeight = (int) target.dimension(1);
+		final int targetHeight = (int)target.dimension(1);
 		final int numTasks = 1; //numThreads <= 1 ? 1 : Math.min(numThreads * 10, targetHeight);
-		final double taskHeight = (double) targetHeight / numTasks;
+		final double taskHeight = (double)targetHeight / numTasks;
 		final int[] taskStartHeights = new int[numTasks + 1];
 		for (int i = 0; i < numTasks; ++i) {
 			taskStartHeights[i] = (int)(i * taskHeight);
@@ -387,14 +393,14 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		} else {
 			final RandomAccess<B> targetRandomAccess = target.randomAccess(target);
 			final RandomAccess<A> sourceRandomAccess = sources.get(resolutionIndex).randomAccess(sourceInterval);
-			final int width = (int) target.dimension(0);
+			final int width = (int)target.dimension(0);
 			final long[] smin = Intervals.minAsLongArray(sourceInterval);
 			int myNumInvalidPixels = 0;
 
 			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-			maskCursor.jumpFwd((long) startHeight * width);
+			maskCursor.jumpFwd((long)startHeight * width);
 
-			final int targetMin = (int) target.min(1);
+			final int targetMin = (int)target.min(1);
 			for (int y = startHeight; y < endHeight; ++y) {
 				if (canceled.get())
 					return;

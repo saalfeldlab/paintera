@@ -100,6 +100,7 @@ class PainteraSplashScreen() : Preloader() {
 				finished = false
 				stage.show()
 			}
+
 			is SplashScreenUpdateNumItemsNotification -> {
 				if (info.increment) {
 					numItems += info.numItems

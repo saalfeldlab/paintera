@@ -78,10 +78,10 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
 
-	internal val currentSource : SourceState<*, *>?
+	internal val currentSource: SourceState<*, *>?
 		get() = baseView.sourceInfo().currentState().get()
 
-	internal val currentMode : ControlMode?
+	internal val currentMode: ControlMode?
 		get() = baseView.activeModeProperty.value
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers

@@ -29,7 +29,7 @@ import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
 
-internal lateinit var paintera : PainteraMainWindow
+internal lateinit var paintera: PainteraMainWindow
 internal val properties
 	get() = paintera.properties
 
@@ -40,8 +40,8 @@ fun main(args: Array<String>) {
 
 class Paintera : Application() {
 
-	private lateinit var commandlineArguments : Array<String>
-	private lateinit var painteraArgs : PainteraCommandLineArgs
+	private lateinit var commandlineArguments: Array<String>
+	private lateinit var painteraArgs: PainteraCommandLineArgs
 	private var projectDir: String? = null
 
 	init {
@@ -75,10 +75,10 @@ class Paintera : Application() {
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
 			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
 		} ?: let {
-            notifyPreloader(SplashScreenShowPreloader())
-            notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
-            notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
-        }
+			notifyPreloader(SplashScreenShowPreloader())
+			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
+			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
+		}
 		try {
 			paintera.deserialize()
 		} catch (error: Exception) {
@@ -119,7 +119,7 @@ class Paintera : Application() {
 		notifyPreloader(SplashScreenFinishPreloader())
 	}
 
-	private fun parsePainteraCommandLine(vararg args : String): Boolean {
+	private fun parsePainteraCommandLine(vararg args: String): Boolean {
 		val cmd = CommandLine(painteraArgs).apply {
 			registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter())
 		}
@@ -205,7 +205,7 @@ class Paintera : Application() {
 		}
 	}
 
-	fun loadProject(projectDirectory : String? = null) {
+	fun loadProject(projectDirectory: String? = null) {
 		if (!paintera.askSaveAndQuit()) {
 			return
 		}
@@ -213,7 +213,7 @@ class Paintera : Application() {
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
 
-		paintera.pane.scene.window.let {window ->
+		paintera.pane.scene.window.let { window ->
 			Platform.setImplicitExit(false)
 			window.onHiding = EventHandler { /*Typically exits paintera, but we don't want to here, so do nothing*/ }
 			window.onCloseRequest = EventHandler { /* typically asks to save and quite, but we ask above, so do nothing */ }

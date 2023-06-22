@@ -172,10 +172,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		addSelection(maskPaintInterval)
 	}
 
-    fun deleteCurrentSliceOrInterpolant() {
-        slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
-        slicesAndInterpolants.removeSliceAtDepth(currentDepth)
-    }
+	fun deleteCurrentSliceOrInterpolant() {
+		slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
+		slicesAndInterpolants.removeSliceAtDepth(currentDepth)
+	}
 
 	fun deleteCurrentSlice() {
 		slicesAndInterpolants.removeSliceAtDepth(currentDepth)?.let { slice ->
@@ -613,16 +613,16 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val currentLevel = currentBestMipMapLevel
 		/* If we have a mask, get it; else create a new one */
 		currentViewerMask = sliceAtCurrentDepth?.let { oldSlice ->
-            val oldMask = oldSlice.mask
+			val oldMask = oldSlice.mask
 
-            if (oldMask.xScaleChange == 1.0) return@let oldMask
+			if (oldMask.xScaleChange == 1.0) return@let oldMask
 
-            val maskInfo = MaskInfo(0, currentLevel)
+			val maskInfo = MaskInfo(0, currentLevel)
 			val newMask = source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
 
 			val oldToNewMask = ViewerMask.maskToMaskTransformation(oldMask, newMask)
 
-            val oldSliceBoundingBox = oldSlice.maskBoundingBox
+			val oldSliceBoundingBox = oldSlice.maskBoundingBox
 			val oldIntervalInNew = oldToNewMask.estimateBounds(oldSliceBoundingBox)
 
 			val oldInNew = oldMask.viewerImg.wrappedSource
@@ -684,10 +684,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				val newSlice = SliceInfo(
 					newMask,
 					paintera().manager().transform,
-                    FinalRealInterval(
-                        oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
-                        oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
-                    )
+					FinalRealInterval(
+						oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
+						oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
+					)
 				)
 				slicesAndInterpolants.add(currentDepth, newSlice)
 			}
@@ -1067,10 +1067,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			for (idx in this.indices) {
 				if (get(idx).isSlice && get(idx).sliceDepth > depthInMaskDisplay) {
 					if (removeIfInterpolant(idx - 1) != null)
-                        return true
+						return true
 				}
 			}
-            return false
+			return false
 		}
 	}
 

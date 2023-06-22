@@ -129,7 +129,7 @@ object SmoothAction : MenuAction("Smooth") {
 
 				val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(0)
 				val mask = SourceMask(maskInfo, store, volatileStore.rai, store.getCache(), volatileStore.invalidate) { store.shutdown() }
-				maskedSource.setMask(mask) { Label.isForeground(it.integerLong)}
+				maskedSource.setMask(mask) { Label.isForeground(it.integerLong) }
 
 				val sourceLabels = Converters.convert(
 					maskedSource.getReadOnlyDataBackground(0, level),
@@ -142,7 +142,7 @@ object SmoothAction : MenuAction("Smooth") {
 					maskedSource.getReadOnlyDataCanvas(0, level),
 					Views.extendZero(mask.rai).interval(sourceLabels)
 				)
-				val labels = Converters.convert(Views.collapse(stack), {input, output ->
+				val labels = Converters.convert(Views.collapse(stack), { input, output ->
 					for (i in 2 downTo 0) {
 						val labelVal = input.get(i.toLong()).get()
 						if (labelVal != Label.INVALID && labelVal != 0L) {
@@ -193,7 +193,7 @@ object SmoothAction : MenuAction("Smooth") {
 					val remainingTmpCount = AtomicInteger(-1)
 					while (remainingTmpCount.get() != 0) {
 
-						val setTransparent =  remainingTmpCount.get() == prevTempCount
+						val setTransparent = remainingTmpCount.get() == prevTempCount
 						prevTempCount = remainingTmpCount.getAndSet(0)
 
 						LoopBuilder.setImages(bundledLabelRoi).multiThreaded().forEachChunk { chunk ->

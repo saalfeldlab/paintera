@@ -226,7 +226,6 @@ public class IntersectPainting {
 		final FinalRealInterval globalAccessTrack = sourceToGlobal.estimateBounds(sourceAccessTrack);
 		requestRepaint.accept(globalAccessTrack);
 
-
 		source.applyMask(mask, sourceAccessTrack, MaskedSource.VALID_LABEL_CHECK);
 
 	}
@@ -333,7 +332,7 @@ public class IntersectPainting {
 
 		final RandomAccess<UnsignedLongType> targetAccess = mask.randomAccess();
 		targetAccess.setPosition(seed);
-		final long canvasSeedVal  = backgroundCanvasPair.getAt(seed).getB().getIntegerLong();
+		final long canvasSeedVal = backgroundCanvasPair.getAt(seed).getB().getIntegerLong();
 		targetAccess.get().set(canvasSeedVal);
 
 		for (int i = 0; i < coordinates[0].size(); ++i) {
