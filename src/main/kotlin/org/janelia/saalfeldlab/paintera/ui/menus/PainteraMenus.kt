@@ -52,7 +52,6 @@ private val fileMenu by lazy {
 	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
 		it.setOnShowing {
 			recentProjects.setAll(Lists.reverse(PainteraCache.readLines(Paintera::class.java, "recent_projects")))
-			openRecentMenu.disableProperty().set(recentProjects.size <= 0)
 		}
 	}
 }

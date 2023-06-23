@@ -23,14 +23,17 @@ public class BrowseRecentFavorites {
 		final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
 		final MenuItem browseFilesButton = new MenuItem("_Browse Files");
 
-		final MatchSelectionMenu recentMatcher = new MatchSelectionMenu(recent, "_Recent", 400.0, processSelected);
-		final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu(favorites, "_Favorites", 400.0, processSelected);
-
 		browseFoldersButton.setOnAction(onBrowseFoldersClicked);
 		browseFilesButton.setOnAction(onBrowseFilesClicked);
-		recentMatcher.setDisable(recent.size() == 0);
-		favoritesMatcher.setDisable(favorites.size() == 0);
-		return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher, favoritesMatcher);
+
+		final MatchSelectionMenu recentMatcher = new MatchSelectionMenu(recent, "_Recent", 400.0, processSelected);
+		if (!favorites.isEmpty()) {
+			final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu(favorites, "_Favorites", 400.0, processSelected);
+			return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher, favoritesMatcher);
+		} else {
+			return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher);
+		}
+
 	}
 
 }
