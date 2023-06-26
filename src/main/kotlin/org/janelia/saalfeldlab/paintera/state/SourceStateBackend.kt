@@ -22,15 +22,15 @@ interface SourceStateBackend<D, T> {
 
 	val name: String
 
-	val resolution : DoubleArray
+	val resolution: DoubleArray
 
-	val translation : DoubleArray
+	val translation: DoubleArray
 
-	fun updateTransform(resolution: DoubleArray, translation : DoubleArray) {
+	fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
 		val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)
 		updateTransform(newTransform)
 	}
 
-	fun updateTransform(transform : AffineTransform3D)
+	fun updateTransform(transform: AffineTransform3D)
 
 }

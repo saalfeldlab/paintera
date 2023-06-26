@@ -327,7 +327,7 @@ class PaintClickOrDragController(
 			}.onSuccess { _, task ->
 				val paintIntervalInMask = task.get()
 				maskInterval = paintIntervalInMask union maskInterval
-                requestRepaint(paintIntervalInMask)
+				requestRepaint(paintIntervalInMask)
 			}.submit()
 		}
 

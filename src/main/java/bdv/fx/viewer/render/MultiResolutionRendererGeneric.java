@@ -30,7 +30,6 @@
 package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
 import bdv.fx.viewer.project.VolatileHierarchyProjector;
 import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.img.cache.VolatileCachedCellImg;
@@ -60,7 +59,6 @@ import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
-import net.imglib2.converter.Converter;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.IntAccess;
@@ -745,7 +743,6 @@ public class MultiResolutionRendererGeneric<T> {
 		CacheIoTiming.getIoTimeBudget().reset(iobudget);
 		return projector;
 	}
-
 
 	private <U> VolatileProjector createSingleSourceProjector(
 			final SourceAndConverter<U> source,

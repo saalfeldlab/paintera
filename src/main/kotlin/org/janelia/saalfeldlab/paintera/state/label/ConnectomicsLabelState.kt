@@ -1,4 +1,4 @@
- package org.janelia.saalfeldlab.paintera.state.label
+package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
@@ -81,7 +81,7 @@ import java.util.function.LongFunction
 import java.util.function.Predicate
 import java.util.function.Supplier
 
- class ConnectomicsLabelState<D : IntegerType<D>, T>(
+class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
 	viewFrustumProperty: ObjectProperty<ViewFrustum>,

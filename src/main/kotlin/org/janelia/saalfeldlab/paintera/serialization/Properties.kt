@@ -11,70 +11,70 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 
 class Properties : TransformListener<AffineTransform3D> {
 
-    @Expose
-    val globalTransform = AffineTransform3D()
+	@Expose
+	val globalTransform = AffineTransform3D()
 
-    @Expose
-    val windowProperties = WindowProperties()
+	@Expose
+	val windowProperties = WindowProperties()
 
-    @Expose
-    val crosshairConfig = CrosshairConfig()
+	@Expose
+	val crosshairConfig = CrosshairConfig()
 
-    @Expose
-    val orthoSliceConfig = OrthoSliceConfigBase()
+	@Expose
+	val orthoSliceConfig = OrthoSliceConfigBase()
 
-    @Expose
-    val navigationConfig = NavigationConfig()
+	@Expose
+	val navigationConfig = NavigationConfig()
 
-    @Expose
-    val viewer3DConfig = Viewer3DConfig()
+	@Expose
+	val viewer3DConfig = Viewer3DConfig()
 
-    @Expose
-    val screenScalesConfig = ScreenScalesConfig()
+	@Expose
+	val screenScalesConfig = ScreenScalesConfig()
 
-    @Expose
-    val scaleBarOverlayConfig = ScaleBarOverlayConfig()
+	@Expose
+	val scaleBarOverlayConfig = ScaleBarOverlayConfig()
 
-    @Expose
-    val bookmarkConfig = BookmarkConfig()
+	@Expose
+	val bookmarkConfig = BookmarkConfig()
 
-    @Expose
-    val arbitraryMeshConfig = ArbitraryMeshConfig()
+	@Expose
+	val arbitraryMeshConfig = ArbitraryMeshConfig()
 
-    @Expose
-    val menuBarConfig = MenuBarConfig()
+	@Expose
+	val menuBarConfig = MenuBarConfig()
 
-    @Expose
-    val sideBarConfig = SideBarConfig()
+	@Expose
+	val sideBarConfig = SideBarConfig()
 
-    @Expose
-    val toolBarConfig = ToolBarConfig()
+	@Expose
+	val toolBarConfig = ToolBarConfig()
 
-    @Expose
-    val statusBarConfig = StatusBarConfig()
+	@Expose
+	val statusBarConfig = StatusBarConfig()
 
-    @Expose
-    val loggingConfig = LoggingConfig()
+	@Expose
+	val loggingConfig = LoggingConfig()
 
-    @Expose
-    val multiBoxOverlayConfig = MultiBoxOverlayConfig()
+	@Expose
+	val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
-    @Transient
-    val keyAndMouseConfig = KeyAndMouseConfig()
+	@Transient
+	val keyAndMouseConfig = KeyAndMouseConfig()
 
-    @Transient
-    private val transformDirty = SimpleBooleanProperty(false)
+	@Transient
+	private val transformDirty = SimpleBooleanProperty(false)
 
-    override fun transformChanged(transform: AffineTransform3D) {
-        globalTransform.set(transform)
-        transformDirty.set(true)
-    }
+	override fun transformChanged(transform: AffineTransform3D) {
+		globalTransform.set(transform)
+		transformDirty.set(true)
+	}
 
-    fun globalTransformCopy(): AffineTransform3D {
-        return this.globalTransform.copy()
-    }
+	fun globalTransformCopy(): AffineTransform3D {
+		return this.globalTransform.copy()
+	}
 
-    fun setGlobalTransformClean() {
-        this.transformDirty.set(true)
-    }
+	fun setGlobalTransformClean() {
+		this.transformDirty.set(true)
+	}
 }

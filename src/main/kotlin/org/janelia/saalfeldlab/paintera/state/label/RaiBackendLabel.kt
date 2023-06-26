@@ -25,12 +25,12 @@ class RaiBackendLabel<D, T>(
 ), ConnectomicsLabelBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
 
 	constructor(
-		name : String,
+		name: String,
 		source: RandomAccessibleInterval<D>,
 		resolution: DoubleArray,
 		translation: DoubleArray,
 		maxId: Long
-	) : this(name, arrayOf(source), arrayOf(resolution), arrayOf(translation), maxId )
+	) : this(name, arrayOf(source), arrayOf(resolution), arrayOf(translation), maxId)
 
 	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
 

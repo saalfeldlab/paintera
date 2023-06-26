@@ -2,19 +2,25 @@ package org.janelia.saalfeldlab.paintera
 
 import ch.qos.logback.classic.Level
 import com.sun.javafx.application.PlatformImpl
+import com.sun.javafx.stage.WindowHelper
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.event.Event
+import javafx.event.EventHandler
 import javafx.scene.Scene
 import javafx.scene.control.Alert
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
+import javafx.stage.WindowEvent
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -23,7 +29,7 @@ import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
 
-internal val paintera by lazy { PainteraMainWindow() }
+internal lateinit var paintera: PainteraMainWindow
 internal val properties
 	get() = paintera.properties
 
@@ -34,7 +40,8 @@ fun main(args: Array<String>) {
 
 class Paintera : Application() {
 
-	private val painteraArgs = PainteraCommandLineArgs()
+	private lateinit var commandlineArguments: Array<String>
+	private lateinit var painteraArgs: PainteraCommandLineArgs
 	private var projectDir: String? = null
 
 	init {
@@ -43,12 +50,18 @@ class Paintera : Application() {
 	}
 
 	override fun init() {
-		val parsedSuccessfully = parsePainteraCommandLine()
+		paintable = false
+		if (!::commandlineArguments.isInitialized) {
+			commandlineArguments = parameters.raw.toTypedArray()
+		}
+		painteraArgs = PainteraCommandLineArgs()
+		val parsedSuccessfully = parsePainteraCommandLine(*commandlineArguments)
 		if (!parsedSuccessfully) {
 			Platform.exit()
 			return
 		}
 		Platform.setImplicitExit(true)
+		paintera = PainteraMainWindow()
 
 		projectDir = painteraArgs.project()
 		val projectPath = projectDir?.let { File(it).absoluteFile }
@@ -60,11 +73,12 @@ class Paintera : Application() {
 		projectPath?.let {
 			notifyPreloader(SplashScreenShowPreloader())
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
+			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
 		} ?: let {
-            notifyPreloader(SplashScreenShowPreloader())
-            notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
-            notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
-        }
+			notifyPreloader(SplashScreenShowPreloader())
+			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
+			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
+		}
 		try {
 			paintera.deserialize()
 		} catch (error: Exception) {
@@ -105,11 +119,11 @@ class Paintera : Application() {
 		notifyPreloader(SplashScreenFinishPreloader())
 	}
 
-	private fun parsePainteraCommandLine(): Boolean {
+	private fun parsePainteraCommandLine(vararg args: String): Boolean {
 		val cmd = CommandLine(painteraArgs).apply {
 			registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter())
 		}
-		val exitCode = cmd.execute(*parameters.raw.toTypedArray())
+		val exitCode = cmd.execute(*args)
 		return (cmd.getExecutionResult() ?: false) && exitCode == 0
 	}
 
@@ -191,6 +205,28 @@ class Paintera : Application() {
 		}
 	}
 
+	fun loadProject(projectDirectory: String? = null) {
+		if (!paintera.askSaveAndQuit()) {
+			return
+		}
+
+		paintera.baseView.stop()
+		paintera.projectDirectory.close()
+
+		paintera.pane.scene.window.let { window ->
+			Platform.setImplicitExit(false)
+			window.onHiding = EventHandler { /*Typically exits paintera, but we don't want to here, so do nothing*/ }
+			window.onCloseRequest = EventHandler { /* typically asks to save and quite, but we ask above, so do nothing */ }
+			WindowHelper.setFocused(window, false)
+			window.hide()
+			Event.fireEvent(window, WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST))
+		}
+		application.commandlineArguments = projectDirectory?.let { arrayOf(it) } ?: emptyArray()
+		application.init()
+		InvokeOnJavaFXApplicationThread { application.start(Stage()) }
+
+	}
+
 	companion object {
 
 		@JvmStatic
@@ -208,7 +244,7 @@ class Paintera : Application() {
 		fun getPaintera() = paintera
 
 		@JvmStatic
-		lateinit var application: Application
+		lateinit var application: Paintera
 			private set
 
 		private val paintableRunnables = mutableListOf<Runnable>()

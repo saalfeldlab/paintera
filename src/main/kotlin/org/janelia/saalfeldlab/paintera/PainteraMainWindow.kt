@@ -78,15 +78,15 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
 
-	internal val currentSource : SourceState<*, *>?
+	internal val currentSource: SourceState<*, *>?
 		get() = baseView.sourceInfo().currentState().get()
 
-	internal val currentMode : ControlMode?
+	internal val currentMode: ControlMode?
 		get() = baseView.activeModeProperty.value
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers
 
-	val pane: Parent
+	internal val pane: Parent
 		get() = paneWithStatus.pane
 
 	private fun initProperties(properties: Properties) {
@@ -119,16 +119,29 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		}
 	}
 
+	private fun isSaveNecessary(): Boolean {
+		val builder = GsonHelpers
+			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
+			.setPrettyPrinting()
+		Paintera.n5Factory.gsonBuilder(builder)
+		Paintera.n5Factory.openReader(projectDirectory.actualDirectory.absolutePath).use {
+			val expectedSettings = builder.create().toJsonTree(this)
+			val actualSettings = it.getAttribute("/", PAINTERA_KEY, JsonObject::class.java)
+			return expectedSettings != actualSettings
+		}
+	}
+
 	fun save(notify: Boolean = true) {
 
 		/* Not allowd to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
-			alert.title = "Cannot Serialize Sources"
+			alert.title = "Cannot Serialize All Sources"
 			alert.contentText = reasonSoureInfoCannotBeSerialized
 			alert.showAndWait()
 			return
 		}
+
 		// ensure that the application is in the normal mode when the project is saved
 		val curMode = baseView.activeModeProperty.value
 		baseView.setDefaultToolMode()
@@ -169,7 +182,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	internal fun saveOrSaveAs(notify: Boolean = true) {
-		if (projectDirectory.directory === null) saveAs(notify) else save(notify)
+		projectDirectory.directory?.let { save(notify) } ?: saveAs(notify)
 	}
 
 	@JvmOverloads
@@ -242,10 +255,11 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		return askSaveAndQuit()
 	}
 
-	private fun askSaveAndQuit(): Boolean {
-		if (SaveAndQuitDialog.showAndWaitForResponse())
+	internal fun askSaveAndQuit(): Boolean {
+		if (!isSaveNecessary()) {
 			return true
-		return false
+		}
+		return SaveAndQuitDialog.showAndWaitForResponse()
 	}
 
 	private fun quit() {

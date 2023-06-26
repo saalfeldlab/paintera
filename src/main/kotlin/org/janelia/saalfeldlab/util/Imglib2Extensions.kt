@@ -24,7 +24,7 @@ infix fun Interval.union(other: Interval?): Interval = other?.let { Intervals.un
 infix fun Interval.intersect(other: Interval?): Interval = other?.let { Intervals.intersect(this, other) } ?: this
 infix fun RealInterval.union(other: RealInterval?): RealInterval = other?.let { Intervals.union(this, other) } ?: this
 infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.let { Intervals.intersect(this, other) }
-    ?: this
+	?: this
 
 internal fun RealInterval.shape() = maxAsDoubleArray().zip(minAsDoubleArray()).map { (max, min) -> max - min + 1 }.toDoubleArray()
 fun <T> RealRandomAccessible<T>.raster(): RandomAccessibleOnRealRandomAccessible<T> = Views.raster(this)
@@ -58,70 +58,73 @@ fun <T> RandomAccessibleInterval<T>.translate(vararg translation: Long) = Views.
 fun <T> RealRandomAccessible<T>.affineReal(affine: AffineGet) = RealViews.affineReal(this, affine)!!
 fun <T> RealRandomAccessible<T>.affine(affine: AffineGet) = RealViews.affine(this, affine)!!
 
-fun <T, R : Type<R>> RandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit) : RandomAccessible<R> {
-    return Converters.convert(this, converter, type )
+fun <T, R : Type<R>> RandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit): RandomAccessible<R> {
+	return Converters.convert(this, converter, type)
 }
-fun <A, B, C : Type<C>> RandomAccessible<A>.convertWith(other: RandomAccessible<B>, type: C, converter: (A, B, C) -> Unit) : RandomAccessible<C> {
-    return Converters.convert(this, other, converter, type )
+
+fun <A, B, C : Type<C>> RandomAccessible<A>.convertWith(other: RandomAccessible<B>, type: C, converter: (A, B, C) -> Unit): RandomAccessible<C> {
+	return Converters.convert(this, other, converter, type)
 }
-fun <T, R : Type<R>> RealRandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit) : RealRandomAccessible<R> {
-    return ConvertedRealRandomAccessible(this, converter) { type.copy() }
+
+fun <T, R : Type<R>> RealRandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit): RealRandomAccessible<R> {
+	return ConvertedRealRandomAccessible(this, converter) { type.copy() }
 }
-fun <A, B, C : Type<C>> RealRandomAccessible<A>.convertWith(other : RealRandomAccessible<B>, type: C, converter: (A, B, C) -> Unit) : RealRandomAccessible<C> {
-    return Converters.convert(this, other, converter, type)
+
+fun <A, B, C : Type<C>> RealRandomAccessible<A>.convertWith(other: RealRandomAccessible<B>, type: C, converter: (A, B, C) -> Unit): RealRandomAccessible<C> {
+	return Converters.convert(this, other, converter, type)
 }
 
 /* RealPoint Extensions */
 
 fun RealPoint.floor(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = floor(getDoublePosition(i)).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = floor(getDoublePosition(i)).toLong()
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.ceil(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = kotlin.math.ceil(getDoublePosition(i)).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = kotlin.math.ceil(getDoublePosition(i)).toLong()
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.round(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = getDoublePosition(i).roundToLong()
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = getDoublePosition(i).roundToLong()
 
-    }
-    return Point(*pointVals)
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.toPoint(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = getDoublePosition(i).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = getDoublePosition(i).toLong()
+	}
+	return Point(*pointVals)
 }
 
 inline fun <reified T> RealPoint.get(i: Int): T {
-    return when (T::class) {
-        Double::class -> getDoublePosition(i)
-        Float::class -> getFloatPosition(i)
-        else -> null
-    } as T
+	return when (T::class) {
+		Double::class -> getDoublePosition(i)
+		Float::class -> getFloatPosition(i)
+		else -> null
+	} as T
 }
 
 inline operator fun <reified T> Point.get(i: Int): T {
-    return when (T::class) {
-        Int::class -> getIntPosition(i)
-        Long::class -> getLongPosition(i)
-        Float::class -> getFloatPosition(i)
-        Double::class -> getDoublePosition(i)
-        else -> null
-    } as T
+	return when (T::class) {
+		Int::class -> getIntPosition(i)
+		Long::class -> getLongPosition(i)
+		Float::class -> getFloatPosition(i)
+		Double::class -> getDoublePosition(i)
+		else -> null
+	} as T
 }
 
 inline operator fun <reified T> RealPoint.component1() = get<T>(0)

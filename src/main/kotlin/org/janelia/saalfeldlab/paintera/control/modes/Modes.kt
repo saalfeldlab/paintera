@@ -97,13 +97,13 @@ interface ToolMode : SourceMode {
 			/* When the selected toggle changes, switch to that tool (if we aren't already) or default if unselected only */
 			toolToggleBarGroup.selectedToggleProperty().addListener { _, _, selected ->
 				selected?.let {
-					(it.userData as? Tool)?.let {tool ->
-                        if (activeTool != tool) {
-                            switchTool(tool)
-                            //TODO this should be refactored and more generic
-                            (tool as? PaintTool)?.enteredWithoutKeyTrigger = true
-                        }
-                    }
+					(it.userData as? Tool)?.let { tool ->
+						if (activeTool != tool) {
+							switchTool(tool)
+							//TODO this should be refactored and more generic
+							(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+						}
+					}
 				} ?: switchTool(defaultTool)
 			}
 			val toolButtons = tools.filterIsInstance<ToolBarItem>().map { tool ->
@@ -111,11 +111,11 @@ interface ToolMode : SourceMode {
 					(this as? Toggle)?.apply {
 						toggleGroup = toolToggleBarGroup
 					}
-                    this.onAction ?: let {
-                        userData = tool
-                    }
-                    isFocusTraversable = false
-                }
+					this.onAction ?: let {
+						userData = tool
+					}
+					isFocusTraversable = false
+				}
 			}
 
 			val toolbox = HBox().apply {
@@ -171,7 +171,7 @@ interface ToolMode : SourceMode {
 	fun selectViewerBefore(afterViewerIsSelected: () -> Unit) {
 		/* temporarily revoke permissions, so no actions are performed until we select a viewer  */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
-        this.statusProperty.set("Select a Viewer...")
+		this.statusProperty.set("Select a Viewer...")
 
 
 		val cleanup = SimpleBooleanProperty(false)
@@ -239,18 +239,18 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-    fun disableUnfocusedViewers() {
-        val orthoViews = paintera.baseView.orthogonalViews()
-        orthoViews.views()
-            .stream()
-            .filter { activeViewerProperty.get()?.viewer()!! != it }
-            .forEach { orthoViews.disableView(it) }
-    }
+	fun disableUnfocusedViewers() {
+		val orthoViews = paintera.baseView.orthogonalViews()
+		orthoViews.views()
+			.stream()
+			.filter { activeViewerProperty.get()?.viewer()!! != it }
+			.forEach { orthoViews.disableView(it) }
+	}
 
-    fun enableAllViewers() {
-        val orthoViews = paintera.baseView.orthogonalViews()
-        orthoViews.views().forEach { orthoViews.enableView(it) }
-    }
+	fun enableAllViewers() {
+		val orthoViews = paintera.baseView.orthogonalViews()
+		orthoViews.views().forEach { orthoViews.enableView(it) }
+	}
 
 	companion object {
 		private val LOG = LoggerFactory.getLogger(ToolMode::class.java.simpleName)

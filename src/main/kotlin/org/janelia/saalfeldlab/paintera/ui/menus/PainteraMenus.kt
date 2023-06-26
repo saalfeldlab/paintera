@@ -1,15 +1,21 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
+import com.google.common.collect.Lists
 import javafx.beans.binding.Bindings
+import javafx.collections.FXCollections
+import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.scene.control.Menu
 import javafx.scene.control.MenuBar
 import javafx.scene.control.MenuItem
 import javafx.scene.control.SeparatorMenuItem
+import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenu
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
+import org.janelia.saalfeldlab.util.PainteraCache
 
 private val currentSourceName by lazy {
 	MenuItem(null).apply {
@@ -34,10 +40,24 @@ private val currentSourceMenu by lazy {
 
 private val showVersion by lazy { MenuItem("Show _Version").apply { onAction = EventHandler { PainteraAlerts.versionDialog().show() } } }
 
-private val fileMenu by lazy { Menu("_File", null, OPEN_SOURCE.menu, SAVE.menu, SAVE_AS.menu, QUIT.menu) }
+private val recentProjects: ObservableList<String> = FXCollections.observableArrayList()
+
+private val openRecentMenu by lazy {
+	MatchSelectionMenu(recentProjects, "Open _Recent", 400.0) {
+		it?.let { recentProject -> Paintera.application.loadProject(recentProject) }
+	}
+}
+
+private val fileMenu by lazy {
+	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
+		it.setOnShowing {
+			recentProjects.setAll(Lists.reverse(PainteraCache.readLines(Paintera::class.java, "recent_projects")))
+		}
+	}
+}
 private val newSourceMenu by lazy { Menu("_New", null, NEW_LABEL_SOURCE.menu) }
 private val newVirtualSourceMenu by lazy { Menu("_Virtual", null, NEW_CONNECTED_COMPONENT_SOURCE.menu, NEW_THRESHOLDED_SOURCE.menu) }
-private val sourcesMenu by lazy { Menu("_Sources", null, currentSourceMenu, newSourceMenu, newVirtualSourceMenu) }
+private val sourcesMenu by lazy { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, newSourceMenu, newVirtualSourceMenu) }
 private val menuBarMenu by lazy { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
 private val statusBarMenu by lazy { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
 private val sideBarMenu by lazy { Menu("_Side Bar", null, TOGGLE_SIDE_BAR_MENU_ITEM.menu) }

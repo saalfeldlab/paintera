@@ -49,7 +49,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final ThreadGroup threadGroup;
 
-	protected final Supplier<ViewerState> viewerState;
+	protected final Supplier<ViewerState> viewerStateSupplier;
 
 	protected final Function<Source<?>, Interpolation> interpolation;
 
@@ -67,7 +67,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	public RenderUnit(
 			final ThreadGroup threadGroup,
-			final Supplier<ViewerState> viewerState,
+			final Supplier<ViewerState> viewerStateSupplier,
 			final Function<Source<?>, Interpolation> interpolation,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
@@ -76,7 +76,7 @@ public class RenderUnit implements PainterThread.Paintable {
 			final ExecutorService renderingExecutorService) {
 
 		this.threadGroup = threadGroup;
-		this.viewerState = viewerState;
+		this.viewerStateSupplier = viewerStateSupplier;
 		this.interpolation = interpolation;
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
@@ -227,8 +227,8 @@ public class RenderUnit implements PainterThread.Paintable {
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
 		synchronized (RenderUnit.this) {
-			if (renderer != null && renderTarget != null && viewerState.get().isVisible()) {
-				final ViewerState viewerState = RenderUnit.this.viewerState.get();
+			final ViewerState viewerState = this.viewerStateSupplier.get();
+			if (renderer != null && renderTarget != null && viewerState != null && viewerState.isVisible()) {
 				synchronized (viewerState) {
 					viewerState.getViewerTransform(viewerTransform);
 					timepoint = viewerState.getTimepoint();

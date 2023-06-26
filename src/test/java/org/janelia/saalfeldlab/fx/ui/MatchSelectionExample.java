@@ -68,8 +68,9 @@ public class MatchSelectionExample {
 
 			button.getItems().setAll(
 					chooserButton,
-					MatchSelectionExample.menu("Recent...", System.out::println, filenames),
-					MatchSelectionExample.menu("Favorites...", System.out::println, filenames));
+					new MatchSelectionMenu(filenames, "Recent...", System.out::println),
+					new MatchSelectionMenu(Collections.emptyList(), "Disabled...", System.out::println),
+					new MatchSelectionMenu(filenames, "Favorites...", System.out::println));
 
 			final Stage stage = new Stage();
 			final Scene scene = new Scene(button);

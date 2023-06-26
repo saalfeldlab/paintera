@@ -14,7 +14,9 @@ public enum MenuActionType implements ActionType {
 	CreateLabelSource,
 	CreateVirtualSource,
 	LoadProject,
-	DetachViewer;
+	DetachViewer,
+
+	OpenProject;
 
 	public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 

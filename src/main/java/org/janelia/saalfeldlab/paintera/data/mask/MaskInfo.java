@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-
 public class MaskInfo {
 
 	public final int time;

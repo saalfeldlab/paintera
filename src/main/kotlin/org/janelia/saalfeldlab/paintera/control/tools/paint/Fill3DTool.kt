@@ -59,8 +59,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 		Fill3DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
 	}
 
-    private val fillIsRunningProperty = SimpleBooleanProperty(false, "Flood Fill 3D is running")
-    private var fillIsRunning by fillIsRunningProperty.nonnull()
+	private val fillIsRunningProperty = SimpleBooleanProperty(false, "Flood Fill 3D is running")
+	private var fillIsRunning by fillIsRunningProperty.nonnull()
 
 	override fun activate() {
 		super.activate()
@@ -68,7 +68,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 	}
 
 	override fun deactivate() {
-        if (fillIsRunning) return
+		if (fillIsRunning) return
 
 		overlay.visible = false
 		super.deactivate()
@@ -101,7 +101,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 							}
 						}
 
-                        fillIsRunningProperty.set(true)
+						fillIsRunningProperty.set(true)
 						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
@@ -130,8 +130,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 					filter = true
 					verify { floodFillState != null }
 					onAction {
-                        floodFillState?.interrupt?.run()
-                        fillIsRunningProperty.set(false)
+						floodFillState?.interrupt?.run()
+						fillIsRunningProperty.set(false)
 						mode?.switchTool(mode.defaultTool)
 					}
 				}

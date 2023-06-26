@@ -119,7 +119,6 @@ public class ImageOverlayRendererFX
 		return bufferedImage;
 	}
 
-
 	@Override
 	public void drawOverlays(final Consumer<Image> g) {
 

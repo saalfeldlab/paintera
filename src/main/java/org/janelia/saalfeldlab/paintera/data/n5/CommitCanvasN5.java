@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import com.pivovarit.function.ThrowingSupplier;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
@@ -115,7 +114,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	}
 
 	@Override
-	public void  updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup {
+	public void updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup {
 
 		LOG.debug("Updating label block lookup with {}", blockDiffsByLevel);
 		try {
