@@ -301,9 +301,6 @@ abstract class AbstractSourceMode : SourceMode {
 		activeSourceStateProperty.bind(currentStateObservable)
 		activeViewerProperty.addListener(sourceSpecificViewerActionListener)
 		activeViewerProperty.bind(currentViewerObservable)
-        activeViewerProperty.addListener { _, _, new ->
-            println("ActiveViewerProperty $new")
-        }
 	}
 
 	override fun exit() {
@@ -337,22 +334,16 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	private val activeViewerToolHandler = ChangeListener<ViewerAndTransforms?> { _, old, new ->
 		(activeTool as? ViewerTool)?.let { tool ->
-            println("activeToolProperty was $tool")
 			old?.viewer()?.let { tool.removeFrom(it) }
 			new?.viewer()?.let { tool.installInto(it) }
-		} ?: let {
-            println("activeToolProperty was null")
-        }
+		}
 	}
 
 	private val activeToolHandler = ChangeListener<Tool?> { _, old, new ->
 		activeViewerProperty.get()?.let { viewer ->
-            println("activeViewerProperty was $viewer")
 			(old as? ViewerTool)?.removeFrom(viewer.viewer())
 			(new as? ViewerTool)?.installInto(viewer.viewer())
-		} ?: let {
-            println("activeViewerProperty was null")
-        }
+		}
 	}
 
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
