@@ -19,3 +19,13 @@
     -icons-color: -reject;
     -glyph-name: "REMOVE";
 }
+
+.glyph-icon.remove {
+    -icons-color: -reject;
+    -glyph-name: "MINUS";
+}
+
+.glyph-icon.add {
+    -icons-color: -accept;
+    -glyph-name: "PLUS";
+}
