@@ -86,9 +86,11 @@ object NavigationTool : ViewerTool() {
 
 	private val keyBindings = keyAndMouseBindings.keyCombinations
 
-	private val globalTransformManager by lazy { paintera.baseView.manager() }
+	private val globalTransformManager
+        get() = paintera.baseView.manager()
 
-	private val globalTransform = AffineTransform3D().apply { globalTransformManager.addListener { set(it) } }
+	private val globalTransform
+        get() = AffineTransform3D().apply { globalTransformManager.addListener { set(it) } }
 
 	private val zoomSpeed = SimpleDoubleProperty(1.05)
 

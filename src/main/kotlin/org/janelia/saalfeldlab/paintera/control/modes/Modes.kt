@@ -261,9 +261,10 @@ abstract class AbstractSourceMode : SourceMode {
 	final override val activeSourceStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
 	final override val activeViewerProperty = SimpleObjectProperty<ViewerAndTransforms?>()
 
-	private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?> =
-		paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
-	private val currentViewerObservable = paintera.baseView.currentFocusHolder
+	private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?>
+        get() = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
+	private val currentViewerObservable
+        get() = paintera.baseView.currentFocusHolder
 
 	private val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
 		it?.let { paintera.baseView.keyAndMouseBindings.getConfigFor(it).keyCombinations }
@@ -300,6 +301,9 @@ abstract class AbstractSourceMode : SourceMode {
 		activeSourceStateProperty.bind(currentStateObservable)
 		activeViewerProperty.addListener(sourceSpecificViewerActionListener)
 		activeViewerProperty.bind(currentViewerObservable)
+        activeViewerProperty.addListener { _, _, new ->
+            println("ActiveViewerProperty $new")
+        }
 	}
 
 	override fun exit() {
@@ -333,16 +337,22 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	private val activeViewerToolHandler = ChangeListener<ViewerAndTransforms?> { _, old, new ->
 		(activeTool as? ViewerTool)?.let { tool ->
+            println("activeToolProperty was $tool")
 			old?.viewer()?.let { tool.removeFrom(it) }
 			new?.viewer()?.let { tool.installInto(it) }
-		}
+		} ?: let {
+            println("activeToolProperty was null")
+        }
 	}
 
 	private val activeToolHandler = ChangeListener<Tool?> { _, old, new ->
 		activeViewerProperty.get()?.let { viewer ->
+            println("activeViewerProperty was $viewer")
 			(old as? ViewerTool)?.removeFrom(viewer.viewer())
 			(new as? ViewerTool)?.installInto(viewer.viewer())
-		}
+		} ?: let {
+            println("activeViewerProperty was null")
+        }
 	}
 
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
