@@ -105,6 +105,7 @@ object LabelSourceStateKeys {
     const val REFRESH_MESHES                               = "refresh meshes"
     const val CANCEL                                       = "cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
+    const val SEGMENT_ANYTHING_MODE                        = "Segment Anything Mode"
 
 	private val namedComboMap = NamedKeyCombination.CombinationMap(
         SELECT_ALL                                  byKeyCombo A + CONTROL_DOWN,
@@ -125,8 +126,9 @@ object LabelSourceStateKeys {
         ARGB_STREAM_DECREMENT_SEED                  byKeyCombo C + SHIFT_DOWN,
         REFRESH_MESHES                              byKeyCombo R,
         CANCEL                                      byKeyCombo ESCAPE,
-        TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN
-	)
+        TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN,
+        SEGMENT_ANYTHING_MODE                       byKeyCombo A
+    )
 
 	fun namedCombinationsCopy() = namedComboMap.deepCopy
 
