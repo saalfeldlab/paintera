@@ -212,6 +212,7 @@ class Paintera : Application() {
 
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
+        n5Factory.clearCache()
 
 		paintera.pane.scene.window.let { window ->
 			Platform.setImplicitExit(false)
