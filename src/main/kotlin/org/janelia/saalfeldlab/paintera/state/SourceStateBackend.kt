@@ -33,4 +33,6 @@ interface SourceStateBackend<D, T> {
 
 	fun updateTransform(transform: AffineTransform3D)
 
+    fun shutdown() { }
+
 }

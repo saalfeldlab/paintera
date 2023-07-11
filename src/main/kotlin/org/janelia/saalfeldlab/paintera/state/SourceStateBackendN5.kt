@@ -43,7 +43,11 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		return (metadataState as? MultiScaleMetadataState)?.let { multiScaleMetadataNode(it) } ?: singleScaleMetadataNode(metadataState)
 	}
 
-	fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): VBox {
+    override fun shutdown() {
+        container.close()
+    }
+
+    fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): VBox {
 
 		return VBox().apply {
 
