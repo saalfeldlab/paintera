@@ -258,13 +258,17 @@ public class N5FactoryOpener {
 							invoke(() -> this.isOpeningContainer.set(true));
 							final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
 
+								/* This particular shortcut is if the N5Reader/Writer is cached, but from
+								 * deserialization, not from open source */
+								N5Reader initialReader = Paintera.getN5Factory().getFromCache(newSelection);
+								if (initialReader != null) return new N5ContainerState(initialReader);
+
 								/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
 								 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
 								 * This means that if there is no N5 container, it will create one.
 								 *
 								 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
 								 * exists. */
-								final N5Reader initialReader;
 								final var optReader = openN5Reader(newSelection);
 								if (optReader.isEmpty()) {
 									return null;
