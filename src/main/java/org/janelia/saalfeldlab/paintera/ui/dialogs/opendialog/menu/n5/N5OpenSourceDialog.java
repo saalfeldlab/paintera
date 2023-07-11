@@ -13,14 +13,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
@@ -28,6 +21,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import net.imglib2.Volatile;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
@@ -40,6 +35,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Constants;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
@@ -76,20 +72,26 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
 	public static class N5Opener implements OpenDialogMenuEntry {
 
-		private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
+		private static N5FactoryOpener factoryOpener = new N5FactoryOpener();
+
+		private PainteraBaseView paintera = Paintera.getPaintera().getBaseView();
 
 		@Override
 		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
 			return (pbv, projectDirectory) -> {
-				try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
+				if (pbv != paintera) {
+					factoryOpener = new N5FactoryOpener();
+					paintera = pbv;
+				}
+				try (final GenericBackendDialogN5 dialog = factoryOpener.backendDialog()) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("source");
 					Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
 					if (optBackend.isEmpty())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-					FACTORY_OPENER.selectionAccepted();
+					factoryOpener.selectionAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open dataset", e1);
 
@@ -225,6 +227,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		/* Ensure the window opens up over the main view if possible */
 		initModality(Modality.APPLICATION_MODAL);
 		Optional.ofNullable(viewer.getNode().getScene().getWindow()).ifPresent(this::initOwner);
+		final Window dialogWindow = getDialogPane().getScene().getWindow();
+		if (dialogWindow instanceof Stage) {
+			var dialogStage = (Stage)dialogWindow;
+			dialogStage.sizeToScene();
+		}
 	}
 
 	public MetaPanel.TYPE getType() {
