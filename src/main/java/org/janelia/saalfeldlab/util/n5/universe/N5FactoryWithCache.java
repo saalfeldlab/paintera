@@ -98,4 +98,13 @@ public class N5FactoryWithCache extends N5Factory {
 		if (reader != null)
 			reader.close();
 	}
+
+	public void clearCache() {
+		writerCache.clear();
+		readerCache.clear();
+	}
+
+	public N5Reader getFromCache(String url) {
+		return readerCache.get(url);
+	}
 }
