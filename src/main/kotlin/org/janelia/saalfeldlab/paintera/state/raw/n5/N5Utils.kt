@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader
-import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -59,27 +59,27 @@ object N5Utils {
 	fun getReaderOrWriterIfN5ContainerExists(container: String): N5Reader? {
 		var reader: N5Reader? = null
 		return try {
-			N5Helpers.n5Reader(container)?.let {
+			n5Factory.openReader(container)?.let {
 				reader = it
 				if (it is N5HDF5Reader) {
 					it.close()
 					reader = null
 				}
-				N5Helpers.n5Writer(container)
+				n5Factory.openWriter(container)
 			}
 		} catch (e: Exception) {
-			reader ?: N5Helpers.n5Reader(container)
+			reader ?: n5Factory.openReader(container)
 		}
 	}
 
 	@JvmStatic
 	fun getWriterIfN5ContainerExists(container: String): N5Writer? {
 		return try {
-			N5Helpers.n5Reader(container)?.let {
+			n5Factory.openReader(container)?.let {
 				if (it is N5HDF5Reader) {
 					it.close()
 				}
-				N5Helpers.n5Writer(container)
+				n5Factory.openWriter(container)
 			}
 		} catch (e: Exception) {
 			null
