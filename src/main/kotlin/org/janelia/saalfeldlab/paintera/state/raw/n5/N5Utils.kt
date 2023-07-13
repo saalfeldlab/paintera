@@ -55,34 +55,70 @@ object N5Utils {
 		return "gs://$bucketName/$fullPath"
 	}
 
+	/**
+	 * If an n5 container exists at [uri], return it as [N5Writer] if possible, and [N5Reader] if not.
+	 *
+	 * @param uri the location of the n5 container
+	 * @return [N5Writer] or [N5Reader] if container exists
+	 */
 	@JvmStatic
-	fun getReaderOrWriterIfN5ContainerExists(container: String): N5Reader? {
-		var reader: N5Reader? = null
-		return try {
-			n5Factory.openReader(container)?.let {
-				reader = it
-				if (it is N5HDF5Reader) {
-					it.close()
-					reader = null
-				}
-				n5Factory.openWriter(container)
-			}
-		} catch (e: Exception) {
-			reader ?: n5Factory.openReader(container)
-		}
+	fun getReaderOrWriterIfN5ContainerExists(uri: String): N5Reader? {
+		val cachedContainer = getReaderOrWriterIfCached(uri)
+		return cachedContainer ?: openReaderOrWriterIfContainerExists(uri)
 	}
 
+	/**
+	 * If an n5 container exists at [uri], return it as [N5Writer] if possible.
+	 *
+	 * @param uri the location of the n5 container
+	 * @return [N5Writer] if container exists and is openable as a writer.
+	 */
 	@JvmStatic
-	fun getWriterIfN5ContainerExists(container: String): N5Writer? {
-		return try {
-			n5Factory.openReader(container)?.let {
-				if (it is N5HDF5Reader) {
-					it.close()
-				}
-				n5Factory.openWriter(container)
+	fun getWriterIfN5ContainerExists(uri: String): N5Writer? {
+		return getReaderOrWriterIfN5ContainerExists(uri) as? N5Writer
+	}
+
+	/**
+	 * Retrieves a reader or writer for the given container if it exists.
+	 *
+	 * If the reader is successfully opened, the container must exist, so we try to open a writer.
+	 * This is to ensure that an N5 container isn't created by opening as a writer if one doesn't exist.
+	 * If opening a writer is not possible it falls back to again as a reader.
+	 *
+	 * @param container the path to the container
+	 * @return a reader or writer as N5Reader, or null if the container does not exist
+	 */
+	private fun openReaderOrWriterIfContainerExists(container: String) = try {
+		n5Factory.openReader(container)?.let {
+			var reader: N5Reader? = it
+			if (it is N5HDF5Reader) {
+				it.close()
 			}
-		} catch (e: Exception) {
-			null
+			try {
+				n5Factory.openWriter(container)
+			} catch (_: Exception) {
+				reader ?: n5Factory.openReader(container)
+			}
 		}
+	} catch (e: Exception) {
+		null
+	}
+
+	/**
+	 * If there is a cached N5Reader for [container] than try to open a writer (also may be cached),
+	 *  or fallback to the cached reader
+	 *
+	 * @param container The path to the N5 container.
+	 * @return The N5Reader instance.
+	 */
+	private fun getReaderOrWriterIfCached(container: String): N5Reader? {
+		val reader: N5Reader? = n5Factory.getFromCache(container)?.let {
+			try {
+				n5Factory.openWriter(container)
+			} catch (_: Exception) {
+				it
+			}
+		}
+		return reader
 	}
 }
