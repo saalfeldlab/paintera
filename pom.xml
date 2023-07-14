@@ -39,7 +39,7 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
-		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
+		<imglib2-cache.version>1.0.0-beta-17</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-28</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<groovy.version>2.5.14</groovy.version>
@@ -206,7 +206,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>6.0.0</version>
+			<version>6.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -215,7 +215,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
-			<version>3.1.2</version>
+			<version>4.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
