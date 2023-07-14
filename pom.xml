@@ -69,12 +69,7 @@
 		<!-- JavaFx Version-->
 		<javafx.version>18.0.1</javafx.version>
 
-		<n5.version>2.5.1</n5.version>
-		<n5-hdf5.version>1.4.2</n5-hdf5.version>
-		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
 		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
-		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
-		<n5-zarr.version>0.0.6</n5-zarr.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
 		<jna.version>5.11.0</jna.version>
@@ -89,6 +84,13 @@
 		<windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>
 		<macos.sign />
 		<macos.sign.identity />
+
+		<n5.version>3.0.0-SNAPSHOT</n5.version>
+		<n5-hdf5.version>1.5.0-SNAPSHOT</n5-hdf5.version>
+		<n5-google-cloud.version>3.3.3-SNAPSHOT</n5-google-cloud.version>
+		<n5-aws-s3.version>3.2.1-SNAPSHOT</n5-aws-s3.version>
+		<n5-zarr.version>0.0.9-SNAPSHOT</n5-zarr.version>
+		<n5-imglib2.version>6.0.0-SNAPSHOT</n5-imglib2.version>
 
 	</properties>
 
@@ -108,39 +110,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-universe</artifactId>
-			<version>0.1.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-aws-s3</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-zarr</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-hdf5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-imglib2</artifactId>
-			<version>4.4.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-utils</artifactId>
-			<version>0.0.5</version>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-google-cloud</artifactId>
+			<version>0.1.1-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>

@@ -14,8 +14,7 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getWriterIfN5ContainerExists
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
+import org.janelia.saalfeldlab.util.n5.N5Helpers.getWriterIfN5ContainerExists
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.function.IntFunction
@@ -32,9 +31,9 @@ private class N5ReaderSerializer<N5 : N5Reader>(private val projectDirectory: Su
 	): JsonElement {
 		val projectDirectory = this.projectDirectory.get()
 		return JsonObject().also { jsonMap ->
-			container.urlRepresentation()
-				.takeUnless { it == projectDirectory }
-				?.let { jsonMap.addProperty(BASE_PATH, it) }
+			container.uri!!
+				.takeUnless { it.path == projectDirectory }
+				?.let { jsonMap.addProperty(BASE_PATH, it.toString()) }
 		}
 	}
 }

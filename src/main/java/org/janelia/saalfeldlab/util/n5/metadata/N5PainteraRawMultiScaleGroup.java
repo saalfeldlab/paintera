@@ -27,6 +27,7 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
@@ -73,7 +74,7 @@ public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup 
 				} else {
 					painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
 				}
-			} catch (IOException e) {
+			} catch (N5Exception e) {
 				return Optional.empty();
 			}
 

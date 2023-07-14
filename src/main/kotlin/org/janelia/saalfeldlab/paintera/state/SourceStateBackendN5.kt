@@ -53,9 +53,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 
 			val n5ContainerState = metadataState.n5ContainerState
 			val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-			val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+			val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.uri}'")
 
-			val container = TextField(n5ContainerState.url).apply { isEditable = false }
+			val container = TextField(n5ContainerState.uri.toString()).apply { isEditable = false }
 			val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 			children += HBox(containerLabel, container)
@@ -139,9 +139,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 
 			if (!asScaleLevel) {
 				val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-				val container = TextField(n5ContainerState.url).apply { isEditable = false }
+				val container = TextField(n5ContainerState.uri.toString()).apply { isEditable = false }
 
-				val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+				val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.uri}'")
 				val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 				add(containerLabel, 0, row)

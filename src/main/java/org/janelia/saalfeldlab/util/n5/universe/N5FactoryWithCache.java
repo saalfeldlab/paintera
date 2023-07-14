@@ -48,7 +48,7 @@ public class N5FactoryWithCache extends N5Factory {
 	private final HashMap<String, N5Writer> writerCache = new HashMap<>();
 	private final HashMap<String, N5Reader> readerCache = new HashMap<>();
 
-	@Override public N5Reader openReader(String url) throws IOException {
+	@Override public N5Reader openReader(String url) {
 
 		/* Check if writer is valid (it may have been closed by someone) */
 		final N5Reader cachedContainer = readerCache.get(url);
@@ -64,7 +64,7 @@ public class N5FactoryWithCache extends N5Factory {
 		return readerCache.get(url);
 	}
 
-	@Override public N5Writer openWriter(String url) throws IOException {
+	@Override public N5Writer openWriter(String url)  {
 
 		/* Check if writer is valid (it may have been closed by someone) */
 		final N5Reader cachedContainer = writerCache.get(url);

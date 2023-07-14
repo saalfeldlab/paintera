@@ -352,8 +352,8 @@ public class CommitCanvasN5Test {
 
 		// test highest level block lookups
 		final String uniqueBlock0 = String.join("/", dataset, "unique-labels", "s0");
-		final Path mappingPattern = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s%d", "%d");
-		final Path mapping0 = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s0");
+		final Path mappingPattern = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s%d", "%d");
+		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
 		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
 		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();

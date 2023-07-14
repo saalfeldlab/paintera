@@ -225,9 +225,9 @@ public class GenericBackendDialogN5 implements Closeable {
 				}
 			}
 
-			final var oldUrl = Optional.ofNullable(oldContainer).map(N5ContainerState::getUrl).orElse(null);
-			final var newUrl = Optional.ofNullable(newContainer).map(N5ContainerState::getUrl).orElse(null);
-			LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUrl, newUrl);
+			final var oldUri = Optional.ofNullable(oldContainer).map(N5ContainerState::getUri).orElse(null);
+			final var newUri = Optional.ofNullable(newContainer).map(N5ContainerState::getUri).orElse(null);
+			LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUri, newUri);
 		});
 
 		this.isContainerValid.addListener((obs, oldv, newv) -> cancelDiscovery());
@@ -520,7 +520,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	}
 
 	private String getContainerName() {
-		var pathParts = URI.create(containerState.get().getUrl()).getPath().split("/");
+		var pathParts = URI.create(containerState.get().getUri().getPath()).getPath().split("/");
 		return pathParts[pathParts.length - 1];
 	}
 

@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.id;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-import java.io.IOException;
+
 import java.util.stream.LongStream;
 
 public class N5IdService implements IdService {
@@ -75,11 +75,7 @@ public class N5IdService implements IdService {
 
 	private void serializeMaxId() {
 
-		try {
-			n5.setAttribute(dataset, "maxId", next);
-		} catch (final IOException e) {
-			throw new RuntimeException(e);
-		}
+		n5.setAttribute(dataset, "maxId", next);
 	}
 
 	@Override

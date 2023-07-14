@@ -40,7 +40,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -76,6 +75,8 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrWriterIfN5ContainerExists;
 
 @Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs", usageHelpWidth = 120,
 		parameterListHeading = "%n@|bold,underline Parameters|@:%n",
@@ -648,7 +649,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			for (final String container : containers) {
 				LOG.debug("Adding datasets for container {}", container);
 
-				N5Reader n5Container = N5Utils.getReaderOrWriterIfN5ContainerExists(container);
+				N5Reader n5Container = getReaderOrWriterIfN5ContainerExists(container);
 
 				final Predicate<String> datasetFilter = options.useDataset();
 				final ExecutorService es = getDiscoveryExecutorService();
