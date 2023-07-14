@@ -11,9 +11,11 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Companion.isRootLoggerName
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Logback.Levels.Companion.levels
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
@@ -111,23 +113,19 @@ class LoggingConfig {
 			config: LoggingConfig,
 			typeOfSrc: Type,
 			context: JsonSerializationContext
-		): JsonElement? {
+		): JsonElement {
 			val map = JsonObject()
-			JsonObject().let { rootLoggerMap ->
-				config.rootLoggerLevel.takeUnless { it == defaultLogLevel }?.let { rootLoggerMap.addProperty(Keys.LEVEL, it.levelStr) }
-				rootLoggerMap.takeUnless { it.size() == 0 }?.let { map.add(Keys.ROOT_LOGGER, it) }
-				config.isLoggingEnabled.takeUnless { it == defaultIsLoggingEnabled }?.let { map.addProperty(Keys.IS_ENABLED, it) }
-				config.isLoggingToConsoleEnabled.takeUnless { it == defaultIsLoggingToConsoleEnabled }
-					?.let { map.addProperty(Keys.IS_LOGGING_TO_CONSOLE_ENABLED, it) }
-				config.isLoggingToFileEnabled.takeUnless { it == defaultIsLoggingToFileEnabled }?.let { map.addProperty(Keys.IS_LOGGING_TO_FILE_ENABLED, it) }
-			}
-			JsonObject().let { loggerLevels ->
+			map[Keys.ROOT_LOGGER] = JsonObject().also { rootLoggerMap -> rootLoggerMap[Keys.LEVEL] = config.rootLoggerLevel.levelStr }
+			map[Keys.IS_ENABLED] = config.isLoggingEnabled
+			map[Keys.IS_LOGGING_TO_CONSOLE_ENABLED] = config.isLoggingToConsoleEnabled
+			map[Keys.IS_LOGGING_TO_FILE_ENABLED] = config.isLoggingToFileEnabled
+			val loggerLevels = JsonObject().also { levels ->
 				config.unmodifiableLoggerLevels.forEach { (name, level) ->
-					level.value?.let { loggerLevels.addProperty(name, it.levelStr) }
+					level.value?.let { levels[name] = it.levelStr }
 				}
-				loggerLevels.takeUnless { it.size() == 0 }?.let { map.add(Keys.LOGGER_LEVELS, it) }
 			}
-			return map.takeUnless { it.size() == 0 }
+			map[Keys.LOGGER_LEVELS] = loggerLevels
+			return map
 		}
 
 		override fun getTargetClass(): Class<LoggingConfig> = LoggingConfig::class.java

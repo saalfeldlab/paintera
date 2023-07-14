@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import javafx.beans.property.SimpleObjectProperty
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
@@ -36,9 +37,9 @@ class MultiBoxOverlayConfig {
 	@Plugin(type = PainteraSerialization.PainteraAdapter::class)
 	class Adapter : PainteraSerialization.PainteraAdapter<MultiBoxOverlayConfig> {
 		override fun serialize(src: MultiBoxOverlayConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement? {
-			val map = JsonObject()
-			src.visibility.takeIf { it != DefaultValues.VISIBILITY }?.let { map.add(SerializationKeys.VISIBILITY, context.serialize(it)) }
-			return if (map.size() == 0) null else map
+			return JsonObject().also {
+				it[SerializationKeys.VISIBILITY] = context.serialize(src.visibility)
+			}
 		}
 
 		override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext): MultiBoxOverlayConfig {
