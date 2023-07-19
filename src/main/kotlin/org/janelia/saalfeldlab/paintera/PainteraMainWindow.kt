@@ -22,7 +22,6 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.n5.GsonN5Writer
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
@@ -35,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -178,6 +178,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
+			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectDirectory.directory.canonicalPath, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}
