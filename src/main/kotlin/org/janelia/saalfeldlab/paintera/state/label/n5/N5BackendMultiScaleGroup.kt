@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
@@ -15,8 +15,6 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
@@ -25,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -91,7 +90,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 			N5Helpers.idService(
 				it,
 				dataset,
-				Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })!!
+				Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })
 		} ?: let {
 			IdService.IdServiceNotProvided()
 		}
@@ -116,7 +115,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 		): JsonElement {
 			return with(SerializationKeys) {
 				JsonObject().apply {
-					add(CONTAINER, context.withClassInfo(backend.container))
+					backend.container.serializeTo(this)
 					addProperty(DATASET, backend.dataset)
 					add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
 				}
@@ -154,7 +153,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 		): N5BackendMultiScaleGroup<D, T> {
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
-					val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
 					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!

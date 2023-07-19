@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
@@ -19,8 +19,6 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
@@ -29,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -73,7 +72,7 @@ class N5BackendPainteraDataset<D, T>(
 	override val fragmentSegmentAssignment: FragmentSegmentAssignmentStateWithActionTracker
 		get() {
 			return metadataState.writer?.let {
-				N5Helpers.assignments(it, dataset)!!
+				N5Helpers.assignments(it, dataset)
 			} ?: FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
 		}
 	override val providesLookup = true
@@ -81,7 +80,7 @@ class N5BackendPainteraDataset<D, T>(
 	//FIXME Caleb: same as above with idService
 	override fun createIdService(source: DataSource<D, T>): IdService {
 		return metadataState.writer?.let {
-			N5Helpers.idService(it, dataset)!!
+			N5Helpers.idService(it, dataset)
 		} ?: IdService.IdServiceNotProvided()
 	}
 
@@ -178,7 +177,6 @@ class N5BackendPainteraDataset<D, T>(
 	}
 
 	private object SerializationKeys {
-		const val CONTAINER = "container"
 		const val DATASET = "dataset"
 		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
 	}
@@ -194,7 +192,7 @@ class N5BackendPainteraDataset<D, T>(
 		): JsonElement {
 			val map = JsonObject()
 			with(SerializationKeys) {
-				map.add(CONTAINER, context.withClassInfo(backend.container))
+				backend.container.serializeTo(map)
 				map.addProperty(DATASET, backend.dataset)
 				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
 			}
@@ -232,7 +230,7 @@ class N5BackendPainteraDataset<D, T>(
 		): N5BackendPainteraDataset<D, T> {
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
-					val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
 					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!

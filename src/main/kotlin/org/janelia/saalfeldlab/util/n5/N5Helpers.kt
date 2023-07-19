@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.util.n5
 
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import javafx.beans.property.BooleanProperty
 import javafx.beans.value.ChangeListener
 import net.imglib2.img.cell.CellGrid
@@ -20,13 +21,18 @@ import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NoInitialLutAvailable
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
+import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
@@ -314,9 +320,12 @@ object N5Helpers {
 				FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError))
 		}
 		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE"
+		val initialLut = if (writer.exists(dataset)) {
+			N5FragmentSegmentAssignmentInitialLut(writer, dataset)
+		} else NoInitialLutAvailable()
 		return try {
 			FragmentSegmentAssignmentOnlyLocal(
-				N5FragmentSegmentAssignmentInitialLut(writer, dataset),
+				initialLut ,
 				N5FragmentSegmentAssignmentPersister(writer, dataset))
 		} catch (e: ReflectionException) {
 			LOG.debug("Unable to create initial lut supplier", e)
@@ -831,5 +840,22 @@ object N5Helpers {
 			}
 		}
 		return reader
+	}
+
+	private const val URI = "uri"
+	internal fun N5Reader.serializeTo(json: JsonObject) {
+		if (!uri.equals(paintera.projectDirectory.actualDirectory.toURI())) {
+			json[URI] = uri.toString()
+		}
+	}
+
+	internal fun deserializeFrom(json: JsonObject): N5Reader {
+		/* `fromClassInfo is the old style. Support both when deserializing, at least for now. Should be replaced on next save */
+		val fromClassInfo = json[SerializationKeys.CONTAINER]
+			?.asJsonObject?.get("data")
+			?.asJsonObject?.get("basePath")
+			?.asString
+		val uri = fromClassInfo ?: json[URI]?.asString ?: paintera.projectDirectory.actualDirectory.toURI().toString()
+		return N5Helpers.getReaderOrWriterIfN5ContainerExists(uri)!!
 	}
 }
