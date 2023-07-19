@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;

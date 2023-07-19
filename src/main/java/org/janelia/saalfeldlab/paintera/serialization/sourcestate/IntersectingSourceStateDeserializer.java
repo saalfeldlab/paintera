@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;

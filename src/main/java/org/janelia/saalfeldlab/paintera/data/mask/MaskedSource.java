@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.TLongObjectMap;

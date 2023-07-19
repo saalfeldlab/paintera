@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 import ai.onnxruntime.*
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnit
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.render.AccumulateProjectorARGB

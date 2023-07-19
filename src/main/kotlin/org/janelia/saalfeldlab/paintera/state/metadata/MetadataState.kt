@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -268,8 +268,8 @@ class MetadataUtils {
 		}
 
 		@JvmStatic
-		fun createMetadataState(writer: N5Writer, dataset: String): MetadataState {
-			val n5ContainerState = N5ContainerState(writer)
+		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState {
+			val n5ContainerState = N5ContainerState(reader)
 			val createMetadataState = createMetadataState(n5ContainerState, dataset)
 			return createMetadataState.nullable!!
 		}

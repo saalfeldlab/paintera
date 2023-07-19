@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
 import gnu.trove.set.hash.TLongHashSet

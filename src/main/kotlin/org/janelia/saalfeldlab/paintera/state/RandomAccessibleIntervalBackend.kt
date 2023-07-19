@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.util.volatiles.VolatileTypeMatcher
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty

@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.util
 
 import bdv.img.cache.CreateInvalidVolatileCell
 import bdv.img.cache.VolatileCachedCellImg
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.util.volatiles.VolatileTypeMatcher
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile

@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.channel
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
