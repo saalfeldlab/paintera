@@ -1,8 +1,10 @@
 package org.janelia.saalfeldlab.util.n5;
 
 import bdv.img.cache.VolatileCachedCellImg;
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
@@ -811,7 +813,7 @@ public class N5Data {
 		if (!n5.exists(group))
 			n5.createGroup(group);
 
-		if (!ignoreExisiting && n5.listAttributes(group).containsKey(N5Helpers.PAINTERA_DATA_KEY))
+		if (!ignoreExisiting && n5.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class) != null)
 			throw new IOException(String.format("Group `%s' exists in container `%s' and is Paintera data set", group, container));
 
 		if (!ignoreExisiting && n5.exists(uniqueLabelsGroup))
@@ -823,8 +825,8 @@ public class N5Data {
 		final String dataGroup = String.format("%s/data", group);
 		n5.createGroup(dataGroup);
 
-		// {"maxId":191978,"multiScale":true,"offset":[3644.0,3644.0,1520.0],"resolution":[4.0,4.0,40.0],
-		// "isLabelMultiset":true}%
+
+
 		n5.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
 		n5.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
 		n5.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
@@ -860,9 +862,6 @@ public class N5Data {
 				n5.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
 				n5.setAttribute(uniqeLabelsDataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
 			}
-
-			// {"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint64","dimensions":[625,625,125]}
-
 		}
 	}
 }
