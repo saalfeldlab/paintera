@@ -36,6 +36,7 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import static org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Deserializer.migrateFromDeprecatedSource$paintera;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class SourceInfoSerializer implements PainteraSerialization.PainteraSerializer<SourceInfo> {
@@ -164,6 +165,10 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 							.toArray(SourceState[]::new);
 					if (Stream.of(dependencies).noneMatch(Objects::isNull)) {
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
+
+						if ("org.janelia.saalfeldlab.paintera.state.RawSourceState".equals(state.get(STATE_TYPE_KEY).getAsString())) {
+							migrateFromDeprecatedSource$paintera(gson, state);
+						}
 
 						final var stateName = state.getAsJsonObject(STATE_KEY).get(STATE_NAME_KEY).getAsString();
 						Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNotification("Loading Source: " + stateName));
