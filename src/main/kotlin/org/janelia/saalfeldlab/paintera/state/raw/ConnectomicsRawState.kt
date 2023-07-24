@@ -25,9 +25,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings.Defaults.Values.isVisible
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
@@ -37,7 +35,6 @@ import org.janelia.saalfeldlab.paintera.state.ARGBComposite
 import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
@@ -52,14 +49,13 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Serializa
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.OFFSET
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RESOLUTION
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
-import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
-import software.amazon.ion.system.IonTextWriterBuilder.json
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
+import java.util.function.BiConsumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 import kotlin.jvm.optionals.getOrNull
@@ -217,7 +213,7 @@ open class ConnectomicsRawState<D, T>(
 
 		private fun <D, T> deserializeConnectomicsRawState(context: JsonDeserializationContext, json: JsonElement): ConnectomicsRawState<*, *>
 			where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
-			val backend : ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
+			val backend: ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
 			backend.updateTransform(resolution, offset)
@@ -242,13 +238,20 @@ open class ConnectomicsRawState<D, T>(
 		override fun getTargetClass(): Class<ConnectomicsRawState<*, *>> = ConnectomicsRawState::class.java
 
 		companion object {
-			@JvmStatic
-			internal fun migrateFromDeprecatedSource(gson : Gson, json: JsonObject) {
-				if (json.get<String>("type") != "org.janelia.saalfeldlab.paintera.state.RawSourceState") return
+
+			private const val DEPRECATED_RAW_SOURCE_STATE = "org.janelia.saalfeldlab.paintera.state.RawSourceState"
+
+			@JvmField
+			val DEPRECATED_STATE_CONVERTERS: Map<String, BiConsumer<Gson, JsonObject>> = mapOf(
+				DEPRECATED_RAW_SOURCE_STATE to BiConsumer { gson, json -> deprecatedRawSourceStateToConnectomicsSourceState(gson, json) }
+			)
+
+			private fun deprecatedRawSourceStateToConnectomicsSourceState(gson: Gson, json: JsonObject) {
+				if (json.get<String>("type") != DEPRECATED_RAW_SOURCE_STATE) return
 				try {
 					json.addProperty("type", ConnectomicsRawState::class.java.name)
 
-					val state : JsonObject = json.getAsJsonObject("state");
+					val state: JsonObject = json.getAsJsonObject("state");
 					state.remove(COMPOSITE)
 
 					val source: JsonElement = state["source"]!!
@@ -276,7 +279,7 @@ open class ConnectomicsRawState<D, T>(
 					}
 
 					state.add("backend", backendObj)
-				} catch (_ : Exception) {
+				} catch (_: Exception) {
 					LOG.error("Error migrating deprecated RawSourceState to ConnectomicsRawState")
 				}
 			}

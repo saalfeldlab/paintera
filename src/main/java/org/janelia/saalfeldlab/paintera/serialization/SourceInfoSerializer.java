@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,8 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import static org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Deserializer.migrateFromDeprecatedSource$paintera;
+
+import static org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Deserializer.DEPRECATED_STATE_CONVERTERS;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class SourceInfoSerializer implements PainteraSerialization.PainteraSerializer<SourceInfo> {
@@ -166,8 +168,10 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 					if (Stream.of(dependencies).noneMatch(Objects::isNull)) {
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
 
-						if ("org.janelia.saalfeldlab.paintera.state.RawSourceState".equals(state.get(STATE_TYPE_KEY).getAsString())) {
-							migrateFromDeprecatedSource$paintera(gson, state);
+						/* In-place conversion of `state` containaing an deprecated source state to a valid one. */
+						final String stateType = state.getAsJsonPrimitive(STATE_TYPE_KEY).getAsString();
+						if (DEPRECATED_STATE_CONVERTERS.containsKey(stateType)) {
+							DEPRECATED_STATE_CONVERTERS.get(stateType).accept(gson, state);
 						}
 
 						final var stateName = state.getAsJsonObject(STATE_KEY).get(STATE_NAME_KEY).getAsString();
