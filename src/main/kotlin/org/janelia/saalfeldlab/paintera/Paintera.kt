@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -212,6 +213,7 @@ class Paintera : Application() {
 
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
+		NavigationControlMode.reset()
         n5Factory.clearCache()
 
 		paintera.pane.scene.window.let { window ->
