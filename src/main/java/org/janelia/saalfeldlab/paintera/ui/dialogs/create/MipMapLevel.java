@@ -2,24 +2,16 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-
-import java.util.List;
 
 public class MipMapLevel {
 
@@ -86,49 +78,5 @@ public class MipMapLevel {
 	public int maxNumEntries() {
 
 		return this.maxNumberOfEntriesPerSet.valueProperty().get();
-	}
-
-	public static Node makeNode(
-			final ObservableList<MipMapLevel> levels,
-			final double fieldWidth,
-			final double nameWidth,
-			final double buttonWidth,
-			ObjectField.SubmitOn... submitOn) {
-
-		final VBox levelsBox = new VBox();
-		final ObservableList<Node> children = levelsBox.getChildren();
-		levels.addListener((ListChangeListener<MipMapLevel>)change -> InvokeOnJavaFXApplicationThread.invoke(() -> {
-			children.stream().filter(n -> n instanceof Pane).map(n -> (Pane)n).map(Pane::getChildren).forEach(List::clear);
-			children.clear();
-			for (int i = 0; i < levels.size(); i++) {
-				final MipMapLevel level = levels.get(i);
-				final Button removeButton = new Button("-");
-				removeButton.setPrefWidth(buttonWidth);
-				removeButton.setMinWidth(buttonWidth);
-				removeButton.setMaxWidth(buttonWidth);
-				removeButton.setOnAction(e -> {
-					e.consume();
-					levels.remove(level);
-				});
-				final Node filler = NamedNode.bufferNode();
-				filler.minWidth(10);
-				final Node filler2 = NamedNode.bufferNode();
-				filler2.minWidth(10);
-				HBox.setHgrow(filler, Priority.ALWAYS);
-				final HBox scaleLevelRow = new HBox(new Label("Scale " + i + ": "), level.node, removeButton);
-				children.add(scaleLevelRow);
-			}
-		}));
-
-		final Button addButton = new Button("+");
-		addButton.setPrefWidth(buttonWidth);
-		addButton.setMinWidth(buttonWidth);
-		addButton.setMaxWidth(buttonWidth);
-		addButton.setOnAction(e -> {
-			e.consume();
-			levels.add(new MipMapLevel(2, -1, fieldWidth, nameWidth, submitOn));
-		});
-
-		return new VBox(addButton, levelsBox);
 	}
 }
