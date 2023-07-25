@@ -4,6 +4,7 @@ import javafx.beans.property.DoubleProperty
 import javafx.geometry.HPos
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
+import javafx.geometry.VPos
 import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.Separator
@@ -121,6 +122,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			x.value = dimensions[0]
 			y.value = dimensions[1]
 			z.value = dimensions[2]
+			showHeader = true
 			editable = false
 		}
 
@@ -166,7 +168,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				offsetLabel to offsetField,
 				blockSizeLabel to blockSizeField,
 			).forEach { (label, field) ->
-				add(label, 0, row)
+				add(label, 0, row, 1, 2)
+				GridPane.setValignment(label, VPos.BOTTOM)
 				add(field.node, 2, row++, 3, 2)
 				row++
 			}
