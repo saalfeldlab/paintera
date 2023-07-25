@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -16,12 +19,13 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField;
 public class MipMapLevel {
 
 	final SpatialField<IntegerProperty> relativeDownsamplingFactors;
+	final SpatialField<IntegerProperty> absoluteDownsamplingFactors;
+	final SpatialField<DoubleProperty> resolution;
+	private Boolean showAbsolute = false;
 
 	final NumberField<IntegerProperty> maxNumberOfEntriesPerSet;
 
 	final double fieldWidth;
-
-	final Node node;
 
 	final SimpleBooleanProperty showHeader = new SimpleBooleanProperty(false);
 
@@ -41,22 +45,65 @@ public class MipMapLevel {
 			final double nameWidth) {
 
 		this.relativeDownsamplingFactors = relativeDownsamplingFactors;
+		this.absoluteDownsamplingFactors = SpatialField.intField(1, x -> true, fieldWidth);
+		this.absoluteDownsamplingFactors.setEditable(false);
+		this.resolution = SpatialField.doubleField(1.0, x -> true, fieldWidth);
+		this.resolution.setEditable(false);
 		this.maxNumberOfEntriesPerSet = maxNumberOfEntriesPerSet;
+		this.maxNumberOfEntriesPerSet.getTextField().setPrefWidth(fieldWidth);
 		this.fieldWidth = fieldWidth;
 
+
+	}
+
+	public Node makeNode() {
 		final HBox relativeFactorsHeader = createHeader("Relative Factors");
+		final HBox absoluteFactorsHeader = createHeader("Absolute Factors");
+		final HBox resolutionHeader = createHeader("Resolution");
 		final HBox maxEntriesHeader = createHeader("Max Entries");
 
-		final HBox mipMapRow = new HBox(
-				new VBox(relativeFactorsHeader, relativeDownsamplingFactors.getNode()),
-				new VBox(maxEntriesHeader, maxNumberOfEntriesPerSet.getTextField())
-		);
-
+		final HBox mipMapRow = new HBox();
+		mipMapRow.getChildren().add(new VBox(relativeFactorsHeader, relativeDownsamplingFactors.getNode()));
+		if (showAbsolute) {
+			mipMapRow.getChildren().add(new VBox(absoluteFactorsHeader, absoluteDownsamplingFactors.getNode()));
+			mipMapRow.getChildren().add(new VBox(resolutionHeader, resolution.getNode()));
+		}
+		mipMapRow.getChildren().add(new VBox(maxEntriesHeader, maxNumberOfEntriesPerSet.getTextField()));
 
 		mipMapRow.setPadding(new Insets(0, 10.0, 0, 10.0));
 		mipMapRow.spacingProperty().setValue(10.0);
-		this.node = mipMapRow;
+		return mipMapRow;
+	}
 
+	public void displayAbsoluteValues(SpatialField<DoubleProperty> baseResolution, SpatialField<IntegerProperty> absoluteDownsamplingFactors) {
+
+		this.absoluteDownsamplingFactors.getX().valueProperty().unbind();
+		this.absoluteDownsamplingFactors.getY().valueProperty().unbind();
+		this.absoluteDownsamplingFactors.getZ().valueProperty().unbind();
+		this.resolution.getX().valueProperty().unbind();
+		this.resolution.getY().valueProperty().unbind();
+		this.resolution.getZ().valueProperty().unbind();
+
+		if (baseResolution == null || absoluteDownsamplingFactors == null) {
+			showAbsolute = false;
+			return;
+		}
+
+		final IntegerProperty absXProperty = absoluteDownsamplingFactors.getX().valueProperty();
+		final IntegerProperty absYProperty = absoluteDownsamplingFactors.getY().valueProperty();
+		final IntegerProperty absZProperty = absoluteDownsamplingFactors.getZ().valueProperty();
+		final DoubleBinding xResBinding = baseResolution.getX().valueProperty().multiply(absXProperty);
+		final DoubleBinding yResBinding = baseResolution.getY().valueProperty().multiply(absYProperty);
+		final DoubleBinding zResBinding = baseResolution.getZ().valueProperty().multiply(absZProperty);
+
+		this.absoluteDownsamplingFactors.getX().valueProperty().bind(absXProperty);
+		this.absoluteDownsamplingFactors.getY().valueProperty().bind(absYProperty);
+		this.absoluteDownsamplingFactors.getZ().valueProperty().bind(absZProperty);
+		this.resolution.getX().valueProperty().bind(xResBinding);
+		this.resolution.getY().valueProperty().bind(yResBinding);
+		this.resolution.getZ().valueProperty().bind(zResBinding);
+
+		showAbsolute = true;
 	}
 
 	private HBox createHeader(String headerText) {
