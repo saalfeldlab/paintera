@@ -74,10 +74,6 @@ object NavigationControlMode : AbstractToolMode() {
 		super.enter()
 		switchTool(NavigationTool)
 	}
-
-	fun reset() {
-		activeTool = null
-	}
 }
 
 object NavigationTool : ViewerTool() {

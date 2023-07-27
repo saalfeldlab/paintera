@@ -85,7 +85,8 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 	private val modeStatus = Label().apply {
 		paintera.baseView.activeModeProperty.addListener { _, _, new ->
 			textProperty().unbind()
-			textProperty().bind(new.statusProperty)
+			if (new != null)
+				textProperty().bind(new.statusProperty)
 		}
 	}
 
