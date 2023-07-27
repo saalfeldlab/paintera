@@ -740,8 +740,8 @@ class ShapeInterpolationTool(
 					verify { controllerState != Interpolate }
 					verifyEventNotNull()
 					verify {
-						val triggerByRightClick = (it?.button == MouseButton.SECONDARY) && keyTracker!!.noKeysActive()
-						val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
+						val triggerByRightClick = (it?.button == MouseButton.SECONDARY) && keyTracker()!!.noKeysActive()
+						val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker()!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
 						triggerByRightClick || triggerByCtrlLeftClick
 					}
 					onAction { event ->
