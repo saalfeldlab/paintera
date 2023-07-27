@@ -31,9 +31,6 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode.Companion.nameIt
 import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
-import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.doubleField
-import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.intField
-import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.longField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -98,10 +95,10 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	}
 
 
-	private val dimensions = longField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val blockSize = intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val resolution = doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val offset = doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.values())
+	private val dimensions = SpatialField.longField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
+	private val blockSize = SpatialField.intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
+	private val resolution = SpatialField.doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
+	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.values())
 	private val scaleLevels = TitledPane("Scale Levels", mipmapLevelsNode)
 	private val pane = VBox(
 		nameIt("Name", NAME_WIDTH, true, name),
@@ -116,7 +113,6 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	)
 
 	init {
-		currentSource?.let { populateFrom(it) }
 		mipmapLevels.addListener(ListChangeListener {
 			if (mipmapLevels.size == 0) return@ListChangeListener
 			while (it.next()) {
@@ -133,6 +129,11 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				}
 			}
 		})
+		currentSource?.let { populateFrom(it) } ?: let {
+			val scale0 = MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
+			provideAbsoluteValues(listOf(scale0), resolution)
+			mipmapLevels += scale0
+		}
 	}
 
 	private fun reduceBaseScale(newBaseScale: MipMapLevel) {
@@ -286,6 +287,9 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 		private const val FIELD_WIDTH = 75.0
 		private const val NAME_WIDTH = 100.0
+		private const val ADD_BUTTON = "AddButton"
+		private val ADD_BUTTON_STYLE = arrayOf("glyph-icon", "add")
+		private val REMOVE_BUTTON_STYLE = arrayOf("glyph-icon", "remove")
 
 		@JvmStatic
 		fun main(args: Array<String>) {
@@ -299,7 +303,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				MipMapLevel(2, -1, 60.0, 60.0),
 				MipMapLevel(2, -1, 60.0, 60.0),
 			)
-			provideAbsoluteValues(levels, doubleField(4.0, { true }))
+			provideAbsoluteValues(levels, SpatialField.doubleField(4.0, { true }))
 			Platform.runLater {
 				val scene = Scene(createMipMapLevelsNode(obsLevels, 60.0, 60.0))
 				obsLevels += levels
@@ -311,11 +315,17 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		}
 
 		private fun provideAbsoluteValues(mipmapLevels: List<MipMapLevel>, resolution: SpatialField<DoubleProperty>) {
-			var previousAbsoluteFactors = mipmapLevels[0].relativeDownsamplingFactors
-			mipmapLevels[0].displayAbsoluteValues(resolution, previousAbsoluteFactors)
+			val baseAbsoluteFactors = SpatialField.intField(1, { true }, FIELD_WIDTH, *SubmitOn.values()).also { it.editable = false }.also {
+				it.x.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.x.valueProperty())
+				it.y.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.y.valueProperty())
+				it.z.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.z.valueProperty())
+			}
+			mipmapLevels[0].displayAbsoluteValues(resolution, baseAbsoluteFactors)
+
+			var previousAbsoluteFactors = baseAbsoluteFactors
 			if (mipmapLevels.size > 1) {
 				mipmapLevels.subList(1, mipmapLevels.size).forEach { level ->
-					val absoluteFactors = intField(1, { true })
+					val absoluteFactors = SpatialField.intField(1, { true })
 					absoluteFactors.x.valueProperty().bind(previousAbsoluteFactors.x.valueProperty().multiply(level.relativeDownsamplingFactors.x.valueProperty()))
 					absoluteFactors.y.valueProperty().bind(previousAbsoluteFactors.y.valueProperty().multiply(level.relativeDownsamplingFactors.y.valueProperty()))
 					absoluteFactors.z.valueProperty().bind(previousAbsoluteFactors.z.valueProperty().multiply(level.relativeDownsamplingFactors.z.valueProperty()))
@@ -332,7 +342,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			vararg submitOn: SubmitOn
 		) = VBox().apply {
 			val addButton = Button().apply {
-				styleClass += listOf("glyph-icon", "add")
+				styleClass += ADD_BUTTON_STYLE
 				graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0]
 			}
 			addButton.onAction = EventHandler { event ->
@@ -345,17 +355,17 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			}
 
 			children += HBox(addButton).apply {
-				id = "AddButton"
+				id = ADD_BUTTON
 				alignment = Pos.TOP_RIGHT
 			}
 			levels.addListener { _: ListChangeListener.Change<out MipMapLevel> ->
 				InvokeOnJavaFXApplicationThread {
-					children.filter { it.id != "AddButton" }
+					children.filter { it.id != ADD_BUTTON }
 						.filterIsInstance<Pane>()
 						.forEach { it.children.clear() }
-					children.removeIf { it.id != "AddButton" }
+					children.removeIf { it.id != ADD_BUTTON }
 					for (i in levels.indices) {
-						val level: MipMapLevel = levels.get(i)
+						val level: MipMapLevel = levels[i]
 						val scaleLabel = Label("Scale $i: ")
 						scaleLabel.minWidth = Label.USE_PREF_SIZE
 						if (i == 0) {
@@ -363,7 +373,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 							level.relativeDownsamplingFactors.editable = false
 						}
 						val removeButton = Button().apply {
-							styleClass += listOf("glyph-icon", "remove")
+							styleClass += REMOVE_BUTTON_STYLE
 							graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
 							onAction = EventHandler {
 								it.consume()
