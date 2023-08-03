@@ -27,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
@@ -72,18 +71,18 @@ object N5Helpers {
 	const val MAX_NUM_ENTRIES_KEY = "maxNumEntries"
 	const val PAINTERA_DATA_KEY = "painteraData"
 	const val PAINTERA_DATA_DATASET = "data"
-	const val PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE = "fragment-segment-assignment"
+	const val PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET = "fragment-segment-assignment"
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
 	private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 	private val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
+		PainteraDataMultiScaleParser(),
 		N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 		N5MultiScaleMetadata.MultiScaleParser()
 	)
 	private val METADATA_PARSERS = List.of<N5MetadataParser<*>>(
-		PainteraDataMultiScaleParser(),
 		N5CosemMetadataParser(),
 		N5SingleScaleMetadataParser(),
 		N5GenericSingleScaleMetadataParser()
@@ -319,7 +318,7 @@ object N5Helpers {
 				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 				FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError))
 		}
-		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE"
+		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET "
 		val initialLut = if (writer.exists(dataset)) {
 			N5FragmentSegmentAssignmentInitialLut(writer, dataset)
 		} else NoInitialLutAvailable()
@@ -708,17 +707,15 @@ object N5Helpers {
 			LOG.debug("Got label block lookup json: {}", labelBlockLookupJson)
 			val lookup = labelBlockLookupJson
 				?.takeIf { it.isJsonObject }
-				?.let { gson.fromJson(it, LabelBlockLookup::class.java) }
+				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
 				?: let {
 					val labelToBlockDataset = Paths.get(group, "label-to-block-mapping").toString()
 					val relativeLookup = LabelBlockLookupFromN5Relative("label-to-block-mapping/s%d")
-					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else {
-						1
-					}
+					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
 					val labelBlockLookupMetadata = LabelBlockLookupGroup(labelToBlockDataset, numScales)
 					labelBlockLookupMetadata.write(metadataState.writer!!)
 					relativeLookup
-				}
+				}  as LabelBlockLookup
 			LOG.debug("Got lookup type: {}", lookup.javaClass)
 			lookup
 		} else throw NotAPainteraDataset(reader, group)

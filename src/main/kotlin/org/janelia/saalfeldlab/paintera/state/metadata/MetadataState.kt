@@ -157,6 +157,8 @@ open class MultiScaleMetadataState constructor(
 
 	override fun updateTransform(newTransform: AffineTransform3D) {
 		val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
+		if (deltaTransform.isIdentity) return
+
 		transform.concatenate(deltaTransform)
 		this@MultiScaleMetadataState.resolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
 		this@MultiScaleMetadataState.translation = transform.translation

@@ -1,12 +1,16 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
+import bdv.util.Affine3DHelpers;
+import com.sun.javafx.geom.transform.Affine3D;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,34 +25,11 @@ public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata {
 
 	private AffineTransform3D groupTransform;
 
-	private final AffineTransform3D[] dataChildrenTransforms = new AffineTransform3D[childrenMetadata.length];
-
 	public N5PainteraDataMultiScaleMetadata(final String basePath, final N5SingleScaleMetadata[] childrenMetadata, final AffineTransform3D groupTransform) {
 
 		super(basePath, childrenMetadata);
 		this.groupTransform = groupTransform;
-		for (int i = 0; i < childrenMetadata.length; i++) {
-			final var metadata = childrenMetadata[i];
-			final var childTransform = metadata.spatialTransform3d();
-			dataChildrenTransforms[i] = groupTransform.copy().concatenate(childTransform);
-		}
 	}
-
-	@Override public AffineTransform3D[] spatialTransforms3d() {
-
-		return Arrays.stream(dataChildrenTransforms).map(AffineTransform3D::copy).toArray(AffineTransform3D[]::new);
-	}
-
-	@Override public AffineGet spatialTransform() {
-
-		return groupTransform.copy();
-	}
-
-	@Override public AffineTransform3D spatialTransform3d() {
-
-		return groupTransform.copy();
-	}
-
 	@Override public String unit() {
 
 		return "pixel";
@@ -99,7 +80,40 @@ public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata {
 					0.0, resolution[1], 0.0, offset[1],
 					0.0, 0.0, resolution[2], offset[2]
 			);
-			return Optional.of(new N5PainteraDataMultiScaleMetadata(node.getPath(), childMetadata, transform));
+			/* generate new children metadata with resolved spatialTransforms */
+			final N5SingleScaleMetadata[] resolvedChildrenMetadata = new N5SingleScaleMetadata[childMetadata.length];
+			for (int i = 0; i < childMetadata.length; i++) {
+				final N5SingleScaleMetadata child = childMetadata[i];
+				final AffineTransform3D spatialTransform = new AffineTransform3D();
+				final Scale3D downsample = new Scale3D(child.getDownsamplingFactors());
+				spatialTransform.set(transform);
+				spatialTransform.concatenate(downsample);
+				final double[] pixelResolution = new double[]{
+						spatialTransform.get(0,0),
+						spatialTransform.get(1,1),
+						spatialTransform.get(2,2),
+				};
+				final double[] pixelOffset = new double[]{
+						spatialTransform.get(0,3),
+						spatialTransform.get(1,3),
+						spatialTransform.get(2,3),
+				};
+
+				resolvedChildrenMetadata[i] = new N5SingleScaleMetadata(
+						child.getPath(),
+						spatialTransform,
+						child.getDownsamplingFactors(),
+						pixelResolution,
+						pixelOffset,
+						child.unit(),
+						child.getAttributes(),
+						child.minIntensity(),
+						child.maxIntensity(),
+						child.isLabelMultiset()
+				);
+			}
+
+			return Optional.of(new N5PainteraDataMultiScaleMetadata(node.getPath(), resolvedChildrenMetadata, transform));
 		}
 	}
 }

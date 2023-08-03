@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import bdv.util.Affine3DHelpers
 import javafx.beans.property.DoubleProperty
 import javafx.geometry.HPos
 import javafx.geometry.Orientation

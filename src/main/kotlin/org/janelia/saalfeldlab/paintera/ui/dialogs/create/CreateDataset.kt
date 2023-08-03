@@ -35,6 +35,8 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
+import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
+import org.janelia.saalfeldlab.paintera.Style.REMOVE_GLYPH
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -288,8 +290,6 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		private const val FIELD_WIDTH = 75.0
 		private const val NAME_WIDTH = 100.0
 		private const val ADD_BUTTON = "AddButton"
-		private val ADD_BUTTON_STYLE = arrayOf("glyph-icon", "add")
-		private val REMOVE_BUTTON_STYLE = arrayOf("glyph-icon", "remove")
 
 		@JvmStatic
 		fun main(args: Array<String>) {
@@ -342,7 +342,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			vararg submitOn: SubmitOn
 		) = VBox().apply {
 			val addButton = Button().apply {
-				styleClass += ADD_BUTTON_STYLE
+				styleClass += ADD_GLYPH
 				graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0]
 			}
 			addButton.onAction = EventHandler { event ->
@@ -373,7 +373,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 							level.relativeDownsamplingFactors.editable = false
 						}
 						val removeButton = Button().apply {
-							styleClass += REMOVE_BUTTON_STYLE
+							styleClass += REMOVE_GLYPH
 							graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
 							onAction = EventHandler {
 								it.consume()
