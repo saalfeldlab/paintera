@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
 import gnu.trove.set.hash.TLongHashSet
@@ -60,7 +60,7 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo

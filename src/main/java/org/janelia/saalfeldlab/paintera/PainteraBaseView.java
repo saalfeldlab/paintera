@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -508,8 +508,10 @@ public class PainteraBaseView {
 	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
 	 */
 	public void stop() {
-		// ensure that the application is in the default mode when the sources are shutting down
-		setDefaultToolMode();
+		// exit current mode, and don't active another when shutting down;
+		final ControlMode currentMode = activeModeProperty.get();
+		if (currentMode != null) currentMode.exit();
+		activeModeProperty.set(null);
 
 		LOG.debug("Notifying sources about upcoming shutdown");
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));

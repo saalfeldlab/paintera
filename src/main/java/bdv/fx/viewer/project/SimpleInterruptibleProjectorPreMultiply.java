@@ -7,8 +7,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-import java.util.concurrent.ExecutorService;
-
 /**
  * An {@link SimpleVolatileProjector}, that renders a target 2D {@link RandomAccessibleInterval} by copying values from a
  * source {@link RandomAccessible}. The source can have more dimensions than the target. Target coordinate
@@ -33,28 +31,16 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends SimpleVolatilePr
 	/**
 	 * Create new projector with the given source and a converter from source to target pixel type.
 	 *
-	 * @param source     source pixels.
-	 * @param converter  converts from the source pixel type to the target pixel type.
-	 * @param target     the target interval that this projector maps to
-	 * @param numThreads how many threads to use for rendering.
+	 * @param source    source pixels.
+	 * @param converter converts from the source pixel type to the target pixel type.
+	 * @param target    the target interval that this projector maps to
 	 */
 	public SimpleInterruptibleProjectorPreMultiply(
 			final RandomAccessible<A> source,
 			final Converter<? super A, ARGBType> converter,
-			final RandomAccessibleInterval<ARGBType> target,
-			final int numThreads) {
+			final RandomAccessibleInterval<ARGBType> target) {
 
-		this(source, wrapWithPremultiplyConverter(converter), target, numThreads, null);
-	}
-
-	public SimpleInterruptibleProjectorPreMultiply(
-			final RandomAccessible<A> source,
-			final Converter<? super A, ARGBType> converter,
-			final RandomAccessibleInterval<ARGBType> target,
-			final int numThreads,
-			final ExecutorService executorService) {
-
-		super(source, wrapWithPremultiplyConverter(converter), target, numThreads, executorService);
+		super(source, wrapWithPremultiplyConverter(converter), target);
 	}
 
 	private static <A> Converter<A, ARGBType> wrapWithPremultiplyConverter(Converter<A, ARGBType> converter) {

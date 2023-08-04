@@ -25,7 +25,7 @@ fun Action<*>.verifyPainteraNotDisabled() {
 
 @JvmSynthetic
 fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (ActionSet.() -> Unit)?): ActionSet {
-	return ActionSet(name, paintera.keyTracker).apply {
+	return ActionSet(name, { paintera.keyTracker }).apply {
 		verifyPermission(actionType)
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
@@ -49,7 +49,7 @@ fun painteraDragActionSet(
 	filter: Boolean = true,
 	apply: (DragActionSet.() -> Unit)?
 ): DragActionSet {
-	return DragActionSet(name, paintera.keyTracker, filter).apply {
+	return DragActionSet(name, { paintera.keyTracker }, filter).apply {
 		verifyPermission(actionType)
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
@@ -67,7 +67,7 @@ fun painteraMidiActionSet(
 	ignoreDisable: Boolean = false,
 	apply: (MidiActionSet.() -> Unit)?
 ): MidiActionSet {
-	return MidiActionSet(name, device, target, paintera.keyTracker) {
+	return MidiActionSet(name, device, target, { paintera.keyTracker }) {
 		verifyPermission(actionType)
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()

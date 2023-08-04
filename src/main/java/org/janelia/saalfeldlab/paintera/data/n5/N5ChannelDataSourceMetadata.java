@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
 import mpicbg.spim.data.sequence.VoxelDimensions;

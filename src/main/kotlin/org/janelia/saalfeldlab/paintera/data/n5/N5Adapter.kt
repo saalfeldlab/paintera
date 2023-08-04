@@ -10,12 +10,11 @@ import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Writer
 import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader
 import org.janelia.saalfeldlab.n5.zarr.N5ZarrWriter
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
-import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.getWriterIfN5ContainerExists
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.function.IntFunction
@@ -32,9 +31,9 @@ private class N5ReaderSerializer<N5 : N5Reader>(private val projectDirectory: Su
 	): JsonElement {
 		val projectDirectory = this.projectDirectory.get()
 		return JsonObject().also { jsonMap ->
-			container.urlRepresentation()
-				.takeUnless { it == projectDirectory }
-				?.let { jsonMap.addProperty(BASE_PATH, it) }
+			container.uri!!
+				.takeUnless { it.path == projectDirectory }
+				?.let { jsonMap.addProperty(BASE_PATH, it.toString()) }
 		}
 	}
 }
@@ -65,7 +64,7 @@ class N5FSReaderAdapter : StatefulSerializer.SerializerAndDeserializer<N5FSReade
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5FSReader> = N5ReaderDeserializer(projectDirectory) {
-		getReaderOrWriterIfN5ContainerExists(it) as N5FSReader
+		n5Factory.openReader(it) as N5FSReader
 	}
 
 	override fun getTargetClass() = N5FSReader::class.java
@@ -84,7 +83,7 @@ class N5FSWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5FSWrite
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5FSWriter> = N5ReaderDeserializer(projectDirectory) {
-		N5Helpers.n5Writer(it) as N5FSWriter
+		getWriterIfN5ContainerExists(it) as N5FSWriter
 	}
 
 	override fun getTargetClass() = N5FSWriter::class.java
@@ -105,7 +104,7 @@ class N5GoogleCloudReaderAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5GoogleCloudStorageReader> = N5ReaderDeserializer(projectDirectory) {
-		getReaderOrWriterIfN5ContainerExists(it) as N5GoogleCloudStorageReader
+		n5Factory.openReader(it) as N5GoogleCloudStorageReader
 	}
 
 	override fun getTargetClass() = N5GoogleCloudStorageReader::class.java
@@ -125,7 +124,7 @@ class N5GoogleCloudWriterAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5GoogleCloudStorageWriter> = N5ReaderDeserializer(projectDirectory) {
-		N5Helpers.n5Writer(it) as N5GoogleCloudStorageWriter
+		getWriterIfN5ContainerExists(it) as N5GoogleCloudStorageWriter
 	}
 
 	override fun getTargetClass() = N5GoogleCloudStorageWriter::class.java
@@ -145,7 +144,7 @@ class N5AmazonS3ReaderAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5AmazonS3Reader> = N5ReaderDeserializer(projectDirectory) {
-		getReaderOrWriterIfN5ContainerExists(it) as N5AmazonS3Reader
+		n5Factory.openReader(it) as N5AmazonS3Reader
 	}
 
 	override fun getTargetClass() = N5AmazonS3Reader::class.java
@@ -165,7 +164,7 @@ class N5AmazonS3WriterAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5AmazonS3Writer> = N5ReaderDeserializer(projectDirectory) {
-		N5Helpers.n5Writer(it) as N5AmazonS3Writer
+		getWriterIfN5ContainerExists(it) as N5AmazonS3Writer
 	}
 
 	override fun getTargetClass() = N5AmazonS3Writer::class.java
@@ -185,7 +184,7 @@ class N5ZarrReaderAdapter : StatefulSerializer.SerializerAndDeserializer<N5ZarrR
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5ZarrReader> = N5ReaderDeserializer(projectDirectory) {
-		getReaderOrWriterIfN5ContainerExists(it) as N5ZarrReader
+		n5Factory.openReader(it) as N5ZarrReader
 	}
 
 	override fun getTargetClass() = N5ZarrReader::class.java
@@ -205,7 +204,7 @@ class N5ZarrWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5ZarrW
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5ZarrWriter> = N5ReaderDeserializer(projectDirectory) {
-		N5Helpers.n5Writer(it) as N5ZarrWriter
+		getWriterIfN5ContainerExists(it) as N5ZarrWriter
 	}
 
 	override fun getTargetClass() = N5ZarrWriter::class.java

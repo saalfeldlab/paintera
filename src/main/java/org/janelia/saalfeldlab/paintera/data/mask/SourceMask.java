@@ -1,11 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
+import net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -82,12 +84,13 @@ public class SourceMask implements Mask {
 			final Predicate<UnsignedLongType> acceptAsPainted) {
 
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(getRai(), canvas);
+		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
 		final HashSet<Long> labels = new HashSet<>();
-		LoopBuilder.setImages(maskOverCanvas, canvas).multiThreaded().forEachPixel((maskVal, canvasVal) -> {
+		LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachPixel((maskVal, bundledCanvasVal) -> {
 			if (acceptAsPainted.test(maskVal)) {
 				final long label = maskVal.getIntegerLong();
-				canvasVal.setInteger(label);
+				bundledCanvasVal.get().setInteger(label);
 				synchronized (labels) {
 					labels.add(label);
 				}

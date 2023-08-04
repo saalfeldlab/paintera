@@ -28,12 +28,13 @@ import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.serialization.*
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -89,12 +90,21 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	internal val pane: Parent
 		get() = paneWithStatus.pane
 
+    private lateinit var newProjectSettings : JsonElement
+
 	private fun initProperties(properties: Properties) {
 		this.properties = properties
 		this.baseView.keyAndMouseBindings = this.properties.keyAndMouseConfig
 		this.paneWithStatus = BorderPaneWithStatusBars(this)
 		this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
 		activeViewer.bind(paintera.baseView.currentFocusHolder.createNullableValueBinding { it?.viewer() })
+
+        /* Set newProjectSettings */
+        val builder = GsonHelpers
+            .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
+            .setPrettyPrinting()
+        Paintera.n5Factory.gsonBuilder(builder)
+        this.newProjectSettings = builder.create().toJsonTree(this)
 	}
 
 	fun deserialize() {
@@ -125,13 +135,26 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
 		Paintera.n5Factory.openReader(projectDirectory.actualDirectory.absolutePath).use {
-			val expectedSettings = builder.create().toJsonTree(this)
-			val actualSettings = it.getAttribute("/", PAINTERA_KEY, JsonObject::class.java)
-			return expectedSettings != actualSettings
+			val expectedSettings = pruneNonEssentialSettings(builder.create().toJsonTree(this))
+			val actualSettings = pruneNonEssentialSettings(it.getAttribute("/", PAINTERA_KEY, JsonObject::class.java))
+            /* If settings file already exists, compare against them; If they don't, compare against newProjectSettings
+            *   This helps avoid annoying "Save Before Quit?" prompts when you open Paintera, and immediately
+            *   Open a different project. */
+ 			return expectedSettings != (actualSettings ?: pruneNonEssentialSettings(newProjectSettings))
 		}
 	}
 
-	fun save(notify: Boolean = true) {
+    private fun pruneNonEssentialSettings(allSettings: JsonElement?): JsonElement? {
+        return allSettings?.asJsonObject?.also { mainWindow ->
+            mainWindow.remove(GLOBAL_TRANSFORM_KEY)
+            mainWindow.remove(Properties::windowProperties.name)
+            mainWindow.remove(VERSION_KEY)
+            /* Should match Viewer3DConfigSerializer AFFINE_KEY*/
+            mainWindow.get("viewer3DConfig")?.asJsonObject?.remove("affine")
+        }
+    }
+
+    fun save(notify: Boolean = true) {
 
 		/* Not allowd to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
@@ -150,10 +173,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
+        Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
 		Paintera.n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
+			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectDirectory.directory.canonicalPath, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}

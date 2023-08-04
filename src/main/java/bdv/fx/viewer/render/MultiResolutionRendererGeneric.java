@@ -807,9 +807,7 @@ public class MultiResolutionRendererGeneric<T> {
 						interpolation
 				),
 				source.getConverter(),
-				Views.stack(screenImage),
-				numRenderingThreads,
-				renderingExecutorService
+				Views.stack(screenImage)
 		);
 	}
 

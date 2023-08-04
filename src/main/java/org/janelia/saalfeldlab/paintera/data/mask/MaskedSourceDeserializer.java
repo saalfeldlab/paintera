@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;

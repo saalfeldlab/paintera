@@ -5,7 +5,9 @@ import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -54,16 +56,16 @@ enum class PainteraMenuItems(
 	SHOW_README("Show _Readme", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
 	SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
 
-	val menu: MenuItem by lazy { createMenuItem(this) }
+    val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
 
 	companion object {
 
 		private val replDialog = ReplDialog(paintera.gateway.context, { paintera.pane.scene.window }, "paintera" to this)
 
 		//@formatter:off
-		private val namedEventHandler = with(paintera) {
+		private fun PainteraMainWindow.namedEventHandlers():Map<PainteraMenuItems, EventHandler<ActionEvent>> {
 			val getProjectDirectory = { projectDirectory.actualDirectory.absolutePath }
-			mapOf(
+			return mapOf(
 				NEW_PROJECT to EventHandler<ActionEvent> { Paintera.application.loadProject() },
                 OPEN_PROJECT to EventHandler<ActionEvent> {
 					DirectoryChooser().showDialog(paintera.pane.scene.window)?.let{ newProject ->
@@ -104,8 +106,8 @@ enum class PainteraMenuItems(
 
 		private val namedKeyCombindations by lazy { ControlMode.keyAndMouseBindings.keyCombinations }
 
-		private fun createMenuItem(namedEventHandlerMenuItem: PainteraMenuItems): MenuItem {
-			return namedEventHandler[namedEventHandlerMenuItem]?.let { handler ->
+		private fun createMenuItem(paintera : PainteraMainWindow, namedEventHandlerMenuItem: PainteraMenuItems): MenuItem {
+			return paintera.namedEventHandlers()[namedEventHandlerMenuItem]?.let { handler ->
 				namedEventHandlerMenuItem.run {
 					MenuItem(text).apply {
 						icon?.let { graphic = FontAwesome[it, 1.5] }

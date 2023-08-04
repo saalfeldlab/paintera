@@ -124,8 +124,7 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V> {
 	public RealRandomAccessible<U> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
 		return Views.interpolate(
-				Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>
-						(dataTypeExtensionSupplier)),
+				Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>(dataTypeExtensionSupplier)),
 				dataInterpolation.apply(method)
 		);
 	}

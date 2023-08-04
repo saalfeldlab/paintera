@@ -8,12 +8,14 @@ import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.event.Event
 import javafx.event.EventHandler
+import javafx.scene.Parent
 import javafx.scene.Scene
 import javafx.scene.control.Alert
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
+import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -153,12 +155,7 @@ class Paintera : Application() {
 
 		primaryStage.scene = Scene(paintera.pane)
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-		primaryStage.scene.stylesheets.add("style/glyphs.css")
-		primaryStage.scene.stylesheets.add("style/toolbar.css")
-		primaryStage.scene.stylesheets.add("style/navigation.css")
-		primaryStage.scene.stylesheets.add("style/interpolation.css")
-		primaryStage.scene.stylesheets.add("style/sam.css")
-		primaryStage.scene.stylesheets.add("style/paint.css")
+		registerStylesheets(primaryStage.scene)
 
 		paintera.setupStage(primaryStage)
 		primaryStage.show()
@@ -209,9 +206,9 @@ class Paintera : Application() {
 		if (!paintera.askSaveAndQuit()) {
 			return
 		}
-
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
+		n5Factory.clearCache()
 
 		paintera.pane.scene.window.let { window ->
 			Platform.setImplicitExit(false)
@@ -293,6 +290,36 @@ class Paintera : Application() {
 					paintableRunnables.removeAt(0).run()
 				}
 			}
+		}
+
+		@JvmStatic
+		fun registerStylesheets(styleable: Scene) {
+			registerPainteraStylesheets(styleable)
+			SaalFxStyle.registerStylesheets(styleable)
+		}
+
+		@JvmStatic
+		fun registerStylesheets(styleable: Parent) {
+			registerPainteraStylesheets(styleable)
+			SaalFxStyle.registerStylesheets(styleable)
+		}
+
+		private fun registerPainteraStylesheets(styleable: Scene) {
+			styleable.stylesheets.add("style/glyphs.css")
+			styleable.stylesheets.add("style/toolbar.css")
+			styleable.stylesheets.add("style/navigation.css")
+			styleable.stylesheets.add("style/interpolation.css")
+			styleable.stylesheets.add("style/sam.css")
+			styleable.stylesheets.add("style/paint.css")
+		}
+
+		private fun registerPainteraStylesheets(styleable: Parent) {
+			styleable.stylesheets.add("style/glyphs.css")
+			styleable.stylesheets.add("style/toolbar.css")
+			styleable.stylesheets.add("style/navigation.css")
+			styleable.stylesheets.add("style/interpolation.css")
+			styleable.stylesheets.add("style/sam.css")
+			styleable.stylesheets.add("style/paint.css")
 		}
 	}
 

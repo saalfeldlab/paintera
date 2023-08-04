@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
@@ -17,37 +17,37 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.nio.file.Paths
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
 import java.util.function.Supplier
+import kotlin.io.path.toPath
 
-class N5BackendPainteraDataset<D, T> constructor(
+class N5BackendPainteraDataset<D, T>(
 	private val metadataState: MetadataState,
 	private val projectDirectory: Supplier<String>,
 	private val propagationExecutorService: ExecutorService,
 	private val backupLookupAttributesIfMakingRelative: Boolean,
 ) : N5Backend<D, T>
-		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+	where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 	override val container: N5Reader = metadataState.reader
 	override val dataset: String = metadataState.dataset
@@ -72,7 +72,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 	override val fragmentSegmentAssignment: FragmentSegmentAssignmentStateWithActionTracker
 		get() {
 			return metadataState.writer?.let {
-				N5Helpers.assignments(it, dataset)!!
+				N5Helpers.assignments(it, dataset)
 			} ?: FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
 		}
 	override val providesLookup = true
@@ -80,7 +80,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 	//FIXME Caleb: same as above with idService
 	override fun createIdService(source: DataSource<D, T>): IdService {
 		return metadataState.writer?.let {
-			N5Helpers.idService(it, dataset)!!
+			N5Helpers.idService(it, dataset)
 		} ?: IdService.IdServiceNotProvided()
 	}
 
@@ -126,35 +126,39 @@ class N5BackendPainteraDataset<D, T> constructor(
 			val constants = MakeLabelBlockLookupRelativeConstants
 			val painteraDatasetNoLeadingSlash = painteraDataset.trimSlashStart()
 			val labelBlockLookupJson = this.getAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, JsonObject::class.java)
-			labelBlockLookupJson
-				?.takeIf { with(GsonExtensions) { constants.N5_FILESYSTEM == it.getStringProperty(constants.TYPE) } }
-				?.takeIf { with(GsonExtensions) { basePath == it.getStringProperty(constants.ROOT) } }
-				?.takeIf {
-					with(GsonExtensions) {
-						it.getStringProperty(constants.SCALE_DATASET_PATTERN)?.trimSlashStart()?.startsWith(painteraDatasetNoLeadingSlash) ?: false
+			with(GsonExtensions) {
+				labelBlockLookupJson
+					?.takeIf { constants.N5_FILESYSTEM == it.getStringProperty(constants.TYPE) }
+					?.takeIf { uri.path == it.getStringProperty(constants.ROOT) }
+					?.takeIf { it.getStringProperty(constants.SCALE_DATASET_PATTERN)?.trimSlashStart()?.startsWith(painteraDatasetNoLeadingSlash) ?: false }
+					?.let { json ->
+						LOG.warn("Converting deprecated label block lookup format {} into {}.", constants.N5_FILESYSTEM, constants.N5_FILESYSTEM_RELATIVE)
+						if (backupAttributes) {
+							val painteraDatasetAttributes = uri
+								.resolve(painteraDataset)
+								.resolve("attributes.json")
+								.toPath().toAbsolutePath().toFile()
+							val lookupAttributes = uri
+								.resolve(painteraDataset)
+								.resolve(constants.LABEL_TO_BLOCK_MAPPING)
+								.resolve("attributes.json")
+								.toPath().toAbsolutePath().toFile()
+							val suffix = dateFormat.format(date)
+
+							painteraDatasetAttributes.copyTo(File("${painteraDatasetAttributes.absolutePath}$suffix"), overwrite)
+							lookupAttributes.copyTo(File("${lookupAttributes.absolutePath}$suffix"), overwrite)
+						}
+						val oldPattern = json.getStringProperty(constants.SCALE_DATASET_PATTERN)!!.trimSlashStart()
+						val newPattern = oldPattern.replaceFirst(painteraDatasetNoLeadingSlash, "")
+						val newLookupJson = JsonObject().apply {
+							addProperty(constants.TYPE, constants.N5_FILESYSTEM_RELATIVE)
+							addProperty(constants.SCALE_DATASET_PATTERN, newPattern)
+						}
+						setAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, newLookupJson)
+						setAttribute("$painteraDataset/${constants.LABEL_TO_BLOCK_MAPPING}", constants.LABEL_BLOCK_LOOKUP, newLookupJson)
 					}
-				}
-				?.let { json ->
-					LOG.warn("Converting deprecated label block lookup format {} into {}.", constants.N5_FILESYSTEM, constants.N5_FILESYSTEM_RELATIVE)
-					if (backupAttributes) {
-						val painteraDatasetAttributes =
-							Paths.get(basePath, *painteraDataset.split("/").toTypedArray()).resolve("attributes.json").toAbsolutePath().toFile()
-						val lookupAttributes =
-							Paths.get(basePath, *painteraDataset.split("/").toMutableList().also { it += constants.LABEL_TO_BLOCK_MAPPING }.toTypedArray())
-								.resolve("attributes.json").toAbsolutePath().toFile()
-						val suffix = dateFormat.format(date)
-						painteraDatasetAttributes.copyTo(File("${painteraDatasetAttributes.absolutePath}$suffix"), overwrite)
-						lookupAttributes.copyTo(File("${lookupAttributes.absolutePath}$suffix"), overwrite)
-					}
-					val oldPattern = with(GsonExtensions) { json.getStringProperty(constants.SCALE_DATASET_PATTERN)!!.trimSlashStart() }
-					val newPattern = oldPattern.replaceFirst(painteraDatasetNoLeadingSlash, "")
-					val newLookupJson = JsonObject().apply {
-						addProperty(constants.TYPE, constants.N5_FILESYSTEM_RELATIVE)
-						addProperty(constants.SCALE_DATASET_PATTERN, newPattern)
-					}
-					setAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, newLookupJson)
-					setAttribute("$painteraDataset/${constants.LABEL_TO_BLOCK_MAPPING}", constants.LABEL_BLOCK_LOOKUP, newLookupJson)
-				}
+			}
+
 		}
 
 		private fun String.trimSlashStart() = trimStart(*MakeLabelBlockLookupRelativeConstants.SLASH.toCharArray())
@@ -162,24 +166,24 @@ class N5BackendPainteraDataset<D, T> constructor(
 	}
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup {
-		val n5FSWriter = metadataState.writer as? N5FSWriter
-		n5FSWriter?.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
-		return N5Helpers.getLabelBlockLookup(metadataState).also {
-			if (it is IsRelativeToContainer && n5FSWriter != null) {
-				it.setRelativeTo(n5FSWriter, dataset)
+		return (metadataState.writer as? N5FSWriter)?.let { writer ->
+			writer.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
+			N5Helpers.getLabelBlockLookup(metadataState).also {
+				if (it is IsRelativeToContainer) {
+					it.setRelativeTo(writer, dataset)
+				}
 			}
-		}
+		} ?: LabelBlockLookupNoBlocks()
 	}
 
 	private object SerializationKeys {
-		const val CONTAINER = "container"
 		const val DATASET = "dataset"
 		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
 	class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendPainteraDataset<D, T>>
-			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 		override fun serialize(
 			backend: N5BackendPainteraDataset<D, T>,
@@ -188,7 +192,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 		): JsonElement {
 			val map = JsonObject()
 			with(SerializationKeys) {
-				map.add(CONTAINER, context.withClassInfo(backend.container))
+				backend.container.serializeTo(map)
 				map.addProperty(DATASET, backend.dataset)
 				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
 			}
@@ -202,11 +206,11 @@ class N5BackendPainteraDataset<D, T> constructor(
 		private val projectDirectory: Supplier<String>,
 		private val propagationExecutorService: ExecutorService
 	) : JsonDeserializer<N5BackendPainteraDataset<D, T>>
-			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
 		class Factory<D, T> : StatefulSerializer.DeserializerFactory<N5BackendPainteraDataset<D, T>, Deserializer<D, T>>
-				where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 			override fun createDeserializer(
 				arguments: StatefulSerializer.Arguments,
 				projectDirectory: Supplier<String>,
@@ -226,7 +230,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 		): N5BackendPainteraDataset<D, T> {
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
-					val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
 					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!

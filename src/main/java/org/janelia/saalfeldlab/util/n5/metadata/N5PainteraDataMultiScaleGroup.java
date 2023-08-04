@@ -37,4 +37,14 @@ public abstract class N5PainteraDataMultiScaleGroup extends N5MultiScaleMetadata
 
 		return dataGroup.spatialTransform3d();
 	}
+
+	@Override
+	public AffineGet[] spatialTransforms() {
+		return dataGroup.spatialTransforms3d();
+	}
+
+	@Override
+	public AffineTransform3D[] spatialTransforms3d() {
+		return dataGroup.spatialTransforms3d();
+	}
 }

@@ -76,6 +76,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrWriterIfN5ContainerExists;
+
 @Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs", usageHelpWidth = 120,
 		parameterListHeading = "%n@|bold,underline Parameters|@:%n",
 		optionListHeading = "%n@|bold,underline Options|@:%n")
@@ -647,26 +649,18 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			for (final String container : containers) {
 				LOG.debug("Adding datasets for container {}", container);
 
-				N5Writer writer = null;
-				N5Reader reader;
-
-				try {
-					writer = N5Helpers.n5Writer(container);
-					reader = writer;
-				} catch (IOException e) {
-					reader = N5Helpers.n5Reader(container);
-				}
+				N5Reader n5Container = getReaderOrWriterIfN5ContainerExists(container);
 
 				final Predicate<String> datasetFilter = options.useDataset();
 				final ExecutorService es = getDiscoveryExecutorService();
 				final String[] datasets;
 				if (options.addEntireContainer) {
-					Optional<N5TreeNode> rootNode = N5Helpers.parseMetadata(reader, es);
+					Optional<N5TreeNode> rootNode = N5Helpers.parseMetadata(n5Container, es);
 					if (rootNode.isPresent()) {
 						final List<String> validGroups = N5Helpers.validPainteraGroupMap(rootNode.get()).keySet().stream()
 								.filter(datasetFilter)
 								.collect(Collectors.toList());
-						datasets = datasetsAsRawChannelLabel(reader, validGroups);
+						datasets = datasetsAsRawChannelLabel(n5Container, validGroups);
 					} else {
 						datasets = new String[]{};
 					}
@@ -679,13 +673,13 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				for (int index = 0; index < datasets.length; ++index) {
 					final String dataset = datasets[index];
 
-					if (!reader.exists(dataset)) {
-						LOG.warn("Group {} does not exist in container {}", dataset, reader);
+					if (!n5Container.exists(dataset)) {
+						LOG.warn("Group {} does not exist in container {}", dataset, n5Container);
 						return;
 					}
 
-					final var containerState = new N5ContainerState(reader);
-					final var metadataOpt = N5Helpers.parseMetadata(reader);
+					final var containerState = new N5ContainerState(n5Container);
+					final var metadataOpt = N5Helpers.parseMetadata(n5Container);
 					if (metadataOpt.isEmpty()) {
 						LOG.warn("Group " + dataset + " from " + container + " cannot be parsed");
 						return;

@@ -7,6 +7,7 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.type.Type;
 
+import java.lang.reflect.Array;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -14,10 +15,10 @@ import java.util.stream.Collectors;
 public class RealRandomArrayAccessible<T extends Type<T>> implements RealRandomAccessible<T> {
 
 	final protected List<RealRandomAccessible<T>> inputs;
-	private final BiConsumer<List<T>, T> reducer;
+	private final BiConsumer<T[], T> reducer;
 	private final T result;
 
-	public RealRandomArrayAccessible(List<RealRandomAccessible<T>> inputs, BiConsumer<List<T>, T> reducer, T result) {
+	public RealRandomArrayAccessible(List<RealRandomAccessible<T>> inputs, BiConsumer<T[], T> reducer, T result) {
 
 		this.inputs = inputs;
 		this.reducer = reducer;
@@ -50,10 +51,10 @@ public class RealRandomArrayAccessible<T extends Type<T>> implements RealRandomA
 	public class RealRandomArrayAccess implements net.imglib2.RealRandomAccess<T> {
 
 		final protected List<RealRandomAccess<T>> inputs;
-		private final BiConsumer<List<T>, T> reducer;
+		private final BiConsumer<T[], T> reducer;
 		private final T result;
 
-		public RealRandomArrayAccess(final List<RealRandomAccess<T>> inputs, final BiConsumer<List<T>, T> reducer, final T result) {
+		public RealRandomArrayAccess(final List<RealRandomAccess<T>> inputs, final BiConsumer<T[], T> reducer, final T result) {
 
 			this.inputs = inputs;
 			this.reducer = reducer;
@@ -260,9 +261,6 @@ public class RealRandomArrayAccessible<T extends Type<T>> implements RealRandomA
 		public void setPosition(final double position, final int d) {
 
 			for (RealRandomAccess<T> input : inputs) {
-
-				final var pos = positionAsRealPoint();
-				final var posi = input.positionAsRealPoint();
 				input.setPosition(position, d);
 			}
 		}
@@ -270,8 +268,12 @@ public class RealRandomArrayAccessible<T extends Type<T>> implements RealRandomA
 		@Override
 		public T get() {
 
-			final var tArray = inputs.stream().map(RealRandomAccess::get).collect(Collectors.toList());
-			this.reducer.accept(tArray, result);
+			@SuppressWarnings("unchecked")
+			final T[] tList = (T[]) Array.newInstance(result.getClass(), inputs.size());
+			for (int i = 0; i < inputs.size(); i++) {
+				tList[i] = inputs.get(i).get();
+			}
+			this.reducer.accept(tList, result);
 			return result;
 		}
 

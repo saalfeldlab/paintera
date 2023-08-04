@@ -481,7 +481,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			}
 
 
-			val compositeFillMask = RealRandomArrayAccessible(fillMasks, { sources: List<UnsignedLongType>, output: UnsignedLongType ->
+			val compositeFillMask = RealRandomArrayAccessible(fillMasks, { sources: Array<UnsignedLongType>, output: UnsignedLongType ->
 				val label: Long = sources
 					.map { it.get() }
 					.firstOrNull { it.isInterpolationLabel }
@@ -491,12 +491,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 					output.set(label)
 				}
 			}, UnsignedLongType(Label.INVALID))
-
-			val volatileCompositeFillMask = compositeFillMask.convert(VolatileUnsignedLongType(Label.INVALID)) { source, result ->
-				result.get().long = source.get()
-				result.isValid = true
-			}
-
 
 			val interpolants = slicesAndInterpolants.interpolants
 			val dataMasks: MutableList<RealRandomAccessible<UnsignedLongType>> = mutableListOf()
@@ -508,7 +502,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			}
 
 
-			val interpolatedArrayMask = RealRandomArrayAccessible(dataMasks, { sources: List<UnsignedLongType>, output: UnsignedLongType ->
+			val interpolatedArrayMask = RealRandomArrayAccessible(dataMasks, { sources: Array<UnsignedLongType>, output: UnsignedLongType ->
 
 				val label = sources
 					.firstOrNull { it.get().isInterpolationLabel }?.get()

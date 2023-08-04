@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -15,10 +15,10 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import java.util.Optional
 
@@ -157,6 +157,8 @@ open class MultiScaleMetadataState constructor(
 
 	override fun updateTransform(newTransform: AffineTransform3D) {
 		val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
+		if (deltaTransform.isIdentity) return
+
 		transform.concatenate(deltaTransform)
 		this@MultiScaleMetadataState.resolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
 		this@MultiScaleMetadataState.translation = transform.translation
@@ -268,8 +270,8 @@ class MetadataUtils {
 		}
 
 		@JvmStatic
-		fun createMetadataState(writer: N5Writer, dataset: String): MetadataState {
-			val n5ContainerState = N5ContainerState(writer)
+		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState {
+			val n5ContainerState = N5ContainerState(reader)
 			val createMetadataState = createMetadataState(n5ContainerState, dataset)
 			return createMetadataState.nullable!!
 		}

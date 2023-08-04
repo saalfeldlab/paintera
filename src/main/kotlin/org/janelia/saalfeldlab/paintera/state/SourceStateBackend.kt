@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import javafx.scene.Node
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -32,5 +32,7 @@ interface SourceStateBackend<D, T> {
 	}
 
 	fun updateTransform(transform: AffineTransform3D)
+
+    fun shutdown() { }
 
 }

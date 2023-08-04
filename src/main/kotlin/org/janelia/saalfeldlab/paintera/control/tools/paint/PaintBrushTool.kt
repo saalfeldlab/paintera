@@ -190,7 +190,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			name = "start transparent erase"
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
-			verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
+			verify { KeyCode.SHIFT !in keyTracker()!!.getActiveKeyCodes(true) }
 			onAction {
 				isPainting = true
 				currentLabelToPaint = Label.TRANSPARENT

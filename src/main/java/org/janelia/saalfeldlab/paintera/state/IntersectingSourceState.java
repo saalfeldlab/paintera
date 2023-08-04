@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;

@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.raw.n5
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -9,20 +9,19 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-class N5BackendRaw<D, T> constructor(@JvmField val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T>(@JvmField val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
 		where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
 	override val container = metadataState.writer ?: metadataState.reader
@@ -37,7 +36,8 @@ class N5BackendRaw<D, T> constructor(@JvmField val metadataState: MetadataState)
 	}
 }
 
-private object SerializationKeys {
+internal object SerializationKeys {
+	@Deprecated("No need to specify the container class; prefer URI instead via N5Factory")
 	const val CONTAINER = "container"
 	const val DATASET = "dataset"
 }
@@ -53,7 +53,7 @@ class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendRaw<D
 	): JsonElement {
 		val map = JsonObject()
 		with(SerializationKeys) {
-			map.add(CONTAINER, context.withClassInfo(backend.container))
+			backend.container.serializeTo(map)
 			map.addProperty(DATASET, backend.dataset)
 		}
 		return map
@@ -72,7 +72,7 @@ class Deserializer<D, T>() : PainteraSerialization.PainteraDeserializer<N5Backen
 		context: JsonDeserializationContext
 	): N5BackendRaw<D, T> {
 		return with(SerializationKeys) {
-			val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+			val container = N5Helpers.deserializeFrom(json.asJsonObject)
 			val dataset: String = json[DATASET]!!
 			val n5ContainerState = N5ContainerState(container)
 			val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!

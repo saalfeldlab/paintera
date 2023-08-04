@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -352,8 +353,8 @@ public class CommitCanvasN5Test {
 
 		// test highest level block lookups
 		final String uniqueBlock0 = String.join("/", dataset, "unique-labels", "s0");
-		final Path mappingPattern = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s%d", "%d");
-		final Path mapping0 = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s0");
+		final Path mappingPattern = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s%d", "%d");
+		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
 		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
 		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();
@@ -614,11 +615,6 @@ public class CommitCanvasN5Test {
 
 		}
 
-		@Override public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(SharedQueue queue, int priority) {
-
-			return null;
-		}
-
 		@Override public String getUnit() {
 
 			return "pixel";
@@ -695,6 +691,12 @@ public class CommitCanvasN5Test {
 
 		@Override public N5ContainerState getN5ContainerState() {
 
+			return null;
+		}
+
+		@NotNull
+		@Override
+		public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(@NotNull bdv.cache.SharedQueue queue, int priority) {
 			return null;
 		}
 	}

@@ -1,9 +1,11 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import bdv.util.Affine3DHelpers
 import javafx.beans.property.DoubleProperty
 import javafx.geometry.HPos
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
+import javafx.geometry.VPos
 import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.Separator
@@ -43,15 +45,19 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		return (metadataState as? MultiScaleMetadataState)?.let { multiScaleMetadataNode(it) } ?: singleScaleMetadataNode(metadataState)
 	}
 
-	fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): VBox {
+    override fun shutdown() {
+        container.close()
+    }
+
+    fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): VBox {
 
 		return VBox().apply {
 
 			val n5ContainerState = metadataState.n5ContainerState
 			val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-			val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+			val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.uri}'")
 
-			val container = TextField(n5ContainerState.url).apply { isEditable = false }
+			val container = TextField(n5ContainerState.uri.toString()).apply { isEditable = false }
 			val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 			children += HBox(containerLabel, container)
@@ -117,6 +123,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			x.value = dimensions[0]
 			y.value = dimensions[1]
 			z.value = dimensions[2]
+			showHeader = true
 			editable = false
 		}
 
@@ -135,9 +142,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 
 			if (!asScaleLevel) {
 				val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-				val container = TextField(n5ContainerState.url).apply { isEditable = false }
+				val container = TextField(n5ContainerState.uri.toString()).apply { isEditable = false }
 
-				val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+				val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.uri}'")
 				val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 				add(containerLabel, 0, row)
@@ -162,7 +169,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				offsetLabel to offsetField,
 				blockSizeLabel to blockSizeField,
 			).forEach { (label, field) ->
-				add(label, 0, row)
+				add(label, 0, row, 1, 2)
+				GridPane.setValignment(label, VPos.BOTTOM)
 				add(field.node, 2, row++, 3, 2)
 				row++
 			}

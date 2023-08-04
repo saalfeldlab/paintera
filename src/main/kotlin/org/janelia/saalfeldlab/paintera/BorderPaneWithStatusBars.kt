@@ -25,7 +25,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.SettingsView
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
-import org.janelia.saalfeldlab.paintera.ui.menus.MENU_BAR
+import org.janelia.saalfeldlab.paintera.ui.menus.menuBar
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
 import org.janelia.saalfeldlab.util.Colors
@@ -141,7 +141,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	init {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
 		initCrossHairs()
-		toggleOnMenuBarConfigMode(MENU_BAR)
+		toggleOnMenuBarConfigMode(menuBar)
 		paintera.baseView.activeModeProperty.addListener { _, old, new ->
 			(new as? ToolMode)?.also { toolMode ->
 				val toolBar = toolMode.createToolBar()
