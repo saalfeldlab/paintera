@@ -61,6 +61,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 public class CommitCanvasN5 implements PersistCanvas {
@@ -624,17 +628,30 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final BlockSpec blockSpec,
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
-		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container,
-				datasetSpec.dataset);
+		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long blockId : blocks) {
-			blockSpec.fromLinearIndex(blockId);
-			final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views
-					.interval(Views.pair(highestResolutionData, canvas), blockSpec.asInterval());
-			final int numElements = (int)Intervals.numElements(backgroundWithCanvas);
-			final byte[] byteData = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
-			final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), blockSpec.pos, byteData);
-			datasetSpec.container.writeBlock(datasetSpec.dataset, datasetSpec.attributes, dataBlock);
-			blockDiff.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+			final Future<?> submit = threadPool.submit(() -> {
+				final var blockSpecCopy = new BlockSpec(blockSpec);
+				blockSpecCopy.fromLinearIndex(blockId);
+				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), blockSpecCopy.asInterval());
+				final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
+				final byte[] byteData = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
+				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), blockSpecCopy.pos, byteData);
+				datasetSpec.container.writeBlock(datasetSpec.dataset, datasetSpec.attributes, dataBlock);
+				synchronized (blockDiff) {
+					blockDiff.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+				}
+			});
+			futures.add(submit);
+		}
+		for (Future<?> future : futures) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
@@ -689,51 +706,71 @@ public class CommitCanvasN5 implements PersistCanvas {
 			increment = 0.0;
 		}
 
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long targetBlock : affectedBlocks) {
-			blockSpec.fromLinearIndex(targetBlock);
-			final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
-			final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
-			targetToPrevious.apply(blockMinDouble, blockMinDouble);
-			targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
+			var future = threadPool.submit(() -> {
+				final var blockSpecCopy = new BlockSpec(blockSpec);
+				blockSpecCopy.fromLinearIndex(targetBlock);
+				final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpecCopy.min);
+				final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpecCopy.max, 1));
+				targetToPrevious.apply(blockMinDouble, blockMinDouble);
+				targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
 
-			LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
+				LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
 
-			final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
-			final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
-			final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpec.min, blockSpec.max));
+				final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
+				final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
+				final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpecCopy.min, blockSpecCopy.max));
 
-			final long[] previousRelevantIntervalMin = blockMin.clone();
-			final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
+				final long[] previousRelevantIntervalMin = blockMin.clone();
+				final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
 
-			ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
-			ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
-			ArrayMath.add3(blockMax, -1, blockMax);
-			ArrayMath.minOf3(blockMax, blockMin, blockMax);
+				ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
+				ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
+				ArrayMath.add3(blockMax, -1, blockMax);
+				ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
-			LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
-			final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos);
-			final VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
-					? LabelUtils.fromBytes(
-					(byte[])block.getData(),
-					(int)Intervals.numElements(size))
-					: null;
+				LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpecCopy.pos, size, blockSpecCopy.min, blockSpecCopy.max);
+				final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpecCopy.pos);
+				final VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
+						? LabelUtils.fromBytes(
+						(byte[])block.getData(),
+						(int)Intervals.numElements(size))
+						: null;
 
-			final VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
-					n5,
-					targetDataset.dataset,
-					targetDataset.attributes,
-					Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
-					relativeFactors,
-					targetMaxNumEntries,
-					size,
-					blockSpec.pos);
-			final int numElements = (int)Intervals.numElements(size);
-			blockDiffsAt.put(
-					targetBlock,
-					oldAccess == null
-							? createBlockDiffOldDoesNotExist(newAccess, numElements)
-							: createBlockDiff(oldAccess, newAccess, numElements));
-			progressOpt.ifPresent(prop -> prop.set(prop.get() + increment));
+				final VolatileLabelMultisetArray newAccess;
+				try {
+					newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
+							n5,
+							targetDataset.dataset,
+							targetDataset.attributes,
+							Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+							relativeFactors,
+							targetMaxNumEntries,
+							size,
+							blockSpecCopy.pos);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+				final int numElements = (int)Intervals.numElements(size);
+				synchronized (blockDiffsAt) {
+					blockDiffsAt.put(
+							targetBlock,
+							oldAccess == null
+									? createBlockDiffOldDoesNotExist(newAccess, numElements)
+									: createBlockDiff(oldAccess, newAccess, numElements));
+					progressOpt.ifPresent(prop -> prop.set(prop.get() + increment));
+				}
+			});
+			futures.add(future);
+		}
+		for (Future<?> future : futures) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
