@@ -1,12 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import ai.onnxruntime.*
+import bdv.cache.SharedQueue
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnit
-import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import bdv.viewer.SourceAndConverter
-import bdv.viewer.render.AccumulateProjectorARGB
 import com.amazonaws.util.Base64
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
@@ -68,6 +67,7 @@ import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
@@ -723,7 +723,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				threadGroup,
 				viewer::getState,
 				{ Interpolation.NLINEAR },
-				AccumulateProjectorARGB.factory,
+				CompositeProjectorPreMultiply.CompositeProjectorFactory(paintera.baseView.sourceInfo().composites()),
 				sharedQueue,
 				30 * 1000000L,
 				1,

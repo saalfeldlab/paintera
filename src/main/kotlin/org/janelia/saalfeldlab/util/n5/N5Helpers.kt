@@ -100,7 +100,7 @@ object N5Helpers {
 	@JvmStatic
 	@Throws(IOException::class)
 	fun isPainteraDataset(n5: N5Reader, group: String?): Boolean {
-		val isPainteraDataset = n5.exists(group) && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY)
+		val isPainteraDataset = n5.exists(group) && n5.listAttributes(group)?.containsKey(PAINTERA_DATA_KEY) == true
 		LOG.debug("Is {}/{} Paintera dataset? {}", n5, group, isPainteraDataset)
 		return isPainteraDataset
 	}
@@ -193,7 +193,7 @@ object N5Helpers {
 	 */
 	@JvmStatic
 	@Throws(IOException::class)
-	fun getDatasetAttributes(n5: N5Reader, group: String): DatasetAttributes {
+	fun getDatasetAttributes(n5: N5Reader, group: String): DatasetAttributes? {
 		LOG.debug("Getting data type for group/dataset {}", group)
 		if (isPainteraDataset(n5, group)) {
 			return getDatasetAttributes(n5, "$group/$PAINTERA_DATA_DATASET")
