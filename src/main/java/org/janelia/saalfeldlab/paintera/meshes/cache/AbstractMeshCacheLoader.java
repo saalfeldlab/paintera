@@ -65,9 +65,8 @@ public abstract class AbstractMeshCacheLoader<T, K>
 		).generateMesh();
 
 		Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
-
-		if (key.smoothingIterations() > 0)
-			meshMesh.smooth(key.smoothingLambda(), key.smoothingIterations());
+		if (smoothingIterations > 0)
+			meshMesh.smooth(key.smoothingLambda(), smoothingIterations);
 
 		meshMesh.averageNormals();
 
