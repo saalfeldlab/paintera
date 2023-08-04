@@ -78,10 +78,10 @@
 		<n5.version>3.0.0</n5.version>
 		<n5-hdf5.version>2.0.0</n5-hdf5.version>
 		<n5-google-cloud.version>4.0.0</n5-google-cloud.version>
-		<n5-aws-s3.version>4.0.1-SNAPSHOT</n5-aws-s3.version>
+		<n5-aws-s3.version>4.0.1</n5-aws-s3.version>
 		<n5-zarr.version>1.0.0</n5-zarr.version>
 		<n5-imglib2.version>7.0.0</n5-imglib2.version>
-		<n5-universe.version>1.0.2-SNAPSHOT</n5-universe.version>
+		<n5-universe.version>1.1.0</n5-universe.version>
 
 		<enforcer.skip>true</enforcer.skip>
 	</properties>
