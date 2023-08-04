@@ -261,9 +261,6 @@ public class RealRandomArrayAccessible<T extends Type<T>> implements RealRandomA
 		public void setPosition(final double position, final int d) {
 
 			for (RealRandomAccess<T> input : inputs) {
-
-				final var pos = positionAsRealPoint();
-				final var posi = input.positionAsRealPoint();
 				input.setPosition(position, d);
 			}
 		}
