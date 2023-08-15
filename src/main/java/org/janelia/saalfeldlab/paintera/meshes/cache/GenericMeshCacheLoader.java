@@ -4,6 +4,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.Mesh;
@@ -41,15 +42,17 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>> implements Cach
 		final RandomAccessibleInterval<B> mask = data.apply(key.scaleIndex());
 		final AffineTransform3D transform = this.transform.apply(key.scaleIndex());
 
+		final int smoothingIterations = key.smoothingIterations();
+
 		final float[] vertices = new MarchingCubes<>(
 				Views.extendZero(mask),
-				key.interval()
+				Intervals.expand(key.interval(), smoothingIterations + 2)
 		).generateMesh();
 
 		final Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
-		if (key.smoothingIterations() > 0) {
-			meshMesh.smooth(key.smoothingLambda(), key.smoothingIterations());
-		}
+		if (smoothingIterations > 0)
+			meshMesh.smooth(key.smoothingLambda(), smoothingIterations);
+
 		meshMesh.averageNormals();
 
 		return meshMesh.asPainteraTriangleMesh();

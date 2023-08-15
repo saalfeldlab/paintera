@@ -20,6 +20,13 @@ public class BlockSpec {
 
 	private final long[] gridDimensions;
 
+	public BlockSpec(final BlockSpec other) {
+		this(other.grid);
+		System.arraycopy(other.pos, 0, pos, 0, pos.length);
+		System.arraycopy(other.min, 0, min, 0, min.length);
+		System.arraycopy(other.max, 0, max, 0, max.length);
+	}
+
 	public BlockSpec(final CellGrid grid) {
 
 		this.grid = grid;

@@ -116,8 +116,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1311,9 +1312,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final int[] blockSize = new int[grid.numDimensions()];
 		grid.cellDimensions(blockSize);
 
-		final HashMap<Long, TLongHashSet> labelToBlocks = new HashMap<>();
-		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
+		final AtomicReference<HashMap<Long, TLongHashSet>> labelToBlocks = new AtomicReference<>(new HashMap<>());
 
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final List<Future<?>> jobs = new ArrayList<>();
+		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 			final long blockId = blockIt.next();
 			IntervalIndexer.indexToPosition(blockId, gridDimensions, gridPosition);
 
@@ -1331,16 +1334,27 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				continue;
 			}
 
-			LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
-
-			final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
-
-			final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
-			for (Long label : labelsForBlock) {
-				labelToBlocks.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
+			final Future<?> job = threadPool.submit(() -> {
+				LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
+				final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
+				final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+				labelToBlocks.getAndUpdate(map -> {
+					for (Long label : labelsForBlock) {
+						map.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
+					}
+					return map;
+				});
+			});
+			jobs.add(job);
+		}
+		for (Future<?> job : jobs) {
+			try {
+				job.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
 			}
 		}
-		return labelToBlocks;
+		return labelToBlocks.getAcquire();
 	}
 
 	/**
