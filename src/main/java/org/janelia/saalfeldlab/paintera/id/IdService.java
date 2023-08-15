@@ -1,11 +1,18 @@
 package org.janelia.saalfeldlab.paintera.id;
 
+import net.imglib2.type.label.Label;
+import org.checkerframework.checker.units.qual.A;
+
+import java.util.Random;
 import java.util.stream.LongStream;
 
 public interface IdService {
 
-	// Labels higher than this should not be persisted, other than the reserved values above
-	long FIRST_TEMPORARY_ID = 0xf000000000000000L; // Temporary Ids should be provided from here.
+	// Labels in this should not be persisted, other than the reserved values above
+	long FIRST_TEMPORARY_ID = 0xfff0ffffffffffffL;
+	long LAST_TEMPORARY_ID = 0xfff1ffffffffffffL;
+	LongStream randomTemps = new Random().longs(FIRST_TEMPORARY_ID, LAST_TEMPORARY_ID);
+
 
 	/**
 	 * Invalidate an ID. Sets the next ID of this service if the passed ID is greater than the current next ID.
@@ -92,6 +99,10 @@ public interface IdService {
 	static public long max(final long[] ids) {
 
 		return max(LongStream.of(ids));
+	}
+
+	static long randomTemporaryId() {
+		return randomTemps.findFirst().getAsLong();
 	}
 
 	class IdServiceNotProvided implements IdService {
