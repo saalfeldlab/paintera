@@ -18,13 +18,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import net.imglib2.*
+import net.imglib2.algorithm.lazy.Lazy
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.converter.BiConverter
 import net.imglib2.converter.Converters
-import net.imglib2.converter.RealRandomArrayAccessible
 import net.imglib2.converter.logical.Logical
 import net.imglib2.converter.read.BiConvertedRealRandomAccessible
 import net.imglib2.img.array.ArrayImgFactory
+import net.imglib2.img.basictypeaccess.AccessFlags
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
@@ -58,6 +59,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
@@ -480,17 +482,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				fillMasks += constantInvalid
 			}
 
+			var compositeFill : RealRandomAccessible<UnsignedLongType> = fillMasks[0]
+			for ((index, dataMask) in fillMasks.withIndex()) {
+				if (index == 0) continue
 
-			val compositeFillMask = RealRandomArrayAccessible(fillMasks, { sources: Array<UnsignedLongType>, output: UnsignedLongType ->
-				val label: Long = sources
-					.map { it.get() }
-					.firstOrNull { it.isInterpolationLabel }
-					?: Label.INVALID
-
-				if (output.get() != label) {
-					output.set(label)
+				compositeFill = compositeFill.convertWith(dataMask, UnsignedLongType(Label.INVALID)) { composite, mask, result ->
+					val maskVal = mask.get()
+					result.setInteger(if (maskVal != Label.INVALID) maskVal else composite.get())
 				}
-			}, UnsignedLongType(Label.INVALID))
+			}
 
 			val interpolants = slicesAndInterpolants.interpolants
 			val dataMasks: MutableList<RealRandomAccessible<UnsignedLongType>> = mutableListOf()
@@ -501,18 +501,17 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				}
 			}
 
+			var compositeInterpolation : RealRandomAccessible<UnsignedLongType> = dataMasks.getOrNull(0) ?: ConstantUtils.constantRealRandomAccessible(UnsignedLongType(Label.INVALID), compositeFill.numDimensions())
+			for ((index, dataMask) in dataMasks.withIndex()) {
+				if (index == 0) continue
 
-			val interpolatedArrayMask = RealRandomArrayAccessible(dataMasks, { sources: Array<UnsignedLongType>, output: UnsignedLongType ->
-
-				val label = sources
-					.firstOrNull { it.get().isInterpolationLabel }?.get()
-					?: Label.INVALID
-
-				if (output.get() != label) {
-					output.set(label)
+				compositeInterpolation = compositeInterpolation.convertWith(dataMask, UnsignedLongType(Label.INVALID)) { composite, mask, result ->
+					val maskVal = mask.get()
+					result.setInteger(if (maskVal != Label.INVALID) maskVal else composite.get())
 				}
-			}, UnsignedLongType(Label.INVALID))
-			val compositeMaskInGlobal = BiConvertedRealRandomAccessible(compositeFillMask, interpolatedArrayMask, Supplier {
+			}
+
+			val compositeMaskInGlobal = BiConvertedRealRandomAccessible(compositeFill, compositeInterpolation, Supplier {
 				BiConverter { fillValue: UnsignedLongType, interpolationValue: UnsignedLongType, compositeValue: UnsignedLongType ->
 					val aVal = fillValue.get()
 					val aOrB = if (aVal.isInterpolationLabel) fillValue else interpolationValue
