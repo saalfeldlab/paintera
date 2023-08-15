@@ -193,6 +193,12 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 					if (dataset.isNullOrEmpty()) throw IOException("Dataset not specified!")
 					if (name.isNullOrEmpty()) throw IOException("Name not specified!")
 
+					/* Remove Scales where downsampling factors are 1 */
+					val scaleLevels = mutableListOf<MipMapLevel>()
+					mipmapLevels.forEach { level ->
+						if (level.relativeDownsamplingFactors.asDoubleArray().reduce { l, r -> l * r } != 1.0)
+							scaleLevels.add(level)
+					}
 					N5Data.createEmptyLabelDataset(
 						container,
 						dataset,
@@ -200,8 +206,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						blockSize.asIntArray(),
 						resolution.asDoubleArray(),
 						offset.asDoubleArray(),
-						mipmapLevels.stream().map { it.downsamplingFactors() }.toList().toTypedArray(),
-						mipmapLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
+						scaleLevels.stream().map { it.downsamplingFactors() }.toList().toTypedArray(),
+						scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
 					)
 
 					val path = Path.of(container).toFile().canonicalPath
