@@ -345,6 +345,7 @@ public class ViewerPanelFX
 
 		if (intervalInGlobalSpace == null) {
 			requestRepaint();
+			return;
 		}
 
 		final AffineTransform3D globalToViewerTransform = this.viewerTransform.copy();
@@ -534,6 +535,11 @@ public class ViewerPanelFX
 
 		LOG.debug("Setting screen scales to {}", screenScales);
 		this.renderUnit.setScreenScales(screenScales.clone());
+	}
+
+	public double[] getScreenScales() {
+		final double[] screenScale = renderUnit.getScreenScalesProperty().get();
+		return Arrays.copyOf(screenScale, screenScale.length);
 	}
 
 	/**
