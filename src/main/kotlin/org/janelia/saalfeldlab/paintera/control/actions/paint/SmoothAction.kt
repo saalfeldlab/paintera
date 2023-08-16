@@ -1,23 +1,29 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.animation.KeyFrame
+import javafx.animation.KeyValue
+import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
-import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.value.ChangeListener
+import javafx.concurrent.Worker
 import javafx.event.ActionEvent
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.control.*
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import javafx.util.Duration
 import kotlinx.coroutines.*
-import kotlinx.coroutines.CancellationException
 import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -65,7 +71,9 @@ import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.union
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.concurrent.*
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 import kotlin.math.floor
 import kotlin.math.log10
@@ -120,12 +128,13 @@ object SmoothAction : MenuAction("_Smooth") {
 
 	private fun newConvolutionExecutor(): ThreadPoolExecutor {
 		val threads = Runtime.getRuntime().availableProcessors()
-		return ThreadPoolExecutor(threads, threads, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue())
+		return ThreadPoolExecutor(threads, threads, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue(), ThreadFactoryBuilder().setNameFormat("gaussian-smoothing-%d").build())
 	}
 
 	private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-	private var smoothScope: CoroutineScope = CoroutineScope(Dispatchers.Default)
+	private var scopeJob: Job = Job()
+	private var smoothScope: CoroutineScope = CoroutineScope(Dispatchers.Default + scopeJob)
 	private var smoothTask: UtilityTask<Unit>? = null
 	private var convolutionExecutor = newConvolutionExecutor()
 
@@ -135,19 +144,9 @@ object SmoothAction : MenuAction("_Smooth") {
 	private val kernelSizeProperty = SimpleDoubleProperty()
 	private val kernelSize by kernelSizeProperty.nonnullVal()
 
-	private val curTasksProperty = SimpleLongProperty()
-	private var curTasks by curTasksProperty.nonnull()
 
-	private val totalTasksProperty = SimpleLongProperty()
-	private var totalTasks by totalTasksProperty.nonnull()
-
-	private val progressProperty = SimpleDoubleProperty().apply {
-		val progressBinding = curTasksProperty.createObservableBinding(totalTasksProperty) {
-			if (totalTasks == 0L) 0.0
-			else curTasks.toDouble() / totalTasks.toDouble()
-		}
-		bind(progressBinding)
-	}
+	private val progressProperty = SimpleDoubleProperty()
+	private var progress by progressProperty.nonnull()
 
 	private var finalizeSmoothing = false
 
@@ -177,6 +176,8 @@ object SmoothAction : MenuAction("_Smooth") {
 			state.run {
 				kernelSizeProperty.unbind()
 				kernelSizeProperty.set(defaultKernelSize)
+				progress = 0.0
+//				println("0.0 (start)")
 				startSmoothTask()
 				showSmoothDialog()
 			}
@@ -192,7 +193,7 @@ object SmoothAction : MenuAction("_Smooth") {
 			Paintera.registerStylesheets(dialogPane)
 			dialogPane.buttonTypes += ButtonType.APPLY
 			dialogPane.buttonTypes += ButtonType.CANCEL
-			title = name
+			title = name?.replace("_", "")
 
 			val levelResolution: DoubleArray = getLevelResolution(mipMapLevel)
 			val replacementLabelField = NumberField.longField(Imglib2Label.BACKGROUND, { it >= Imglib2Label.BACKGROUND }, *SubmitOn.values())
@@ -252,18 +253,38 @@ object SmoothAction : MenuAction("_Smooth") {
 					hbox.children += ProgressBar().also { progressBar ->
 						HBox.setHgrow(progressBar, Priority.ALWAYS)
 						progressBar.maxWidth = Double.MAX_VALUE
-						progressBar.progressProperty().bind(progressProperty)
+						val timeline = Timeline(
+							KeyFrame(Duration.ZERO, KeyValue(progressBar.progressProperty(), 0.0)),
+							KeyFrame(Duration.seconds(1.0), KeyValue(progressBar.progressProperty(), progressProperty.get()))
+						)
+						timeline.play()
+						progressProperty.addListener { _, _, progress ->
+							timeline.stop()
+							if (progress == 0.0) {
+								progressBar.progressProperty().set(0.0)
+								return@addListener
+							}
+
+							/* Don't move backwards while actively smoothing */
+							if (progress.toDouble() <= progressBar.progressProperty().get()) return@addListener
+
+							/* If done, move fast. If not done, move slower if kernel size is larger */
+							val duration = if (progress == 1.0) Duration.seconds(.25) else {
+								val adjustment = (kernelSize - minKernelSize) / (maxKernelSize - minKernelSize)
+								Duration.seconds(1.0 + adjustment)
+							}
+							timeline.keyFrames.setAll(
+								KeyFrame(Duration.ZERO, KeyValue(progressBar.progressProperty(), progressBar.progressProperty().get())),
+								KeyFrame(duration, KeyValue(progressBar.progressProperty(), progress.toDouble()))
+							)
+							timeline.play()
+						}
 					}
 				}
 				HBox.setHgrow(kernelSizeLabel, Priority.NEVER)
 				HBox.setHgrow(kernelSizeSlider, Priority.ALWAYS)
 				HBox.setHgrow(kernelSizeField.textField, Priority.ALWAYS)
 				HBox.setHgrow(replacementLabelField.textField, Priority.ALWAYS)
-			}
-			dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
-				applyButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
-				applyButton.cursorProperty().bind(paintera.baseView.node.cursorProperty())
-				applyButton.addEventFilter(ActionEvent.ACTION) { _ -> finalizeSmoothing = true }
 			}
 			val cleanupOnDialogClose = {
 				smoothTask?.cancel()
@@ -272,7 +293,29 @@ object SmoothAction : MenuAction("_Smooth") {
 				replacementLabelProperty.unbind()
 				close()
 			}
+			dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
+				applyButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
+				applyButton.cursorProperty().bind(paintera.baseView.node.cursorProperty())
+				applyButton.addEventFilter(ActionEvent.ACTION) { event ->
+					//So the dialog doesn't close until the smoothing is done
+					event.consume()
+					// but listen for when the smoothTask finishes
+					smoothTask?.stateProperty()?.addListener { _, _, state ->
+						if (state == Worker.State.SUCCEEDED && smoothScope.isActive)
+							cleanupOnDialogClose()
+					}
+					// indicate the smoothTask should try to apply the current smoothing mask to canvas
+					progress = 0.0
+					finalizeSmoothing = true
+				}
+			}
 			dialogPane.lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION) { _ -> cleanupOnDialogClose() }
+			dialogPane.scene.window.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
+				if (event.code == KeyCode.ESCAPE && scopeJob.children.any { it.isActive }) {
+					event.consume()
+					cancelActiveSmoothing("Escape Pressed")
+				}
+			}
 			dialogPane.scene.window.setOnCloseRequest { cleanupOnDialogClose() }
 		}.show()
 	}
@@ -302,15 +345,14 @@ object SmoothAction : MenuAction("_Smooth") {
 		val prevScales = paintera.activeViewer.get()!!.screenScales
 
 		var resmooth = false
-		val resmoothOnKernelSizeChange: ChangeListener<in Number> = ChangeListener { _, _, _ ->
-			smoothScope.cancel(CancellationException("Kernel Size Changed"))
-			convolutionExecutor.shutdown()
+		val kernelSizeChange: ChangeListener<in Number> = ChangeListener { _, _, _ ->
+			cancelActiveSmoothing("Kernel Size Changed")
 			resmooth = true
 		}
 
 		smoothTask = Tasks.createTask { task ->
 			paintera.baseView.disabledPropertyBindings[task] = smoothingProperty
-			kernelSizeProperty.addListener(resmoothOnKernelSizeChange)
+			kernelSizeProperty.addListener(kernelSizeChange)
 			paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 			smoothing = true
 			initializeSmoothLabel()
@@ -325,14 +367,12 @@ object SmoothAction : MenuAction("_Smooth") {
 					Thread.sleep(100)
 				}
 			}
-			println("Task Loop End")
 			if (!task.isCancelled)
 				updateSmoothMask(false)
 		}.onCancelled { _, _ ->
 			paintContext.dataSource.resetMasks()
 			paintera.baseView.orthogonalViews().requestRepaint(globalSmoothInterval)
 			paintera.baseView.disabledPropertyBindings -= smoothTask
-			println("Cancelled")
 		}.onSuccess { _, _ ->
 			var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
 			refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
@@ -347,13 +387,18 @@ object SmoothAction : MenuAction("_Smooth") {
 			maskedSource.isApplyingMaskProperty.addListener(refreshAfterApplyingMask)
 			val mask = maskedSource.currentMask
 			maskedSource.applyMask(mask, sourceSmoothInterval) { it.integerLong >= 0 }
-			println("Completed")
 		}.onEnd {
-			kernelSizeProperty.removeListener(resmoothOnKernelSizeChange)
+			kernelSizeProperty.removeListener(kernelSizeChange)
 			paintera.baseView.orthogonalViews().setScreenScales(prevScales)
 			convolutionExecutor.shutdown()
-			println("Done")
 		}.submit()
+	}
+
+	private fun cancelActiveSmoothing(reason: String) {
+		smoothScope.cancel(CancellationException(reason))
+		convolutionExecutor.shutdown()
+		progress = 0.0
+//		println("0.0 (cancel)")
 	}
 
 	private fun SmoothActionVerifiedState.initializeSmoothLabel() {
@@ -492,31 +537,35 @@ object SmoothAction : MenuAction("_Smooth") {
 		val maskedSource = paintContext.dataSource
 
 		val runAllJobs = {
-			smoothScope = CoroutineScope(Dispatchers.Default)
-			runBlocking(smoothScope.coroutineContext) {
-				val smoothJobs = mutableListOf<Job>()
+			scopeJob = Job()
+			smoothScope = CoroutineScope(Dispatchers.Default + scopeJob)
+			runBlocking {
 				for (block in blocksToSmoothOver) {
 					if (preview) {
 						for (viewerInterval in viewerIntervalsInSource) {
 							val slice = viewerInterval.intersect(block)
 							if (Intervals.isEmpty(slice)) continue
-							smoothJobs += smoothOverInterval(slice)
+							smoothScope.smoothOverInterval(slice)
 						}
 					} else {
-						smoothJobs += smoothOverInterval(block)
+						smoothScope.smoothOverInterval(block)
 					}
 				}
-				while (smoothJobs.any { it.isActive }) {
+				while (scopeJob.children.any { it.isActive }) {
 					InvokeOnJavaFXApplicationThread {
-						totalTasks = convolutionExecutor.taskCount
-						curTasks = convolutionExecutor.completedTaskCount
+						with(convolutionExecutor) {
+							progress =
+								if (completedTaskCount * taskCount == 0L) 0.0
+								else completedTaskCount / taskCount.toDouble()
+						}
+//						println("$progress (update)")
 					}
 					delay(50)
 				}
 
 				InvokeOnJavaFXApplicationThread {
-					totalTasks = convolutionExecutor.taskCount
-					curTasks = convolutionExecutor.completedTaskCount
+					progress = 1.0
+//					println("1.0 (done)")
 				}
 			}
 		}
