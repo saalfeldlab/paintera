@@ -1172,15 +1172,17 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					);
 
 					final Interval interval = new FinalInterval(intersectionMin, intersectionMax);
-					final RandomAccessibleInterval<UnsignedLongType> canvasAtHighResInterval = Views.interval(higherResCanvas, interval);
-					final RandomAccessibleInterval<UnsignedLongType> maskOverInterval = Views.interval(Views.raster(higherResMask), interval);
+//					final RandomAccessibleInterval<UnsignedLongType> canvasAtHighResInterval = Views.interval(higherResCanvas, interval);
+//					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> maskOverInterval = Views.interval(Views.raster(higherResMask), interval);
+					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> canvasAtHighResInterval = Views.interval(new BundleView<>(higherResCanvas), interval);
+					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> maskOverInterval = Views.interval(new BundleView<>(Views.raster(higherResMask)), interval);
 					final HashSet<Long> labels = new HashSet<>();
 
-					LoopBuilder.setImages(Views.interval(new BundleView<>(canvasAtHighResInterval), canvasAtHighResInterval), maskOverInterval)
+					LoopBuilder.setImages(canvasAtHighResInterval, maskOverInterval)
 							.multiThreaded()
 							.forEachPixel((canvasRa, maskVal) -> {
-								if (maskVal.get() != Label.INVALID) {
-									final long maskLabel = maskVal.get();
+								final long maskLabel = maskVal.get().get();
+								if (maskLabel != Label.INVALID) {
 									canvasRa.get().set(maskLabel);
 									labels.add(maskLabel);
 								}
@@ -1695,7 +1697,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (vstore instanceof AccessedBlocksRandomAccessible<?>) {
 			((AccessedBlocksRandomAccessible)vstore).clear();
 		}
-
 	}
 
 	private void setAtMaskLevel(
