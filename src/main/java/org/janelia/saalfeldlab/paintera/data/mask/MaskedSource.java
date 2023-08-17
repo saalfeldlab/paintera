@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
@@ -13,14 +14,7 @@ import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -555,6 +549,129 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		this.isBusy.set(true);
 		applyMaskThread.start();
 
+	}
+
+	/**
+	 * This method differs from `applyMask` in a few important ways:
+	 *  - It runs over each block in parallel
+	 *  - It is a blocking method
+	 *
+	 * @param mask to apply ( should be same as `currentMask`)
+	 * @param intervals to apply mask over, separately.
+	 * @param acceptAsPainted to accept a value
+	 */
+	public void applyMaskOverIntervals(
+			final SourceMask mask,
+			final List<Interval> intervals,
+			final DoubleProperty progressBinding,
+			final Predicate<UnsignedLongType> acceptAsPainted ) {
+
+		if (mask == null)
+			return ;
+
+		final ExecutorService applyPool = Executors.newFixedThreadPool(
+				Runtime.getRuntime().availableProcessors(),
+				new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build()
+		);
+		final ArrayList<Future<?>> applies = new ArrayList<>();
+		synchronized (this) {
+			final boolean maskCanBeApplied = !this.isCreatingMask() && this.getCurrentMask() == mask && !this.isApplyingMask.get() && !this.isPersisting();
+			if (!maskCanBeApplied) {
+				LOG.debug("Did not pass valid mask {}, will not do anything", mask);
+				this.isBusy.set(false);
+				return;
+			}
+			this.isApplyingMask.set(true);
+		}
+		var expectedTasks = intervals.size() * 2;
+		final var completedTasks = new AtomicInteger();
+		for (Interval interval : intervals) {
+
+			/* Start as busy, so a new mask isn't generated until we are done applying this one. */
+			this.isBusy.set(true);
+
+			var applyFuture = applyPool.submit(() -> {
+				final MaskInfo maskInfo = mask.getInfo();
+				final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
+				final CellGrid grid = canvas.getCellGrid();
+
+				final int[] blockSize = new int[grid.numDimensions()];
+				grid.cellDimensions(blockSize);
+
+				final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), interval);
+
+				final var labelToBlocks = paintAffectedPixels(
+						affectedBlocks,
+						mask,
+						canvas,
+						canvas.getCellGrid(),
+						interval,
+						acceptAsPainted);
+
+				synchronized (progressBinding) {
+					var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+					progressBinding.set(progress);
+				}
+
+				for (var label : labelToBlocks.entrySet()) {
+					this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+				}
+
+				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
+						affectedBlocks,
+						maskInfo.level,
+						0);
+
+				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
+				this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
+
+				try {
+					propagationExecutor.submit(() -> {
+						propagateMask(
+								mask.getRai(),
+								affectedBlocks,
+								maskInfo.level,
+								interval,
+								acceptAsPainted);
+
+					}).get();
+					synchronized (progressBinding) {
+						var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+						progressBinding.set(progress);
+					}
+				} catch (InterruptedException | ExecutionException e) {
+					throw new RuntimeException(e);
+				}
+
+			});
+			applies.add(applyFuture);
+		}
+		for (Future<?> it : applies) {
+			try {
+				it.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		synchronized (progressBinding) {
+			progressBinding.set(1.0);
+		}
+
+		synchronized (this) {
+			setCurrentMask(null);
+			setMasksConstant();
+			LOG.debug("Done applying mask!");
+			this.isApplyingMask.set(false);
+		}
+
+		if (mask.getShutdown() != null)
+			mask.getShutdown().run();
+		if (mask.getInvalidate() != null)
+			mask.getInvalidate().invalidateAll();
+		if (mask.getInvalidateVolatile() != null)
+			mask.getInvalidateVolatile().invalidateAll();
+
+		this.isBusy.set(false);
 	}
 
 	private void setMasksConstant() {
