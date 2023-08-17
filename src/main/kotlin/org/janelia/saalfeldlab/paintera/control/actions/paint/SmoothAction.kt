@@ -9,6 +9,7 @@ import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleLongProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.concurrent.Worker
 import javafx.event.ActionEvent
@@ -28,6 +29,7 @@ import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.RealInterval
+import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
 import net.imglib2.algorithm.convolution.kernel.Kernel1D
 import net.imglib2.algorithm.convolution.kernel.SeparableKernelConvolution
 import net.imglib2.algorithm.gauss3.Gauss3
@@ -37,6 +39,7 @@ import net.imglib2.converter.Converters
 import net.imglib2.img.basictypeaccess.AccessFlags
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.loops.LoopBuilder
+import net.imglib2.parallel.Parallelization
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.DoubleType
@@ -46,7 +49,10 @@ import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.Action
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.component1
+import org.janelia.saalfeldlab.fx.extensions.component2
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -65,6 +71,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.extendZero
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.interval
@@ -135,7 +142,7 @@ object SmoothAction : MenuAction("_Smooth") {
 
 	private var scopeJob: Job = Job()
 	private var smoothScope: CoroutineScope = CoroutineScope(Dispatchers.Default + scopeJob)
-	private var smoothTask: UtilityTask<Unit>? = null
+	private var smoothTask: UtilityTask<List<Interval>>? = null
 	private var convolutionExecutor = newConvolutionExecutor()
 
 	private val replacementLabelProperty = SimpleLongProperty(0)
@@ -144,16 +151,19 @@ object SmoothAction : MenuAction("_Smooth") {
 	private val kernelSizeProperty = SimpleDoubleProperty()
 	private val kernelSize by kernelSizeProperty.nonnullVal()
 
+	private val progressBarProperty = SimpleDoubleProperty()
+	private val currentProgressBar by progressBarProperty.nonnull()
 
 	private val progressProperty = SimpleDoubleProperty()
 	private var progress by progressProperty.nonnull()
 
+	private val progressStatusProperty = SimpleObjectProperty(ProgressStatus.Empty)
+	private var progressStatus by progressStatusProperty.nonnull()
+
 	private var finalizeSmoothing = false
+	private var resmooth = false
 
-	private lateinit var updateSmoothMask: ((Boolean) -> Unit)
-
-	private var sourceSmoothInterval: Interval? = null
-	private var globalSmoothInterval: RealInterval? = null
+	private lateinit var updateSmoothMask: suspend ((Boolean) -> List<RealInterval>)
 
 	private val state = SmoothActionVerifiedState()
 
@@ -173,15 +183,21 @@ object SmoothAction : MenuAction("_Smooth") {
 		onAction {
 			finalizeSmoothing = false
 			/* Set lateinit values */
-			state.run {
+			with(state) {
 				kernelSizeProperty.unbind()
 				kernelSizeProperty.set(defaultKernelSize)
 				progress = 0.0
-//				println("0.0 (start)")
 				startSmoothTask()
 				showSmoothDialog()
 			}
 		}
+	}
+
+	private enum class ProgressStatus(val text: String) {
+		Smoothing("Smoothing... "),
+		Done("        Done "),
+		Applying(" Applying... "),
+		Empty("             ")
 	}
 
 
@@ -236,6 +252,9 @@ object SmoothAction : MenuAction("_Smooth") {
 			val sizeChangeListener = ChangeListener<Number> { _, _, size -> prevStableKernelSize.value = size.toDouble() }
 			kernelSizeProperty.addListener(sizeChangeListener)
 
+			val timeline = Timeline()
+
+
 			dialogPane.content = VBox(10.0).apply {
 				isFillWidth = true
 				val replacementIdLabel = Label("Replacement Label")
@@ -250,14 +269,33 @@ object SmoothAction : MenuAction("_Smooth") {
 				children += HBox(10.0, kernelSizeLabel, kernelSizeField.textField)
 				children += HBox(10.0, kernelSizeSlider)
 				children += HBox(10.0).also { hbox ->
+					hbox.children += Label().apply {
+						progressStatusProperty.addListener { _, _, _ ->
+							InvokeOnJavaFXApplicationThread {
+								textProperty().set(progressStatus.text)
+								requestLayout()
+							}
+						}
+					}
 					hbox.children += ProgressBar().also { progressBar ->
+						progressBarProperty.unbind()
+						progressBarProperty.bind(progressBar.progressProperty())
 						HBox.setHgrow(progressBar, Priority.ALWAYS)
 						progressBar.maxWidth = Double.MAX_VALUE
-						val timeline = Timeline(
+						timeline.keyFrames.setAll(
 							KeyFrame(Duration.ZERO, KeyValue(progressBar.progressProperty(), 0.0)),
 							KeyFrame(Duration.seconds(1.0), KeyValue(progressBar.progressProperty(), progressProperty.get()))
 						)
 						timeline.play()
+						progressBar.progressProperty().addListener { _, _, progress ->
+							val progress = progress.toDouble()
+							progressStatus = when {
+								progress == 0.0 -> ProgressStatus.Empty
+								progress == 1.0 -> ProgressStatus.Done
+								smoothScope.isActive -> ProgressStatus.Smoothing
+								else -> ProgressStatus.Applying
+							}
+						}
 						progressProperty.addListener { _, _, progress ->
 							timeline.stop()
 							if (progress == 0.0) {
@@ -301,7 +339,7 @@ object SmoothAction : MenuAction("_Smooth") {
 					event.consume()
 					// but listen for when the smoothTask finishes
 					smoothTask?.stateProperty()?.addListener { _, _, state ->
-						if (state == Worker.State.SUCCEEDED && smoothScope.isActive)
+						if (state >= Worker.State.SUCCEEDED)
 							cleanupOnDialogClose()
 					}
 					// indicate the smoothTask should try to apply the current smoothing mask to canvas
@@ -311,7 +349,8 @@ object SmoothAction : MenuAction("_Smooth") {
 			}
 			dialogPane.lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION) { _ -> cleanupOnDialogClose() }
 			dialogPane.scene.window.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
-				if (event.code == KeyCode.ESCAPE && scopeJob.children.any { it.isActive }) {
+				if (event.code == KeyCode.ESCAPE && (progressStatus == ProgressStatus.Smoothing || scopeJob.children.any { it.isActive })) {
+					/* Cancel if still running */
 					event.consume()
 					cancelActiveSmoothing("Escape Pressed")
 				}
@@ -344,7 +383,6 @@ object SmoothAction : MenuAction("_Smooth") {
 	private fun SmoothActionVerifiedState.startSmoothTask() {
 		val prevScales = paintera.activeViewer.get()!!.screenScales
 
-		var resmooth = false
 		val kernelSizeChange: ChangeListener<in Number> = ChangeListener { _, _, _ ->
 			cancelActiveSmoothing("Kernel Size Changed")
 			resmooth = true
@@ -357,48 +395,73 @@ object SmoothAction : MenuAction("_Smooth") {
 			smoothing = true
 			initializeSmoothLabel()
 			smoothing = false
-			while (!finalizeSmoothing && !task.isCancelled) {
-				if (resmooth) {
-					resmooth = false
-					smoothing = true
-					updateSmoothMask(true)
-					smoothing = false
+			var intervals: List<Interval>? = null
+			while (!task.isCancelled) {
+				if (resmooth || finalizeSmoothing) {
+					val preview = !finalizeSmoothing
+					try {
+						smoothing = true
+						intervals = runBlocking { updateSmoothMask(preview).map { it.smallestContainingInterval } }
+						if (!preview) break
+						else requestRepaintOverIntervals(intervals)
+					} catch (c: CancellationException) {
+						intervals = null
+						paintContext.dataSource.resetMasks()
+						paintera.baseView.orthogonalViews().requestRepaint()
+					} finally {
+						smoothing = false
+						/* cleanup the executor */
+						convolutionExecutor.shutdown()
+						/* reset for the next loop */
+						resmooth = false
+						finalizeSmoothing = false
+					}
 				} else {
 					Thread.sleep(100)
 				}
 			}
-			if (!task.isCancelled)
-				updateSmoothMask(false)
+			smoothScope.cancel("Done Smoothing")
+			intervals?.also { smoothedIntervals ->
+				paintContext.dataSource.apply {
+					val applyProgressProperty = SimpleDoubleProperty()
+					applyProgressProperty.addListener { _, _, applyProgress -> progress = applyProgress.toDouble() }
+					applyMaskOverIntervals(currentMask, smoothedIntervals, applyProgressProperty) { it.integerLong >= 0 }
+				}
+			} ?: let {
+				task.cancel()
+				emptyList()
+			}
 		}.onCancelled { _, _ ->
 			paintContext.dataSource.resetMasks()
-			paintera.baseView.orthogonalViews().requestRepaint(globalSmoothInterval)
-			paintera.baseView.disabledPropertyBindings -= smoothTask
-		}.onSuccess { _, _ ->
-			var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
-			refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
-				if (!isApplyingMask) {
-					paintera.baseView.orthogonalViews().requestRepaint(globalSmoothInterval)
-					statePaintContext?.refreshMeshes?.invoke()
-					obs.removeListener(refreshAfterApplyingMask!!)
-					paintera.baseView.disabledPropertyBindings -= smoothTask
-				}
-			}
-			val maskedSource = paintContext.dataSource
-			maskedSource.isApplyingMaskProperty.addListener(refreshAfterApplyingMask)
-			val mask = maskedSource.currentMask
-			maskedSource.applyMask(mask, sourceSmoothInterval) { it.integerLong >= 0 }
+			paintera.baseView.orthogonalViews().requestRepaint()
+		}.onSuccess { _, task ->
+			val intervals = task.get()
+			requestRepaintOverIntervals(intervals)
+			statePaintContext?.refreshMeshes?.invoke()
 		}.onEnd {
+			paintera.baseView.disabledPropertyBindings -= smoothTask
 			kernelSizeProperty.removeListener(kernelSizeChange)
 			paintera.baseView.orthogonalViews().setScreenScales(prevScales)
 			convolutionExecutor.shutdown()
 		}.submit()
 	}
 
+	private fun requestRepaintOverIntervals(intervals: List<Interval>? = null) {
+		if (intervals.isNullOrEmpty()) {
+			paintera.baseView.orthogonalViews().requestRepaint()
+			return
+		}
+		val smoothedInterval = intervals.reduce(Intervals::union)
+		val globalSmoothedInterval = state.paintContext.dataSource.getSourceTransformForMask(MaskInfo(0, 0)).estimateBounds(smoothedInterval)
+		paintera.baseView.orthogonalViews().requestRepaint(globalSmoothedInterval)
+	}
+
 	private fun cancelActiveSmoothing(reason: String) {
 		smoothScope.cancel(CancellationException(reason))
 		convolutionExecutor.shutdown()
 		progress = 0.0
-//		println("0.0 (cancel)")
+
+
 	}
 
 	private fun SmoothActionVerifiedState.initializeSmoothLabel() {
@@ -408,14 +471,15 @@ object SmoothAction : MenuAction("_Smooth") {
 
 
 		/* Read from the labelBlockLookup (if already persisted) */
-		val blocksFromSource = labels.toArray().flatMap { paintContext.getBlocksForLabel(mipMapLevel, it).toList() }
+		val scale0 = 0
+		val blocksFromSource = labels.toArray().flatMap { paintContext.getBlocksForLabel(scale0, it).toList() }
 
 		/* Read from canvas access (if in canvas) */
-		val cellGrid = maskedSource.getCellGrid(0, mipMapLevel)
+		val cellGrid = maskedSource.getCellGrid(0, scale0)
 		val cellIntervals = cellGrid.cellIntervals().randomAccess()
 		val cellPos = LongArray(cellGrid.numDimensions())
 		val blocksFromCanvas = labels.toArray().flatMap {
-			maskedSource.getModifiedBlocks(mipMapLevel, it).toArray().map { block ->
+			maskedSource.getModifiedBlocks(scale0, it).toArray().map { block ->
 				cellGrid.getCellGridPositionFlat(block, cellPos)
 				FinalInterval(cellIntervals.setPositionAndGet(*cellPos))
 			}
@@ -425,13 +489,13 @@ object SmoothAction : MenuAction("_Smooth") {
 		if (blocksWithLabel.isEmpty()) return
 
 		val sourceLabels = Converters.convert(
-			maskedSource.getReadOnlyDataBackground(0, mipMapLevel),
+			maskedSource.getReadOnlyDataBackground(0, scale0),
 			{ source, output -> output.set(source.realDouble.toLong()) },
 			UnsignedLongType()
 		)
 
 		val collapsedLabelStack = Views.collapse(
-			Views.stack(sourceLabels, maskedSource.getReadOnlyDataCanvas(0, mipMapLevel))
+			Views.stack(sourceLabels, maskedSource.getReadOnlyDataCanvas(0, scale0))
 		)
 
 		val virtualLabelMask = Converters.convert(collapsedLabelStack, { input, output ->
@@ -453,15 +517,16 @@ object SmoothAction : MenuAction("_Smooth") {
 		blocksWithLabel.forEach { labelRoi = labelRoi union it }
 
 		updateSmoothMask = { preview -> smoothMask(labelMask, cellGrid, blocksWithLabel, preview) }
-		updateSmoothMask(true)
+		resmooth = true
 	}
 
-	private fun SmoothActionVerifiedState.pruneBlock(blocksWithLabel: List<Interval>): List<Interval> {
+	private fun SmoothActionVerifiedState.pruneBlock(blocksWithLabel: List<Interval>): List<RealInterval> {
 		val viewsInSourceSpace = viewerIntervalsInSourceSpace()
 
 		/* remove any blocks that don't intersect with them*/
 		return blocksWithLabel
-			.filter { block -> viewsInSourceSpace.firstOrNull { viewer -> !Intervals.isEmpty(viewer.intersect(block)) } != null }
+			.map { block -> viewsInSourceSpace.firstOrNull { viewer -> !Intervals.isEmpty(viewer.intersect(block)) } }
+			.filterNotNull()
 			.toList()
 	}
 
@@ -476,37 +541,38 @@ object SmoothAction : MenuAction("_Smooth") {
 				val height = it.viewer().height
 				val screenInterval = FinalInterval(width.toLong(), height.toLong(), 1L)
 				val sourceToGlobal = AffineTransform3D()
-				labelSource.getDataSource().getSourceTransform(0, mipMapLevel, sourceToGlobal)
+				labelSource.getDataSource().getSourceTransform(0, 0, sourceToGlobal)
 				val viewerToSource = sourceToGlobal.inverse().copy().concatenate(globalToViewerTransform.inverse())
 				viewerToSource.estimateBounds(screenInterval)
 			}.toTypedArray()
 		return viewsInSourceSpace
 	}
 
-	private fun SmoothActionVerifiedState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, cellGrid: CellGrid, blocksWithLabel: List<Interval>, preview: Boolean = false) {
+	private suspend fun SmoothActionVerifiedState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, cellGrid: CellGrid, blocksWithLabel: List<Interval>, preview: Boolean = false): List<RealInterval> {
 
-		val blocksToSmoothOver = if (preview) pruneBlock(blocksWithLabel) else blocksWithLabel
+		val intervalsToSmoothOver = if (preview) pruneBlock(blocksWithLabel) else blocksWithLabel
 
-		val levelResolution = getLevelResolution(mipMapLevel)
+		val scale0 = 0
+		val levelResolution = getLevelResolution(scale0)
 		val sigma = DoubleArray(3) { kernelSize / levelResolution[it] }
 
-		val halfkernels = Gauss3.halfkernels(sigma)
-		val symmetric = Kernel1D.symmetric(halfkernels)
-		val convolution = SeparableKernelConvolution.convolution(*symmetric)
 		if (convolutionExecutor.isShutdown) {
 			convolutionExecutor = newConvolutionExecutor()
 		}
-		convolution.setExecutor(convolutionExecutor)
-		val smoothedImg = Lazy.generate(labelMask, cellGrid.cellDimensions, DoubleType(), AccessFlags.setOf(AccessFlags.VOLATILE)) {
-			convolution.process(labelMask.extendZero(), it)
+
+		val convolution = FastGauss.convolution(sigma)
+		if (convolutionExecutor.isShutdown) {
+			convolutionExecutor = newConvolutionExecutor()
 		}
 
-		val maskInfo = MaskInfo(0, mipMapLevel)
-		paintContext.dataSource.resetMasks()
-		setNewSourceMask(paintContext.dataSource, mipMapLevel, maskInfo)
-		val mask = paintContext.dataSource.currentMask
 
-		val viewerIntervalsInSource = viewerIntervalsInSourceSpace()
+		val smoothedImg = Lazy.generate(labelMask, cellGrid.cellDimensions, DoubleType(), AccessFlags.setOf(AccessFlags.VOLATILE)) { smoothedCell ->
+			Parallelization.runWithExecutor(convolutionExecutor) { convolution.process(labelMask.extendZero(), smoothedCell) }
+		}
+
+		paintContext.dataSource.resetMasks()
+		setNewSourceMask(paintContext.dataSource, MaskInfo(0, scale0))
+		val mask = paintContext.dataSource.currentMask
 
 		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Job = { slice ->
 			launch {
@@ -534,60 +600,34 @@ object SmoothAction : MenuAction("_Smooth") {
 			}
 		}
 
-		val maskedSource = paintContext.dataSource
 
-		val runAllJobs = {
-			scopeJob = Job()
-			smoothScope = CoroutineScope(Dispatchers.Default + scopeJob)
-			runBlocking {
-				for (block in blocksToSmoothOver) {
-					if (preview) {
-						for (viewerInterval in viewerIntervalsInSource) {
-							val slice = viewerInterval.intersect(block)
-							if (Intervals.isEmpty(slice)) continue
-							smoothScope.smoothOverInterval(slice)
-						}
-					} else {
-						smoothScope.smoothOverInterval(block)
-					}
-				}
-				while (scopeJob.children.any { it.isActive }) {
-					InvokeOnJavaFXApplicationThread {
-						with(convolutionExecutor) {
-							progress =
-								if (completedTaskCount * taskCount == 0L) 0.0
-								else completedTaskCount / taskCount.toDouble()
-						}
-//						println("$progress (update)")
-					}
-					delay(50)
-				}
+		/*Start smoothing */
+		scopeJob = Job()
+		smoothScope = CoroutineScope(Dispatchers.Default + scopeJob)
+		intervalsToSmoothOver.forEach { smoothScope.smoothOverInterval(it) }
 
-				InvokeOnJavaFXApplicationThread {
-					progress = 1.0
-//					println("1.0 (done)")
+		/* wait and update progress */
+		while (scopeJob.children.any { it.isActive }) {
+			with(convolutionExecutor) {
+				progress = currentProgressBar.let { currentProgress ->
+					val remaining = 1.0 - currentProgress
+					val numTasksModifier = 1 / log10(taskCount + 10.0)
+					/* Max quarter remaining increments*/
+					currentProgress + (remaining * numTasksModifier).coerceAtMost(.25)
 				}
 			}
+			delay(50)
+			if (scopeJob.isCancelled) {
+				progress = 0.0
+				throw CancellationException("Smoothing Cancelled")
+			}
 		}
-
-		var labelRoi: Interval = FinalInterval(blocksToSmoothOver[0])
-		blocksToSmoothOver.forEach { labelRoi = labelRoi union it }
-
-		try {
-			runAllJobs()
-		} catch (c: CancellationException) {
-			LOG.debug(c.message)
-			convolutionExecutor.shutdown()
-			paintContext.dataSource.resetMasks()
-		}
-
-		sourceSmoothInterval = labelRoi
-		globalSmoothInterval = maskedSource.getSourceTransformForMask(maskInfo).estimateBounds(sourceSmoothInterval)
-		paintera.baseView.orthogonalViews().requestRepaint(globalSmoothInterval)
+		progress = 1.0
+		return intervalsToSmoothOver
 	}
 
-	private fun setNewSourceMask(maskedSource: MaskedSource<*, *>, level: Int, maskInfo: MaskInfo) {
-		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(level)
+	private fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo) {
+		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(maskInfo.level)
 		val mask = SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
 		maskedSource.setMask(mask) { it.integerLong >= 0 }
 	}
