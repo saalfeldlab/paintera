@@ -12,7 +12,7 @@ public class MeshExporterObj<T> extends MeshExporter<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@Override
-	protected void save(String path, final String id, final float[] vertices, final float[] normals, final boolean append) throws IOException {
+	protected void save(String path, final String id, final float[] vertices, final float[] normals, int[] indices, final boolean append) throws IOException {
 
 		path = path + ".obj";
 
@@ -26,31 +26,27 @@ public class MeshExporterObj<T> extends MeshExporter<T> {
 
 			final int numVertices = vertices.length;
 			for (int k = 0; k < numVertices; k += 3) {
-				sb.append("\nv ").append(vertices[k + 0]).append(" ").append(vertices[k + 1]).append(" ").append(
-						vertices[k + 2]);
+				sb.append("\nv ").append(vertices[k]).append(" ").append(vertices[k + 1]).append(" ").append(vertices[k + 2]);
 			}
 
 			sb.append("\n");
 			final int numNormals = normals.length;
 			for (int k = 0; k < numNormals; k += 3) {
-				sb.append("\nvn ").append(normals[k + 0]).append(" ").append(normals[k + 1]).append(" ").append
-						(normals[k + 2]);
+				sb.append("\nvn ").append(normals[k]).append(" ").append(normals[k + 1]).append(" ").append(normals[k + 2]);
 			}
 
 			sb.append("\n");
 			final int numTexCoords = texCoords.length;
 			for (int k = 0; k < numTexCoords; k += 2) {
-				sb.append("\nvt ").append(texCoords[k + 0]).append(" ").append(texCoords[k + 1]);
+				sb.append("\nvt ").append(texCoords[k]).append(" ").append(texCoords[k + 1]);
 			}
 
 			sb.append("\n");
-			for (int k = 0; k < numVertices / 3; k += 3) {
-				sb.append("\nf ").append(k + numberOfFaces + 1).append("/").append(1).append("/").append(k +
-								numberOfFaces + 1)
-						.append(" ").append(k + numberOfFaces + 2).append("/").append(1).append("/").append(k +
-								numberOfFaces + 2)
-						.append(" ").append(k + numberOfFaces + 3).append("/").append(1).append("/").append(k +
-								numberOfFaces + 3);
+			for (int k = 0; k < indices.length; k += 3) {
+				sb.append("\nf ")
+						.append(indices[k + 0]).append("/").append(1).append("/").append(indices[k + 0]).append(" ")
+						.append(indices[k + 1]).append("/").append(1).append("/").append(indices[k + 1]).append(" ")
+						.append(indices[k + 2]).append("/").append(1).append("/").append(indices[k + 2]);
 			}
 
 			writer.append(sb.toString());

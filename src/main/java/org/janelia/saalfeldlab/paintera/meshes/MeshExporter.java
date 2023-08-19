@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import gnu.trove.list.array.TFloatArrayList;
+import gnu.trove.list.array.TIntArrayList;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
@@ -11,11 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public abstract class MeshExporter<T> {
 
@@ -71,36 +69,33 @@ public abstract class MeshExporter<T> {
 			));
 		}
 
+		final var vertices = new TFloatArrayList();
+		final var normals = new TFloatArrayList();
+		final var indices = new TIntArrayList();
 		for (final ShapeKey<T> key : keys) {
 			PainteraTriangleMesh verticesAndNormals;
-			try {
-				verticesAndNormals = getMeshFor.getMeshFor(key);
-				if (verticesAndNormals == null)
-					continue;
-				assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
-				try {
-					save(
-							path,
-							id.toString(),
-							verticesAndNormals.getVertices(),
-							verticesAndNormals.getNormals(),
-							hasFaces(numberOfFaces));
-
-					numberOfFaces += verticesAndNormals.getVertices().length / 3;
-				} catch (final IOException e) {
-					Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
-					break;
-				}
-			} catch (final RuntimeException e) {
-				LOG.warn("{} : {}", e.getClass(), e.getMessage());
-				e.printStackTrace();
-				throw e;
+			verticesAndNormals = getMeshFor.getMeshFor(key);
+			if (verticesAndNormals == null) {
+				continue;
+			}
+			assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
+			var indexOffset = vertices.size() / 3;
+			vertices.add(verticesAndNormals.getVertices());
+			normals.add(verticesAndNormals.getNormals());
+			for (int index : verticesAndNormals.getIndices()) {
+				indices.add(indexOffset + index + 1);
 			}
 		}
 
+		try {
+			save(path, id.toString(), vertices.toArray(), normals.toArray(), indices.toArray(), hasFaces(numberOfFaces));
+			numberOfFaces += indices.size() / 3;
+		} catch (final IOException e) {
+			Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
+		}
 	}
 
-	protected abstract void save(String path, String id, float[] vertices, float[] normals, boolean append) throws IOException;
+	protected abstract void save(String path, String id, float[] vertices, float[] normals, int[] indices, boolean append) throws IOException;
 
 	public static boolean hasFaces(final int numberOfFaces) {
 
