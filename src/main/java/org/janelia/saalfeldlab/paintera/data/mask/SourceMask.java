@@ -86,16 +86,21 @@ public class SourceMask implements Mask {
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(getRai(), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
-		final HashSet<Long> labels = new HashSet<>();
-		LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachPixel((maskVal, bundledCanvasVal) -> {
-			if (acceptAsPainted.test(maskVal)) {
-				final long label = maskVal.getIntegerLong();
-				bundledCanvasVal.get().setInteger(label);
-				synchronized (labels) {
-					labels.add(label);
+		final var labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
+			final HashSet<Long> labelsForChunk = new HashSet<>();
+			chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
+				if (acceptAsPainted.test(maskVal)) {
+					final long label = maskVal.getIntegerLong();
+					bundledCanvasVal.get().setInteger(label);
+					labelsForChunk.add(label);
 				}
-			}
+			});
+			return labelsForChunk;
 		});
-		return labels;
+		final var allLabels = new HashSet<Long>();
+		for (HashSet<Long> labelSet : labels) {
+			allLabels.addAll(labelSet);
+		}
+		return allLabels;
 	}
 }
