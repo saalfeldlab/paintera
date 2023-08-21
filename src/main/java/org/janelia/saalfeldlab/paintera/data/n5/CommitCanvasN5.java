@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
@@ -61,10 +62,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 public class CommitCanvasN5 implements PersistCanvas {
@@ -629,7 +627,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
 		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("write-blocks-label-multiset-%d").build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long blockId : blocks) {
 			final Future<?> submit = threadPool.submit(() -> {
@@ -653,6 +652,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				throw new RuntimeException(e);
 			}
 		}
+		threadPool.shutdown();
 	}
 
 	// TODO the integer type implementation does not need to iterate over all pixels per block but could intersect with bounding box first
@@ -706,7 +706,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 			increment = 0.0;
 		}
 
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("downsample-and-write-blocks-label-multiset-%d").build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long targetBlock : affectedBlocks) {
 			var future = threadPool.submit(() -> {
@@ -772,6 +773,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				throw new RuntimeException(e);
 			}
 		}
+		threadPool.shutdown();
 	}
 
 	//TODO add progress updates to this when data is available to test against

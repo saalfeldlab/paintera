@@ -1,9 +1,8 @@
 package org.janelia.saalfeldlab.util.n5;
 
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.cache.SharedQueue;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.viewer.Interpolation;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
@@ -25,17 +24,9 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultiset;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetArray;
-import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.type.label.*;
 import net.imglib2.type.numeric.RealType;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
@@ -58,11 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -193,7 +180,7 @@ public class N5Data {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
-				Objects.requireNonNull(MetadataUtils.createMetadataState((N5Writer)reader, dataset)),
+				Objects.requireNonNull(MetadataUtils.createMetadataState((N5Writer) reader, dataset)),
 				name,
 				queue,
 				priority,
@@ -282,12 +269,12 @@ public class N5Data {
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
 			final TmpVolatileHelpers.RaiWithInvalidate<V> vraw = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-					(CachedCellImg)raw,
+					(CachedCellImg) raw,
 					queue,
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 			return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
 		} catch (final Exception e) {
-			throw e instanceof IOException ? (IOException)e : new IOException(e);
+			throw e instanceof IOException ? (IOException) e : new IOException(e);
 		}
 	}
 
@@ -358,7 +345,9 @@ public class N5Data {
 
 		LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadataState.getGroup());
 
-		final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
+		final int numProcessors = Runtime.getRuntime().availableProcessors();
+		final NamedThreadFactory threadFactory = new NamedThreadFactory("populate-mipmap-scales-%d", true);
+		final ExecutorService es = Executors.newFixedThreadPool(numProcessors, threadFactory);
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
 
@@ -439,7 +428,7 @@ public class N5Data {
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 
-		return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
+		return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer) reader, dataset), queue, priority, name, null);
 	}
 
 	/**
@@ -555,7 +544,7 @@ public class N5Data {
 		cachedImg.setLinkedType(new LabelMultisetType(cachedImg));
 
 		@SuppressWarnings("unchecked") final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
-				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>)img);
+				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
 		final boolean isDirty = AccessFlags.ofAccess(cachedImg.getAccessType()).contains(AccessFlags.DIRTY);
 		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(
@@ -569,7 +558,7 @@ public class N5Data {
 		final VolatileCachedCellImg<VolatileLabelMultisetType, VolatileLabelMultisetArray> vimg = new VolatileCachedCellImg<>(
 				cachedImg.getCellGrid(),
 				new VolatileLabelMultisetType().getEntitiesPerPixel(),
-				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>)img),
+				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img),
 				cacheHints,
 				unchecked::get);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
@@ -649,7 +638,9 @@ public class N5Data {
 
 		LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
 
-		final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
+		final int numProcessors = Runtime.getRuntime().availableProcessors();
+		final NamedThreadFactory threadFactory = new NamedThreadFactory("populate-mipmap-scales-%d", true);
+		final ExecutorService es = Executors.newFixedThreadPool(numProcessors, threadFactory);
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		final ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
 
@@ -743,8 +734,8 @@ public class N5Data {
 			final String name) throws IOException, ReflectionException {
 
 		return N5Types.isLabelMultisetType(reader, dataset)
-				? (DataSource<D, T>)openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
-				: (DataSource<D, T>)openScalarAsSource(reader, dataset, transform, queue, priority, name);
+				? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
+				: (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, queue, priority, name);
 	}
 
 	/**
@@ -826,7 +817,6 @@ public class N5Data {
 		n5.createGroup(dataGroup);
 
 
-
 		n5.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
 		n5.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
 		n5.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
@@ -843,7 +833,7 @@ public class N5Data {
 			final double[] scaleFactors = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
 
 			if (scaleFactors != null) {
-				Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
+				Arrays.setAll(scaledDimensions, dim -> (long) Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
 				Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
 			}
 

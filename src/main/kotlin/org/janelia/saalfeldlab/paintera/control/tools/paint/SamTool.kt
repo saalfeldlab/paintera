@@ -790,7 +790,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private val SAM_TASK_SERVICE = Executors.newCachedThreadPool(
+		private val SAM_TASK_SERVICE = Executors.newFixedThreadPool(
+			Runtime.getRuntime().availableProcessors(),
 			ThreadFactoryBuilder()
 				.setNameFormat("sam-task-%d")
 				.setDaemon(true)
