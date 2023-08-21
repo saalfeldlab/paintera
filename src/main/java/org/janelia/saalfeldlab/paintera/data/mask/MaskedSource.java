@@ -22,35 +22,18 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.FinalInterval;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.FinalRealRandomAccessibleRealInterval;
-import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealInterval;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.RealRandomAccessibleRealInterval;
+import net.imglib2.*;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.img.DiskCachedCellImg;
-import net.imglib2.cache.img.DiskCachedCellImgFactory;
-import net.imglib2.cache.img.DiskCachedCellImgOptions;
-import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.img.*;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
@@ -76,11 +59,7 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.BundleView;
-import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.RealRandomAccessibleTriple;
-import net.imglib2.view.Views;
+import net.imglib2.view.*;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -101,15 +80,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -553,21 +525,21 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	/**
 	 * This method differs from `applyMask` in a few important ways:
-	 *  - It runs over each block in parallel
-	 *  - It is a blocking method
+	 * - It runs over each block in parallel
+	 * - It is a blocking method
 	 *
-	 * @param mask to apply ( should be same as `currentMask`)
-	 * @param intervals to apply mask over, separately.
+	 * @param mask            to apply ( should be same as `currentMask`)
+	 * @param intervals       to apply mask over, separately.
 	 * @param acceptAsPainted to accept a value
 	 */
 	public void applyMaskOverIntervals(
 			final SourceMask mask,
 			final List<Interval> intervals,
 			final DoubleProperty progressBinding,
-			final Predicate<UnsignedLongType> acceptAsPainted ) {
+			final Predicate<UnsignedLongType> acceptAsPainted) {
 
 		if (mask == null)
-			return ;
+			return;
 
 		final ExecutorService applyPool = Executors.newFixedThreadPool(
 				Runtime.getRuntime().availableProcessors(),
@@ -598,10 +570,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				final int[] blockSize = new int[grid.numDimensions()];
 				grid.cellDimensions(blockSize);
 
-				final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), interval);
+				final TLongSet directlyAffectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), interval);
 
 				final var labelToBlocks = paintAffectedPixels(
-						affectedBlocks,
+						directlyAffectedBlocks,
 						mask,
 						canvas,
 						canvas.getCellGrid(),
@@ -609,34 +581,39 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						acceptAsPainted);
 
 				synchronized (progressBinding) {
-					var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+					var progress = completedTasks.incrementAndGet() / (double) expectedTasks;
 					progressBinding.set(progress);
 				}
 
-				for (var label : labelToBlocks.entrySet()) {
-					this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+				final Map<Long, TLongHashSet> blocksByLabelByLevel = this.affectedBlocksByLabel[maskInfo.level];
+				synchronized (blocksByLabelByLevel) {
+					for (var label : labelToBlocks.entrySet()) {
+						blocksByLabelByLevel.computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+					}
 				}
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
-						affectedBlocks,
+						directlyAffectedBlocks,
 						maskInfo.level,
 						0);
 
-				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
-				this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
+				LOG.debug("Added affected block: {}", blocksByLabelByLevel);
+				synchronized (affectedBlocks) {
+					affectedBlocks.addAll(paintedBlocksAtHighestResolution);
+				}
 
 				try {
 					propagationExecutor.submit(() -> {
 						propagateMask(
 								mask.getRai(),
-								affectedBlocks,
+								directlyAffectedBlocks,
 								maskInfo.level,
 								interval,
 								acceptAsPainted);
 
 					}).get();
 					synchronized (progressBinding) {
-						var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+						var progress = completedTasks.incrementAndGet() / (double) expectedTasks;
 						progressBinding.set(progress);
 					}
 				} catch (InterruptedException | ExecutionException e) {
@@ -671,6 +648,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (mask.getInvalidateVolatile() != null)
 			mask.getInvalidateVolatile().invalidateAll();
 
+		applyPool.shutdown();
 		this.isBusy.set(false);
 	}
 
@@ -732,7 +710,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		toTargetScale.apply(positionDouble, positionDouble);
 
-		Arrays.setAll(targetPosition, d -> (long)Math.ceil(positionDouble[d]));
+		Arrays.setAll(targetPosition, d -> (long) Math.ceil(positionDouble[d]));
 	}
 
 	public void resetMasks() throws MaskInUse {
@@ -839,7 +817,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			VBox.setVgrow(statesText, Priority.ALWAYS);
 			VBox.setVgrow(progressBar, Priority.ALWAYS);
 			InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
-			states.addListener((ListChangeListener<? super String>)change ->
+			states.addListener((ListChangeListener<? super String>) change ->
 					InvokeOnJavaFXApplicationThread.invoke(() ->
 							statesText.setText(String.join("\n", states))
 					)
@@ -1053,7 +1031,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	public RandomAccessibleInterval<UnsignedLongType> getReadOnlyDataCanvas(final int t, final int level) {
 
 		return Converters.convert(
-				(RandomAccessibleInterval<UnsignedLongType>)this.dataCanvases[level],
+				(RandomAccessibleInterval<UnsignedLongType>) this.dataCanvases[level],
 				new TypeIdentity<>(),
 				new UnsignedLongType()
 		);
@@ -1200,7 +1178,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			LOG.debug("Interval at lower resolution level: {} {}", Intervals.minAsLongArray(intervalAtLowerRes), Intervals.maxAsLongArray(intervalAtLowerRes));
 
 			// downsample
-			final int[] steps = DoubleStream.of(paintedToLowerScales).mapToInt(d -> (int)d).toArray();
+			final int[] steps = DoubleStream.of(paintedToLowerScales).mapToInt(d -> (int) d).toArray();
 			LOG.debug("Downsample step size: {}", steps);
 			final var blocksModifiedByLabel = downsampleBlocks(
 					Views.extendValue(atPaintedLevel, new UnsignedLongType(Label.INVALID)),
@@ -1289,8 +1267,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					);
 
 					final Interval interval = new FinalInterval(intersectionMin, intersectionMax);
-//					final RandomAccessibleInterval<UnsignedLongType> canvasAtHighResInterval = Views.interval(higherResCanvas, interval);
-//					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> maskOverInterval = Views.interval(Views.raster(higherResMask), interval);
 					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> canvasAtHighResInterval = Views.interval(new BundleView<>(higherResCanvas), interval);
 					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> maskOverInterval = Views.interval(new BundleView<>(Views.raster(higherResMask)), interval);
 					final HashSet<Long> labels = new HashSet<>();
@@ -1340,7 +1316,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval interval) {
 
 		if (input instanceof AccessedBlocksRandomAccessible<?>) {
-			final var tracker = (net.imglib2.util.AccessedBlocksRandomAccessible<?>)input;
+			final var tracker = (net.imglib2.util.AccessedBlocksRandomAccessible<?>) input;
 			if (grid.equals(tracker.getGrid())) {
 				final long[] blocks = tracker.listBlocks();
 				LOG.debug("Got these blocks from tracker: {}", blocks);
@@ -1433,7 +1409,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final AtomicReference<HashMap<Long, TLongHashSet>> labelToBlocks = new AtomicReference<>(new HashMap<>());
 
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final List<Future<?>> jobs = new ArrayList<>();
 		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 			final long blockId = blockIt.next();
@@ -1473,6 +1450,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				throw new RuntimeException(e);
 			}
 		}
+		threadPool.shutdown();
 		return labelToBlocks.getAcquire();
 	}
 
@@ -1593,7 +1571,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					final CellLoader<UnsignedLongType> loader = img -> img.forEach(t -> t.set(Label.INVALID));
 					final DiskCachedCellImg<UnsignedLongType, ?> store = f.create(dimensions[level], loader, o);
 					final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate((
-									DiskCachedCellImg)store,
+									DiskCachedCellImg) store,
 							queue,
 							new CacheHints(LoadingStrategy.VOLATILE, canvases.length - 1 - level, true));
 
@@ -1635,7 +1613,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public CellGrid getCellGrid(final int t, final int level) {
 
-		return ((AbstractCellImg<?, ?, ?, ?>)underlyingSource().getSource(t, level)).getCellGrid();
+		return ((AbstractCellImg<?, ?, ?, ?>) underlyingSource().getSource(t, level)).getCellGrid();
 	}
 
 	@Override
@@ -1725,7 +1703,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, level);
 		final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore =
 				TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-						(CachedCellImg)store,
+						(CachedCellImg) store,
 						queue,
 						new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 		return new Pair<>(store, vstore);
@@ -1743,7 +1721,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, imgDimensions, defaultValue);
 		final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore =
 				TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-						(CachedCellImg)store,
+						(CachedCellImg) store,
 						queue,
 						new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 		return new Pair<>(store, vstore);
@@ -1809,10 +1787,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				acceptLabel);
 
 		if (store instanceof AccessedBlocksRandomAccessible<?>) {
-			((AccessedBlocksRandomAccessible)store).clear();
+			((AccessedBlocksRandomAccessible) store).clear();
 		}
 		if (vstore instanceof AccessedBlocksRandomAccessible<?>) {
-			((AccessedBlocksRandomAccessible)vstore).clear();
+			((AccessedBlocksRandomAccessible) vstore).clear();
 		}
 	}
 
@@ -1873,7 +1851,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private int numContainedVoxels(final int targetLevel) {
 		// always compare to original level to get number of contained voxels.
 		final double[] resolution = DataSource.getRelativeScales(this, 0, 0, targetLevel);
-		return (int)Math.ceil(resolution[0] * resolution[1] * resolution[2]);
+		return (int) Math.ceil(resolution[0] * resolution[1] * resolution[2]);
 	}
 
 }
