@@ -58,50 +58,6 @@ jobs:
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         if: ${{ env.MACOS_CERTIFICATE == null && matrix.os == 'macos-latest' }}
         run: mvn -B clean install -DskipTests -Pbuild-installer --file pom.xml
-      - name: "Build with Maven (macOS Signed)"
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        if: ${{ env.MACOS_CERTIFICATE != null && matrix.os == 'macos-latest' }}
-        run: |
-          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p temppass build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p temppass build.keychain
-          security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temppass build.keychain
-          export IDENTITY=$(security find-identity -v)
-          echo $(security find-identity -v)
-          mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign --file pom.xml
-      - name: "Codesign DMG"
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        if: ${{ env.MACOS_CERTIFICATE != null && matrix.os == 'macos-latest' }}
-        run: |
-          export DMG_PATH=$(ls ./target/*.dmg)
-          /usr/bin/codesign --deep --force -s ${{ env.DEV_IDENTITY}} $DMG_PATH -v
-          echo DMG_PATH=$DMG_PATH >> $GITHUB_ENV
-          echo ${{ env.DMG_PATH }}
-      - name: "Notarize DMG"
-        env:
-          APP_EMAIL: ${{ secrets.APP_EMAIL }}
-          APP_PASS: ${{ secrets.APP_PASS }}
-        if: ${{ env.APP_EMAIL != null && matrix.os == 'macos-latest' }}
-        uses: devbotsxyz/xcode-notarize@v1
-        with:
-          product-path: ${{ env.DMG_PATH }}
-          primary-bundle-id: ${{ env.PRIMARY_BUNDLE_ID }}
-          appstore-connect-username: ${{ secrets.APP_EMAIL }}
-          appstore-connect-password: ${{ secrets.APP_PASS }}
-      - name: "Staple DMG"
-        env:
-          APP_EMAIL: ${{ secrets.APP_EMAIL }}
-          APP_PASS: ${{ secrets.APP_PASS }}
-        if: ${{ env.APP_EMAIL != null && matrix.os == 'macos-latest' }}
-        uses: devbotsxyz/xcode-staple@v1
-        with:
-          product-path: ${{ env.DMG_PATH }}
       - name: Update Automatic Release
         uses: marvinpinto/action-automatic-releases@latest
         if: ${{ env.RELEASE_INSTALLERS }}
