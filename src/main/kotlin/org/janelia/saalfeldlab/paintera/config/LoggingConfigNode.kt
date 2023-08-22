@@ -21,9 +21,11 @@ import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
+import java.nio.file.Path
 
 class LoggingConfigNode(private val config: LoggingConfig) {
 
@@ -68,7 +70,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 		get() {
 
 			val userHome = System.getProperty("user.home") ?: "\$HOME"
-			val logFilePath = "$userHome/.paintera/logs/paintera.${LogUtils.painteraLogFilenameBase}.log"
+			val logFilePath = Path.of(userHome, ".paintera", "logs", "paintera.${LogUtils.painteraLogFilenameBase}.log").toAbsolutePath().toString()
 
 			val isEnabledCheckBox = CheckBox("Enable logging")
 				.also { it.selectedProperty().bindBidirectional(config.loggingEnabledProperty) }
