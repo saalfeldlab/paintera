@@ -851,7 +851,7 @@ object N5Helpers {
 		/* `fromClassInfo is the old style. Support both when deserializing, at least for now. Should be replaced on next save */
 		val fromClassInfo = json[SerializationKeys.CONTAINER]
 			?.asJsonObject?.get("data")
-			?.asJsonObject?.get("basePath")
+			?.asJsonObject?.let { it.get("basePath") ?: it.get("file") }
 			?.asString
 		val uri = fromClassInfo ?: json[URI]?.asString ?: paintera.projectDirectory.actualDirectory.toURI().toString()
 		return N5Helpers.getReaderOrWriterIfN5ContainerExists(uri)!!
