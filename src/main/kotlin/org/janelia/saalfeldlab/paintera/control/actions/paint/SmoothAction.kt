@@ -492,19 +492,6 @@ object SmoothAction : MenuAction("_Smooth") {
 
 		val sourceImg = maskedSource.getReadOnlyDataBackground(0, scale0)
 		val canvasImg = maskedSource.getReadOnlyDataCanvas(0, scale0)
-		val virtualLabelMask = sourceImg.convertWith(canvasImg, DoubleType(0.0)) { background, canvas, mask ->
-			val labelFromCanvas = canvas.get()
-			if (labelFromCanvas != Imglib2Label.INVALID) {
-				if (labelFromCanvas in labels)
-					mask.set(1.0)
-			} else {
-				val labelFromSource = background.realDouble.toLong()
-				if (labelFromSource != Imglib2Label.INVALID) {
-					if (labelFromSource in labels)
-						mask.set(1.0)
-				}
-			}
-		}
 
 		val bundleSourceImg = BundleView(sourceImg.convert(UnsignedLongType(Imglib2Label.INVALID)) { input, output -> output.set(input.realDouble.toLong()) }.interval(sourceImg)).interval(sourceImg)
 
@@ -513,7 +500,7 @@ object SmoothAction : MenuAction("_Smooth") {
 			val canvasChunk = canvasImg.interval(labelMaskChunk)
 
 			LoopBuilder.setImages(canvasChunk, sourceChunk, labelMaskChunk).multiThreaded().forEachPixel { canvasLabel, sourceBundle, maskVal ->
-				canvasLabel.get().let { label ->
+				val hasLabel = canvasLabel.get().let { label ->
 					if (label != Imglib2Label.INVALID && label in labels)
 						1.0
 					else null
@@ -521,9 +508,8 @@ object SmoothAction : MenuAction("_Smooth") {
 					if (label != Imglib2Label.INVALID && label in labels)
 						1.0
 					else null
-				}?.let { mask ->
-					maskVal.set(mask)
 				}
+				hasLabel?.let { maskVal.set(it) }
 			}
 		}
 
