@@ -320,7 +320,7 @@ object N5Helpers {
 		}
 
 		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET"
-		val initialLut = if (writer.list(group).contains(PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET)) {
+		val initialLut = if (writer.exists(dataset)) {
 			N5FragmentSegmentAssignmentInitialLut(writer, dataset)
 		} else NoInitialLutAvailable()
 		return try {
