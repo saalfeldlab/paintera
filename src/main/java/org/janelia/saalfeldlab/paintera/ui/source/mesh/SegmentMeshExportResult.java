@@ -10,7 +10,7 @@ public class SegmentMeshExportResult<T> {
 
 	private final long[] segmentId;
 
-	private final String[] filePaths;
+	private final String filePath;
 
 	private final int scale;
 
@@ -21,12 +21,12 @@ public class SegmentMeshExportResult<T> {
 			final long[][] fragmentIds,
 			final long[] segmentId,
 			final int scale,
-			final String[] filePaths) {
+			final String filePath) {
 
 		this.meshExporter = meshExporter;
 		this.fragmentIds = fragmentIds;
 		this.segmentId = segmentId;
-		this.filePaths = filePaths;
+		this.filePath = filePath;
 		this.scale = scale;
 	}
 
@@ -45,9 +45,9 @@ public class SegmentMeshExportResult<T> {
 		return segmentId;
 	}
 
-	public String[] getFilePaths() {
+	public String getFilePath() {
 
-		return filePaths;
+		return filePath;
 	}
 
 	public int getScale() {

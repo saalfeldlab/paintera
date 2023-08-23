@@ -18,29 +18,27 @@ import java.util.*;
 public abstract class MeshExporter<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	protected int numberOfFaces = 0;
-
 	public void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final MeshSettings[] meshSettings,
 			final T[] ids,
 			final int scale,
-			final String[] paths) {
+			final String path) {
 
-		assert ids.length == paths.length;
 		for (int i = 0; i < ids.length; i++) {
-			numberOfFaces = 0;
-			exportMesh(getBlockListFor, getMeshFor, ids[i], scale, paths[i]);
+			exportMesh(getBlockListFor, getMeshFor, meshSettings[i], ids[i], scale, path, i != 0);
 		}
 	}
 
 	public void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final MeshSettings meshSettings,
 			final T id,
 			final int scaleIndex,
-			final String path) {
+			final String path,
+			final boolean append) {
 		// all blocks from id
 		final Set<HashWrapper<Interval>> blockSet = new HashSet<>();
 
@@ -60,10 +58,10 @@ public abstract class MeshExporter<T> {
 			keys.add(new ShapeKey<>(
 					id,
 					scaleIndex,
-					0,
-					0,
-					0,
-					0,
+					meshSettings.getSimplificationIterations(),
+					meshSettings.getSmoothingLambda(),
+					meshSettings.getSmoothingIterations(),
+					meshSettings.getMinLabelRatio(),
 					Intervals.minAsLongArray(block),
 					Intervals.maxAsLongArray(block)
 			));
@@ -88,18 +86,12 @@ public abstract class MeshExporter<T> {
 		}
 
 		try {
-			save(path, id.toString(), vertices.toArray(), normals.toArray(), indices.toArray(), hasFaces(numberOfFaces));
-			numberOfFaces += indices.size() / 3;
+			save(path, id.toString(), vertices.toArray(), normals.toArray(), indices.toArray(), append);
 		} catch (final IOException e) {
 			Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
 		}
 	}
 
 	protected abstract void save(String path, String id, float[] vertices, float[] normals, int[] indices, boolean append) throws IOException;
-
-	public static boolean hasFaces(final int numberOfFaces) {
-
-		return numberOfFaces > 0;
-	}
 
 }

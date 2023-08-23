@@ -15,8 +15,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,17 +22,18 @@ import java.util.stream.Stream;
 
 public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult<T>> {
 
+
 	public enum MeshFileFormat {
-		Obj, Binary
+		Obj, Binary;
 	}
 
 	final int LIST_CELL_HEIGHT = 25;
 
 	private final Spinner<Integer> scale;
 
-	private final TextField filePath;
+	private final TextField filePathField;
 
-	private final String[] filePaths;
+	private final TextField meshFileNameField;
 
 	private MeshExporter<T> meshExporter;
 
@@ -45,32 +44,38 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 	private ComboBox<MeshFileFormat> fileFormats;
 
 	private CheckListView<Long> checkListView;
-
+	private CheckBox selectAll;
 	private final BooleanBinding isError;
+
+	private static String previousFilePath = null;
 
 	public SegmentMeshExporterDialog(final SegmentMeshInfo meshInfo) {
 
 		super();
 		this.segmentIds = new long[]{meshInfo.segmentId()};
 		this.fragmentIds = new long[][]{meshInfo.containedFragments()};
-		this.filePath = new TextField();
-		this.filePaths = new String[]{""};
+		this.filePathField = new TextField();
+		if (previousFilePath != null)
+			filePathField.setText(previousFilePath);
+		this.meshFileNameField = new TextField();
+		meshFileNameField.setText(meshInfo.segmentId().toString());
 		this.setTitle("Export Mesh " + Arrays.toString(segmentIds));
-		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty() || !pathIsDirectory(), filePath.textProperty()));
+		this.isError = (Bindings.createBooleanBinding(() -> filePathField.getText().isEmpty() || meshFileNameField.getText().isEmpty() || pathExists(), filePathField.textProperty(), meshFileNameField.textProperty()));
 		final MeshSettings settings = meshInfo.getMeshSettings();
 		this.scale = new Spinner<>(0, settings.getNumScaleLevels() - 1, settings.getFinestScaleLevel());
-		listenForFilePaths();
+		this.scale.setEditable(true);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) {
 				return null;
 			}
+			previousFilePath = filePathField.getText();
 			return new SegmentMeshExportResult<>(
 					meshExporter,
 					fragmentIds,
 					segmentIds,
 					scale.getValue(),
-					filePaths
+					resolveFilePath()
 			);
 		});
 
@@ -78,46 +83,46 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 
 	}
 
-	private boolean pathIsDirectory() {
+	private boolean pathExists() {
 
-		return Path.of(resolveFilePath()).toFile().isDirectory();
+		return Path.of(resolveFilePath()).toFile().exists();
 	}
 
 	@NotNull
 	private String resolveFilePath() {
-		final String file = filePath.getText();
+		final String file = Path.of(filePathField.getText(), meshFileNameField.getText()).toString();
 		final String path = file.replace("~", System.getProperty("user.home"));
 		return path;
-	}
-
-	private void listenForFilePaths() {
-		filePath.textProperty().addListener((obs, oldv, newv) -> {
-			if (!isError.get())
-				for (int i = 0; i < segmentIds.length; i++) {
-					filePaths[i] = Paths.get(resolveFilePath(), "mesh" + segmentIds[i]).toAbsolutePath().toString();
-				}
-		});
 	}
 
 	public SegmentMeshExporterDialog(ObservableList<SegmentMeshInfo> meshInfoList) {
 
 		super();
-		this.filePath = new TextField();
+		this.filePathField = new TextField();
+		if (previousFilePath != null)
+			filePathField.setText(previousFilePath);
+		this.meshFileNameField = new TextField();
 		this.setTitle("Export mesh ");
 		this.segmentIds = new long[meshInfoList.size()];
 		this.fragmentIds = new long[meshInfoList.size()][];
-		this.filePaths = new String[meshInfoList.size()];
 		this.checkListView = new CheckListView<>();
+		this.selectAll = new CheckBox("Select All");
+		selectAll.selectedProperty().addListener((obs, oldv, selected) -> {
+			if (selected) {
+				checkListView.getCheckModel().checkAll();
+			} else {
+				checkListView.getCheckModel().clearChecks();
+			}
+		});
 		this.isError = (Bindings.createBooleanBinding(() ->
-						filePath.getText().isEmpty()
+						filePathField.getText().isEmpty()
 								|| checkListView.getItems().isEmpty()
-								|| !pathIsDirectory(),
-				filePath.textProperty(),
+								|| !pathExists(),
+				filePathField.textProperty(),
 				checkListView.itemsProperty()
 		));
-		listenForFilePaths();
 
-		int minCommonScaleLevels = Integer.MAX_VALUE;
+			int minCommonScaleLevels = Integer.MAX_VALUE;
 		int minCommonScale = Integer.MAX_VALUE;
 		final ObservableList<Long> ids = FXCollections.observableArrayList();
 		for (int i = 0; i < meshInfoList.size(); i++) {
@@ -136,18 +141,20 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 			}
 		}
 
-		scale = new Spinner<>(minCommonScale, minCommonScaleLevels, 1);
+		scale = new Spinner<>(minCommonScale, minCommonScaleLevels-1, minCommonScale);
+		scale.setEditable(true);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) {
 				return null;
 			}
+			previousFilePath = filePathField.getText();
 			return new SegmentMeshExportResult<>(
 					meshExporter,
 					fragmentIds,
 					segmentIds,
 					scale.getValue(),
-					filePaths
+					resolveFilePath()
 			);
 		});
 
@@ -166,7 +173,7 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
 			if (directory != null) {
-				filePath.setText(directory.getAbsolutePath());
+				filePathField.setText(directory.getAbsolutePath());
 			}
 		});
 
@@ -184,37 +191,21 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 		int row = createCommonDialog(contents);
 
 		checkListView.setItems(ids);
-		checkListView.prefHeightProperty().bind(Bindings.size(checkListView.itemsProperty().get()).multiply(
-				LIST_CELL_HEIGHT));
+		checkListView.prefHeightProperty()
+				.bind(Bindings.size(checkListView.itemsProperty().get()).multiply(LIST_CELL_HEIGHT));
 
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
-			if (directory != null) {
-				filePath.setText(directory.getAbsolutePath());
-
-				// recover selected ids
-				if (checkListView.getItems().isEmpty())
-					return;
-
-				final List<Long> selectedIds = new ArrayList<>();
-				for (int i = 0; i < checkListView.getItems().size(); i++) {
-					if (checkListView.getItemBooleanProperty(i).get())
-						selectedIds.add(checkListView.getItems().get(i));
-				}
-
-				segmentIds = selectedIds.stream().mapToLong(l -> l).toArray();
-
-				for (int i = 0; i < selectedIds.size(); i++) {
-					filePaths[i] = Paths.get(directory.getAbsolutePath(), "mesh" + selectedIds.get(i)).toString();
-				}
-			}
+			if (directory != null)
+				filePathField.setText(directory.getAbsolutePath());
 		});
 
 		contents.add(button, 2, row);
 		++row;
 
+		vbox.getChildren().add(selectAll);
 		vbox.getChildren().add(checkListView);
 		vbox.getChildren().add(contents);
 		this.getDialogPane().setContent(vbox);
@@ -247,8 +238,10 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 
 		++row;
 
+		contents.add(new Label("Name "), 0, row);
+		contents.add(meshFileNameField, 1, row++);
 		contents.add(new Label("Save to "), 0, row);
-		contents.add(filePath, 1, row);
+		contents.add(filePathField, 1, row);
 
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);

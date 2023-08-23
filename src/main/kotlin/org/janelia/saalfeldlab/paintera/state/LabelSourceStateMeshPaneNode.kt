@@ -11,6 +11,7 @@ import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
@@ -18,6 +19,7 @@ import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
@@ -28,7 +30,7 @@ import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Objects
+import java.util.*
 import java.util.stream.Collectors
 
 typealias TPE = TitledPaneExtensions
@@ -114,14 +116,23 @@ class LabelSourceStateMeshPaneNode(
 				val exportDialog = SegmentMeshExporterDialog<Long>(meshesInfoList.items)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
-					val parameters = result.get()
-					parameters.meshExporter.exportMesh(
-						manager.getBlockListForLongKey,
-						manager.getMeshForLongKey,
-						parameters.segmentId.map { it }.toTypedArray(),
-						parameters.scale,
-						parameters.filePaths
-					)
+					result.get().run {
+						val ids = segmentId.map { it }.toTypedArray()
+						val meshSettings = ids.map { meshInfos.meshSettings().getOrAddMesh(it) }.toTypedArray()
+
+						(meshExporter as? MeshExporterObj<*>)?.run {
+							val colors : Array<Color> = ids.map { meshInfos.getColor(it) }.toTypedArray()
+							exportMaterial(filePath, ids.toLongArray(), colors)
+						}
+						meshExporter.exportMesh(
+							manager.getBlockListForLongKey,
+							manager.getMeshForLongKey,
+							meshSettings,
+							ids,
+							scale,
+							filePath
+						)
+					}
 				}
 			}
 
