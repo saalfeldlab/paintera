@@ -291,9 +291,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		LOG.debug("Quitting!")
 		baseView.stop()
 		projectDirectory.close()
-		DeviceManager.closeDevices()
 		Platform.exit()
-		exitProcess(0)
+		if (DeviceManager.closeDevices()) {
+			/* due to a bug (https://bugs.openjdk.org/browse/JDK-8232862) when MIDI devices are opened, the thread
+			* that is created does not exit when closing the devices. If the process is not explicitly exited
+			* then the application hangs after exiting the window.  */
+			exitProcess(0)
+		}
 	}
 
 
