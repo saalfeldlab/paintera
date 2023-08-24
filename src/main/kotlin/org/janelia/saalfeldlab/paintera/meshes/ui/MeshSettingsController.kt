@@ -72,8 +72,8 @@ class MeshSettingsController @JvmOverloads constructor(
 				it.slider.valueProperty().bindBidirectional(coarsestScaleLevel)
 			},
 			NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).apply { slider.valueProperty().bindBidirectional(finestScaleLevel) },
-			NumericSliderWithField(0.0, 1.00, .05).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
-			NumericSliderWithField(0, 10, 5).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
+			NumericSliderWithField(0.0, 1.00, 1.0).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
+			NumericSliderWithField(0, 10, 1).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
 			NumericSliderWithField(0.0, 1.0, 0.5).apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
 			ComboBox(FXCollections.observableArrayList(*DrawMode.values())).apply { valueProperty().bindBidirectional(drawMode) },
 			ComboBox(FXCollections.observableArrayList(*CullFace.values())).apply { valueProperty().bindBidirectional(cullFace) })
