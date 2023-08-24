@@ -268,9 +268,6 @@ public class MeshGenerator<T> {
 					((PhongMaterial)meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
 					meshAdded.drawModeProperty().bind(this.state.settings.getDrawModeProperty());
 					meshAdded.cullFaceProperty().bind(this.state.settings.getCullFaceProperty());
-					meshAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
-					meshAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
-					meshAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
 				}
 
 				if (change.getValueAdded().getB() != null) {
@@ -284,9 +281,6 @@ public class MeshGenerator<T> {
 						material = null;
 					if (material instanceof PhongMaterial)
 						((PhongMaterial)material).diffuseColorProperty().bind(this.state.premultipliedColor);
-					blockOutlineAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
-					blockOutlineAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
-					blockOutlineAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
 					blockOutlineAdded.setDisable(true);
 				}
 			}

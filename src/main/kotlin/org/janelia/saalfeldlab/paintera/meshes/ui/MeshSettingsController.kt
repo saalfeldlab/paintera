@@ -34,7 +34,6 @@ class MeshSettingsController @JvmOverloads constructor(
 	private val smoothingLambda: DoubleProperty,
 	private val smoothingIterations: IntegerProperty,
 	private val minLabelRatio: DoubleProperty,
-	private val inflate: DoubleProperty,
 	private val drawMode: Property<DrawMode>,
 	private val cullFace: Property<CullFace>,
 	private val isVisible: BooleanProperty,
@@ -51,7 +50,6 @@ class MeshSettingsController @JvmOverloads constructor(
 		meshSettings.smoothingLambdaProperty,
 		meshSettings.smoothingIterationsProperty,
 		meshSettings.minLabelRatioProperty,
-		meshSettings.inflateProperty,
 		meshSettings.drawModeProperty,
 		meshSettings.cullFaceProperty,
 		meshSettings.isVisibleProperty,
@@ -77,7 +75,6 @@ class MeshSettingsController @JvmOverloads constructor(
 			NumericSliderWithField(0.0, 1.00, .05).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
 			NumericSliderWithField(0, 10, 5).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
 			NumericSliderWithField(0.0, 1.0, 0.5).apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
-			NumericSliderWithField(0.5, 2.0, inflate.value).apply { slider.valueProperty().bindBidirectional(inflate) },
 			ComboBox(FXCollections.observableArrayList(*DrawMode.values())).apply { valueProperty().bindBidirectional(drawMode) },
 			ComboBox(FXCollections.observableArrayList(*CullFace.values())).apply { valueProperty().bindBidirectional(cullFace) })
 	}
@@ -154,7 +151,6 @@ class MeshSettingsController @JvmOverloads constructor(
 			smoothingLambdaSlider: NumericSliderWithField,
 			smoothingIterationsSlider: NumericSliderWithField,
 			minLabelRatioSlider: NumericSliderWithField,
-			inflateSlider: NumericSliderWithField,
 			drawModeChoice: ComboBox<DrawMode>,
 			cullFaceChoice: ComboBox<CullFace>,
 		): GridPane {
@@ -188,7 +184,6 @@ class MeshSettingsController @JvmOverloads constructor(
 				addGridOption("Min label ratio", minLabelRatioSlider, tooltipText)
 			}
 
-			addGridOption("Inflate", inflateSlider, "Inflate Meshes by Factor")
 			addGridOption("Draw Mode", drawModeChoice)
 			addGridOption("Cull Face", cullFaceChoice)
 			return this
