@@ -88,7 +88,7 @@ class Paintera : Application() {
 			notifyPreloader(SplashScreenFinishPreloader())
 			PlatformImpl.runAndWait {
 				Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error).apply {
-					setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) }
+					setOnHidden { exitProcess(0); }
 					initModality(Modality.NONE)
 					showAndWait()
 				}
