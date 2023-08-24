@@ -22,14 +22,13 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.jetbrains.annotations.NotNull;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import org.testfx.api.FxRobot;
+import org.testfx.api.FxToolkit;
 import org.testfx.framework.junit.ApplicationTest;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -37,7 +36,7 @@ import java.util.function.Supplier;
 
 public class PainteraBaseViewTest extends FxRobot {
 
-//	@BeforeClass
+	//	@BeforeClass
 	public static void setup() throws Exception {
 
 		System.setProperty("headless.geometry", "1600x1200-32");
@@ -47,14 +46,17 @@ public class PainteraBaseViewTest extends FxRobot {
 		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
 	}
 
-//	@AfterClass
-	public static void cleanup() throws InterruptedException {
+	//	@AfterClass
+	public static void cleanup() throws InterruptedException, TimeoutException {
 		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
-			Paintera.getApplication().resetApplication();
+			Paintera.getPaintera().getBaseView().stop();
+			Paintera.getPaintera().getProjectDirectory().close();
 		});
+		FxToolkit.cleanupApplication(Paintera.getApplication());
 	}
 
-//	@Test
+
+	//	@Test
 	public void testAddSingleScaleLabelSource() {
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
@@ -66,7 +68,7 @@ public class PainteraBaseViewTest extends FxRobot {
 				"singleScaleLabelSource", new LabelBlockLookupNoBlocks());
 	}
 
-//	@Test
+	//	@Test
 	public void testAddSingleScaleConnectomicsRawSource() {
 		final Random random = new Random();
 		final RandomAccessibleInterval<UnsignedLongType> rawData =
@@ -87,7 +89,7 @@ public class PainteraBaseViewTest extends FxRobot {
 		);
 	}
 
-//	@Test
+	//	@Test
 	public void testAddMultiScaleConnectomicsRawSource() {
 		var random = new Random();
 		final double[] center2D = new double[]{500, 500};
@@ -132,7 +134,7 @@ public class PainteraBaseViewTest extends FxRobot {
 		});
 	}
 
-//	@Test
+	//	@Test
 	public void testAddMultiScaleConnectomicsLabelSource() {
 		final Random random = new Random();
 
