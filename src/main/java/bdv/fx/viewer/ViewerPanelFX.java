@@ -190,7 +190,7 @@ public class ViewerPanelFX
 		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 
 		this.state = new ViewerState(numTimepoints, this);
-		state.addListener(obs -> Paintera.whenPaintable(this::requestRepaint));
+		state.addListener(obs -> Paintera.ifPaintable(this::requestRepaint));
 
 		Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 
