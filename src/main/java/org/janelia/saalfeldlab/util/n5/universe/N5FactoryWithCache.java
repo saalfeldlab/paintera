@@ -59,7 +59,10 @@ public class N5FactoryWithCache extends N5Factory {
 				readerCache.remove(url).close();
 			}
 		} else {
-			readerCache.put(url, super.openReader(url));
+			final N5Reader reader = super.openReader(url);
+			if (reader.getAttribute("/", N5Reader.VERSION_KEY, String.class) != null) {
+				readerCache.put(url, reader);
+			}
 		}
 		return readerCache.get(url);
 	}
@@ -67,10 +70,11 @@ public class N5FactoryWithCache extends N5Factory {
 	@Override public N5Writer openWriter(String url)  {
 
 		/* Check if writer is valid (it may have been closed by someone) */
-		final N5Reader cachedContainer = writerCache.get(url);
+		final N5Writer cachedContainer = writerCache.get(url);
 		if (cachedContainer != null) {
 			try {
-				cachedContainer.getVersion();
+				/* See if its open, and we still have write permissions */
+				cachedContainer.setAttribute("/", N5Reader.VERSION_KEY, cachedContainer.getVersion().toString());
 			} catch (Exception e) {
 				writerCache.remove(url).close();
 				if (readerCache.get(url) == cachedContainer) {
@@ -79,6 +83,8 @@ public class N5FactoryWithCache extends N5Factory {
 			}
 		} else {
 			final N5Writer n5Writer = super.openWriter(url);
+			/* See if we have write permissions before we declare success */
+			n5Writer.setAttribute("/", N5Reader.VERSION_KEY, n5Writer.getVersion());
 			writerCache.put(url, n5Writer);
 			if (readerCache.get(url) != null) {
 				readerCache.remove(url).close();

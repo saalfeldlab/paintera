@@ -191,8 +191,9 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 		int row = createCommonDialog(contents);
 
 		checkListView.setItems(ids);
-		checkListView.prefHeightProperty()
-				.bind(Bindings.size(checkListView.itemsProperty().get()).multiply(LIST_CELL_HEIGHT));
+		checkListView.getSelectionModel().selectAll();
+		selectAll.setSelected(true);
+		checkListView.prefHeightProperty().bind(Bindings.size(checkListView.itemsProperty().get()).multiply(LIST_CELL_HEIGHT));
 
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {

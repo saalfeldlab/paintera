@@ -22,9 +22,9 @@ public class Smooth {
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(Smooth.class);
 
-	public static final double DEFAULT_LAMBDA = 0.5;
+	public static final double DEFAULT_LAMBDA = 1.0;
 
-	public static final int DEFAULT_ITERATIONS = 3;
+	public static final int DEFAULT_ITERATIONS = 1;
 
 	private static boolean isBoundary(
 			final ArrayList<TIntHashSet> vertexTriangleLUT,
