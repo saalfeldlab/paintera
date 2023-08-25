@@ -5,14 +5,27 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import javafx.beans.property.BooleanProperty
 import javafx.beans.value.ChangeListener
+import javafx.event.EventHandler
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.Label
+import javafx.scene.control.TextArea
+import javafx.scene.control.TextField
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
+import javafx.stage.DirectoryChooser
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.ScaleAndTranslation
 import net.imglib2.realtransform.Translation3D
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
+import org.janelia.saalfeldlab.n5.N5Exception
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
@@ -32,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
@@ -45,6 +59,7 @@ import java.util.*
 import java.util.List
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -55,6 +70,7 @@ import kotlin.collections.filter
 import kotlin.collections.indices
 import kotlin.collections.isNotEmpty
 import kotlin.collections.map
+import kotlin.collections.plusAssign
 import kotlin.collections.set
 import kotlin.collections.sortBy
 import kotlin.collections.toDoubleArray
@@ -818,7 +834,15 @@ object N5Helpers {
 				reader ?: n5Factory.openReader(container)
 			}
 		}
+	} catch (e: N5IOException) {
+		if (e.message?.startsWith("No container exists at") == true) {
+			throw N5ContainerDoesntExist(container, e)
+		} else {
+			LOG.debug("Cannot Open Reader", e)
+			null
+		}
 	} catch (e: Exception) {
+		LOG.debug("Cannot Open Container At: $container", e)
 		null
 	}
 
@@ -854,6 +878,83 @@ object N5Helpers {
 			?.asJsonObject?.let { it.get("basePath") ?: it.get("file") }
 			?.asString
 		val uri = fromClassInfo ?: json[URI]?.asString ?: paintera.projectDirectory.actualDirectory.toURI().toString()
-		return N5Helpers.getReaderOrWriterIfN5ContainerExists(uri)!!
+		return getN5ContainerWithRetryPrompt(uri)
+	}
+
+	internal fun getN5ContainerWithRetryPrompt(uri : String) : N5Reader {
+		return try {
+			getReaderOrGetWriterIfExistsAndWritable(uri)!!
+		} catch (e : N5ContainerDoesntExist) {
+			promptForNewLocationOrRemove(uri, e)
+		}
+	}
+
+	internal fun promptForNewLocationOrRemove(uri: String, cause : Throwable) : N5Reader {
+		var exception : () -> Throwable = { cause }
+		val n5Container = AtomicReference<N5Reader?>()
+		InvokeOnJavaFXApplicationThread.invokeAndWait {
+			PainteraAlerts.confirmation("Accept", "Quit", true).also { alert ->
+				alert.headerText = "Container Not Found"
+				alert.contentText = """
+					N5 container does not exist at $uri
+					If the container has moved, specify it's new location.
+					If the container no longer exists, you can remove this source.
+				""".trimIndent()
+
+				alert.buttonTypes.add(ButtonType.FINISH)
+				(alert.dialogPane.lookupButton(ButtonType.FINISH) as Button).apply {
+					text = "Remove Source"
+					onAction = EventHandler {
+						it.consume()
+						alert.close()
+						exception = { RemoveSourceException(uri) }
+					}
+				}
+
+				val newLocationField = TextField()
+				(alert.dialogPane.lookupButton(ButtonType.OK) as Button).apply {
+					disableProperty().bind(newLocationField.textProperty().isEmpty)
+					onAction = EventHandler {
+						it.consume()
+						alert.close()
+						n5Container.set(getN5ContainerWithRetryPrompt(newLocationField.textProperty().get()))
+					}
+				}
+
+
+				alert.dialogPane.content = VBox().apply {
+					children += HBox().apply {
+						children += TextArea("Invalid Location:\n\t$uri").also { it.editableProperty().set(false) }
+					}
+					children += HBox().apply {
+						children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }
+						children += newLocationField
+						newLocationField.maxWidth = Double.MAX_VALUE
+						HBox.setHgrow(newLocationField, Priority.ALWAYS)
+						children += Button("Browse").also {
+							HBox.setHgrow(it, Priority.NEVER)
+							it.onAction = EventHandler {
+								DirectoryChooser().showDialog(alert.owner)?.let { newLocationField.textProperty().set(it.canonicalPath) }
+							}
+						}
+					}
+				}
+				alert.showAndWait()
+			}
+		}
+		return n5Container.get() ?: throw exception()
+	}
+
+	class RemoveSourceException : PainteraException {
+
+		constructor(location: String) : super("Source expected at:\n$location\nshould be removed")
+		constructor(location: String, cause: Throwable) : super("Source expected at:\n$location\nshould be removed", cause)
+
+	}
+
+	class N5ContainerDoesntExist : N5Exception {
+
+		constructor(location: String) : super("Cannot Open $location")
+		constructor(location: String, cause: Throwable) : super("Cannot Open $location", cause)
 	}
 }
