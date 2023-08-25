@@ -18,7 +18,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.i
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrWriterIfN5ContainerExists
+import org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrGetWriterIfExistsAndWritable
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import java.util.Optional
 
@@ -229,7 +229,7 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
-			val reader = getReaderOrWriterIfN5ContainerExists(n5containerAndDataset) ?: return Optional.empty()
+			val reader = getReaderOrGetWriterIfExistsAndWritable(n5containerAndDataset) ?: return Optional.empty()
 
 			val n5ContainerState = N5ContainerState(reader)
 			return N5Helpers.parseMetadata(reader).map { treeNode ->
@@ -243,7 +243,7 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-			val reader = getReaderOrWriterIfN5ContainerExists(n5container) ?: return Optional.empty()
+			val reader = getReaderOrGetWriterIfExistsAndWritable(n5container) ?: return Optional.empty()
 
 			val n5ContainerState = N5ContainerState(reader)
 			val metadataRoot = N5Helpers.parseMetadata(reader)

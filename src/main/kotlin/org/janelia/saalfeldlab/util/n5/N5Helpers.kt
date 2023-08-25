@@ -779,9 +779,9 @@ object N5Helpers {
 	 * @return [N5Writer] or [N5Reader] if container exists
 	 */
 	@JvmStatic
-	fun getReaderOrWriterIfN5ContainerExists(uri: String): N5Reader? {
+	fun getReaderOrGetWriterIfExistsAndWritable(uri: String): N5Reader? {
 		val cachedContainer = getReaderOrWriterIfCached(uri)
-		return cachedContainer ?: openReaderOrWriterIfContainerExists(uri)
+		return cachedContainer ?: openReaderOrGetWriterIfExistsAndWritable(uri)
 	}
 
 	/**
@@ -792,7 +792,7 @@ object N5Helpers {
 	 */
 	@JvmStatic
 	fun getWriterIfN5ContainerExists(uri: String): N5Writer? {
-		return getReaderOrWriterIfN5ContainerExists(uri) as? N5Writer
+		return getReaderOrGetWriterIfExistsAndWritable(uri) as? N5Writer
 	}
 
 	/**
@@ -805,7 +805,7 @@ object N5Helpers {
 	 * @param container the path to the container
 	 * @return a reader or writer as N5Reader, or null if the container does not exist
 	 */
-	private fun openReaderOrWriterIfContainerExists(container: String) = try {
+	private fun openReaderOrGetWriterIfExistsAndWritable(container: String) = try {
 		n5Factory.openReader(container)?.let {
 			var reader: N5Reader? = it
 			if (it is N5HDF5Reader) {
