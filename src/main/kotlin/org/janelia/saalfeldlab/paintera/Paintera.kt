@@ -227,7 +227,7 @@ class Paintera : Application() {
 	companion object {
 
 		@JvmStatic
-		val n5Factory = N5FactoryWithCache()
+		val n5Factory = N5FactoryWithCache().apply { cacheAttributes(true) }
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
