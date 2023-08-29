@@ -55,7 +55,7 @@ class ScreenScalesConfig @JvmOverloads constructor(vararg initialScales: Double 
 
 	companion object {
 
-		private val DEFAULT_SCREEN_SCALES = doubleArrayOf(0.5, 0.25, 0.125)
+		private val DEFAULT_SCREEN_SCALES = doubleArrayOf(1.0, 0.5, 0.25, 0.125)
 
 		@JvmStatic
 		fun defaultScreenScalesCopy(): DoubleArray {
