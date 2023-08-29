@@ -210,8 +210,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
 					)
 
-					val path = Path.of(container).toFile().canonicalPath
-					val writer = n5Factory.openWriter(path)
+					val writer = n5Factory.openWriter(container)
 					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
 						val containerState = N5ContainerState(writer)
 						createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }

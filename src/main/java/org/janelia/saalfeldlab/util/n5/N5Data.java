@@ -795,7 +795,7 @@ public class N5Data {
 
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
-		final N5Writer n5 = Paintera.getN5Factory().openWriter(container);
+		final N5Writer n5 = Paintera.getN5Factory().createWriter(container);
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
 		if (!ignoreExisiting && n5.datasetExists(group))

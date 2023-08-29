@@ -14,7 +14,6 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.util.n5.N5Helpers.getWriterIfN5ContainerExists
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.function.IntFunction
@@ -83,7 +82,7 @@ class N5FSWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5FSWrite
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5FSWriter> = N5ReaderDeserializer(projectDirectory) {
-		getWriterIfN5ContainerExists(it) as N5FSWriter
+		n5Factory.openWriterElseOpenReader(it) as N5FSWriter
 	}
 
 	override fun getTargetClass() = N5FSWriter::class.java
@@ -124,7 +123,7 @@ class N5GoogleCloudWriterAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5GoogleCloudStorageWriter> = N5ReaderDeserializer(projectDirectory) {
-		getWriterIfN5ContainerExists(it) as N5GoogleCloudStorageWriter
+		n5Factory.openWriterElseOpenReader(it) as N5GoogleCloudStorageWriter
 	}
 
 	override fun getTargetClass() = N5GoogleCloudStorageWriter::class.java
@@ -164,7 +163,7 @@ class N5AmazonS3WriterAdapter :
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5AmazonS3Writer> = N5ReaderDeserializer(projectDirectory) {
-		getWriterIfN5ContainerExists(it) as N5AmazonS3Writer
+		n5Factory.openWriterElseOpenReader(it) as N5AmazonS3Writer
 	}
 
 	override fun getTargetClass() = N5AmazonS3Writer::class.java
@@ -204,7 +203,7 @@ class N5ZarrWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5ZarrW
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
 	): JsonDeserializer<N5ZarrWriter> = N5ReaderDeserializer(projectDirectory) {
-		getWriterIfN5ContainerExists(it) as N5ZarrWriter
+		n5Factory.openWriterElseOpenReader(it) as N5ZarrWriter
 	}
 
 	override fun getTargetClass() = N5ZarrWriter::class.java
