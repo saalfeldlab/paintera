@@ -23,6 +23,7 @@ import javafx.stage.Window;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
@@ -157,21 +158,6 @@ public class N5FactoryOpener {
 		return Optional.empty();
 	}
 
-	private static boolean isN5Container(final String pathToDirectory) {
-
-		try {
-			final boolean wasCached = Paintera.getN5Factory().getFromCache(pathToDirectory) != null;
-			final var reader = Paintera.getN5Factory().openReaderOrNull(pathToDirectory);
-			boolean openableAsN5 = reader != null;
-			if (!wasCached) {
-				reader.close();
-			}
-			return openableAsN5;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
 	private void updateFromFileChooser(final File initialDirectory, final Window owner) {
 
 		final FileChooser fileChooser = new FileChooser();
@@ -216,11 +202,12 @@ public class N5FactoryOpener {
 							invoke(() -> this.isOpeningContainer.set(true));
 							final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
 
-								var container = Optional.<N5Reader>
-										ofNullable(Paintera.getN5Factory().openWriterOrNull(newSelection))
-										.orElseGet(() -> Paintera.getN5Factory().openReaderOrNull(newSelection));
-
+								var container = Paintera.getN5Factory().openReaderOrNull(newSelection);
 								if (container == null) return null;
+								if (container instanceof N5HDF5Reader) {
+									container.close();
+									container = Paintera.getN5Factory().openWriterElseOpenReader(newSelection);
+								}
 								return new N5ContainerState(container);
 							});
 							if (newContainerState == null)

@@ -38,7 +38,7 @@ interface MetadataState {
 	var unit: String
 	var reader: N5Reader
 
-	var writer: N5Writer?
+	val writer: N5Writer?
 	var group: String
 	val dataset: String
 		get() = group
@@ -71,14 +71,12 @@ interface MetadataState {
 			target.resolution = source.resolution.copyOf()
 			target.translation = source.translation.copyOf()
 			target.unit = source.unit
-			target.reader = source.reader
-			target.writer = source.writer
 			target.group = source.group
 		}
 	}
 }
 
-open class SingleScaleMetadataState constructor(
+open class SingleScaleMetadataState(
 	final override var n5ContainerState: N5ContainerState,
 	final override val metadata: N5SingleScaleMetadata
 ) :
@@ -93,7 +91,9 @@ open class SingleScaleMetadataState constructor(
 	override var translation = metadata.offset!!
 	override var unit = metadata.unit()!!
 	override var reader = n5ContainerState.reader
-	override var writer = n5ContainerState.writer
+	override val writer :N5Writer?
+		get() = n5ContainerState.writer
+
 	override var group = metadata.path!!
 
 	override fun copy(): SingleScaleMetadataState {

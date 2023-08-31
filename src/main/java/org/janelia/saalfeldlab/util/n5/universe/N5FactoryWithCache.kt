@@ -58,7 +58,7 @@ class N5FactoryWithCache : N5Factory() {
 	private val writerCache = HashMap<String, N5Writer>()
 	private val readerCache = HashMap<String, N5Reader>()
 	override fun openReader(uri: String): N5Reader {
-		return getCachedReader(uri) ?: super.openReader(uri).let {
+		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: super.openReader(uri).let {
 			if (containerIsReadable(it)) {
 				readerCache[uri] = it
 				it
@@ -69,10 +69,10 @@ class N5FactoryWithCache : N5Factory() {
 	}
 
 	override fun openWriter(uri: String): N5Writer {
-		return getCachedWriter(uri) ?: openAndCacheExistingN5Writer(uri)
+		return getFromWriterCache(uri) ?: openAndCacheExistingN5Writer(uri)
 	}
 	fun createWriter(uri: String): N5Writer {
-		return getCachedWriter(uri) ?: createAndCacheN5Writer(uri)
+		return getFromWriterCache(uri) ?: createAndCacheN5Writer(uri)
 	}
 
 	fun openWriterOrNull(uri : String) : N5Writer? = try {
@@ -126,7 +126,7 @@ class N5FactoryWithCache : N5Factory() {
 	 * @param uri to check the cached reader for
 	 * @return the cached reader, if it exists
 	 */
-	private fun getCachedReader(uri: String): N5Reader? {
+	private fun getFromReaderCache(uri: String): N5Reader? {
 		synchronized(readerCache) {
 			readerCache[uri]?.also { reader -> if (!containerIsReadable(reader)) clearKey(uri) }
 			return readerCache[uri]
@@ -145,7 +145,7 @@ class N5FactoryWithCache : N5Factory() {
 	 * @param uri to check the cached writer for
 	 * @return the cached writer, if it exists and is valid
 	 */
-	private fun getCachedWriter(uri: String): N5Writer? {
+	private fun getFromWriterCache(uri: String): N5Writer? {
 		synchronized(writerCache) {
 			writerCache[uri]?.also { writer -> if (!containerIsWritable(writer)) clearKey(uri) }
 			return writerCache[uri]
@@ -153,7 +153,7 @@ class N5FactoryWithCache : N5Factory() {
 	}
 
 	private fun openAndCacheExistingN5Writer(uri: String): N5Writer {
-		val readerWasCached = getCachedReader(uri) != null
+		val readerWasCached = getFromReaderCache(uri) != null
 
 		val reader = openReader(uri)
 		if (!containerIsReadable(reader))
@@ -171,8 +171,10 @@ class N5FactoryWithCache : N5Factory() {
 		val n5Writer = super.openWriter(uri)
 		/* See if we have write permissions before we declare success */
 		n5Writer.setAttribute("/", N5Reader.VERSION_KEY, n5Writer.version.toString())
+		if (readerCache[uri] == null) {
+			readerCache[uri] = n5Writer
+		}
 		writerCache[uri] = n5Writer
-		readerCache[uri] = n5Writer
 		return n5Writer
 	}
 

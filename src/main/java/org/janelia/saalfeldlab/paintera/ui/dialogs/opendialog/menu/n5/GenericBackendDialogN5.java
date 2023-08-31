@@ -406,10 +406,11 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	public FragmentSegmentAssignmentState assignments() throws IOException {
 
-		if (getContainer().isReadOnly())
-			throw new N5ReadOnlyException();
-
 		final var writer = getContainer().getWriter();
+
+		if (writer == null) {
+			throw new N5ReadOnlyException();
+		}
 		return N5Helpers.assignments(writer, getDatasetPath());
 	}
 
