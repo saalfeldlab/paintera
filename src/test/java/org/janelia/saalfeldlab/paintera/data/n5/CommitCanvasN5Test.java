@@ -603,10 +603,6 @@ public class CommitCanvasN5Test {
 
 		}
 
-		@Override public void setWriter(@Nullable N5Writer writer) {
-
-		}
-
 		@Override public void setGroup(String group) {
 
 		}

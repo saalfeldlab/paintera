@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
@@ -721,8 +722,9 @@ object N5Helpers {
 				?.takeIf { it.isJsonObject }
 				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
 				?: let {
-					val labelToBlockDataset = Paths.get(group, "label-to-block-mapping").toString()
-					val relativeLookup = LabelBlockLookupFromN5Relative("label-to-block-mapping/s%d")
+					val labelToBlockDataset = N5URI.normalizeGroupPath(group + reader.groupSeparator + "label-to-block-mapping");
+					val scaleDatasetPattern = N5URI.normalizeGroupPath("label-to-block-mapping" + reader.groupSeparator + "s%d")
+					val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
 					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
 					val labelBlockLookupMetadata = LabelBlockLookupGroup(labelToBlockDataset, numScales)
 					labelBlockLookupMetadata.write(metadataState.writer!!)
