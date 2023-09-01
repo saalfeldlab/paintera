@@ -37,12 +37,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
@@ -57,7 +52,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -136,7 +130,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 			LOG.debug("Found scale datasets {}", (Object)scaleUniqueLabels);
 			for (int level = 0; level < scaleUniqueLabels.length; ++level) {
-				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5Writer, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString());
+				final String uniqueLabelScalePath = N5URI.normalizeGroupPath(uniqueLabelsPath + n5Writer.getGroupSeparator() + scaleUniqueLabels[level]);
+				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5Writer, uniqueLabelScalePath);
 				final TLongObjectMap<TLongHashSet> removedById = new TLongObjectHashMap<>();
 				final TLongObjectMap<TLongHashSet> addedById = new TLongObjectHashMap<>();
 				final TLongObjectMap<BlockDiff> blockDiffs = blockDiffsByLevel.get(level);
@@ -262,8 +257,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 					final TLongObjectHashMap<BlockDiff> blockDiffsAt = new TLongObjectHashMap<>();
 					blockDiffs.add(blockDiffsAt);
-					final DatasetSpec targetDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level]).toString());
-					final DatasetSpec previousDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level - 1]).toString());
+					final DatasetSpec targetDataset = DatasetSpec.of(n5Writer, N5URI.normalizeGroupPath(dataset + n5Writer.getGroupSeparator() + scaleDatasets[level]));
+					final DatasetSpec previousDataset = DatasetSpec.of(n5Writer, N5URI.normalizeGroupPath(dataset + n5Writer.getGroupSeparator() + scaleDatasets[level - 1]));
 
 					final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, targetDataset.dataset);
 					final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, previousDataset.dataset);

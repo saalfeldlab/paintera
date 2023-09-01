@@ -6,11 +6,7 @@ import com.google.gson.JsonObject
 import javafx.beans.property.BooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.control.Label
-import javafx.scene.control.TextArea
-import javafx.scene.control.TextField
+import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
@@ -24,9 +20,8 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.N5Exception
-import org.janelia.saalfeldlab.n5.N5Exception.N5IOException
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
@@ -51,6 +46,7 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
+import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.lang.invoke.MethodHandles
@@ -726,8 +722,9 @@ object N5Helpers {
 				?.takeIf { it.isJsonObject }
 				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
 				?: let {
-					val labelToBlockDataset = Paths.get(group, "label-to-block-mapping").toString()
-					val relativeLookup = LabelBlockLookupFromN5Relative("label-to-block-mapping/s%d")
+					val labelToBlockDataset = N5URI.normalizeGroupPath(group + reader.groupSeparator + "label-to-block-mapping");
+					val scaleDatasetPattern = N5URI.normalizeGroupPath("label-to-block-mapping" + reader.groupSeparator + "s%d")
+					val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
 					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
 					val labelBlockLookupMetadata = LabelBlockLookupGroup(labelToBlockDataset, numScales)
 					labelBlockLookupMetadata.write(metadataState.writer!!)
@@ -788,82 +785,6 @@ object N5Helpers {
 	class MaxIDNotSpecified(message: String) : PainteraException(message)
 	class NotAPainteraDataset(val container: N5Reader, val group: String) : PainteraException(String.format("Group %s in container %s is not a Paintera dataset.", group, container))
 
-	/**
-	 * If an n5 container exists at [uri], return it as [N5Writer] if possible, and [N5Reader] if not.
-	 *
-	 * @param uri the location of the n5 container
-	 * @return [N5Writer] or [N5Reader] if container exists
-	 */
-	@JvmStatic
-	fun getReaderOrGetWriterIfExistsAndWritable(uri: String): N5Reader? {
-		val cachedContainer = getReaderOrWriterIfCached(uri)
-		return cachedContainer ?: openReaderOrGetWriterIfExistsAndWritable(uri)
-	}
-
-	/**
-	 * If an n5 container exists at [uri], return it as [N5Writer] if possible.
-	 *
-	 * @param uri the location of the n5 container
-	 * @return [N5Writer] if container exists and is openable as a writer.
-	 */
-	@JvmStatic
-	fun getWriterIfN5ContainerExists(uri: String): N5Writer? {
-		return getReaderOrGetWriterIfExistsAndWritable(uri) as? N5Writer
-	}
-
-	/**
-	 * Retrieves a reader or writer for the given container if it exists.
-	 *
-	 * If the reader is successfully opened, the container must exist, so we try to open a writer.
-	 * This is to ensure that an N5 container isn't created by opening as a writer if one doesn't exist.
-	 * If opening a writer is not possible it falls back to again as a reader.
-	 *
-	 * @param container the path to the container
-	 * @return a reader or writer as N5Reader, or null if the container does not exist
-	 */
-	private fun openReaderOrGetWriterIfExistsAndWritable(container: String) = try {
-		n5Factory.openReader(container)?.let {
-			var reader: N5Reader? = it
-			if (it is N5HDF5Reader) {
-				it.close()
-				reader = null
-			}
-			try {
-				n5Factory.openWriter(container)
-			} catch (_: Exception) {
-				reader ?: n5Factory.openReader(container)
-			}
-		}
-	} catch (e: N5IOException) {
-		if (e.message?.startsWith("No container exists at") == true) {
-			throw N5ContainerDoesntExist(container, e)
-		} else {
-			LOG.debug("Cannot Open Reader", e)
-			null
-		}
-	} catch (e: Exception) {
-		LOG.debug("Cannot Open Container At: $container", e)
-		null
-	}
-
-	/**
-	 * If there is a cached N5Reader for [container] than try to open a writer (also may be cached),
-	 *  or fallback to the cached reader
-	 *
-	 * @param container The path to the N5 container.
-	 * @return The N5Reader instance.
-	 */
-	private fun getReaderOrWriterIfCached(container: String): N5Reader? {
-		val reader: N5Reader? = n5Factory.getFromCache(container)?.let {
-			try {
-				n5Factory.openWriter(container)
-			} catch (_: Exception) {
-				it
-			}
-		}
-		return reader
-	}
-
 	private const val URI = "uri"
 	internal fun N5Reader.serializeTo(json: JsonObject) {
 		if (!uri.equals(paintera.projectDirectory.actualDirectory.toURI())) {
@@ -881,26 +802,28 @@ object N5Helpers {
 		return getN5ContainerWithRetryPrompt(uri)
 	}
 
-	internal fun getN5ContainerWithRetryPrompt(uri : String) : N5Reader {
+	internal fun getN5ContainerWithRetryPrompt(uri: String): N5Reader {
 		return try {
-			getReaderOrGetWriterIfExistsAndWritable(uri)!!
-		} catch (e : N5ContainerDoesntExist) {
-			promptForNewLocationOrRemove(uri, e)
+			n5Factory.openWriterElseOpenReader(uri)
+		} catch (e: N5ContainerDoesntExist) {
+			promptForNewLocationOrRemove(uri, e, "Container Not Found",
+				"""
+					N5 container does not exist at
+						$uri
+						
+					If the container has moved, specify it's new location.
+					If the container no longer exists, you can attempt to remove this source.
+				""".trimIndent()
+			)
 		}
 	}
 
-	internal fun promptForNewLocationOrRemove(uri: String, cause : Throwable) : N5Reader {
-		var exception : () -> Throwable = { cause }
+	internal fun promptForNewLocationOrRemove(uri: String, cause: Throwable, header: String? = null, contentText: String? = null): N5Reader {
+		var exception: () -> Throwable = { cause }
 		val n5Container = AtomicReference<N5Reader?>()
 		InvokeOnJavaFXApplicationThread.invokeAndWait {
 			PainteraAlerts.confirmation("Accept", "Quit", true).also { alert ->
-				alert.headerText = "Container Not Found"
-				alert.contentText = """
-					N5 container does not exist at $uri
-					If the container has moved, specify it's new location.
-					If the container no longer exists, you can remove this source.
-				""".trimIndent()
-
+				alert.headerText = header ?: "Error Opening N5 Container"
 				alert.buttonTypes.add(ButtonType.FINISH)
 				(alert.dialogPane.lookupButton(ButtonType.FINISH) as Button).apply {
 					text = "Remove Source"
@@ -924,7 +847,7 @@ object N5Helpers {
 
 				alert.dialogPane.content = VBox().apply {
 					children += HBox().apply {
-						children += TextArea("Invalid Location:\n\t$uri").also { it.editableProperty().set(false) }
+						children += TextArea( contentText ?: "Error accessing container at $uri" ).also { it.editableProperty().set(false) }
 					}
 					children += HBox().apply {
 						children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }
@@ -950,11 +873,5 @@ object N5Helpers {
 		constructor(location: String) : super("Source expected at:\n$location\nshould be removed")
 		constructor(location: String, cause: Throwable) : super("Source expected at:\n$location\nshould be removed", cause)
 
-	}
-
-	class N5ContainerDoesntExist : N5Exception {
-
-		constructor(location: String) : super("Cannot Open $location")
-		constructor(location: String, cause: Throwable) : super("Cannot Open $location", cause)
 	}
 }

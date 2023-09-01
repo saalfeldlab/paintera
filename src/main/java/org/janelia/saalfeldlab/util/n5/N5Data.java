@@ -380,7 +380,7 @@ public class N5Data {
 
 		final double[] initialDonwsamplingFactors = N5Helpers.getDownsamplingFactors(
 				reader,
-				Paths.get(dataset, scaleDatasets[0]).toString()
+				N5URI.normalizeGroupPath(dataset + reader.getGroupSeparator() + scaleDatasets[0])
 		);
 		LOG.debug("Initial transform={}", transform);
 		final ExecutorService es = Executors.newFixedThreadPool(
@@ -393,7 +393,7 @@ public class N5Data {
 			final int fScale = scale;
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
-				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
+				final String scaleDataset = N5URI.normalizeGroupPath(dataset + reader.getGroupSeparator() + scaleDatasets[fScale]);
 				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
@@ -685,7 +685,7 @@ public class N5Data {
 
 		final double[] initialDonwsamplingFactors = N5Helpers.getDownsamplingFactors(
 				reader,
-				Paths.get(dataset, scaleDatasets[0]).toString());
+				N5URI.normalizeGroupPath(dataset + reader.getGroupSeparator() + scaleDatasets[0]));
 		final ExecutorService es = Executors.newFixedThreadPool(
 				scaleDatasets.length,
 				new NamedThreadFactory("populate-mipmap-scales-%d", true));
@@ -695,7 +695,7 @@ public class N5Data {
 			final int fScale = scale;
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
-				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
+				final String scaleDataset = N5URI.normalizeGroupPath(dataset + reader.getGroupSeparator() + scaleDatasets[fScale]);
 				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
@@ -795,7 +795,7 @@ public class N5Data {
 
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
-		final N5Writer n5 = Paintera.getN5Factory().openWriter(container);
+		final N5Writer n5 = Paintera.getN5Factory().createWriter(container);
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
 		if (!ignoreExisiting && n5.datasetExists(group))

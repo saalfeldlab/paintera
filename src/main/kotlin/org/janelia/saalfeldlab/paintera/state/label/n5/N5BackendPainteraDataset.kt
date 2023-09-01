@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
+import org.janelia.saalfeldlab.util.n5.universe.N5DatasetDoesntExist
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -230,10 +231,21 @@ class N5BackendPainteraDataset<D, T>(
 		): N5BackendPainteraDataset<D, T> {
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
-					val container = N5Helpers.deserializeFrom(json.asJsonObject)
+					var container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
-					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+					while (metadataState == null) {
+						container = N5Helpers.promptForNewLocationOrRemove(container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
+						"Dataset not found",
+							"""
+								Expected dataset "${dataset.ifEmpty { "/" }}" not found at
+									${container.uri} 
+							""".trimIndent()
+						)
+						val n5ContainerState = N5ContainerState(container)
+						metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+					}
 					N5BackendPainteraDataset<D, T>(
 						metadataState,
 						projectDirectory,

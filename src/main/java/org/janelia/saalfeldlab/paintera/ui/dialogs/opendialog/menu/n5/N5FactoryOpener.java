@@ -12,9 +12,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.scene.control.Alert;
 import javafx.scene.control.MenuButton;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -25,12 +23,10 @@ import javafx.stage.Window;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.PainteraCache;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -162,37 +158,6 @@ public class N5FactoryOpener {
 		return Optional.empty();
 	}
 
-	/**
-	 * Open {@code url} as an  N5Writer if possible, else empty.
-	 *
-	 * @param url location of the container we wish to open as an N5Writer.
-	 * @return N5Writer of {@code url} if valid N5 container which we can write to; else empty
-	 */
-	private Optional<N5Writer> openN5Writer(final String url) {
-
-		try {
-			final var writer = Paintera.getN5Factory().openWriter(url);
-			LOG.debug("{} was opened as an N5Writer.", url);
-			return Optional.of(writer);
-		} catch (Exception e) {
-			LOG.debug("{} cannot be opened as an N5Writer.", url);
-		}
-		return Optional.empty();
-	}
-
-	private static boolean isN5Container(final String pathToDirectory) {
-
-		try {
-			final var reader = Paintera.getN5Factory().openReader(pathToDirectory);
-			boolean openableAsN5 = reader != null;
-			if (reader instanceof N5HDF5Reader)
-				reader.close();
-			return openableAsN5;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
 	private void updateFromFileChooser(final File initialDirectory, final Window owner) {
 
 		final FileChooser fileChooser = new FileChooser();
@@ -214,8 +179,7 @@ public class N5FactoryOpener {
 				.ifPresent(directoryChooser::setInitialDirectory);
 		Optional.ofNullable(directoryChooser.showDialog(ownerWindow)).ifPresent(updatedRoot -> {
 			LOG.debug("Updating root to {} (was {})", updatedRoot, selectionProperty.get());
-
-			if (fileOpenableAsN5(updatedRoot)) {
+			if (Paintera.getN5Factory().openReaderOrNull(updatedRoot.getAbsolutePath()) != null) {
 				// set null first to make sure that selectionProperty will be invalidated even if directory is the same
 				String updatedAbsPath = updatedRoot.getAbsolutePath();
 				if (updatedAbsPath.equals(selectionProperty.get())) {
@@ -224,26 +188,6 @@ public class N5FactoryOpener {
 				selectionProperty.set(updatedAbsPath);
 			}
 		});
-
-	}
-
-	private boolean fileOpenableAsN5(File updatedRoot) {
-
-		if (updatedRoot == null) {
-			/* They probably just canceled out of browse; just silently return false; */
-			return false;
-		} else if (!isN5Container(updatedRoot.getAbsolutePath())) {
-			final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
-			alert.setHeaderText("Selected path cannot be opened as an N5 container.");
-			final TextArea ta = new TextArea("The selected path is not a valid N5 container\n\n" + updatedRoot.getAbsolutePath() + "\n\n" +
-					"A valid N5 container is a directory that contains a file attributes.json with a key \"n5\"."); //FIXME meta need a more accurate message
-			ta.setEditable(false);
-			ta.setWrapText(true);
-			alert.getDialogPane().setContent(ta);
-			alert.show();
-			return false;
-		}
-		return true;
 	}
 
 	private void selectionChanged(ObservableValue<? extends String> obs, String oldSelection, String newSelection) {
@@ -258,44 +202,12 @@ public class N5FactoryOpener {
 							invoke(() -> this.isOpeningContainer.set(true));
 							final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
 
-								/* This particular shortcut is if the N5Reader/Writer is cached, but from
-								 * deserialization, not from open source */
-								N5Reader initialReader = Paintera.getN5Factory().getFromCache(newSelection);
-								if (initialReader != null) return new N5ContainerState(initialReader);
-
-								/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
-								 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
-								 * This means that if there is no N5 container, it will create one.
-								 *
-								 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
-								 * exists. */
-								final var optReader = openN5Reader(newSelection);
-								if (optReader.isEmpty()) {
-									return null;
-								} else {
-									initialReader = optReader.get();
+								var container = Paintera.getN5Factory().openReaderOrNull(newSelection);
+								if (container == null) return null;
+								if (container instanceof N5HDF5Reader) {
+									container.close();
+									container = Paintera.getN5Factory().openWriterElseOpenReader(newSelection);
 								}
-
-								/* Another wrinkle though; For HDF5, you can't open a reader and a writer at the same time, even with permission. So
-								 * Now that we know the container actually exists, we need to check if it's HDF5. If it is, we need to close the reader,
-								 * Then try to open a writer. If that isn't possible, we need to re-open a reader. */
-
-								final N5Reader container;
-								if (initialReader instanceof N5HDF5Reader) { /* Check if we are an HDF5 container*/
-									initialReader.close();
-									final var optWriter = openN5Writer(newSelection);
-									if (optWriter.isEmpty()) { /* if we don't have a writer, re-open the reader */
-										container = openN5Reader(newSelection).orElseThrow(() ->
-												new RuntimeException("HDF5 container at " + newSelection
-														+ " was initially opened as a reader, but failed after attempt to open as a writer")
-										);
-									} else { /* if we have the writer, use it as a reader also */
-										container = optWriter.get();
-									}
-								} else {
-									container = openN5Writer(newSelection).map(N5Reader.class::cast).orElse(initialReader);
-								}
-
 								return new N5ContainerState(container);
 							});
 							if (newContainerState == null)
