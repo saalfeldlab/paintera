@@ -78,12 +78,14 @@ class N5FactoryWithCache : N5Factory() {
 	fun openWriterOrNull(uri : String) : N5Writer? = try {
 		openWriter(uri)
 	} catch (e : Exception) {
+		LOG.debug("Unable to open $uri as N5Writer", e)
 		null
 	}
 
 	fun openReaderOrNull(uri : String) : N5Reader? = try {
 		openReader(uri)
 	} catch (e : Exception) {
+		LOG.debug("Unable to open $uri as N5Reader", e)
 		null
 	}
 
