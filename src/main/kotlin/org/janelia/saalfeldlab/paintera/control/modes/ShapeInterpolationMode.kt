@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -783,7 +784,7 @@ class ShapeInterpolationTool(
 				return null
 			}
 
-			val maskLabel = mask.rai[pointInMask].get()
+			val maskLabel = mask.rai.extendValue(Label.INVALID)[pointInMask].get()
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
 			return fill2D.executeFill2DAction(event.x, event.y) {

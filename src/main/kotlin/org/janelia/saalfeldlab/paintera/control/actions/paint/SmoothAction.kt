@@ -588,7 +588,7 @@ object SmoothAction : MenuAction("_Smooth") {
 
 				val labels = BundleView(labelMask).interval(slice).cursor()
 				val smoothed = smoothedSlice.cursor()
-				val maskBundle = BundleView(mask.rai).interval(slice).cursor()
+				val maskBundle = BundleView(mask.rai.extendValue(Imglib2Label.INVALID)).interval(slice).cursor()
 
 
 				ensureActive()

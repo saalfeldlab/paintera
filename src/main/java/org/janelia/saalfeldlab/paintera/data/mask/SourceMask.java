@@ -4,6 +4,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.loops.LoopBuilder;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
@@ -83,7 +84,7 @@ public class SourceMask implements Mask {
 			final RandomAccessibleInterval<C> canvas,
 			final Predicate<UnsignedLongType> acceptAsPainted) {
 
-		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(getRai(), canvas);
+		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(Views.extendValue(getRai(), Label.INVALID), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
 		final var labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
