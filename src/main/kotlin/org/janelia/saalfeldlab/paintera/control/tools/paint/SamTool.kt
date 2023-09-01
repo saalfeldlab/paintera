@@ -550,11 +550,17 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				)
 
 				val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
-				ConnectedComponents.labelAllConnectedComponents(
-					filter,
-					connectedComponents,
-					StructuringElement.FOUR_CONNECTED
-				)
+				try {
+					ConnectedComponents.labelAllConnectedComponents(
+						filter,
+						connectedComponents,
+						StructuringElement.FOUR_CONNECTED
+					)
+				} catch (e : InterruptedException) {
+					LOG.debug("Connected Components Interrupted During SAM", e)
+					task.cancel()
+					continue
+				}
 
 				val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
 				if (noneAccepted) {
