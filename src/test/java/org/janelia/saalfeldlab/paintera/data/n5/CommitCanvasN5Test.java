@@ -352,10 +352,11 @@ public class CommitCanvasN5Test {
 		testCanvasPersistance(container, dataset, s0, canvas, openLabels, asserts);
 
 		// test highest level block lookups
-		final String uniqueBlock0 = String.join("/", dataset, "unique-labels", "s0");
+		final String groupSeparator = container.getReader().getGroupSeparator();
+		final String uniqueBlock0Group = N5URI.normalizeGroupPath(String.join(groupSeparator, dataset, "unique-labels","s0"));
 		final Path mappingPattern = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s%d", "%d");
 		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
-		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0);
+		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0Group);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
 		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();
 		for (final Interval block : blocks) {
@@ -375,7 +376,7 @@ public class CommitCanvasN5Test {
 				}
 			});
 
-			final DataBlock<?> uniqueBlock = writer.readBlock(uniqueBlock0, uniqueBlockAttributes, blockPos);
+			final DataBlock<?> uniqueBlock = writer.readBlock(uniqueBlock0Group, uniqueBlockAttributes, blockPos);
 			Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 		}
 
