@@ -481,7 +481,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 				val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size)
 				directBuffer.put(decodedEmbedding, 0, decodedEmbedding.size)
-				directBuffer.position(0);
+				directBuffer.position(0)
 				val floatBuffEmbedding = directBuffer.asFloatBuffer()
 				floatBuffEmbedding.position(0)
 				OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
@@ -489,7 +489,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}.onEnd {
 			isBusy = false
 		}.onFailed { _, task ->
-			LOG.error("Failure retrieving image embedding", task.exception);
+			LOG.error("Failure retrieving image embedding", task.exception)
 			mode?.switchTool(mode.defaultTool)
 		}.also {
 			getImageEmbeddingTask = it

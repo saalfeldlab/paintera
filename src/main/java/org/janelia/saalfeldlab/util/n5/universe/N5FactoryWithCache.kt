@@ -191,11 +191,6 @@ class N5FactoryWithCache : N5Factory() {
 		writerCache.clear()
 		readerCache.clear()
 	}
-
-	fun getFromCache(uri: String): N5Reader? {
-		val cachedWriter = writerCache[uri]
-		return cachedWriter ?: readerCache[uri]
-	}
 }
 
 class N5DatasetDoesntExist : N5Exception {
