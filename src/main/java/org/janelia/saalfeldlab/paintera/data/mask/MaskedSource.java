@@ -881,6 +881,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				isCommittingDialog.show();
 		};
 		final Consumer<Double> animateProgressBar = progress -> {
+			if (progressBar.progressProperty().get() > progress) {
+				progressBar.progressProperty().set(0.0);
+			}
 			Timeline timeline = new Timeline();
 			KeyValue keyValue = new KeyValue(progressBar.progressProperty(), progress);
 			KeyFrame keyFrame = new KeyFrame(new Duration(500), keyValue);
