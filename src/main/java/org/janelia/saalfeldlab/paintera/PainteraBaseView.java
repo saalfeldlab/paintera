@@ -373,7 +373,7 @@ public class PainteraBaseView {
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		state.converter().setMin(min);
-		state.converter().setMin(max);
+		state.converter().setMax(max);
 		return state;
 	}
 
