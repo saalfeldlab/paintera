@@ -14,7 +14,15 @@ import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -22,18 +30,35 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.FinalRealRandomAccessibleRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.*;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.*;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.DiskCachedCellImg;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.cache.img.DiskCellCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
@@ -59,7 +84,11 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.*;
+import net.imglib2.view.BundleView;
+import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.RealRandomAccessibleTriple;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -80,9 +109,20 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -780,8 +820,16 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final ObservableList<String> states = FXCollections.observableArrayList();
 
-		final Consumer<String> nextState = states::add;
-		final Consumer<String> updateState = state -> states.set(states.size() - 1, state);
+		final Consumer<String> nextState = (next) -> {
+			synchronized (states) {
+				states.add(next);
+			}
+		};
+		final Consumer<String> updateState = (update) -> {
+			synchronized (states) {
+				states.set(states.size() -1, update);
+			}
+		};
 
 		final Runnable dialogHandler = () -> {
 			LOG.warn("Creating commit status dialog.");
@@ -818,8 +866,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			VBox.setVgrow(progressBar, Priority.ALWAYS);
 			InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
 			states.addListener((ListChangeListener<? super String>) change ->
-					InvokeOnJavaFXApplicationThread.invoke(() ->
-							statesText.setText(String.join("\n", states))
+					InvokeOnJavaFXApplicationThread.invoke(() -> {
+								synchronized (states) {
+									statesText.setText(String.join("\n", states));
+								}
+							}
 					)
 			);
 			synchronized (this) {
