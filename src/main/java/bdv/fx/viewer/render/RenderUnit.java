@@ -109,6 +109,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(new FinalInterval(dimensions), screenScaleIndex);
 	}
 
@@ -116,7 +117,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 * Request repaint of the whole screen at highest possible resolution
 	 */
 	public synchronized void requestRepaint() {
-
+		if (renderer == null) return;
 		renderer.requestRepaint(new FinalInterval(dimensions));
 	}
 
@@ -129,6 +130,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)), screenScaleIndex);
 	}
 
@@ -140,6 +142,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final long[] min, final long[] max) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)));
 	}
 
