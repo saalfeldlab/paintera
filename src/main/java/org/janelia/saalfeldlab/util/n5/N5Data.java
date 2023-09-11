@@ -8,9 +8,7 @@ import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
 import net.imglib2.Volatile;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.UncheckedVolatileCache;
@@ -24,10 +22,19 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.*;
+import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultiset;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetArray;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import org.janelia.saalfeldlab.n5.*;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
+import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
@@ -48,11 +55,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -521,50 +532,34 @@ public class N5Data {
 		return openLabelMultiset(reader, dataset, transform, queue, priority);
 	}
 
-	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently, it is not possible because of using a global cache.
 	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
-			final N5Reader reader,
+			final N5Reader n5,
 			final String dataset,
 			final AffineTransform3D transform,
 			final SharedQueue queue,
-			final int priority) throws IOException {
+			final int priority) {
 
-		final DatasetAttributes attrs = reader.getDatasetAttributes(dataset);
-		final N5LabelMultisetCacheLoader loader = new N5LabelMultisetCacheLoader(
-				reader,
-				dataset,
-				N5LabelMultisetCacheLoader.constantNullReplacement(Label.BACKGROUND));
-		// TODO make cache a parameter?
-		final Cache<Long, Cell<VolatileLabelMultisetArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>>().withLoader(loader);
-		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedImg = new CachedCellImg<>(
-				new CellGrid(attrs.getDimensions(), attrs.getBlockSize()),
-				new LabelMultisetType().getEntitiesPerPixel(),
-				cache,
-				new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID}));
-		cachedImg.setLinkedType(new LabelMultisetType(cachedImg));
+		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage = N5LabelMultisets.openLabelMultiset(n5, dataset);
 
-		@SuppressWarnings("unchecked") final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
-				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
-		final boolean isDirty = AccessFlags.ofAccess(cachedImg.getAccessType()).contains(AccessFlags.DIRTY);
+		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
 		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(
-				cachedImg.getCache(),
+				cachedLabelMultisetImage.getCache(),
 				queue,
-				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getCellGrid()));
+				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
 		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
 
 		final VolatileCachedCellImg<VolatileLabelMultisetType, VolatileLabelMultisetArray> vimg = new VolatileCachedCellImg<>(
-				cachedImg.getCellGrid(),
+				cachedLabelMultisetImage.getCellGrid(),
 				new VolatileLabelMultisetType().getEntitiesPerPixel(),
 				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img),
 				cacheHints,
 				unchecked::get);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
 
-		return new ImagesWithTransform<>(cachedImg, vimg, transform, cachedImg.getCache(), unchecked);
-
+		return new ImagesWithTransform<>(cachedLabelMultisetImage, vimg, transform, cachedLabelMultisetImage.getCache(), unchecked);
 	}
 
 	/**
