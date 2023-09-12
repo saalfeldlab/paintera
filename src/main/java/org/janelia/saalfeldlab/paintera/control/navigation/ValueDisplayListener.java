@@ -21,6 +21,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -94,11 +96,13 @@ public class ValueDisplayListener
 
 	private final Map<DataSource<?, ?>, Task<?>> taskMap = new HashMap<>();
 
+	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
 	private <D> void getInfo() {
 
 		final Optional<Source<?>> optionalSource = Optional.ofNullable(currentSource.getValue());
 		if (optionalSource.isPresent() && optionalSource.get() instanceof DataSource<?, ?>) {
-			final DataSource<D, ?> source = (DataSource<D, ?>)optionalSource.get();
+			final DataSource<D, ?> source = (DataSource<D, ?>) optionalSource.get();
 
 			final var taskObj = Tasks.<String>createTask(t -> {
 				final ViewerState state = viewer.getState();
@@ -127,7 +131,7 @@ public class ValueDisplayListener
 			/* If we are creating a task for a source which has a running task, cancel the old task after removing. */
 			Optional.ofNullable(taskMap.put(source, taskObj)).ifPresent(Task::cancel);
 
-			taskObj.submit();
+			taskObj.submit(executor);
 
 		}
 	}
@@ -135,11 +139,11 @@ public class ValueDisplayListener
 	private static <D> Function<D, String> stringConverterFromSource(final DataSource<D, ?> source) {
 
 		if (source instanceof ChannelDataSource<?, ?>) {
-			final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
+			final long numChannels = ((ChannelDataSource<?, ?>) source).numChannels();
 
 			// Cast not actually redundant
 			//noinspection unchecked,RedundantCast
-			return (Function<D, String>)(Function<? extends Composite<?>, String>)comp -> {
+			return (Function<D, String>) (Function<? extends Composite<?>, String>) comp -> {
 				StringBuilder sb = new StringBuilder("(");
 				if (numChannels > 0)
 					sb.append(comp.get(0).toString());
