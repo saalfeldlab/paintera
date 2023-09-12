@@ -37,6 +37,7 @@ import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.converter.Converters
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
+import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Scale3D
 import net.imglib2.realtransform.Translation3D
@@ -732,8 +733,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				CompositeProjectorPreMultiply.CompositeProjectorFactory(paintera.baseView.sourceInfo().composites()),
 				sharedQueue,
 				30 * 1000000L,
-				1,
-				Executors.newSingleThreadExecutor()
+				TaskExecutors.singleThreaded() //TODO rendering name it (and more threads? )
 			) {
 
 				override fun paint() {

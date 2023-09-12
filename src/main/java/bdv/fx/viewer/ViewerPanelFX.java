@@ -47,6 +47,7 @@ import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ObservablePosition;
@@ -61,8 +62,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -91,8 +90,6 @@ public class ViewerPanelFX
 
 	private ThreadGroup threadGroup;
 
-	private final ExecutorService renderingExecutorService;
-
 	private final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
 
 	private final ViewerOptions.Values options;
@@ -105,9 +102,10 @@ public class ViewerPanelFX
 			final List<SourceAndConverter<?>> sources,
 			final int numTimePoints,
 			final CacheControl cacheControl,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation);
+		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation, taskExecutor);
 	}
 
 	/**
@@ -120,9 +118,10 @@ public class ViewerPanelFX
 	public ViewerPanelFX(
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(1, cacheControl, optional, interpolation);
+		this(1, cacheControl, optional, interpolation, taskExecutor);
 	}
 
 	/**
@@ -137,9 +136,10 @@ public class ViewerPanelFX
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation);
+		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation, taskExecutor);
 	}
 
 	/**
@@ -156,11 +156,11 @@ public class ViewerPanelFX
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
 		super();
 		super.getChildren().setAll(canvasPane, overlayPane);
-		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
 		threadGroup = new ThreadGroup(this.toString());
@@ -177,15 +177,14 @@ public class ViewerPanelFX
 				options.getAccumulateProjectorFactory(),
 				cacheControl,
 				options.getTargetRenderNanos(),
-				options.getNumRenderingThreads(),
-				renderingExecutorService
+				taskExecutor
 		);
 
 		setRenderedImageListener();
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
-		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
-		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
+		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
+		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
 
 		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 
@@ -217,7 +216,8 @@ public class ViewerPanelFX
 		this.focusable = focusable;
 	}
 
-	@Override public void requestFocus() {
+	@Override
+	public void requestFocus() {
 
 		if (this.focusable) {
 			super.requestFocus();
@@ -324,8 +324,8 @@ public class ViewerPanelFX
 
 		assert p.numDimensions() >= 2;
 		synchronized (mouseTracker) {
-			p.setPosition((long)mouseTracker.getMouseX(), 0);
-			p.setPosition((long)mouseTracker.getMouseY(), 1);
+			p.setPosition((long) mouseTracker.getMouseX(), 0);
+			p.setPosition((long) mouseTracker.getMouseY(), 1);
 		}
 	}
 
@@ -434,16 +434,9 @@ public class ViewerPanelFX
 		}
 	}
 
-	/**
-	 * Shutdown the {@link ExecutorService} used for rendering tiles onto the screen.
-	 */
-	public void stop() {
-
-		renderingExecutorService.shutdown();
-	}
-
 	private static final AtomicInteger panelNumber = new AtomicInteger(1);
 
+	//	TODO: rendering
 	protected class RenderThreadFactory implements ThreadFactory {
 
 		private final String threadNameFormat;
@@ -546,10 +539,6 @@ public class ViewerPanelFX
 	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
 	 */
 	public OverlayPane<?> getDisplay() {
-
-		var pos = new ObservablePosition(0, 0);
-		pos.getX();
-		pos.setX(0.0);
 
 		return this.overlayPane;
 	}

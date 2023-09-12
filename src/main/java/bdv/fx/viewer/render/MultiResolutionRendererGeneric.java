@@ -63,6 +63,7 @@ import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
@@ -218,14 +219,9 @@ public class MultiResolutionRendererGeneric<T> {
 	private volatile boolean renderingMayBeCancelled;
 
 	/**
-	 * How many threads to use for rendering.
+	 * {@link TaskExecutor} used for rendering.
 	 */
-	private final int numRenderingThreads;
-
-	/**
-	 * {@link ExecutorService} used for rendering.
-	 */
-	private final ExecutorService renderingExecutorService;
+	private final TaskExecutor renderingTaskExecutor;
 
 	/**
 	 * TODO
@@ -277,9 +273,7 @@ public class MultiResolutionRendererGeneric<T> {
 	 *                                   this
 	 *                                   threshold.
 	 * @param doubleBuffered             Whether to use double buffered rendering.
-	 * @param numRenderingThreads        How many threads to use for rendering.
-	 * @param renderingExecutorService   if non-null, this is used for rendering. Note, that it is still important to supply the numRenderingThreads
-	 *                                   parameter, because that is used to determine into how many sub-tasks rendering is split.
+	 * @param renderingTaskExecutor
 	 * @param useVolatileIfAvailable     whether volatile versions of sources should be used if available.
 	 * @param accumulateProjectorFactory can be used to customize how sources are combined.
 	 * @param cacheControl               the cache controls IO budgeting and fetcher queue.
@@ -290,8 +284,7 @@ public class MultiResolutionRendererGeneric<T> {
 			final double[] screenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
-			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
+			final TaskExecutor renderingTaskExecutor,
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
@@ -321,8 +314,7 @@ public class MultiResolutionRendererGeneric<T> {
 		this.targetRenderNanos = targetRenderNanos;
 
 		renderingMayBeCancelled = true;
-		this.numRenderingThreads = numRenderingThreads;
-		this.renderingExecutorService = renderingExecutorService;
+		this.renderingTaskExecutor = renderingTaskExecutor;
 		this.useVolatileIfAvailable = useVolatileIfAvailable;
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
@@ -581,16 +573,6 @@ public class MultiResolutionRendererGeneric<T> {
 					 * When the user finishes painting and starts navigating again, there may be a delay in rendering the first few frames because
 					 * it starts from the highest available resolution and then gradually decreases the resolution until the rendertime is within the targetRenderNanos threshold.
 					 */
-					//					if (currentScreenScaleIndex == maxScreenScaleIndex)
-					//					{
-					//						if (rendertime > targetRenderNanos && maxScreenScaleIndex < screenScales.length - 1)
-					//							maxScreenScaleIndex++;
-					//						else if (rendertime < targetRenderNanos / 3 && maxScreenScaleIndex > 0)
-					//							maxScreenScaleIndex--;
-					//					}
-					//					else if (currentScreenScaleIndex == maxScreenScaleIndex - 1)
-					//						if (rendertime < targetRenderNanos && maxScreenScaleIndex > 0)
-					//							maxScreenScaleIndex--;
 				}
 
 				if (currentScreenScaleIndex > 0)
@@ -707,7 +689,6 @@ public class MultiResolutionRendererGeneric<T> {
 			LOG.debug("Got {} sources, creating {} non-pre-multiplying single source projectors", sacs.size());
 			final ArrayList<VolatileProjector> sourceProjectors = new ArrayList<>();
 			final ArrayList<RandomAccessibleInterval<ARGBType>> sourceImages = new ArrayList<>();
-			final ArrayList<Source<?>> sources = new ArrayList<>();
 			int j = 0;
 			for (final SourceAndConverter<?> sac : sacs) {
 				final RandomAccessibleInterval<ARGBType> renderImage = Views.interval(renderImages[currentScreenScaleIndex][j], screenImage);
@@ -726,16 +707,15 @@ public class MultiResolutionRendererGeneric<T> {
 						false
 				);
 				sourceProjectors.add(p);
-				sources.add(sac.getSpimSource());
 				sourceImages.add(renderImage);
 			}
-			projector = accumulateProjectorFactory.createAccumulateProjector(
+			projector = accumulateProjectorFactory.createProjector(
 					sourceProjectors,
-					sources,
+					sacs,
 					sourceImages,
 					screenImage,
-					numRenderingThreads,
-					renderingExecutorService
+					-1,
+					null //TODO: rendering
 			);
 		}
 		previousTimepoint = timepoint;
@@ -882,8 +862,7 @@ public class MultiResolutionRendererGeneric<T> {
 					source.getConverter(),
 					Views.stack(screenImage),
 					Views.stack(mask),
-					numRenderingThreads,
-					renderingExecutorService
+					renderingTaskExecutor
 			);
 		else
 			return new VolatileHierarchyProjector<>(
@@ -891,8 +870,7 @@ public class MultiResolutionRendererGeneric<T> {
 					source.getConverter(),
 					Views.stack(screenImage),
 					Views.stack(mask),
-					numRenderingThreads,
-					renderingExecutorService
+					renderingTaskExecutor
 			);
 	}
 

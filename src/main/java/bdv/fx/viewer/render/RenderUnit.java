@@ -13,6 +13,7 @@ import javafx.scene.image.Image;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
@@ -24,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -59,9 +59,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long targetRenderNanos;
 
-	private final int numRenderingThreads;
-
-	private final ExecutorService renderingExecutorService;
+	private final TaskExecutor renderingTaskExecutor;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
@@ -72,8 +70,7 @@ public class RenderUnit implements PainterThread.Paintable {
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
-			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService) {
+			final TaskExecutor renderingTaskExecutor) {
 
 		this.threadGroup = threadGroup;
 		this.viewerStateSupplier = viewerStateSupplier;
@@ -81,8 +78,7 @@ public class RenderUnit implements PainterThread.Paintable {
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
-		this.numRenderingThreads = numRenderingThreads;
-		this.renderingExecutorService = renderingExecutorService;
+		this.renderingTaskExecutor = renderingTaskExecutor;
 		Paintera.whenPaintable(() -> {
 			update();
 			requestRepaint();
@@ -175,7 +171,7 @@ public class RenderUnit implements PainterThread.Paintable {
 		}
 
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
-		renderTarget.setCanvasSize((int)dimensions[0], (int)dimensions[1]);
+		renderTarget.setCanvasSize((int) dimensions[0], (int) dimensions[1]);
 
 		painterThread = new PainterThread(threadGroup, "painter-thread", this);
 		painterThread.setDaemon(true);
@@ -187,8 +183,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				screenScalesProperty.get(),
 				targetRenderNanos,
 				true,
-				numRenderingThreads,
-				renderingExecutorService,
+				renderingTaskExecutor,
 				true,
 				accumulateProjectorFactory,
 				cacheControl

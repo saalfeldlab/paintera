@@ -150,7 +150,7 @@ public class PainteraBaseView {
 		this.keyAndMouseBindings = keyAndMouseBindings;
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo.composites()))
-				.numRenderingThreads(Math.min(3, Math.max(1, Runtime.getRuntime().availableProcessors() / 3)));
+				.numRenderingThreads(Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
 		this.views = new OrthogonalViews<>(
 				manager,
 				this.sharedQueue,
@@ -523,9 +523,7 @@ public class PainteraBaseView {
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
 
-		this.orthogonalViews().getTopLeft().viewer().stop();
-		this.orthogonalViews().getTopRight().viewer().stop();
-		this.orthogonalViews().getBottomLeft().viewer().stop();
+		this.orthogonalViews().stop();
 	}
 
 	/**
