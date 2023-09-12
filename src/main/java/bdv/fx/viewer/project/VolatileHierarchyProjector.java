@@ -43,6 +43,7 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.parallel.Parallelization;
 import net.imglib2.parallel.TaskExecutor;
+import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.operators.SetZero;
 import net.imglib2.util.Intervals;
@@ -354,17 +355,17 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 
 		final AtomicInteger myNumInvalidPixels = new AtomicInteger();
 
-		final TaskExecutor taskExecutor = Parallelization.getTaskExecutor();
+		final TaskExecutor projectorExecutor = TaskExecutors.fixedThreadPool(Math.max(1, (Runtime.getRuntime().availableProcessors() / 3) - 1));
 
 		LoopBuilder.setImages(
 						Views.interval(new BundleView<>(target), sourceInterval),
 						Views.interval(new BundleView<>(sources.get(resolutionIndex)), sourceInterval),
 						Views.interval(mask, sourceInterval)
-				).multiThreaded(taskExecutor)
+				).multiThreaded(projectorExecutor)
 				.forEachChunk(chunk -> {
 					if (canceled.get()) {
-						if (!taskExecutor.getExecutorService().isShutdown()) {
-							taskExecutor.getExecutorService().shutdown();
+						if (!projectorExecutor.getExecutorService().isShutdown()) {
+							projectorExecutor.getExecutorService().shutdown();
 						}
 						return null;
 					}
