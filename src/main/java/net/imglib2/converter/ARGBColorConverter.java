@@ -10,18 +10,17 @@ import net.imglib2.type.numeric.RealType;
 
 public abstract class ARGBColorConverter<R extends RealType<R>> implements ColorConverter, Converter<R, ARGBType> {
 
-	protected final DoubleProperty alpha = new SimpleDoubleProperty(1.0);
+	/* Reading from properties is slow; use these, they are updated by a listener to the respective properties */
+	private double alpha = 1.0;
+	private double min = 0.0;
+	private double max = 1.0;
 
-	protected final DoubleProperty min = new SimpleDoubleProperty(0.0);
+	private int color = ARGBType.rgba( 255, 255, 255, 255 );
 
-	protected final DoubleProperty max = new SimpleDoubleProperty(1.0);
-
-	protected final ObjectProperty<ARGBType> color = new SimpleObjectProperty<>(new ARGBType(ARGBType.rgba(
-			255,
-			255,
-			255,
-			255
-	)));
+	protected final DoubleProperty alphaProperty = new SimpleDoubleProperty(alpha);
+	protected final DoubleProperty minProperty = new SimpleDoubleProperty(min);
+	protected final DoubleProperty maxProperty = new SimpleDoubleProperty(max);
+	protected final ObjectProperty<ARGBType> colorProperty = new SimpleObjectProperty<>(new ARGBType(color));
 
 	protected int A;
 
@@ -40,47 +39,61 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 
 	public ARGBColorConverter(final double min, final double max) {
 
-		this.min.set(min);
-		this.max.set(max);
+		this.min = min;
+		this.max = max;
+		this.minProperty.set(min);
+		this.maxProperty.set(max);
 
-		this.min.addListener((obs, oldv, newv) -> update());
-		this.max.addListener((obs, oldv, newv) -> update());
-		this.color.addListener((obs, oldv, newv) -> update());
-		this.alpha.addListener((obs, oldv, newv) -> update());
+		this.minProperty.addListener((obs, oldv, newv) -> {
+			this.min = newv.doubleValue();
+			update();
+		});
+		this.maxProperty.addListener((obs, oldv, newv) ->  {
+			this.max = newv.doubleValue();
+			update();
+		});
+		this.alphaProperty.addListener((obs, oldv, newv) ->  {
+			this.alpha = newv.doubleValue();
+			update();
+		});
+		this.colorProperty.addListener((obs, oldv, newv) -> {
+			this.color = newv.get();
+			update();
+		});
 
 		update();
 	}
 
 	public DoubleProperty minProperty() {
 
-		return min;
+		return minProperty;
 	}
 
 	public DoubleProperty maxProperty() {
 
-		return max;
+		return maxProperty;
 	}
 
 	public ObjectProperty<ARGBType> colorProperty() {
 
-		return color;
+		return colorProperty;
 	}
 
 	public DoubleProperty alphaProperty() {
 
-		return this.alpha;
+		return alphaProperty;
 	}
 
 	@Override
 	public ARGBType getColor() {
 
-		return color.get().copy();
+		return new ARGBType(color);
 	}
 
 	@Override
 	public void setColor(final ARGBType c) {
 
-		color.set(c);
+		colorProperty.set(c);
 	}
 
 	@Override
@@ -92,32 +105,32 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 	@Override
 	public double getMin() {
 
-		return min.get();
+		return min;
 	}
 
 	@Override
 	public double getMax() {
 
-		return max.get();
+		return max;
 	}
 
 	@Override
 	public void setMax(final double max) {
 
-		this.max.set(max);
+		this.maxProperty.set(max);
 	}
 
 	@Override
 	public void setMin(final double min) {
 
-		this.min.set(min);
+		this.minProperty.set(min);
 	}
 
 	private void update() {
 
-		final double scale = 1.0 / (max.get() - min.get());
-		final int value = color.get().get();
-		A = (int)Math.min(Math.max(Math.round(255 * alphaProperty().get()), 0), 255);
+		final double scale = 1.0 / (max - min);
+		final int value = color;
+		A = (int)Math.min(Math.max(Math.round(255 * alpha), 0), 255);
 		scaleR = ARGBType.red(value) * scale;
 		scaleG = ARGBType.green(value) * scale;
 		scaleB = ARGBType.blue(value) * scale;
@@ -139,7 +152,7 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 		@Override
 		public void convert(final R input, final ARGBType output) {
 
-			final double v = input.getRealDouble() - min.get();
+			final double v = input.getRealDouble() - getMin();
 			if (v < 0) {
 				output.set(black);
 			} else {
@@ -169,7 +182,7 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 		@Override
 		public void convert(final R input, final ARGBType output) {
 
-			final double v = input.getRealDouble() - min.get();
+			final double v = input.getRealDouble() - getMin();
 			if (v < 0) {
 				output.set(black);
 			} else {
@@ -199,7 +212,7 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 		@Override
 		public void convert(final R input, final ARGBType output) {
 
-			final double v = input.getRealDouble() - min.get();
+			final double v = input.getRealDouble() - getMin();
 			final int r0 = (int)(scaleR * v + 0.5);
 			final int g0 = (int)(scaleG * v + 0.5);
 			final int b0 = (int)(scaleB * v + 0.5);
@@ -226,7 +239,7 @@ public abstract class ARGBColorConverter<R extends RealType<R>> implements Color
 		@Override
 		public void convert(final R input, final ARGBType output) {
 
-			final double v = input.getRealDouble() - min.get();
+			final double v = input.getRealDouble() - getMin();
 			final int r0 = (int)(scaleR * v + 0.5);
 			final int g0 = (int)(scaleG * v + 0.5);
 			final int b0 = (int)(scaleB * v + 0.5);
