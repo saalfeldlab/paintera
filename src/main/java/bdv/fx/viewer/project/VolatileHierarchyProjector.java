@@ -28,9 +28,7 @@
  */
 package bdv.fx.viewer.project;
 
-import bdv.viewer.render.ProjectorUtils;
 import bdv.viewer.render.VolatileProjector;
-import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessible;
@@ -207,8 +205,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	}
 
 	/**
-	 * Set all pixels in target to 100% transparent zero, and mask to all
-	 * Integer.MAX_VALUE.
+	 * Set all mask values to Byte.MAX_VALUE. This will ensure all target values are re-render on the next pass.
 	 */
 	public void clearMask() {
 
@@ -227,27 +224,15 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	 */
 	private void clearUntouchedTargetPixels() {
 
-		if (true) return;
 		try {
-			taskExecutor.getExecutorService().invokeAll(List.of(Executors.callable(() -> {
-				//TODO: Rendering; use loopbuilder and multithreading; Also just do this during the map task?
-				final int[] data = ProjectorUtils.getARGBArrayImgData(target);
-				if (data != null) {
-					final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-					final int size = (int) Intervals.numElements(target);
-					for (int i = 0; i < size; ++i) {
-						if (maskCursor.next().get() == Byte.MAX_VALUE)
-							data[i] = 0;
-					}
-				} else {
-					final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-					for (final B t : iterableTarget) {
-						if (maskCursor.next().get() == Byte.MAX_VALUE)
-							t.setZero();
-					}
-				}
-			}, null)));
-		} catch (InterruptedException e) {
+			LoopBuilder.setImages(Views.interval(new BundleView<>(target), target), mask)
+					.multiThreaded(taskExecutor)
+					.forEachPixel((targetRA, maskVal) -> {
+						if (maskVal.get() == Byte.MAX_VALUE) {
+							targetRA.get().setZero();
+						}
+					});
+		} catch (RuntimeException e) {
 			Thread.currentThread().interrupt();
 		}
 	}
