@@ -328,7 +328,7 @@ public class MultiResolutionRendererGeneric<T> {
 			int numBuffers = doubleBuffered ? highestResBuffers.size() : 1;
 			renderIdQueue.clear();
 			renderIdQueue.addAll(IntStream.range(0, numBuffers).boxed().collect(Collectors.toList()));
-			for (int i = 0; i < numBuffers; ++i) {
+			for (int i = 0; i < screenScales.length; ++i) {
 				final double screenToViewerScale = screenScales[i];
 				final int w = (int)Math.ceil(screenToViewerScale * componentW);
 				final int h = (int)Math.ceil(screenToViewerScale * componentH);
