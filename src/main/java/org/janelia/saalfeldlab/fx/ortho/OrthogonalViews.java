@@ -25,7 +25,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -144,7 +144,13 @@ public class OrthogonalViews<BR extends Node> {
 
 		this.manager = manager;
 
-		final ForkJoinPool rendererService = new ForkJoinPool(optional.values.getNumRenderingThreads());
+		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
+			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+			worker.setName("render-thread-" + worker.getPoolIndex());
+			return worker;
+		};
+
+		final ForkJoinPool rendererService = new ForkJoinPool(optional.values.getNumRenderingThreads(), factory, null, false);
 		this.renderingTaskExecutor = TaskExecutors.forExecutorService(rendererService);
 		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, renderingTaskExecutor);
 		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, renderingTaskExecutor);
