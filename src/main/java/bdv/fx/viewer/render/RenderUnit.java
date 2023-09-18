@@ -35,7 +35,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final long[] dimensions = {1, 1};
+	private final long[] dimensions = {0, 0};
 
 	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
 
