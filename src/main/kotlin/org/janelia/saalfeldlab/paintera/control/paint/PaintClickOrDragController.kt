@@ -28,10 +28,13 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.union
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 private data class Postion(var x: Double = 0.0, var y: Double = 0.0) {
 
@@ -305,6 +308,12 @@ class PaintClickOrDragController(
 	@Synchronized
 	private fun paint(pos: Postion) = pos.run { paint(x, y) }
 
+	private var paintService : ExecutorService? = null
+		get() = if (field == null || field!!.isShutdown) {
+			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread"))
+			field
+		} else field
+
 	@Synchronized
 	private fun paint(viewerX: Double, viewerY: Double) {
 		LOG.trace("At {} {}", viewerX, viewerY)
@@ -328,7 +337,7 @@ class PaintClickOrDragController(
 				val paintIntervalInMask = task.get()
 				maskInterval = paintIntervalInMask union maskInterval
 				requestRepaint(paintIntervalInMask)
-			}.submit()
+			}.submit(paintService!!)
 		}
 
 
