@@ -44,7 +44,11 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 		final var segmentId = selectedSegments.getAssignment().getSegment(fragmentId);
 		final boolean isActiveSegment = selectedSegments.isSegmentSelected(segmentId);
 		final long assigned = colorFromSegmentId ? segmentId : fragmentId;
-		if (!argbCache.contains(assigned)) {
+		int argb;
+		synchronized (argbCache) {
+			argb = argbCache.get(assigned);
+		}
+		if (argb == argbCache.getNoEntryValue()) {
 			double x = getDouble(seed + assigned);
 			x *= 6.0;
 			final int k = (int)x;
@@ -56,14 +60,13 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 			final int g = interpolate(gs, k, l, u, v);
 			final int b = interpolate(bs, k, l, u, v);
 
-			final int argb = argb(r, g, b, alpha);
+			argb = argb(r, g, b, alpha);
 
 			synchronized (argbCache) {
 				argbCache.put(assigned, argb);
 			}
 		}
 
-		int argb = argbCache.get(assigned);
 		if (Label.INVALID == fragmentId) {
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		} else if (lockedSegments.isLocked(segmentId) && hideLockedSegments) {
