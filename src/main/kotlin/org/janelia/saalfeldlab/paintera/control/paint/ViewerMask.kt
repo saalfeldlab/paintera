@@ -41,7 +41,7 @@ class ViewerMask private constructor(
 	invalidate: Invalidate<*>? = null,
 	invalidateVolatile: Invalidate<*>? = null,
 	shutdown: Runnable? = null,
-	private inline val paintedLabelIsValid: (UnsignedLongType) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
+	private inline val paintedLabelIsValid: (Long) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
 	val paintDepthFactor: Double? = 1.0,
 	private val maskSize: Interval? = null,
 	private val defaultValue: Long = Label.INVALID
@@ -234,7 +234,7 @@ class ViewerMask private constructor(
 
 	override fun <C : IntegerType<C>> applyMaskToCanvas(
 		canvas: RandomAccessibleInterval<C>,
-		acceptAsPainted: Predicate<UnsignedLongType>
+		acceptAsPainted: Predicate<Long>
 	): Set<Long> {
 
 		val extendedViewerImg = Views.extendValue(viewerImg, Label.INVALID)
@@ -294,7 +294,7 @@ class ViewerMask private constructor(
 				val canvasPositionInMask = DoubleArray(3)
 				val canvasPositionInMaskAsRealPoint = RealPoint.wrap(canvasPositionInMask)
 
-				chunk.forEachPixel { canvasBundle, viewerVal ->
+				chunk.forEachPixel { canvasBundle, viewerValType ->
 					canvasBundle.localize(canvasPosition)
 					val sourceDepthInMask = sourceToMaskTransformAsArray.let {
 						it[8] * canvasPosition[0] + it[9] * canvasPosition[1] + it[10] * canvasPosition[2] + it[11]
@@ -302,8 +302,9 @@ class ViewerMask private constructor(
 
 					sourceToMaskTransform.apply(canvasPosition, canvasPositionInMask)
 					if (sourceDepthInMask <= maxSourceDistInMask) {
+						val viewerVal = viewerValType.get()
 						if (acceptAsPainted.test(viewerVal)) {
-							val paintVal = viewerVal.get()
+							val paintVal = viewerVal
 							if (sourceDepthInMask < minSourceDistInMask) {
 								canvasBundle.get().setInteger(paintVal)
 							} else {
@@ -359,9 +360,8 @@ class ViewerMask private constructor(
 
 								val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
 								while (maskCursor.hasNext()) {
-									val maskLabel = maskCursor.next()
-									val maskId = maskLabel.integerLong
-									if (acceptAsPainted.test(maskLabel)) {
+									val maskId = maskCursor.next().get()
+									if (acceptAsPainted.test(maskId)) {
 										maskCursor.localize(canvasPositionInMask)
 										sourceToMaskTransform.inverse().apply(canvasPositionInMask, canvasPositionInMask)
 										/* just renaming for clarity. */

@@ -169,7 +169,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private static final int NUM_DIMENSIONS = 3;
 
-	public static final Predicate<UnsignedLongType> VALID_LABEL_CHECK = it -> it.get() != Label.INVALID;
+	public static final Predicate<Long> VALID_LABEL_CHECK = it -> it != Label.INVALID;
 
 	private final UnsignedLongType INVALID = new UnsignedLongType(Label.INVALID);
 
@@ -339,7 +339,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public synchronized SourceMask generateMask(
 			final MaskInfo maskInfo,
-			final Predicate<UnsignedLongType> isPaintedForeground)
+			final Predicate<Long> isPaintedForeground)
 			throws MaskInUse {
 
 		LOG.debug("Generating mask: {}", maskInfo);
@@ -380,7 +380,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public synchronized void setMask(
 			final SourceMask mask,
-			final Predicate<UnsignedLongType> isPaintedForeground)
+			final Predicate<Long> isPaintedForeground)
 			throws MaskInUse {
 
 		setMask(mask, mask.getRai(), mask.getVolatileRai(), isPaintedForeground);
@@ -390,7 +390,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			RandomAccessibleInterval<UnsignedLongType> rai,
 			RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
-			final Predicate<UnsignedLongType> acceptLabel)
+			final Predicate<Long> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -417,7 +417,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			RealRandomAccessible<UnsignedLongType> rai,
 			RealRandomAccessible<VolatileUnsignedLongType> volatileRai,
-			final Predicate<UnsignedLongType> acceptLabel)
+			final Predicate<Long> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -447,7 +447,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Invalidate<?> invalidate,
 			final Invalidate<?> volatileInvalidate,
 			final Runnable shutdown,
-			final Predicate<UnsignedLongType> acceptLabel)
+			final Predicate<Long> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -477,7 +477,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	public void applyMask(
 			final SourceMask mask,
 			final Interval paintedInterval,
-			final Predicate<UnsignedLongType> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted) {
 
 		if (mask == null)
 			return;
@@ -576,7 +576,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			final List<Interval> intervals,
 			final DoubleProperty progressBinding,
-			final Predicate<UnsignedLongType> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted) {
 
 		if (mask == null)
 			return;
@@ -1208,7 +1208,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final TLongSet paintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final Interval intervalAtPaintedScale,
-			final Predicate<UnsignedLongType> isPaintedForeground) {
+			final Predicate<Long> isPaintedForeground) {
 
 		final RandomAccessibleInterval<UnsignedLongType> atPaintedLevel = dataCanvases[paintedLevel];
 		for (int lowerResLevel = paintedLevel + 1; lowerResLevel < getNumMipmapLevels(); ++lowerResLevel) {
@@ -1304,7 +1304,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					);
 
 					final IntervalView<BoolType> relevantBlockAtPaintedResolution = Views.interval(
-							Converters.convert(mask, (s, t) -> t.set(isPaintedForeground.test(s)), new BoolType()),
+							Converters.convert(mask, (s, t) -> t.set(isPaintedForeground.test(s.get())), new BoolType()),
 							minPainted,
 							maxPainted
 					);
@@ -1452,7 +1452,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<C> canvas,
 			final CellGrid grid,
 			final Interval paintedInterval,
-			final Predicate<UnsignedLongType> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted) {
 
 		final long[] currentMin = new long[grid.numDimensions()];
 		final long[] currentMax = new long[grid.numDimensions()];
@@ -1786,7 +1786,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<UnsignedLongType> store,
 			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
 			final int maskLevel,
-			final Predicate<UnsignedLongType> isPaintedForeground) {
+			final Predicate<Long> isPaintedForeground) {
 
 		setAtMaskLevel(store, vstore, maskLevel, isPaintedForeground);
 		LOG.debug("Created mask at scale level {}", maskLevel);
@@ -1797,7 +1797,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
 			final int maskLevel,
-			final Predicate<UnsignedLongType> acceptMask) {
+			final Predicate<Long> acceptMask) {
 
 		setAtMaskLevel(mask, vmask, maskLevel, acceptMask);
 		LOG.debug("Created mask at scale level {}", maskLevel);
@@ -1833,7 +1833,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<UnsignedLongType> store,
 			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
 			final int maskLevel,
-			final Predicate<UnsignedLongType> acceptLabel) {
+			final Predicate<Long> acceptLabel) {
 
 		setAtMaskLevel(
 				Views.interpolate(Views.extendZero(store), new NearestNeighborInterpolatorFactory<>()),
@@ -1853,13 +1853,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
 			final int maskLevel,
-			final Predicate<UnsignedLongType> acceptLabel) {
+			final Predicate<Long> acceptLabel) {
 
 		this.dMasks[maskLevel] = Converters.convert(
 				mask,
 				(input, output) -> {
-					if (acceptLabel.test(input)) {
-						output.set(input);
+					if (acceptLabel.test(input.get())) {
+						output.set(input.get());
 					} else {
 						output.set(INVALID);
 					}
@@ -1872,9 +1872,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					final boolean isValid = input.isValid();
 					output.setValid(isValid);
 					if (isValid) {
-						final UnsignedLongType inputType = input.get();
-						if (acceptLabel.test(inputType)) {
-							output.get().set(inputType);
+						final long inputVal = input.get().get();
+						if (acceptLabel.test(inputVal)) {
+							output.get().set(inputVal);
 						} else {
 							output.get().set(INVALID);
 						}

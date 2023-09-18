@@ -59,7 +59,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(2.0);
 
-	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = it -> Label.isForeground(it.get());
+	private static final Predicate<Long> FOREGROUND_CHECK = Label::isForeground;
 
 	private ViewerMask viewerMask;
 

@@ -82,7 +82,7 @@ public class SourceMask implements Mask {
 
 	public <C extends IntegerType<C>> Set<Long> applyMaskToCanvas(
 			final RandomAccessibleInterval<C> canvas,
-			final Predicate<UnsignedLongType> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted) {
 
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(Views.extendValue(getRai(), Label.INVALID), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
@@ -90,8 +90,8 @@ public class SourceMask implements Mask {
 		final var labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
 			final HashSet<Long> labelsForChunk = new HashSet<>();
 			chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
-				if (acceptAsPainted.test(maskVal)) {
-					final long label = maskVal.getIntegerLong();
+				final long label = maskVal.getIntegerLong();
+				if (acceptAsPainted.test(label)) {
 					bundledCanvasVal.get().setInteger(label);
 					labelsForChunk.add(label);
 				}
