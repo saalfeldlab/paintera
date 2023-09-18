@@ -111,9 +111,11 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 				 *
 				 * https://docs.oracle.com/javase/8/javafx/api/javafx/scene/effect/BlendMode.html
 				 */
-				for (final ARGBType px : sourceImage.asArrayImg()) {
-					px.set(px.get() | FULL_OPACITY);
-				}
+				//FIXME: Pretty sure we don't want to be iterating over the entire render image AGAIN
+				// in the ovarlay renderer.... It has huge performance implications
+				//for (final ARGBType px : sourceImage.asArrayImg()) {
+				//	px.set(px.get() | FULL_OPACITY);
+				//}
 
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
