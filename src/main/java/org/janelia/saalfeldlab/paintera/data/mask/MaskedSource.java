@@ -1489,10 +1489,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
 				final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
 				labelToBlocks.getAndUpdate(map -> {
+					final HashMap<Long, TLongHashSet> updatedMap = new HashMap<>(map);
 					for (Long label : labelsForBlock) {
-						map.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
+						updatedMap.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
 					}
-					return map;
+					return updatedMap;
 				});
 			});
 			jobs.add(job);
