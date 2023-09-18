@@ -32,7 +32,6 @@ package bdv.fx.viewer.render;
 import bdv.viewer.TransformListener;
 import javafx.scene.image.Image;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,25 +71,21 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 			final PixelBufferWritableImage img,
 			final AffineTransform3D transform) {
 
-		pendingTransform.set(transform);
-		return super.setBufferedImage(img);
+		synchronized (paintedTransform) {
+			pendingTransform.set(transform);
+			return super.setBufferedImage(img);
+		}
 	}
 
 	@Override
 	public void drawOverlays(final Consumer<Image> g) {
 
-		boolean notifyTransformListeners = false;
+		boolean notifyTransformListeners = !paintedTransform.equals(pendingTransform);
+		final PixelBufferWritableImage sourceImage;
 		synchronized (this) {
-			if (pending) {
-				final PixelBufferWritableImage tmp = bufferedImage;
-				bufferedImage = pendingImage;
-				paintedTransform.set(pendingTransform);
-				pendingImage = tmp;
-				pending = false;
-				notifyTransformListeners = true;
-			}
+			sourceImage = bufferedImage;
+			paintedTransform.set(pendingTransform);
 		}
-		final PixelBufferWritableImage sourceImage = this.bufferedImage;
 		if (sourceImage != null) {
 			final boolean notify = notifyTransformListeners;
 			InvokeOnJavaFXApplicationThread.invoke(() -> {

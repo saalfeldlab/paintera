@@ -763,7 +763,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						val screenInterval = renderer.lastRenderedScreenInterval
 						val renderTargetRealInterval = renderer.lastRenderTargetRealInterval
 
-						val image = renderTarget.pendingImage
+						val image = renderTarget.bufferedImage
 						renderResultProperty.set(RenderResult(image, screenInterval, renderTargetRealInterval, renderedScreenScaleIndex))
 					}
 				}
