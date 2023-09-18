@@ -156,7 +156,6 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 		synchronized (paintedTransformListeners) {
 			final int s = paintedTransformListeners.size();
 			paintedTransformListeners.add(index < 0 ? 0 : index > s ? s : index, listener);
-			listener.transformChanged(paintedTransform);
 		}
 	}
 
