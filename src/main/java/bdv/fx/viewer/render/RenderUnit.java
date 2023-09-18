@@ -79,10 +79,6 @@ public class RenderUnit implements PainterThread.Paintable {
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
 		this.renderingTaskExecutor = renderingTaskExecutor;
-		Paintera.whenPaintable(() -> {
-			update();
-			requestRepaint();
-		});
 	}
 
 	/**
