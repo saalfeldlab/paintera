@@ -4,6 +4,7 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.value.ObservableValue;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -290,10 +291,28 @@ public class FloodFill<T extends IntegerType<T>> {
 		setFloodFillState(source, null);
 	}
 
-	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long id, final FragmentSegmentAssignment assignment) {
+	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long seedLabel, final FragmentSegmentAssignment assignment) {
 
-		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == Label.INVALID
-				&& (assignment != null ? assignment.getSegment(t.getIntegerLong()) : t.getIntegerLong()) == id;
+		final Long singleFragment;
+		final TLongHashSet seedFragments;
+		if (assignment != null) {
+			seedFragments = assignment.getFragments(seedLabel);
+			singleFragment = seedFragments.size() == 1 ? seedFragments.toArray()[0] : null;
+		} else {
+			singleFragment = seedLabel;
+			seedFragments = null;
+		}
+
+		return (sourceVal, targetVal) -> {
+			if (Thread.currentThread().isInterrupted()) return false;
+			/* true if sourceFragment is a seedFragment */
+			final long sourceFragment = sourceVal.getIntegerLong();
+			final var shouldFill = singleFragment != null ? singleFragment == sourceFragment : seedFragments.contains(sourceFragment);
+			/* Most target vals are typically invalid, so this is rarely not passed; The sourceMatch filter is likely to
+			 * shortcircuit more often */
+			return shouldFill && targetVal.getInteger() == Label.INVALID;
+		};
+
 	}
 
 	public static class RunAll implements Runnable {
