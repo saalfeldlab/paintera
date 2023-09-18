@@ -51,6 +51,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothActionVerifiedState.Companion.verifyState
@@ -428,7 +429,7 @@ object SmoothAction : MenuAction("_Smooth") {
 				paintContext.dataSource.apply {
 					val applyProgressProperty = SimpleDoubleProperty()
 					applyProgressProperty.addListener { _, _, applyProgress -> progress = applyProgress.toDouble() }
-					applyMaskOverIntervals(currentMask, smoothedIntervals, applyProgressProperty) { it.integerLong >= 0 }
+					applyMaskOverIntervals(currentMask, smoothedIntervals, applyProgressProperty) { it >= 0 }
 				}
 			} ?: let {
 				task.cancel()
@@ -474,20 +475,8 @@ object SmoothAction : MenuAction("_Smooth") {
 
 		/* Read from the labelBlockLookup (if already persisted) */
 		val scale0 = 0
-		val blocksFromSource = labels.toArray().flatMap { paintContext.getBlocksForLabel(scale0, it).toList() }
 
-		/* Read from canvas access (if in canvas) */
-		val cellGrid = maskedSource.getCellGrid(0, scale0)
-		val cellIntervals = cellGrid.cellIntervals().randomAccess()
-		val cellPos = LongArray(cellGrid.numDimensions())
-		val blocksFromCanvas = labels.toArray().flatMap {
-			maskedSource.getModifiedBlocks(scale0, it).toArray().map { block ->
-				cellGrid.getCellGridPositionFlat(block, cellPos)
-				FinalInterval(cellIntervals.setPositionAndGet(*cellPos))
-			}
-		}
-
-		val blocksWithLabel = blocksFromSource + blocksFromCanvas
+		val blocksWithLabel= maskedSource.blocksForLabels(scale0, labels.toArray())
 		if (blocksWithLabel.isEmpty()) return
 
 		val sourceImg = maskedSource.getReadOnlyDataBackground(0, scale0)
@@ -495,6 +484,7 @@ object SmoothAction : MenuAction("_Smooth") {
 
 		val bundleSourceImg = BundleView(sourceImg.convert(UnsignedLongType(Imglib2Label.INVALID)) { input, output -> output.set(input.realDouble.toLong()) }.interval(sourceImg)).interval(sourceImg)
 
+		val cellGrid = maskedSource.getCellGrid(0, scale0)
 		val labelMask = Lazy.generate(bundleSourceImg, cellGrid.cellDimensions, DoubleType(0.0), AccessFlags.setOf()) { labelMaskChunk ->
 			val sourceChunk = bundleSourceImg.interval(labelMaskChunk)
 			val canvasChunk = canvasImg.interval(labelMaskChunk)
@@ -518,6 +508,27 @@ object SmoothAction : MenuAction("_Smooth") {
 
 		updateSmoothMask = { preview -> smoothMask(labelMask, cellGrid, blocksWithLabel, preview) }
 		resmooth = true
+	}
+
+
+
+	@JvmStatic
+	fun MaskedSource<*, *>.blocksForLabels(scale0: Int, labels: LongArray): List<Interval> {
+		val sourceState = paintera.baseView.sourceInfo().getState(this) as ConnectomicsLabelState
+		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scale0, it)).toList() }
+
+		/* Read from canvas access (if in canvas) */
+		val cellGrid = getCellGrid(0, scale0)
+		val cellIntervals = cellGrid.cellIntervals().randomAccess()
+		val cellPos = LongArray(cellGrid.numDimensions())
+		val blocksFromCanvas = labels.flatMap {
+			getModifiedBlocks(scale0, it).toArray().map { block ->
+				cellGrid.getCellGridPositionFlat(block, cellPos)
+				FinalInterval(cellIntervals.setPositionAndGet(*cellPos))
+			}
+		}
+
+		return blocksFromSource + blocksFromCanvas
 	}
 
 	private fun SmoothActionVerifiedState.pruneBlock(blocksWithLabel: List<Interval>): List<RealInterval> {
@@ -650,6 +661,6 @@ object SmoothAction : MenuAction("_Smooth") {
 	private fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo) {
 		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(maskInfo.level)
 		val mask = SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
-		maskedSource.setMask(mask) { it.integerLong >= 0 }
+		maskedSource.setMask(mask) { it >= 0 }
 	}
 }
