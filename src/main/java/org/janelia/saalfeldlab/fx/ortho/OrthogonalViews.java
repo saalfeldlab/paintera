@@ -146,6 +146,7 @@ public class OrthogonalViews<BR extends Node> {
 
 		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
 			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+			worker.setDaemon(true);
 			worker.setPriority(4);
 			worker.setName("render-thread-" + worker.getPoolIndex());
 			return worker;

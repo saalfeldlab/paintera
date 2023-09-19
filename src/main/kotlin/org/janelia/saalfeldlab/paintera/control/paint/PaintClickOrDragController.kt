@@ -310,7 +310,7 @@ class PaintClickOrDragController(
 
 	private var paintService : ExecutorService? = null
 		get() = if (field == null || field!!.isShutdown) {
-			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread"))
+			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread",true))
 			field
 		} else field
 

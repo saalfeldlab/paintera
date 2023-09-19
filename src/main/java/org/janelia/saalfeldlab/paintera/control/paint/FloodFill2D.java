@@ -162,7 +162,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	private ExecutorService floodFillExector = newFloodFillExecutor();
 
 	private ExecutorService newFloodFillExecutor() {
-		return Executors.newSingleThreadExecutor(new NamedThreadFactory("flood-fill-2d", false, 8));
+		return Executors.newSingleThreadExecutor(new NamedThreadFactory("flood-fill-2d", true, 8));
 	}
 
 	@NotNull

@@ -16,6 +16,7 @@ import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -96,7 +97,7 @@ public class ValueDisplayListener
 
 	private final Map<DataSource<?, ?>, Task<?>> taskMap = new HashMap<>();
 
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("value-display-listener", true, 2));
 
 	private <D> void getInfo() {
 
