@@ -16,9 +16,12 @@ public final class PainterThread extends Thread {
 
 	private boolean isRunning;
 
+	private long lastUpdate = -1;
+	private long targetFrameRateMs = 1000 / 60;
+
 	public PainterThread(PainterThread.Paintable paintable) {
 
-		this((ThreadGroup)null, "PainterThread", paintable);
+		this(null, "PainterThread", paintable);
 	}
 
 	public PainterThread(ThreadGroup group, PainterThread.Paintable paintable) {
@@ -35,9 +38,18 @@ public final class PainterThread extends Thread {
 		this.setDaemon(true);
 	}
 
-	@Override public void run() {
+	@Override
+	public void run() {
+
 
 		while (this.isRunning) {
+			final long msSinceLastUpdate = System.currentTimeMillis() - this.lastUpdate;
+			if (lastUpdate > 0 && msSinceLastUpdate < targetFrameRateMs) {
+				try {
+					Thread.sleep(msSinceLastUpdate);
+				} catch (InterruptedException e) {
+				}
+			}
 			if (this.isRunning && !this.isInterrupted()) {
 				boolean b;
 				synchronized (this) {
@@ -47,6 +59,7 @@ public final class PainterThread extends Thread {
 
 				if (b) {
 					try {
+						lastUpdate = System.currentTimeMillis();
 						this.paintable.paint();
 					} catch (RejectedExecutionException var5) {
 					}
