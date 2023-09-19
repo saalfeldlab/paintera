@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -45,6 +46,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
@@ -156,6 +159,12 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		return fillMaskAt(maskPos, mask, fill, filter);
 	}
 
+	private ExecutorService floodFillExector = newFloodFillExecutor();
+
+	private ExecutorService newFloodFillExecutor() {
+		return Executors.newSingleThreadExecutor(new NamedThreadFactory("flood-fill-2d", false, 8));
+	}
+
 	@NotNull
 	private UtilityTask<Interval> fillMaskAt(Point maskPos, ViewerMask mask, Long fill, RandomAccessibleInterval<BoolType> filter) {
 
@@ -181,8 +190,11 @@ public class FloodFill2D<T extends IntegerType<T>> {
 			});
 		});
 
-		floodFillTask.submit();
+		if (floodFillExector.isShutdown()) {
+			floodFillExector = newFloodFillExecutor();
+		}
 
+		floodFillTask.submit(floodFillExector);
 		refreshDuringFloodFill(floodFillTask).start();
 		return floodFillTask;
 	}
@@ -264,7 +276,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 	public static Thread refreshDuringFloodFill(Task<Interval> task) {
 
-		return new Thread(() -> {
+		final Thread refreshScreenThread = new Thread(() -> {
 			while (task == null || !task.isDone()) {
 				try {
 					Thread.sleep(100);
@@ -283,6 +295,8 @@ public class FloodFill2D<T extends IntegerType<T>> {
 				task.cancel();
 			}
 		});
+		refreshScreenThread.setPriority(2);
+		return refreshScreenThread;
 	}
 
 	/**
