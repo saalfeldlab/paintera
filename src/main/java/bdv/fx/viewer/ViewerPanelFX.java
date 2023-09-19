@@ -40,7 +40,9 @@ import bdv.viewer.ViewerOptions;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RealInterval;
@@ -160,6 +162,7 @@ public class ViewerPanelFX
 			final TaskExecutor taskExecutor) {
 
 		super();
+		super.setBackground(Background.fill(Color.BLACK));
 		super.getChildren().setAll(canvasPane, overlayPane);
 		options = optional.values;
 
@@ -189,7 +192,7 @@ public class ViewerPanelFX
 		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 
 		this.state = new ViewerState(numTimepoints, this);
-		state.addListener(obs -> Paintera.ifPaintable(this::requestRepaint));
+		state.addListener(obs -> Paintera.whenPaintable(this::requestRepaint));
 
 		Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 
