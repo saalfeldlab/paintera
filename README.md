@@ -375,8 +375,6 @@ Tutorial videos:
 #### Merge/Split Labels
 | Action                               | Description                                                                |
 |--------------------------------------|----------------------------------------------------------------------------|
-| `Shift` + right click                | Split label id under cursor from id that was last toggled active (if any)  |
-| `Shift` + left click                 | Merge label id under cursor with id that was last toggled active (if any)  |
 | `Ctrl` + `Enter`                     | Merge all selected label ids                                               |
 
 #### Flood Fill
