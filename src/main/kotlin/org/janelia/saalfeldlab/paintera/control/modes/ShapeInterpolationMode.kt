@@ -775,6 +775,7 @@ class ShapeInterpolationTool(
 			source.resetMasks(false)
 			val mask = getMask()
 
+			fill2D.fill2D.release() //Clear old state, if any
 			fill2D.fill2D.provideMask(mask)
 			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
 			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }

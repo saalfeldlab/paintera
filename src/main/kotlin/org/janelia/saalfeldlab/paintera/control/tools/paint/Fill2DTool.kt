@@ -74,6 +74,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		if (fillIsRunning) return
 
 		overlay.visible = false
+		fill2D.release()
 		super.deactivate()
 	}
 
