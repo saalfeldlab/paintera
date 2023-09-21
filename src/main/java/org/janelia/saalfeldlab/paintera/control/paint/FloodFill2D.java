@@ -279,7 +279,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		final Thread refreshScreenThread = new Thread(() -> {
 			while (task == null || !task.isDone()) {
 				try {
-					Thread.sleep(100);
+					Thread.sleep(1000);
 				} catch (final InterruptedException e) {
 					Thread.currentThread().interrupt(); // restore interrupted status
 				}
