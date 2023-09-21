@@ -152,7 +152,8 @@ class PaintClickOrDragController(
 	private val position = Postion()
 
 	var viewerMask: ViewerMask? = null
-	private var submitMask = true
+	var submitMask: Boolean = true
+		private set
 
 
 	internal fun provideMask(viewerMask: ViewerMask) {

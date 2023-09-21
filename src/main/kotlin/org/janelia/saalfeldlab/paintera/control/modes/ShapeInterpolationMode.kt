@@ -727,6 +727,7 @@ class ShapeInterpolationTool(
 					verifyNoKeysDown()
 					verifyEventNotNull()
 					verify { !paintera.mouseTracker.isDragging }
+ 					verify { mode?.activeTool !is Fill2DTool }
 					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
 					verify { controllerState != Interpolate } // need to be in the select state
 					onAction { event ->

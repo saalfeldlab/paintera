@@ -212,8 +212,8 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
 			name = "end erase"
 			onAction {
-				setCurrentLabelToSelection()
 				paintClickOrDrag?.busySubmitPaint()
+				setCurrentLabelToSelection()
 				isPainting = false
 			}
 		}
@@ -230,19 +230,22 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private fun PaintClickOrDragController.busySubmitPaint() {
 		isApplyingMaskProperty()?.apply {
-			lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
-			setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
-				if (isBusy) {
-					paint2D.setBrushCursor(Cursor.WAIT)
-				} else {
-					paint2D.setBrushCursor(Cursor.NONE)
-					if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
-						InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+			if (submitMask) {
+				lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+				setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+					if (isBusy) {
+						paint2D.setBrushCursor(Cursor.WAIT)
+					} else {
+						paint2D.setBrushCursor(Cursor.NONE)
+						if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+						}
+						obs.removeListener(setFalseAndRemoveListener)
 					}
-					obs.removeListener(setFalseAndRemoveListener)
 				}
+
+				paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 			}
-			paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 			submitPaint()
 		}
 	}

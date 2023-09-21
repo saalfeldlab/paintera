@@ -95,7 +95,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					name = "fill 2d"
 					keysExclusive = false
 					verifyEventNotNull()
-					onAction { executeFill2DAction(it!!.x, it.y) }
+					onAction {  executeFill2DAction(it!!.x, it.y) }
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
