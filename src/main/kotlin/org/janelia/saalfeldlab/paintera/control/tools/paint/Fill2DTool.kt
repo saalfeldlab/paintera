@@ -68,10 +68,10 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 
 	override fun deactivate() {
-		lateinit var deactivateWhenDone: ChangeListener<Boolean>
-		deactivateWhenDone = ChangeListener<Boolean> { obs, _, isRunning ->
+		lateinit var deactivateWhenDone: (ObservableValue<out Boolean>?, Boolean, Boolean) -> Unit
+		deactivateWhenDone = { obs, _, isRunning ->
 			if (!isRunning) {
-				obs.removeListener(deactivateWhenDone)
+				obs?.removeListener(deactivateWhenDone)
 				overlay.visible
 				fill2D.release()
 				super.deactivate()
