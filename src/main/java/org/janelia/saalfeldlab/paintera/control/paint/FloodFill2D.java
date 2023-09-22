@@ -195,7 +195,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		}
 
 		floodFillTask.submit(floodFillExector);
-		refreshDuringFloodFill(floodFillTask).start();
+		refreshDuringFloodFill(floodFillTask, () -> mask.requestRepaint(maskIntervalProperty.get())).start();
 		return floodFillTask;
 	}
 
@@ -271,15 +271,15 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
 	public static Thread refreshDuringFloodFill() {
 
-		return refreshDuringFloodFill(null);
+		return refreshDuringFloodFill(null, null);
 	}
 
-	public static Thread refreshDuringFloodFill(Task<Interval> task) {
+	public static Thread refreshDuringFloodFill(Task<Interval> task, Runnable repaint) {
 
 		final Thread refreshScreenThread = new Thread(() -> {
 			while (task == null || !task.isDone()) {
 				try {
-					Thread.sleep(100);
+					Thread.sleep(1000);
 				} catch (final InterruptedException e) {
 					Thread.currentThread().interrupt(); // restore interrupted status
 				}
@@ -288,7 +288,11 @@ public class FloodFill2D<T extends IntegerType<T>> {
 					break;
 
 				LOG.trace("Updating View for FloodFill2D");
-				Paintera.getPaintera().getBaseView().orthogonalViews().requestRepaint();
+				if (repaint != null) {
+					repaint.run();
+				} else {
+					Paintera.getPaintera().getBaseView().orthogonalViews().requestRepaint();
+				}
 			}
 
 			if (Thread.interrupted() && task != null) {
