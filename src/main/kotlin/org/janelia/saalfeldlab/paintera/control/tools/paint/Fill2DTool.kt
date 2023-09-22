@@ -13,10 +13,7 @@ import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
@@ -71,11 +68,16 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 
 	override fun deactivate() {
-		if (fillIsRunning) return
-
-		overlay.visible = false
-		fill2D.release()
-		super.deactivate()
+		lateinit var deactivateWhenDone: ChangeListener<Boolean>
+		deactivateWhenDone = ChangeListener<Boolean> { obs, _, isRunning ->
+			if (!isRunning) {
+				obs.removeListener(deactivateWhenDone)
+				overlay.visible
+				fill2D.release()
+				super.deactivate()
+			}
+		}
+		fillIsRunningProperty.addTriggeredListener(listener = deactivateWhenDone)
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {

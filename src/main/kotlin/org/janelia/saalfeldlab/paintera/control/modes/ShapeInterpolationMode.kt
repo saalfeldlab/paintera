@@ -142,10 +142,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 
 		override fun activate() {
-			fillLabel = { controller.interpolationId }
+			super.activate()
 			/* Don't allow filling with depth during shape interpolation */
 			brushProperties?.brushDepth = 1.0
-			super.activate()
+			fillLabel = { controller.interpolationId }
 			fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
 		}
 
@@ -292,7 +292,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify { activeTool is Fill2DTool }
 					onAction {
-						fill2DTool.fill2D.release()
 						switchTool(shapeInterpolationTool)
 					}
 				}
@@ -324,9 +323,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							filter = true
 							onAction {
 								InvokeOnJavaFXApplicationThread {
-									if (activeTool is Fill2DTool) {
-										fill2DTool.fill2D.release()
-									}
 									if (activeTool != shapeInterpolationTool)
 										switchTool(shapeInterpolationTool)
 									/* If triggered, ensure toggle is on. Only can be off when switching to another tool */
@@ -357,6 +353,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 										switchTool(shapeInterpolationTool)
 									} else {
 										switchTool(fill2DTool)
+										fill2DTool.enteredWithoutKeyTrigger = true
 									}
 								}
 							}
@@ -370,6 +367,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 										switchTool(shapeInterpolationTool)
 									} else {
 										switchTool(samTool)
+										samTool.enteredWithoutKeyTrigger = true
 									}
 								}
 							}
@@ -446,7 +444,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					/* On click, generate a new mask, */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						paintClickOrDrag!!.let { paintController ->
-							val previousMask: SourceMask? = source.currentMask
 							source.resetMasks(false)
 							paintController.provideMask(controller.getMask())
 						}
@@ -776,7 +773,6 @@ class ShapeInterpolationTool(
 			source.resetMasks(false)
 			val mask = getMask()
 
-			fill2D.fill2D.release() //Clear old state, if any
 			fill2D.fill2D.provideMask(mask)
 			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
 			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
@@ -792,6 +788,7 @@ class ShapeInterpolationTool(
 			return fill2D.executeFill2DAction(event.x, event.y) {
 				paint(it)
 				currentTask = null
+				fill2D.fill2D.release()
 			}
 		}
 	}
