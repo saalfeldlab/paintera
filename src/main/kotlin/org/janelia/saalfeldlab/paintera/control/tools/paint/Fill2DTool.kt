@@ -66,18 +66,30 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		overlay.visible = true
 	}
 
+	//TODO Caleb: This is going to be in the next release of saalfx; remove from here when that is released.
+	private fun <T> ObservableValue<T>.addRunOnceListener(listener: ChangeListener<T>) {
+
+		lateinit var runOnceWrapper: ChangeListener<T>;
+		runOnceWrapper = ChangeListener { obs, old, new ->
+			listener.changed(obs, old, new)
+			obs.removeListener(runOnceWrapper)
+		}
+		this.addListener(listener)
+	}
 
 	override fun deactivate() {
-		lateinit var deactivateWhenDone: (ObservableValue<out Boolean>?, Boolean, Boolean) -> Unit
-		deactivateWhenDone = { obs, _, isRunning ->
-			if (!isRunning) {
-				obs?.removeListener(deactivateWhenDone)
-				overlay.visible
+
+		if (fillIsRunning) {
+			fillIsRunningProperty.addRunOnceListener { obs, _, isRunning ->
+				overlay.visible = false
 				fill2D.release()
 				super.deactivate()
 			}
+		} else {
+			overlay.visible = false
+			fill2D.release()
+			super.deactivate()
 		}
-		fillIsRunningProperty.addTriggeredListener(listener = deactivateWhenDone)
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {

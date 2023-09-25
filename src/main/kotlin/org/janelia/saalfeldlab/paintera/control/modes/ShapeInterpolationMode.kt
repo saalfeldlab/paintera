@@ -55,7 +55,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
@@ -727,6 +726,19 @@ class ShapeInterpolationTool(
  					verify { mode?.activeTool !is Fill2DTool }
 					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
 					verify { controllerState != Interpolate } // need to be in the select state
+					verify("Can't select BACKGROUND or higher MAX_ID ") { event ->
+
+						source.resetMasks(false)
+						val mask = getMask()
+
+						fill2D.fill2D.provideMask(mask)
+						val pointInMask = mask.displayPointToInitialMaskPoint(event!!.x, event.y)
+						val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
+						val info = mask.info
+						val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
+						return@verify sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
+
+					}
 					onAction { event ->
 						/* get value at position */
 						deleteCurrentSliceOrInterpolant()
