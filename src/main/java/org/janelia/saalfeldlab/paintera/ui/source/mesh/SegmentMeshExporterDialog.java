@@ -116,8 +116,10 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 		});
 		this.isError = (Bindings.createBooleanBinding(() ->
 						filePathField.getText().isEmpty()
+								|| meshFileNameField.getText().isEmpty()
 								|| checkListView.getItems().isEmpty()
-								|| !pathExists(),
+								|| pathExists(),
+				meshFileNameField.textProperty(),
 				filePathField.textProperty(),
 				checkListView.itemsProperty()
 		));
