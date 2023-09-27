@@ -384,6 +384,7 @@ class ViewerMask private constructor(
 		return paintedLabelSet
 	}
 
+	@JvmOverloads
 	fun requestRepaint(intervalOverMask: Interval? = null) {
 		intervalOverMask?.let {
 			val globalInterval = IntervalHelpers.extendAndTransformBoundingBox(intervalOverMask, initialGlobalToMaskTransform.inverse(), .5)
@@ -391,6 +392,7 @@ class ViewerMask private constructor(
 		} ?: paintera.baseView.orthogonalViews().requestRepaint()
 	}
 
+	@JvmOverloads
 	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong()): Interval {
 		val (x: Long, y: Long) = displayPointToInitialMaskPoint(0, 0)
 		return Intervals.createMinSize(x, y, 0, width, height, 1)
