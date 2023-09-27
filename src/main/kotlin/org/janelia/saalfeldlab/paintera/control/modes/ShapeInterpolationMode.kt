@@ -723,7 +723,7 @@ class ShapeInterpolationTool(
 					verifyNoKeysDown()
 					verifyEventNotNull()
 					verify { !paintera.mouseTracker.isDragging }
- 					verify { mode?.activeTool !is Fill2DTool }
+					verify { mode?.activeTool !is Fill2DTool }
 					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
 					verify { controllerState != Interpolate } // need to be in the select state
 					verify("Can't select BACKGROUND or higher MAX_ID ") { event ->
@@ -780,7 +780,7 @@ class ShapeInterpolationTool(
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<Interval>? {
+	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<*>? {
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()

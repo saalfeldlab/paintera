@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.animation.AnimationTimer;
 import javafx.beans.value.ObservableValue;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -37,7 +37,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.state.FloodFillState;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,15 +48,23 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class FloodFill<T extends IntegerType<T>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+
+	private static ExecutorService floodFillExector = newFloodFillExecutor();
+
+	private static ExecutorService newFloodFillExecutor() {
+		return Executors.newFixedThreadPool(Math.min(Runtime.getRuntime().availableProcessors() - 1, 1), new NamedThreadFactory("flood-fill-3d", true, 8));
+	}
 
 	private final ObservableValue<ViewerPanelFX> activeViewerProperty;
 
@@ -64,19 +72,16 @@ public class FloodFill<T extends IntegerType<T>> {
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final Runnable requestRepaint;
+	private final Consumer<Interval> requestRepaint;
 
 	private final BooleanSupplier isVisible;
-
-	private final Consumer<FloodFillState> setFloodFillState;
 
 	public FloodFill(
 			final ObservableValue<ViewerPanelFX> activeViewerProperty,
 			final MaskedSource<T, ?> source,
 			final FragmentSegmentAssignment assignment,
-			final Runnable requestRepaint,
-			final BooleanSupplier isVisible,
-			final Consumer<FloodFillState> setFloodFillState) {
+			final Consumer<Interval> requestRepaint,
+			final BooleanSupplier isVisible) {
 
 		super();
 		Objects.requireNonNull(activeViewerProperty);
@@ -84,17 +89,15 @@ public class FloodFill<T extends IntegerType<T>> {
 		Objects.requireNonNull(assignment);
 		Objects.requireNonNull(requestRepaint);
 		Objects.requireNonNull(isVisible);
-		Objects.requireNonNull(setFloodFillState);
 
 		this.activeViewerProperty = activeViewerProperty;
 		this.source = source;
 		this.assignment = assignment;
 		this.requestRepaint = requestRepaint;
 		this.isVisible = isVisible;
-		this.setFloodFillState = setFloodFillState;
 	}
 
-	public UtilityTask<Boolean> fillAt(final double x, final double y, final Supplier<Long> fillSupplier) {
+	public UtilityTask<?> fillAt(final double x, final double y, final Supplier<Long> fillSupplier) {
 
 		final Long fill = fillSupplier.get();
 		if (fill == null) {
@@ -104,7 +107,7 @@ public class FloodFill<T extends IntegerType<T>> {
 		return fillAt(x, y, fill);
 	}
 
-	private UtilityTask<Boolean> fillAt(final double x, final double y, final long fill) {
+	private UtilityTask<?> fillAt(final double x, final double y, final long fill) {
 
 		// TODO should this check happen outside?
 		if (!isVisible.getAsBoolean()) {
@@ -160,7 +163,7 @@ public class FloodFill<T extends IntegerType<T>> {
 		return location;
 	}
 
-	private UtilityTask<Boolean> fill(
+	private UtilityTask<?> fill(
 			final int time,
 			final int level,
 			final long fill,
@@ -183,27 +186,35 @@ public class FloodFill<T extends IntegerType<T>> {
 		);
 		final SourceMask mask = source.generateMask(maskInfo, MaskedSource.VALID_LABEL_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker =
-				new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1)));
+				new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1))) {
+					@Override
+					public UnsignedLongType get() {
+						if (Thread.currentThread().isInterrupted())
+							throw new RuntimeException("Flood Fill Interuppted");
+						return super.get();
+					}
+				};
 
-		final var floodFillTask = Tasks.createTask((Function<UtilityTask<Boolean>, Boolean>)task -> {
+		final UtilityTask<?> floodFillTask = Tasks.createTask(task -> {
 					if (seedValue instanceof LabelMultisetType) {
-						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>)data, accessTracker, seed, seedLabel, fill, assignment);
+						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel, fill, assignment);
 					} else {
 						fillPrimitiveType(data, accessTracker, seed, seedLabel, fill, assignment);
 					}
-					return true;
-				}).onCancelled((state, task) -> {
+				}
+		).onCancelled((state, task) -> {
 					try {
 						source.resetMasks();
 					} catch (final MaskInUse e) {
 						e.printStackTrace();
 					}
-				})
-				.onFailed((event, task) -> {
+				}
+		).onFailed((event, task) -> {
 					if (!Thread.currentThread().isInterrupted() && task.getException() != null && !(task.getException() instanceof CancellationException)) {
 						throw new RuntimeException(task.getException());
 					}
-				}).onSuccess((state, task) -> {
+				}
+		).onSuccess((state, task) -> {
 					LOG.debug(Thread.currentThread().isInterrupted() ? "FloodFill has been interrupted" : "FloodFill has been completed");
 
 					final Interval interval = accessTracker.createAccessInterval();
@@ -213,32 +224,28 @@ public class FloodFill<T extends IntegerType<T>> {
 							Arrays.toString(Intervals.maxAsLongArray(interval))
 					);
 					source.applyMask(mask, interval, MaskedSource.VALID_LABEL_CHECK);
-				}).onEnd(task -> requestRepaint.run())
-				.submit();
-
-		final var floodFillResultCheckerThread = new Thread(() -> {
-			while (!floodFillTask.isDone()) {
-				try {
-					Thread.sleep(100);
-				} catch (final InterruptedException e) {
-					Thread.currentThread().interrupt(); // restore interrupted status
 				}
+		);
 
-				if (Thread.currentThread().isInterrupted())
-					break;
-
-				LOG.trace("Updating View for FloodFill ");
-				requestRepaint.run();
+		final AnimationTimer refreshAnimation = new AnimationTimer() {
+			@Override
+			public void handle(long now) {
+				if (!floodFillTask.isCancelled()) {
+					requestRepaint.accept(accessTracker.createAccessInterval());
+				}
 			}
+		};
 
-			if (Thread.interrupted()) {
-				floodFillTask.cancel();
-			}
+		floodFillTask.onEnd(task -> {
+			refreshAnimation.stop();
+			requestRepaint.accept(accessTracker.createAccessInterval());
 		});
 
-		setFloodFillState(source, new FloodFillState(fill, floodFillResultCheckerThread::interrupt));
-
-		floodFillResultCheckerThread.start();
+		if (floodFillExector.isShutdown()) {
+			floodFillExector = newFloodFillExecutor();
+		}
+		refreshAnimation.start();
+		floodFillTask.submit(floodFillExector);
 		return floodFillTask;
 	}
 
@@ -279,16 +286,6 @@ public class FloodFill<T extends IntegerType<T>> {
 				new DiamondShape(1),
 				makePredicate(seedLabel, assignment)
 		);
-	}
-
-	private void setFloodFillState(final Source<?> source, final FloodFillState state) {
-
-		setFloodFillState.accept(state);
-	}
-
-	private void resetFloodFillState(final Source<?> source) {
-
-		setFloodFillState(source, null);
 	}
 
 	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long seedLabel, final FragmentSegmentAssignment assignment) {
@@ -378,7 +375,7 @@ public class FloodFill<T extends IntegerType<T>> {
 			coordinates.add(seed.getLongPosition(d));
 		}
 
-		final int cleanupThreshold = n * (int)1e5;
+		final int cleanupThreshold = n * (int) 1e5;
 
 		final RandomAccessible<Neighborhood<Pair<B, U>>> neighborhood = shape.neighborhoodsRandomAccessible(paired);
 		final RandomAccess<Neighborhood<Pair<B, U>>> neighborhoodAccess = neighborhood.randomAccess();
