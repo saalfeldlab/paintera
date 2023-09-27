@@ -37,6 +37,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TransformListener;
 import bdv.viewer.ViewerOptions;
+import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
@@ -183,7 +184,7 @@ public class ViewerPanelFX
 				taskExecutor
 		);
 
-		setRenderedImageListener();
+		startRenderAnimator();
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
@@ -551,24 +552,34 @@ public class ViewerPanelFX
 		return renderUnit;
 	}
 
-	private void setRenderedImageListener() {
+	private void startRenderAnimator() {
 
-		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
-			if (newv != null && newv.getImage() != null) {
-				final Interval screenInterval = newv.getScreenInterval();
-				final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
-				canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-						newv.getImage(), // src
-						renderTargetRealInterval.realMin(0), // src X
-						renderTargetRealInterval.realMin(1), // src Y
-						renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-						renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-						screenInterval.min(0), // dst X
-						screenInterval.min(1), // dst Y
-						screenInterval.dimension(0), // dst width
-						screenInterval.dimension(1)  // dst height
-				);
+		new AnimationTimer() {
+
+			private RenderUnit.RenderResult renderResult = null;
+			@Override
+			public void handle(long now) {
+				final var result = renderUnit.getRenderedImageProperty().get();
+				if (result != renderResult) {
+					renderResult = result;
+				}
+
+				if (renderResult != null && renderResult.getImage() != null) {
+					final Interval screenInterval = renderResult.getScreenInterval();
+					final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+							renderResult.getImage(), // src
+							renderTargetRealInterval.realMin(0), // src X
+							renderTargetRealInterval.realMin(1), // src Y
+							renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+							renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+							screenInterval.min(0), // dst X
+							screenInterval.min(1), // dst Y
+							screenInterval.dimension(0), // dst width
+							screenInterval.dimension(1)  // dst height
+					);
+				}
 			}
-		});
+		}.start();
 	}
 }
