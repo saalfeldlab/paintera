@@ -5,6 +5,7 @@ import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
 import net.imglib2.cache.Invalidate
+import net.imglib2.converter.Converters
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.RealViews
@@ -167,7 +168,13 @@ class ViewerMask private constructor(
 
 		val (cachedCellImg, volatileRaiWithInvalidate) = source.createMaskStoreWithVolatile(CELL_DIMS, imgDims, defaultValue)!!
 
-		this.shutdown = Runnable { cachedCellImg.shutdown() }
+		this.shutdown = let {
+			val oldShutdown = shutdown
+			Runnable {
+				oldShutdown?.run()
+				cachedCellImg.shutdown()
+			}
+		}
 		return WrappedRandomAccessibleInterval(cachedCellImg) to WrappedRandomAccessibleInterval(volatileRaiWithInvalidate.rai)
 	}
 
@@ -202,7 +209,7 @@ class ViewerMask private constructor(
 		viewerCellImg: RandomAccessibleInterval<UnsignedLongType>,
 		volatileViewerCellImg: RandomAccessibleInterval<VolatileUnsignedLongType>
 	):
-			Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> {
+		Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> {
 
 		val realViewerImg = viewerCellImg.extendValue(Label.INVALID).interpolateNearestNeighbor()
 		val realVolatileViewerImg = volatileViewerCellImg.extendValue(VolatileUnsignedLongType(Label.INVALID)).interpolateNearestNeighbor()
@@ -221,14 +228,77 @@ class ViewerMask private constructor(
 		writableSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>?, RandomAccessibleInterval<VolatileUnsignedLongType>?>? = newSourceImages
 	) {
 		(newSourceImages ?: newBackingImages()).let { (img, volatileImg) ->
-			viewerImg.wrappedSource = (img as? WrappedRandomAccessibleInterval)?.wrappedSource ?: img
-			volatileViewerImg.wrappedSource = (volatileImg as? WrappedRandomAccessibleInterval)?.wrappedSource ?: volatileImg
+			viewerImg.wrappedSource = img
+			volatileViewerImg.wrappedSource = volatileImg
 
-			viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.wrappedSource
-				?: writableSourceImages?.first
-			volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.wrappedSource
-				?: writableSourceImages?.second
+			viewerImg.writableSource = writableSourceImages?.first
+			volatileViewerImg.writableSource = writableSourceImages?.second
 		}
+	}
+
+	internal fun pushNewImageLayer(writableSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>? = newBackingImages()) {
+		writableSourceImages?.let { (newImg, newVolatileImg) ->
+			val compositeMask = Converters.convert(
+				viewerImg.wrappedSource.extendValue(Label.INVALID),
+				newImg.extendValue(Label.INVALID),
+				{ oldVal, newVal, result ->
+					val new = newVal.get()
+					if (new != Label.INVALID) {
+						result.set(new)
+					} else result.set(oldVal)
+				},
+				UnsignedLongType(Label.INVALID)
+			).interval(newImg)
+
+			val compositeVolatileMask = Converters.convert(
+				volatileViewerImg.wrappedSource.extendValue(VolatileUnsignedLongType(Label.INVALID)),
+				newVolatileImg.extendValue(VolatileUnsignedLongType(Label.INVALID)),
+				{ original, overlay, composite ->
+
+					var checkOriginal = false
+					if (overlay.isValid) {
+						val overlayVal = overlay.get().get()
+						if (overlayVal != Label.INVALID) {
+							composite.get().set(overlayVal)
+							composite.isValid = true
+						} else checkOriginal = true
+					} else checkOriginal = true
+					if (checkOriginal) {
+						if (original.isValid) {
+							composite.set(original)
+							composite.isValid = true
+						} else composite.isValid = false
+					}
+					composite.isValid = true
+				},
+				VolatileUnsignedLongType(Label.INVALID)
+			).interval(newVolatileImg)
+
+			val wrappedCompositeMask = WrappedRandomAccessibleInterval(compositeMask)
+			wrappedCompositeMask.writableSource = WrappedRandomAccessibleInterval(viewerImg.wrappedSource).apply { writableSource = viewerImg.writableSource }
+
+			val wrappedVolatileCompositeMask = WrappedRandomAccessibleInterval(compositeVolatileMask)
+			wrappedVolatileCompositeMask.writableSource = WrappedRandomAccessibleInterval(volatileViewerImg.wrappedSource).apply { writableSource = volatileViewerImg.writableSource }
+
+			updateBackingImages(
+				wrappedCompositeMask to wrappedVolatileCompositeMask,
+				newImg to newVolatileImg
+			)
+		}
+	}
+
+	internal fun popImageLayer() : Boolean {
+		var popped = false
+		((viewerImg.wrappedSource as? WrappedRandomAccessibleInterval)?.writableSource as? WrappedRandomAccessibleInterval)?.let { prevImg ->
+			viewerImg.wrappedSource = prevImg.wrappedSource
+			viewerImg.writableSource = prevImg.writableSource
+			popped = true
+		}
+		((volatileViewerImg.wrappedSource as? WrappedRandomAccessibleInterval)?.writableSource as? WrappedRandomAccessibleInterval)?.let { prevImg ->
+			volatileViewerImg.wrappedSource = prevImg.wrappedSource
+			volatileViewerImg.writableSource = prevImg.writableSource
+		}
+		return popped
 	}
 
 
@@ -417,6 +487,13 @@ class ViewerMask private constructor(
 			doubleArrayOf(-.5, +.5, +.5),
 			doubleArrayOf(+.5, -.5, -.5),
 		)
+
+		@JvmStatic
+		fun ViewerPanelFX.getGlobalViewerInterval(): RealInterval {
+			val zeroGlobal = doubleArrayOf(0.0, 0.0, 0.0).also { displayToGlobalCoordinates(it) }
+			val sizeGlobal = doubleArrayOf(width, height, 0.0).also { displayToGlobalCoordinates(it) }
+			return FinalRealInterval(zeroGlobal, sizeGlobal)
+		}
 
 		@JvmStatic
 		@JvmOverloads

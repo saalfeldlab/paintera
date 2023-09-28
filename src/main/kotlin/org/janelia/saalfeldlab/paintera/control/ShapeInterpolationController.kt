@@ -4,6 +4,7 @@ import bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.TransformListener
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
@@ -18,14 +19,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import net.imglib2.*
-import net.imglib2.algorithm.lazy.Lazy
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.converter.BiConverter
 import net.imglib2.converter.Converters
 import net.imglib2.converter.logical.Logical
 import net.imglib2.converter.read.BiConvertedRealRandomAccessible
 import net.imglib2.img.array.ArrayImgFactory
-import net.imglib2.img.basictypeaccess.AccessFlags
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
@@ -59,7 +58,6 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
-import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
@@ -90,7 +88,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private val slicesAndInterpolants = SlicesAndInterpolants()
 
-	var sliceDepthProperty: ObjectProperty<Double> = SimpleObjectProperty()
+	val sliceDepthProperty = SimpleDoubleProperty(0.0)
 	private var sliceDepth: Double by sliceDepthProperty.nonnull()
 
 	val isBusyProperty = SimpleBooleanProperty(false, "Shape Interpolation Controller is Busy")
@@ -101,8 +99,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	val isControllerActive: Boolean
 		get() = controllerState != ControllerState.Off
 
-	private val sliceAtCurrentDepthBinding = sliceDepthProperty.createNonNullValueBinding(slicesAndInterpolants) { slicesAndInterpolants.getSliceAtDepth(it) }
+	private val sliceAtCurrentDepthBinding = sliceDepthProperty.createNonNullValueBinding(slicesAndInterpolants) { slicesAndInterpolants.getSliceAtDepth(it.toDouble()) }
 	private val sliceAtCurrentDepth by sliceAtCurrentDepthBinding.nullableVal()
+
+	val currentSliceMaskInterval get() = sliceAtCurrentDepth?.maskBoundingBox
 
 	val numSlices: Int get() = slicesAndInterpolants.slices.size
 
@@ -174,9 +174,14 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		addSelection(maskPaintInterval)
 	}
 
-	fun deleteCurrentSliceOrInterpolant() {
+	/**
+	 * Delete current slice or interpolant
+	 *
+	 * @return the global interval of the mask just removed (useful for repainting after removing)
+	 */
+	fun deleteCurrentSliceOrInterpolant(): RealInterval? {
 		slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
-		slicesAndInterpolants.removeSliceAtDepth(currentDepth)
+		return slicesAndInterpolants.removeSliceAtDepth(currentDepth)?.globalBoundingBox
 	}
 
 	fun deleteCurrentSlice() {
@@ -482,7 +487,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				fillMasks += constantInvalid
 			}
 
-			var compositeFill : RealRandomAccessible<UnsignedLongType> = fillMasks[0]
+			var compositeFill: RealRandomAccessible<UnsignedLongType> = fillMasks[0]
 			for ((index, dataMask) in fillMasks.withIndex()) {
 				if (index == 0) continue
 
@@ -501,7 +506,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				}
 			}
 
-			var compositeInterpolation : RealRandomAccessible<UnsignedLongType> = dataMasks.getOrNull(0) ?: ConstantUtils.constantRealRandomAccessible(UnsignedLongType(Label.INVALID), compositeFill.numDimensions())
+			var compositeInterpolation: RealRandomAccessible<UnsignedLongType> = dataMasks.getOrNull(0) ?: ConstantUtils.constantRealRandomAccessible(UnsignedLongType(Label.INVALID), compositeFill.numDimensions())
 			for ((index, dataMask) in dataMasks.withIndex()) {
 				if (index == 0) continue
 
@@ -628,62 +633,31 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				.affine(oldToNewMask)
 				.interval(oldIntervalInNew)
 
+
+			/* We want to use the old mask as the backing mask, and have a new writable one on top.
+			* So let's re-use the images this mask created, and replace them with the old mask images (transformed) */
 			val newImg = newMask.viewerImg.wrappedSource
 			val newVolatileImg = newMask.volatileViewerImg.wrappedSource
-			val compositeMask = Converters.convert(
-				oldInNew.extendValue(Label.INVALID),
-				newImg.extendValue(Label.INVALID),
-				{ oldVal, newVal, result ->
-					val new = newVal.get()
-					if (new != Label.INVALID) {
-						result.set(new)
-					} else result.set(oldVal)
-				},
-				UnsignedLongType(Label.INVALID)
-			).interval(newImg)
 
-			val compositeVolatileMask = Converters.convert(
-				oldInNewVolatile.extendValue(VolatileUnsignedLongType(Label.INVALID)),
-				newVolatileImg.extendValue(VolatileUnsignedLongType(Label.INVALID)),
-				{ original, overlay, composite ->
+			newMask.viewerImg.wrappedSource = oldInNew
+			newMask.volatileViewerImg.wrappedSource = oldInNewVolatile
 
-					var checkOriginal = false
-					if (overlay.isValid) {
-						val overlayVal = overlay.get().get()
-						if (overlayVal != Label.INVALID) {
-							composite.get().set(overlayVal)
-							composite.isValid = true
-						} else checkOriginal = true
-					} else checkOriginal = true
-					if (checkOriginal) {
-						if (original.isValid) {
-							composite.set(original)
-							composite.isValid = true
-						} else composite.isValid = false
-					}
-					composite.isValid = true
-				},
-				VolatileUnsignedLongType(Label.INVALID)
-			).interval(newVolatileImg)
+			/* then we pop the `newMask` back in front, as a writable layer */
+			newMask.pushNewImageLayer(newImg to newVolatileImg)
 
-			newMask.apply {
-				updateBackingImages(
-					compositeMask to compositeVolatileMask,
-					newImg to newVolatileImg
+			/* Replace old slice info */
+			slicesAndInterpolants.removeSlice(oldSlice)
+
+			val newSlice = SliceInfo(
+				newMask,
+				paintera().manager().transform,
+				FinalRealInterval(
+					oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
+					oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
 				)
-				/* Replace old slice info */
-				slicesAndInterpolants.removeSlice(oldSlice)
-
-				val newSlice = SliceInfo(
-					newMask,
-					paintera().manager().transform,
-					FinalRealInterval(
-						oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
-						oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
-					)
-				)
-				slicesAndInterpolants.add(currentDepth, newSlice)
-			}
+			)
+			slicesAndInterpolants.add(currentDepth, newSlice)
+			newMask
 		} ?: let {
 			val maskInfo = MaskInfo(0, currentLevel)
 			source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
