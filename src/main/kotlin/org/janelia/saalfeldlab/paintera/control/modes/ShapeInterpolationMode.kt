@@ -18,6 +18,7 @@ import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
@@ -500,11 +501,22 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				consume = false
 				verify { activeTool == floodFillTool }
 				onAction {
-					/* On click, provide the mask, */
+					/* On click, provide the mask, setup the task listener */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-						fill2DTool.fill2D.let { fillController ->
-							source.resetMasks(false)
-							fillController.provideMask(controller.getMask())
+						source.resetMasks(false)
+						val mask = controller.getMask()
+						mask.pushNewImageLayer()
+						fill2DTool.run {
+							fillTaskProperty.addWithListener { obs, _, task ->
+								task?.let {
+									task.onCancelled(true) { _, _ ->
+										mask.popImageLayer()
+										mask.requestRepaint()
+									}
+									task.onEnd(true) { obs?.removeListener(this) }
+								} ?: obs?.removeListener(this)
+							}
+							fill2D.provideMask(mask)
 						}
 					}
 				}
@@ -741,7 +753,10 @@ class ShapeInterpolationTool(
 					}
 					onAction { event ->
 						/* get value at position */
-						deleteCurrentSliceOrInterpolant()
+						deleteCurrentSliceOrInterpolant()?.let { prevSliceGlobalInterval ->
+							source.resetMasks(true)
+							paintera.baseView.orthogonalViews().requestRepaint(Intervals.smallestContainingInterval(prevSliceGlobalInterval))
+						}
 						currentTask = fillObjectInSlice(event!!)
 					}
 				}
@@ -784,6 +799,20 @@ class ShapeInterpolationTool(
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()
+
+			/* If a current slice exists, try to preserve it if cancelled */
+			currentSliceMaskInterval?.also {
+				mask.pushNewImageLayer()
+				fill2D.fillTaskProperty.addWithListener { obs, _, task ->
+					task?.let {
+						task.onCancelled(true) { _, _ ->
+							mask.popImageLayer()
+							mask.requestRepaint()
+						}
+						task.onEnd(true) { obs?.removeListener(this) }
+					} ?: obs?.removeListener(this)
+				}
+			}
 
 			fill2D.fill2D.provideMask(mask)
 			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)

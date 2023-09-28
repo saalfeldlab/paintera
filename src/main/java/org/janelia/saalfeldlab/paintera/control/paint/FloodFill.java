@@ -14,6 +14,7 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
@@ -32,6 +33,7 @@ import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.UtilityTask;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -50,10 +52,12 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class FloodFill<T extends IntegerType<T>> {
 
@@ -185,15 +189,39 @@ public class FloodFill<T extends IntegerType<T>> {
 				level
 		);
 		final SourceMask mask = source.generateMask(maskInfo, MaskedSource.VALID_LABEL_CHECK);
-		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker =
-				new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1))) {
-					@Override
-					public UnsignedLongType get() {
-						if (Thread.currentThread().isInterrupted())
-							throw new RuntimeException("Flood Fill Interuppted");
-						return super.get();
+		final AffineTransform3D globalToSource = source.getSourceTransformForMask(maskInfo).inverse();
+
+		final List<RealInterval> visibleSourceIntervals = Paintera.getPaintera().getBaseView().orthogonalViews().views().stream()
+				.filter(it -> it.isVisible() && it.getWidth() > 0.0 && it.getHeight() > 0.0)
+				.map(ViewerMask::getGlobalViewerInterval)
+				.map(globalToSource::estimateBounds)
+				.map(Intervals::smallestContainingInterval)
+				.collect(Collectors.toList());
+
+		final AtomicBoolean triggerRefresh = new AtomicBoolean(false);
+		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1))) {
+
+			final Point position = new Point(sourceAccess.numDimensions());
+
+			@Override
+			public UnsignedLongType get() {
+				if (Thread.currentThread().isInterrupted())
+					throw new RuntimeException("Flood Fill Interrupted");
+				synchronized (this) {
+					updateAccessBox();
+				}
+				sourceAccess.localize(position);
+				if (!triggerRefresh.get()) {
+					for (RealInterval interval : visibleSourceIntervals) {
+						if (Intervals.contains(interval, position)) {
+							triggerRefresh.set(true);
+							break;
+						}
 					}
-				};
+				}
+				return sourceAccess.get();
+			}
+		};
 
 		final UtilityTask<?> floodFillTask = Tasks.createTask(task -> {
 					if (seedValue instanceof LabelMultisetType) {
@@ -227,14 +255,24 @@ public class FloodFill<T extends IntegerType<T>> {
 				}
 		);
 
-		final AnimationTimer refreshAnimation = new AnimationTimer() {
+		final var refreshAnimation = new AnimationTimer() {
+
+			final static long delay = 2_000_000_000; // 2 second delay before refreshes start
+			final static long REFRESH_RATE = 1_000_000_000;
+			final long start = System.nanoTime();
+			long before = start;
+
 			@Override
 			public void handle(long now) {
-				if (!floodFillTask.isCancelled()) {
+				if (now - start < delay || now - before < REFRESH_RATE) return;
+				if (!floodFillTask.isCancelled() && triggerRefresh.get()) {
 					requestRepaint.accept(accessTracker.createAccessInterval());
+					before = now;
+					triggerRefresh.set(false);
 				}
 			}
 		};
+
 
 		floodFillTask.onEnd(task -> {
 			refreshAnimation.stop();

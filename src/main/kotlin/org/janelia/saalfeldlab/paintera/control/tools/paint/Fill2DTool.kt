@@ -13,10 +13,7 @@ import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.addTriggeredWithListener
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
@@ -52,7 +49,8 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		}
 	}
 
-	private var fillTask: UtilityTask<*>? = null
+	val fillTaskProperty: SimpleObjectProperty<UtilityTask<*>?> = SimpleObjectProperty(null)
+	private var fillTask by fillTaskProperty.nullable()
 
 	private val overlay by lazy {
 		Fill2DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
@@ -100,7 +98,9 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					name = "fill 2d"
 					keysExclusive = false
 					verifyEventNotNull()
-					onAction { executeFill2DAction(it!!.x, it.y) }
+					onAction {
+						executeFill2DAction(it!!.x, it.y)
+					}
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
@@ -117,22 +117,25 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 	private val fillIsRunningProperty = SimpleBooleanProperty(false, "Fill2D is Running")
 
-	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): UtilityTask<*> {
+	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): UtilityTask<*>? {
 
 		fillIsRunningProperty.set(true)
-		val maskWasNotProvided = fill2D.mask == null
-		if (maskWasNotProvided) {
+		val applyIfMaskNotProvided = fill2D.mask == null
+		if (applyIfMaskNotProvided) {
 			statePaintContext!!.dataSource.resetMasks(true);
 		}
-		return fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment).also { task ->
-			fillTask = task
+		fillTask = fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
+		if (fillTask == null) {
+			fillIsRunningProperty.set(false)
+		}
 
+		return fillTask?.also { task ->
 			if (task.isDone) {
 				/* If it's already done, do this now*/
 				if (!task.isCancelled) {
 					val maskFillInterval = fill2D.maskIntervalProperty.value
 					afterFill(maskFillInterval)
-					if (maskWasNotProvided) {
+					if (applyIfMaskNotProvided) {
 						/* Then apply when done */
 						val source = statePaintContext!!.dataSource
 						val mask = source.currentMask as ViewerMask
@@ -167,7 +170,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 				task.onSuccess(append = true) { _, _ ->
 					val maskFillInterval = fill2D.maskIntervalProperty.value
 					afterFill(maskFillInterval)
-					if (maskWasNotProvided) {
+					if (applyIfMaskNotProvided) {
 						/* Then apply when done */
 						val source = statePaintContext!!.dataSource
 						val mask = source.currentMask as ViewerMask

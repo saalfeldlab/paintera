@@ -7,7 +7,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.concurrent.Task;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Point;
@@ -115,7 +114,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		return this.maskIntervalProperty.get();
 	}
 
-	public UtilityTask<?> fillViewerAt(final double viewerSeedX, final double viewerSeedY, Long fill, FragmentSegmentAssignment assignment) {
+	public @Nullable UtilityTask<?> fillViewerAt(final double viewerSeedX, final double viewerSeedY, Long fill, FragmentSegmentAssignment assignment) {
 
 		if (fill == null) {
 			LOG.info("Received invalid label {} -- will not fill.", fill);
@@ -140,7 +139,21 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		}
 		final var maskPos = mask.displayPointToInitialMaskPoint(viewerSeedX, viewerSeedY);
 		final var filter = getBackgorundLabelMaskForAssignment(maskPos, mask, assignment, fill);
-		return fillMaskAt(maskPos, mask, fill, filter);
+		if (filter == null)
+			return null;
+		final UtilityTask<?> floodFillTask = fillMaskAt(maskPos, mask, fill, filter);
+		if (this.viewerMask == null) {
+			floodFillTask.onCancelled(true, (state, task) -> {
+				try {
+					mask.getSource().resetMasks();
+					mask.requestRepaint();
+				} catch (final MaskInUse e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		floodFillTask.submit(floodFillExector);
+		return floodFillTask;
 	}
 
 	public UtilityTask<?> fillViewerAt(final double viewerSeedX, final double viewerSeedY, Long fill, RandomAccessibleInterval<BoolType> filter) {
@@ -167,7 +180,19 @@ public class FloodFill2D<T extends IntegerType<T>> {
 			mask = viewerMask;
 		}
 		final var maskPos = mask.displayPointToInitialMaskPoint(viewerSeedX, viewerSeedY);
-		return fillMaskAt(maskPos, mask, fill, filter);
+		final UtilityTask<?> floodFillTask = fillMaskAt(maskPos, mask, fill, filter);
+		if (this.viewerMask == null) {
+			floodFillTask.onCancelled(true, (state, task) -> {
+				try {
+					mask.getSource().resetMasks();
+					mask.requestRepaint();
+				} catch (final MaskInUse e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		floodFillTask.submit(floodFillExector);
+		return floodFillTask;
 	}
 
 
@@ -177,22 +202,20 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		final Interval screenInterval = mask.getScreenInterval();
 
 		final AtomicBoolean triggerRefresh = new AtomicBoolean(false);
-		final var sourceAccessTracker = new AccessBoxRandomAccessibleOnGet<>(Views.extendValue(mask.getViewerImg(), new UnsignedLongType(fill))) {
-
-			final long[] position = new long[sourceAccess.numDimensions()];
+		final RandomAccessibleInterval<UnsignedLongType> writableViewerImg = mask.getViewerImg().getWritableSource();
+		final var sourceAccessTracker = new AccessBoxRandomAccessibleOnGet<>(Views.extendValue(writableViewerImg, new UnsignedLongType(fill))) {
+			final Point position = new Point(sourceAccess.numDimensions());
 
 			@Override
 			public UnsignedLongType get() {
 				if (Thread.currentThread().isInterrupted())
 					throw new RuntimeException("Flood Fill Interrupted");
+				synchronized (this) {
+					updateAccessBox();
+				}
 				sourceAccess.localize(position);
-				if (Intervals.contains(screenInterval, new FinalInterval(position, position))) {
+				if (!triggerRefresh.get() && Intervals.contains(screenInterval, position)) {
 					triggerRefresh.set(true);
-					synchronized (this) {
-						updateAccessBox();
-					}
-				} else {
-					triggerRefresh.set(false);
 				}
 				return sourceAccess.get();
 			}
@@ -208,16 +231,26 @@ public class FloodFill2D<T extends IntegerType<T>> {
 				fill
 		);
 
-		final var refreshAnimation = refreshDuringFloodFill(floodFillTask, () -> {
-			if (triggerRefresh.get()) {
-				final FinalInterval intervalOverMask = new FinalInterval(sourceAccessTracker.getMin(), sourceAccessTracker.getMax());
-			} else {
-				synchronized (sourceAccessTracker) {
-					sourceAccessTracker.initAccessBox();
+		final var refreshAnimation = new AnimationTimer() {
+
+			final static long delay = 2_000_000_000; // 2 second delay before refreshes start
+			final static long REFRESH_RATE = 1_000_000_000;
+			final long start = System.nanoTime();
+			long before = start;
+
+			@Override
+			public void handle(long now) {
+				if (now - start < delay || now - before < REFRESH_RATE) return;
+				if (!floodFillTask.isCancelled()) {
+					if (triggerRefresh.get()) {
+						mask.requestRepaint(sourceAccessTracker.createAccessInterval());
+						before = now;
+						triggerRefresh.set(false);
+					}
 				}
 			}
-			mask.requestRepaint(intervalOverMask);
-		});
+		};
+
 
 		if (floodFillExector.isShutdown()) {
 			floodFillExector = newFloodFillExecutor();
@@ -226,16 +259,13 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		floodFillTask.onEnd((task) -> {
 			refreshAnimation.stop();
 			/*manually trigger repaint after stop to ensure full interval has been repainted*/
-			final FinalInterval intervalOverMask = new FinalInterval(sourceAccessTracker.getMin(), sourceAccessTracker.getMax());
-			mask.requestRepaint(intervalOverMask);
+			mask.requestRepaint(sourceAccessTracker.createAccessInterval());
 		});
 		floodFillTask.onSuccess((state, task) -> {
-			final FinalInterval intervalOverMask = new FinalInterval(sourceAccessTracker.getMin(), sourceAccessTracker.getMax());
-			maskIntervalProperty.set(intervalOverMask);
+			maskIntervalProperty.set(sourceAccessTracker.createAccessInterval());
 		});
 
 		refreshAnimation.start();
-		floodFillTask.submit(floodFillExector);
 		return floodFillTask;
 	}
 
@@ -257,27 +287,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 			} else {
 				fillAt(maskPos, target, floodFillFilter, fill);
 			}
-		}).onCancelled((state, task) -> {
-			try {
-				mask.getSource().resetMasks();
-				mask.requestRepaint();
-			} catch (final MaskInUse e) {
-				e.printStackTrace();
-			}
 		});
-	}
-
-	public static AnimationTimer refreshDuringFloodFill(Task<?> task, Runnable repaint) {
-
-		final AnimationTimer refreshFloodFill = new AnimationTimer() {
-
-			@Override
-			public void handle(long now) {
-				if (!task.isCancelled())
-					repaint.run();
-			}
-		};
-		return refreshFloodFill;
 	}
 
 	/**
