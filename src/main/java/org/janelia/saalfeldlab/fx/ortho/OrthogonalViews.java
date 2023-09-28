@@ -269,8 +269,7 @@ public class OrthogonalViews<BR extends Node> {
 
 		viewer.setFocusable(false);
 		final var grayedOut = new ColorAdjust();
-		grayedOut.setContrast(-0.2);
-		grayedOut.setBrightness(-0.5);
+		grayedOut.setBrightness(-0.3);
 		viewer.setEffect(grayedOut);
 	}
 
