@@ -46,6 +46,7 @@ import bdv.viewer.render.MipmapOrdering.MipmapHints;
 import bdv.viewer.render.Prefetcher;
 import bdv.viewer.render.SimpleVolatileProjector;
 import bdv.viewer.render.VolatileProjector;
+import javafx.animation.AnimationTimer;
 import net.imglib2.Dimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
@@ -83,8 +84,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * @author Tobias Pietzsch
@@ -303,6 +302,16 @@ public class MultiResolutionRendererGeneric<T> {
 		this.cacheControl = cacheControl;
 		newFrameRequest = false;
 		previousTimepoint = -1;
+
+		new AnimationTimer() {
+
+			@Override
+			public void handle(long now) {
+				if (requestedScreenScaleIndex >= 0 && requestedScreenScaleIndex < screenScales.length && pendingRepaintRequests[requestedScreenScaleIndex] != null) {
+					painterThread.requestRepaint();
+				}
+			}
+		}.start();
 	}
 
 	/**
@@ -522,7 +531,7 @@ public class MultiResolutionRendererGeneric<T> {
 							final T otherBuffer = reuseBuffers == buffers ? renderTarget : reuseBuffers.peek();
 							if (
 									width.applyAsInt(unusedBuffer) == width.applyAsInt(otherBuffer)
-									&& height.applyAsInt(unusedBuffer) == height.applyAsInt(otherBuffer)
+											&& height.applyAsInt(unusedBuffer) == height.applyAsInt(otherBuffer)
 							) {
 								reuseBuffers.add(unusedBuffer);
 							}
@@ -611,7 +620,7 @@ public class MultiResolutionRendererGeneric<T> {
 			projector.cancel();
 
 		int newRequestedScaleIdx;
-		if (screenScaleIndex > maxScreenScaleIndex ) {
+		if (screenScaleIndex > maxScreenScaleIndex) {
 			newRequestedScaleIdx = maxScreenScaleIndex;
 		} else if (screenScaleIndex < 0) {
 			newRequestedScaleIdx = 0;
@@ -626,8 +635,6 @@ public class MultiResolutionRendererGeneric<T> {
 			pendingRepaintRequests[requestedScreenScaleIndex] = interval;
 		else
 			pendingRepaintRequests[requestedScreenScaleIndex] = Intervals.union(pendingRepaintRequests[requestedScreenScaleIndex], interval);
-
-		painterThread.requestRepaint();
 	}
 
 	private VolatileProjector createProjector(

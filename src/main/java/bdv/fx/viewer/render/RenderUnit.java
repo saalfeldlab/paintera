@@ -17,7 +17,6 @@ import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,17 +160,13 @@ public class RenderUnit implements PainterThread.Paintable {
 
 		LOG.debug("Updating render unit");
 
-		if (painterThread != null) {
-			painterThread.stopRendering();
-			painterThread.interrupt();
-		}
-
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
 		renderTarget.setCanvasSize((int) dimensions[0], (int) dimensions[1]);
 
-		painterThread = new PainterThread(threadGroup, "painter-thread", this);
-		painterThread.setDaemon(true);
-		painterThread.start();
+		if (painterThread == null || !painterThread.isAlive()) {
+			painterThread = new PainterThread(threadGroup, "painter-thread", this);
+			painterThread.start();
+		}
 
 		renderer = new MultiResolutionRendererFX(
 				renderTarget,

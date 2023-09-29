@@ -43,36 +43,26 @@ public final class PainterThread extends Thread {
 
 
 		while (this.isRunning) {
-			final long msSinceLastUpdate = System.currentTimeMillis() - this.lastUpdate;
-			if (lastUpdate > 0 && msSinceLastUpdate < targetFrameRateMs) {
+			boolean paint;
+			synchronized (this) {
+				paint = this.pleaseRepaint;
+				this.pleaseRepaint = false;
+			}
+
+			if (paint) {
 				try {
-					Thread.sleep(msSinceLastUpdate);
-				} catch (InterruptedException e) {
+					this.paintable.paint();
+				} catch (RejectedExecutionException var5) {
 				}
 			}
-			if (this.isRunning && !this.isInterrupted()) {
-				boolean b;
-				synchronized (this) {
-					b = this.pleaseRepaint;
-					this.pleaseRepaint = false;
-				}
 
-				if (b) {
-					try {
-						lastUpdate = System.currentTimeMillis();
-						this.paintable.paint();
-					} catch (RejectedExecutionException var5) {
+			synchronized (this) {
+				try {
+					if (this.isRunning && !this.pleaseRepaint) {
+						this.wait();
 					}
-				}
-
-				synchronized (this) {
-					try {
-						if (this.isRunning && !this.pleaseRepaint) {
-							this.wait();
-						}
-						continue;
-					} catch (InterruptedException var7) {
-					}
+					continue;
+				} catch (InterruptedException var7) {
 				}
 			}
 
