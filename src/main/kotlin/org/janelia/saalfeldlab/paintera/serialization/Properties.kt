@@ -59,6 +59,9 @@ class Properties : TransformListener<AffineTransform3D> {
 	@Expose
 	val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
+	@Expose
+	val segmentAnythingConfig = SegmentAnythingConfig()
+
 	@Transient
 	val keyAndMouseConfig = KeyAndMouseConfig()
 

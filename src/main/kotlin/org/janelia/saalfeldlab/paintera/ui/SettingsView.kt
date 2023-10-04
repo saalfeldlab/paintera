@@ -10,12 +10,11 @@ import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 
-class SettingsView private constructor(val vBox: VBox) : TitledPane("Settings", vBox) {
+class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings", vBox) {
 
 	constructor() : this(VBox())
 
-	private val navigationConfigNode =
-		NavigationConfigNode(config = paintera.properties.navigationConfig, coordinateConfig = CoordinateConfigNode(paintera.baseView.manager()))
+	private val navigationConfigNode = NavigationConfigNode(config = paintera.properties.navigationConfig, coordinateConfig = CoordinateConfigNode(paintera.baseView.manager()))
 
 	private val multiBoxOverlayConfigNode = MultiBoxOverlayConfigNode(config = paintera.properties.multiBoxOverlayConfig)
 
@@ -39,6 +38,8 @@ class SettingsView private constructor(val vBox: VBox) : TitledPane("Settings", 
 
 	private val loggingConfigNode = LoggingConfigNode(paintera.properties.loggingConfig)
 
+	private val segmentAnythingConfigNode = SegmentAnythingConfigNode(paintera.properties.segmentAnythingConfig)
+
 	init {
 		vBox.apply {
 			children += navigationConfigNode.getContents()
@@ -49,6 +50,7 @@ class SettingsView private constructor(val vBox: VBox) : TitledPane("Settings", 
 			children += scaleBarConfigNode
 			children += bookmarkConfigNode
 			children += arbitraryMeshConfigNode
+			children += segmentAnythingConfigNode
 			children += screenScaleConfigNode.contents
 			children += loggingConfigNode.node
 		}

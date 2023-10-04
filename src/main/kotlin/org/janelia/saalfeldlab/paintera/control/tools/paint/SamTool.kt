@@ -78,6 +78,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.creat
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
@@ -90,6 +91,8 @@ import java.io.PipedOutputStream
 import java.lang.invoke.MethodHandles
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import javax.imageio.ImageIO
@@ -101,8 +104,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 import kotlin.properties.Delegates
-
-private val SAM_SERVICE = "http://${System.getenv("SAM_SERVICE_HOST") ?: "gpu3.saalfeldlab.org"}/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -468,7 +469,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			entityBuilder.addBinaryBody("image", predictionImagePngInputStream, ContentType.APPLICATION_OCTET_STREAM, "null")
 
 			val client = HttpClients.createDefault()
-			val post = HttpPost(SAM_SERVICE)
+			val post = HttpPost(paintera.properties.segmentAnythingConfig.serviceUrl)
 			post.entity = entityBuilder.build()
 
 			val response = client.execute(post)
@@ -557,7 +558,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						connectedComponents,
 						StructuringElement.FOUR_CONNECTED
 					)
-				} catch (e : InterruptedException) {
+				} catch (e: InterruptedException) {
 					LOG.debug("Connected Components Interrupted During SAM", e)
 					task.cancel()
 					continue
@@ -786,8 +787,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	companion object {
 
-		private const val H_ONNX_MODEL = "sam/sam_vit_h_4b8939.onnx"
-
 		private object SamPointStyle {
 			const val POINT = "sam-point"
 			const val INCLUDE = "sam-include-point"
@@ -805,12 +804,21 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		)
 
 		private lateinit var ortEnv: OrtEnvironment
-		private val createOrtSessionTask = Tasks.createTask {
-			ortEnv = OrtEnvironment.getEnvironment()
-			val modelArray = Companion::class.java.classLoader.getResourceAsStream(H_ONNX_MODEL)!!.readAllBytes()
-			val session = ortEnv.createSession(modelArray)
-			session
-		}.submit()
+		private val createOrtSessionTask by LazyForeignValue({ properties.segmentAnythingConfig.modelLocation }) { modelLocation ->
+			Tasks.createTask {
+				if (!::ortEnv.isInitialized)
+					ortEnv = OrtEnvironment.getEnvironment()
+				val modelArray = try {
+					Companion::class.java.classLoader.getResourceAsStream(modelLocation)!!.readAllBytes()
+				} catch (e: Exception) {
+					Files.readAllBytes(Paths.get(modelLocation))
+				}
+				val session = ortEnv.createSession(modelArray)
+				session
+			}.submit()
+		}.beforeValueChange {
+			it?.cancel()
+		}
 
 
 		data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval)
