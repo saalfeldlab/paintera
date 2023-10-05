@@ -230,9 +230,9 @@ public class Masks {
 		);
 	}
 
-	public static Supplier<String> canvasTmpDirDirectorySupplier(final Supplier<String> root) {
+	public static Supplier<String> canvasTmpDirDirectorySupplier(final String projectCacheDir) {
 
-		return new TmpDirectoryCreator(() -> Paths.get(root.get(), "canvases"), "canvas-");
+		return new TmpDirectoryCreator(Paths.get(projectCacheDir, "canvases"), "canvas-");
 	}
 
 }

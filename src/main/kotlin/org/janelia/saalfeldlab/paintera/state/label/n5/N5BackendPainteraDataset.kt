@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -64,7 +65,6 @@ class N5BackendPainteraDataset<D, T>(
 			queue,
 			priority,
 			name,
-			projectDirectory,
 			propagationExecutorService
 		)
 	}
@@ -94,14 +94,13 @@ class N5BackendPainteraDataset<D, T>(
 			queue: SharedQueue,
 			priority: Int,
 			name: String,
-			projectDirectory: Supplier<String>,
 			propagationExecutorService: ExecutorService,
 		): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 			val dataSource = N5DataSource<D, T>(metadataState, name, queue, priority)
 			val containerWriter = metadataState.writer
 			return containerWriter?.let {
-				val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-				Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
+				val canvasDirSupplier = Masks.canvasTmpDirDirectorySupplier(paintera.properties.painteraDirectoriesConfig.appCacheDir)
+				Masks.maskedSource(dataSource, queue, canvasDirSupplier.get(), canvasDirSupplier, CommitCanvasN5(metadataState), propagationExecutorService)
 			} ?: dataSource
 		}
 

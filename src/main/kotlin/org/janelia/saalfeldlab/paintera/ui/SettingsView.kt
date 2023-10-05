@@ -39,6 +39,7 @@ class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings",
 	private val loggingConfigNode = LoggingConfigNode(paintera.properties.loggingConfig)
 
 	private val segmentAnythingConfigNode = SegmentAnythingConfigNode(paintera.properties.segmentAnythingConfig)
+	private val painteraDirectoriesConfigNode = PainteraDirectoriesConfigNode(paintera.properties.painteraDirectoriesConfig)
 
 	init {
 		vBox.apply {
@@ -51,6 +52,7 @@ class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings",
 			children += bookmarkConfigNode
 			children += arbitraryMeshConfigNode
 			children += segmentAnythingConfigNode
+			children += painteraDirectoriesConfigNode
 			children += screenScaleConfigNode.contents
 			children += loggingConfigNode.node
 		}
