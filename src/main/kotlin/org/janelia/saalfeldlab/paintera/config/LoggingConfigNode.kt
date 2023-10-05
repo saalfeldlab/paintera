@@ -21,11 +21,9 @@ import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
-import java.nio.file.Path
 
 class LoggingConfigNode(private val config: LoggingConfig) {
 
@@ -33,7 +31,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 
 	val node: Node
 		get() {
-			val rootLevelChoiceBox = logLevelChoiceBox(config.rootLoggerLevelProperty())
+			val rootLevelChoiceBox = logLevelChoiceBox(config.rootLoggerLevelProperty)
 			val loggerLevelGrid = GridPane()
 			loggerLevelGrid.columnConstraints.setAll(
 				ColumnConstraints().also { it.hgrow = Priority.ALWAYS },
@@ -68,27 +66,25 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 
 	private val toggleLogEnableNode: Node
 		get() {
-
-			val userHome = System.getProperty("user.home") ?: "\$HOME"
-			val logFilePath = Path.of(userHome, ".paintera", "logs", "paintera.${LogUtils.painteraLogFilenameBase}.log").toAbsolutePath().toString()
-
-			val isEnabledCheckBox = CheckBox("Enable logging")
-				.also { it.selectedProperty().bindBidirectional(config.loggingEnabledProperty) }
-			val isLoggingToConsoleEnabled = CheckBox("Log to console")
-				.also { it.selectedProperty().bindBidirectional(config.loggingToConsoleEnabledProperty) }
-				.also { it.disableProperty().bind(config.loggingEnabledProperty.not()) }
-			val isLoggingToFileEnabled = CheckBox("Log to file")
-				.also { it.selectedProperty().bindBidirectional(config.loggingToFileEnabledProperty) }
-				.also { it.disableProperty().bind(config.loggingEnabledProperty.not()) }
-				.also { it.tooltip = Tooltip("Log file located at `$logFilePath'") }
-				.also { it.contentDisplay = ContentDisplay.RIGHT }
-				.also { it.graphicTextGap = 25.0 }
-				.also {
-					it.graphic = Buttons.withTooltip(null, "Copy log file path (`$logFilePath') to clipboard") {
-						Clipboard.getSystemClipboard().setContent(ClipboardContent().also { it.putString(logFilePath) })
-					}.also { it.graphic = FontAwesome[FontAwesomeIcon.COPY, 2.0] }
+			val isEnabledCheckBox = CheckBox("Enable logging").also {
+				it.selectedProperty().bindBidirectional(config.isLoggingEnabledProperty)
+			}
+			val isLoggingToConsoleEnabled = CheckBox("Log to console").apply {
+				selectedProperty().bindBidirectional(config.isLoggingToConsoleEnabledProperty)
+				disableProperty().bind(config.isLoggingEnabledProperty.not())
+			}
+			val isLoggingToFileEnabled = CheckBox("Log to file").apply {
+				selectedProperty().bindBidirectional(config.isLoggingToFileEnabledProperty)
+				disableProperty().bind(config.isLoggingEnabledProperty.not())
+				tooltip = Tooltip("Log file located at `${LogUtils.painteraLogFilePath}'")
+				contentDisplay = ContentDisplay.RIGHT
+				graphicTextGap = 25.0
+				graphic = Buttons.withTooltip(null, "Copy log file path (`${LogUtils.painteraLogFilePath}') to clipboard") {
+					Clipboard.getSystemClipboard().setContent(ClipboardContent().also { content -> content.putString(LogUtils.painteraLogFilePath) })
+				}.also { button ->
+					button.graphic = FontAwesome[FontAwesomeIcon.COPY, 2.0]
 				}
-
+			}
 			return VBox(
 				isEnabledCheckBox,
 				isLoggingToConsoleEnabled,
@@ -98,7 +94,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 
 	private fun logLevelChoiceBox(logLevelProperty: ObjectProperty<Level>?): ChoiceBox<Level> {
 		val choiceBox = ChoiceBox(FXCollections.observableList(LogUtils.Logback.Levels.levels))
-		choiceBox.value = LoggingConfig.defaultLogLevel
+		choiceBox.value = LoggingConfig.DEFAULT_LOG_LEVEL
 		logLevelProperty?.let { choiceBox.valueProperty().bindBidirectional(it) }
 		return choiceBox
 	}
