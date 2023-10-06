@@ -93,7 +93,7 @@ class LabelSourceStatePreferencePaneNode(
 			override fun fromString(string: String?): SelectedSegments {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
 				/* get fragments from segments and update */
-				val fragments = string?.trim()?.split(",")
+				val fragments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
 					?.map { it.toLong() }
 					?.flatMap { selectedSegments.assignment.getFragments(it).toArray().asIterable() }
 					?.toLongArray() ?: longArrayOf()
@@ -112,7 +112,9 @@ class LabelSourceStatePreferencePaneNode(
 
 			override fun fromString(string: String?): SelectedSegments {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
-				val fragments = string?.trim()?.split(",")?.map { it.toLong() }?.toLongArray() ?: longArrayOf()
+				val fragments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
+					?.map { it.toLong() }
+					?.toLongArray() ?: longArrayOf()
 				selectedSegments.selectedIds.activate(*fragments)
 				if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
 					selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
