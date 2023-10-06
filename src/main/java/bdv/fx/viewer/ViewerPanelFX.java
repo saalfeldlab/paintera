@@ -286,7 +286,6 @@ public class ViewerPanelFX
 	}
 
 
-
 	/**
 	 * Set {@code pos} to the source coordinates (x,y,z)<sup>T</sup> transformed into the display coordinate system.
 	 *
@@ -560,6 +559,7 @@ public class ViewerPanelFX
 		new AnimationTimer() {
 
 			private RenderUnit.RenderResult renderResult = null;
+
 			@Override
 			public void handle(long now) {
 				final var result = renderUnit.getRenderedImageProperty().get();
@@ -586,10 +586,10 @@ public class ViewerPanelFX
 									renderTargetRealInterval.realMin(1), // src Y
 									renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
 									renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-									screenInterval.min(0), // dst X
-									screenInterval.min(1), // dst Y
-									screenInterval.dimension(0), // dst width
-									screenInterval.dimension(1)  // dst height
+									screenInterval.min(0) - 1, // dst X
+									screenInterval.min(1) - 1, // dst Y
+									screenInterval.dimension(0) + 1, // dst width
+									screenInterval.dimension(1) + 1  // dst height
 							);
 						}
 					}
