@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.34.2-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -988,42 +988,6 @@
 			<build>
 				<plugins>
 					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>build-helper-maven-plugin</artifactId>
-						<version>3.0.0</version>
-						<executions>
-							<execution>
-								<phase>prepare-package</phase>
-								<id>normalize-app-version1</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>app._normalVersion</name>
-									<value>${project.version}</value>
-									<regex>\.([0-9]+)-SNAPSHOT</regex>
-									<replacement>.000$1</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
-								</configuration>
-							</execution>
-							<execution>
-								<phase>prepare-package</phase>
-								<id>normalize-app-version2</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>app.normalVersion</name>
-									<!--suppress UnresolvedMavenProperty -->
-									<value>${app._normalVersion}</value>
-									<regex>^0\.</regex>
-									<replacement>99.</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
 						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
 						<groupId>io.github.wiverson</groupId>
 						<artifactId>jtoolprovider-plugin</artifactId>
@@ -1065,7 +1029,6 @@
 								</goals>
 								<configuration>
 									<!--suppress UnresolvedMavenProperty -->
-									<appVersion>${app.normalVersion}</appVersion>
 									<mainJar>${project.build.finalName}.jar</mainJar>
 									<toolName>jpackage</toolName>
 									<writeOutputToLog>true</writeOutputToLog>
