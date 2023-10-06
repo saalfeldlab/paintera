@@ -1072,7 +1072,7 @@
 									<writeErrorsToLog>true</writeErrorsToLog>
 									<failOnError>true</failOnError>
 									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
-									<args>@${project.build.directory}/packaging/${os.detected.name}-jpackage.txt</args>
+									<args>@${project.build.directory}/packaging/${os.detected.name}/jpackage.txt</args>
 								</configuration>
 							</execution>
 						</executions>
