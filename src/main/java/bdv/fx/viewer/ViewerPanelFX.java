@@ -41,6 +41,7 @@ import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -283,6 +284,8 @@ public class ViewerPanelFX
 		displayToGlobalCoordinates(pos);
 		sourceToGlobal.applyInverse(pos, pos);
 	}
+
+
 
 	/**
 	 * Set {@code pos} to the source coordinates (x,y,z)<sup>T</sup> transformed into the display coordinate system.
@@ -564,20 +567,32 @@ public class ViewerPanelFX
 					renderResult = result;
 				}
 
-				if (renderResult != null && renderResult.getImage() != null) {
-					final Interval screenInterval = renderResult.getScreenInterval();
-					final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
-					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-							renderResult.getImage(), // src
-							renderTargetRealInterval.realMin(0), // src X
-							renderTargetRealInterval.realMin(1), // src Y
-							renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-							renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-							screenInterval.min(0), // dst X
-							screenInterval.min(1), // dst Y
-							screenInterval.dimension(0), // dst width
-							screenInterval.dimension(1)  // dst height
-					);
+				if (renderResult != null) {
+					final Image image = renderResult.getImage();
+					if (image != null) {
+						final Interval screenInterval = renderResult.getScreenInterval();
+						final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+
+						canvasPane.getCanvas().getGraphicsContext2D().clearRect(
+								screenInterval.min(0), // dst X
+								screenInterval.min(1), // dst Y
+								screenInterval.dimension(0), // dst width
+								screenInterval.dimension(1)  // dst height
+						);
+						synchronized (image) {
+							canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+									image, // src
+									renderTargetRealInterval.realMin(0), // src X
+									renderTargetRealInterval.realMin(1), // src Y
+									renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+									renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+									screenInterval.min(0), // dst X
+									screenInterval.min(1), // dst Y
+									screenInterval.dimension(0), // dst width
+									screenInterval.dimension(1)  // dst height
+							);
+						}
+					}
 				}
 			}
 		}.start();

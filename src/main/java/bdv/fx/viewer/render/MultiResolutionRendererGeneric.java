@@ -414,6 +414,8 @@ public class MultiResolutionRendererGeneric<T> {
 		return new FinalInterval(paddedIntervalMin, paddedIntervalMax);
 	}
 
+	private T renderTarget = null;
+
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
 	 *
@@ -460,7 +462,7 @@ public class MultiResolutionRendererGeneric<T> {
 			if (createProjector) {
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				final var buffers = this.screenImages.get(currentScreenScaleIndex);
-				final var renderTarget = buffers.peek();
+				renderTarget = buffers.peek();
 
 
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this)) {
@@ -515,7 +517,10 @@ public class MultiResolutionRendererGeneric<T> {
 		}
 
 		// try rendering
-		final boolean success = p.map(createProjector);
+		final boolean success;
+		synchronized (renderTarget) {
+			success = p.map(createProjector);
+		}
 
 		synchronized (this) {
 			// if rendering was not cancelled...
