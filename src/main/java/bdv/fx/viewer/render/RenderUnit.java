@@ -209,11 +209,12 @@ public class RenderUnit implements PainterThread.Paintable {
 		renderer.getScreenScaleTransform(screenScaleIndex, screenScaleTransform);
 	}
 
+	private AffineTransform3D viewerTransform = new AffineTransform3D();
+
 	@Override
 	public void paint() {
 
 		final List<SourceAndConverter<?>> sacs = new ArrayList<>();
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
 		synchronized (RenderUnit.this) {
 			final ViewerState viewerState = this.viewerStateSupplier.get();
