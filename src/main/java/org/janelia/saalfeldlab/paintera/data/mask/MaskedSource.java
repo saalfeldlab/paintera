@@ -69,6 +69,8 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
+import net.imglib2.parallel.TaskExecutor;
+import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
@@ -535,7 +537,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							affectedBlocks,
 							maskInfo.level,
 							paintedInterval,
-							acceptAsPainted);
+							acceptAsPainted,
+							propagationExecutor);
 				} finally {
 					setMasksConstant();
 					synchronized (this) {
@@ -649,7 +652,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 								directlyAffectedBlocks,
 								maskInfo.level,
 								interval,
-								acceptAsPainted);
+								acceptAsPainted,
+								propagationExecutor);
 
 					}).get();
 					synchronized (progressBinding) {
@@ -1108,14 +1112,18 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param affectedBlocks
 	 * @param steps
 	 * @param interval
+	 * @param propagationExecutor
 	 * @return map of labels to modified block ids
 	 */
-	public static Map<Long, Set<Long>> downsampleBlocks(
+	private static Map<Long, Set<Long>> downsampleBlocks(
 			final RandomAccessible<UnsignedLongType> source,
 			final CachedCellImg<UnsignedLongType, LongAccess> img,
 			final TLongSet affectedBlocks,
 			final int[] steps,
-			final Interval interval) {
+			final Interval interval,
+			final ExecutorService propagationExecutor) {
+
+		final TaskExecutor taskExecutor = TaskExecutors.forExecutorService(propagationExecutor);
 
 		final BlockSpec blockSpec = new BlockSpec(img.getCellGrid());
 
@@ -1124,6 +1132,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final Map<Long, Set<Long>> blocksModifiedByLabel = new HashMap<>();
 		LOG.debug("Initializing affected blocks: {}", affectedBlocks);
+		final var labelsForBlockFutures = new ArrayList<Future<Pair< Long, Set<Long>>>>();
 		for (final TLongIterator it = affectedBlocks.iterator(); it.hasNext(); ) {
 			final long blockId = it.next();
 			blockSpec.fromLinearIndex(blockId);
@@ -1135,8 +1144,23 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			if (isNonEmpty(intersectedCellMin, intersectedCellMax)) {
 				LOG.trace("Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax);
-				final var labelsForBlock = downsample(source, Views.interval(img, intersectedCellMin, intersectedCellMax), steps);
+				final long[] min = new long[intersectedCellMin.length];
+				final long[] max = new long[intersectedCellMax.length];
+				System.arraycopy(intersectedCellMin, 0, min, 0, min.length);
+				System.arraycopy(intersectedCellMax, 0, max, 0, max.length);
+				final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps, taskExecutor)));
+				labelsForBlockFutures.add(future);
+			}
+		}
+   		for (Future<Pair< Long, Set<Long>>> labelsForBlockFuture : labelsForBlockFutures) {
+			try {
+				final Pair<Long, Set<Long>> futurePair = labelsForBlockFuture.get();
+				final var blockId = futurePair.getKey();
+				final Set<Long> labelsForBlock = futurePair.getValue();
 				labelsForBlock.forEach(label -> blocksModifiedByLabel.computeIfAbsent(label, k -> new HashSet<>()).add(blockId));
+			} catch (InterruptedException | ExecutionException e) {
+				e.printStackTrace();
+				throw new RuntimeException(e);
 			}
 		}
 		return blocksModifiedByLabel;
@@ -1146,11 +1170,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param source
 	 * @param target
 	 * @param steps
+	 * @param taskExecutor
 	 */
-	public static <T extends IntegerType<T>> Set<Long> downsample(
+	private static <T extends IntegerType<T>> Set<Long> downsample(
 			final RandomAccessible<T> source,
 			final RandomAccessibleInterval<T> target,
-			final int[] steps) {
+			final int[] steps,
+			final TaskExecutor taskExecutor) {
 
 		LOG.debug(
 				"Downsampling ({} {}) with steps {}",
@@ -1167,7 +1193,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final HashSet<Long> labels = new HashSet<>();
 		LoopBuilder.setImages(tiledSource, zeroMinTarget)
-				.multiThreaded()
+				.multiThreaded(taskExecutor)
 				.forEachChunk(chunk -> {
 					final TLongLongHashMap maxCounts = new TLongLongHashMap();
 					chunk.forEachPixel((sourceTile, lowResTarget) -> {
@@ -1208,7 +1234,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final TLongSet paintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final Interval intervalAtPaintedScale,
-			final Predicate<Long> isPaintedForeground) {
+			final Predicate<Long> isPaintedForeground,
+			final ExecutorService propagationExecutor) {
 
 		final RandomAccessibleInterval<UnsignedLongType> atPaintedLevel = dataCanvases[paintedLevel];
 		for (int lowerResLevel = paintedLevel + 1; lowerResLevel < getNumMipmapLevels(); ++lowerResLevel) {
@@ -1239,7 +1266,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					lowerResCanvas,
 					affectedBlocksAtLowerRes,
 					steps,
-					intervalAtLowerRes);
+					intervalAtLowerRes,
+					propagationExecutor);
 			for (Entry<Long, Set<Long>> entry : blocksModifiedByLabel.entrySet()) {
 				final Long labelId = entry.getKey();
 				final Set<Long> blocks = entry.getValue();

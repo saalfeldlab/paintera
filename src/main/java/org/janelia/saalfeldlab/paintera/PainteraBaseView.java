@@ -59,6 +59,8 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -116,7 +118,20 @@ public class PainteraBaseView {
 
 	private final ExecutorService paintQueue = Executors.newFixedThreadPool(1);
 
-	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
+	private final ExecutorService propagationQueue;
+
+	{
+		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
+			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+			worker.setDaemon(true);
+			worker.setPriority(4);
+			worker.setName("propagation-queue-" + worker.getPoolIndex());
+			return worker;
+		};
+
+		propagationQueue = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2), factory, null, false);
+
+	}
 
 	private final SharedQueue sharedQueue;
 
