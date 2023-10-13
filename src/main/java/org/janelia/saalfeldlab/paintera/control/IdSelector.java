@@ -96,7 +96,7 @@ public class IdSelector {
 				return;
 			}
 			final LabelMultisetType lmt = cursor.next();
-			for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+			for (Entry<Label> iterEntry : lmt.entrySetWithRef(entry)) {
 				final long id = iterEntry.getElement().id();
 				if (foregroundCheck.test(id))
 					allIds.add(id);

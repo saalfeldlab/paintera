@@ -461,13 +461,13 @@ public class CommitCanvasN5 implements PersistCanvas {
 		for (final Pair<LabelMultisetType, UnsignedLongType> p : backgroundWithCanvas) {
 			final long newLabel = p.getB().getIntegerLong();
 			if (newLabel == Label.INVALID) {
-				for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+				for (LabelMultisetType.Entry<Label> iterEntry : p.getA().entrySetWithRef(entry)) {
 					final long id = iterEntry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
 					blockDiff.addToNewUniqueLabels(id);
 				}
 			} else {
-				for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+				for (LabelMultisetType.Entry<Label> iterEntry : p.getA().entrySetWithRef(entry)) {
 					final long id = iterEntry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
 				}
@@ -531,10 +531,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		final var entry = new LabelMultisetEntry();
 		for (final Iterator<LabelMultisetType> oldIterator = oldLabels.iterator(), newIterator = newLabels.iterator(); oldIterator.hasNext(); ) {
-			for (LabelMultisetEntry labelMultisetEntry : oldIterator.next().entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> labelMultisetEntry : oldIterator.next().entrySetWithRef(entry)) {
 				blockDiff.addToOldUniqueLabels(labelMultisetEntry.getElement().id());
 			}
-			for (LabelMultisetEntry iterEntry : newIterator.next().entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> iterEntry : newIterator.next().entrySetWithRef(entry)) {
 				blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 			}
 
@@ -569,7 +569,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		final var entry = new LabelMultisetEntry();
 		labels.forEach(lmt -> {
-			for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> iterEntry : lmt.entrySetWithRef(entry)) {
 				blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 			}
 		});

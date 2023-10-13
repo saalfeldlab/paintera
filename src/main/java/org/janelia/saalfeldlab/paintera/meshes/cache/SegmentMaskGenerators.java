@@ -95,7 +95,7 @@ public class SegmentMaskGenerators {
 		@Override
 		public void convert(final LabelMultisetType input, final B output) {
 
-			final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(reusableReference);
+			final Set<Entry<Label>> inputSet = input.entrySetWithRef(reusableReference);
 			final int validLabelsSize = validLabels.size();
 			final int inputSize = inputSet.size();
 
@@ -145,7 +145,7 @@ public class SegmentMaskGenerators {
 		@Override
 		public void convert(final LabelMultisetType input, final B output) {
 
-			final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(reusableReference);
+			final Set<Entry<Label>> inputSet = input.entrySetWithRef(reusableReference);
 			final int validLabelsSize = validLabels.size();
 			final int inputSize = inputSet.size();
 			// no primitive type support for slf4j
@@ -169,7 +169,7 @@ public class SegmentMaskGenerators {
 				}
 			} else {
 				final HashSet<Long> labelsInValidLabels = new HashSet<>();
-				for (final LabelMultisetEntry labelEntry : inputSet) {
+				for (final Entry<Label> labelEntry : inputSet) {
 					final long id = labelEntry.getElement().id();
 					boolean valid = false;
 					if (labelsInValidLabels.contains(id)) {
