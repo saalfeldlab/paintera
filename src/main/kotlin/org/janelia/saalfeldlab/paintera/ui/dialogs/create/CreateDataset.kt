@@ -23,6 +23,13 @@ import javafx.stage.Stage
 import javafx.util.Pair
 import net.imglib2.img.cell.AbstractCellImg
 import net.imglib2.realtransform.AffineTransform3D
+import org.controlsfx.control.decoration.Decoration
+import org.controlsfx.control.decoration.GraphicDecoration
+import org.controlsfx.validation.ValidationMessage
+import org.controlsfx.validation.ValidationResult
+import org.controlsfx.validation.ValidationSupport
+import org.controlsfx.validation.Validator
+import org.controlsfx.validation.decoration.GraphicValidationDecoration
 import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.ui.DirectoryField
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
@@ -57,10 +64,10 @@ import kotlin.streams.toList
 
 class CreateDataset(private val currentSource: Source<*>?, vararg allSources: SourceState<*, *>) {
 
+
 	private val mipmapLevels = FXCollections.observableArrayList<MipMapLevel>()
 	private val mipmapLevelsNode by lazy {
-		createMipMapLevelsNode(mipmapLevels, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values()
-		)
+		createMipMapLevelsNode(mipmapLevels, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
 	}
 
 	private val populateFromCurrentSource = MenuItem("_From Current Source").apply {
@@ -124,18 +131,53 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						reduceBaseScale(mipmapLevels[0])
 					} else if (it.from < mipmapLevels.size) {
 						adjustSubsequentScale(it.removed[0]!!, mipmapLevels[it.from])
-						provideAbsoluteValues(mipmapLevels, resolution)
+						provideAbsoluteValues(mipmapLevels, resolution, dimensions)
 					}
 				} else if (it.wasAdded()) {
-					provideAbsoluteValues(mipmapLevels, resolution)
+					it.addedSubList.forEach { newLevel -> registerLevelDecorations(newLevel) }
+					provideAbsoluteValues(mipmapLevels, resolution, dimensions)
 				}
 			}
 		})
 		currentSource?.let { populateFrom(it) } ?: let {
 			val scale0 = MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
-			provideAbsoluteValues(listOf(scale0), resolution)
+			provideAbsoluteValues(listOf(scale0), resolution, dimensions)
 			mipmapLevels += scale0
 		}
+	}
+
+	private class AlignableGraphicValidationDecoration(private val alignment: Pos = Pos.BOTTOM_RIGHT) : GraphicValidationDecoration() {
+		override fun createValidationDecorations(message: ValidationMessage?): MutableCollection<Decoration> {
+			return mutableListOf(GraphicDecoration(createDecorationNode(message), alignment))
+		}
+	}
+
+	private fun registerLevelDecorations(level: MipMapLevel) {
+		val x = level.dimensions.x
+		val y = level.dimensions.y
+		val z = level.dimensions.z
+
+		val support = ValidationSupport()
+		(support.validationDecorator as? GraphicValidationDecoration)?.let {
+			support.validationDecoratorProperty().set(AlignableGraphicValidationDecoration(Pos.BOTTOM_RIGHT))
+		}
+
+		support.registerValidator(x.textField, false, Validator<String> { _, _ ->
+			ValidationResult.fromErrorIf(x.textField, "Dimension size is zero. Remove this scale level.", x.value.toInt() <= 0)
+				?.addWarningIf(x.textField, "Dimension is smaller than block size. Consider removing this scale level.", x.value.toInt() <= blockSize.x.value.toInt())
+		})
+		support.registerValidator(y.textField, false, Validator<String> { _, _ ->
+			ValidationResult.fromErrorIf(y.textField, "Dimension size is zero. Remove this scale level.", y.value.toInt() <= 0)
+				?.addWarningIf(y.textField, "Dimension is smaller than block size. Consider removing this scale level.", y.value.toInt() <= blockSize.y.value.toInt())
+		})
+		support.registerValidator(z.textField, false, Validator<String> { _, _ ->
+			ValidationResult.fromErrorIf(z.textField, "Dimension size is zero. Remove this scale level.", z.value.toInt() <= 0)
+				?.addWarningIf(z.textField, "Dimension is smaller than block size. Consider removing this scale level.", z.value.toInt() <= blockSize.z.value.toInt())
+		})
+
+		blockSize.x.valueProperty().addListener { _, _, _ -> support.revalidate() }
+		blockSize.y.valueProperty().addListener { _, _, _ -> support.revalidate() }
+		blockSize.z.valueProperty().addListener { _, _, _ -> support.revalidate() }
 	}
 
 	private fun reduceBaseScale(newBaseScale: MipMapLevel) {
@@ -234,7 +276,6 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 	private fun populateFrom(source: Source<*>?) {
 		source?.let {
-			setMipMapLevels(source)
 			val mdSource =
 				source as? N5DataSource<*, *>
 					?: (source as? MaskedSource<*, *>)?.let { it.underlyingSource() as? N5DataSource<*, *> }
@@ -262,6 +303,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			offset.x.value = transform[0, 3]
 			offset.y.value = transform[1, 3]
 			offset.z.value = transform[2, 3]
+			setMipMapLevels(it)
 		}
 	}
 
@@ -284,7 +326,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			previousFactors = downsamplingFactors
 			levels.add(level)
 		}
-		provideAbsoluteValues(levels, resolution)
+		provideAbsoluteValues(levels, resolution, dimensions)
 		mipmapLevels.clear()
 		mipmapLevels += levels
 	}
@@ -308,7 +350,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				MipMapLevel(2, -1, 60.0, 60.0),
 				MipMapLevel(2, -1, 60.0, 60.0),
 			)
-			provideAbsoluteValues(levels, SpatialField.doubleField(4.0, { true }))
+			provideAbsoluteValues(levels, SpatialField.doubleField(4.0, { true }), SpatialField.longField(100, { true }))
 			Platform.runLater {
 				val scene = Scene(createMipMapLevelsNode(obsLevels, 60.0, 60.0))
 				obsLevels += levels
@@ -319,13 +361,13 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			}
 		}
 
-		private fun provideAbsoluteValues(mipmapLevels: List<MipMapLevel>, resolution: SpatialField<DoubleProperty>) {
+		private fun provideAbsoluteValues(mipmapLevels: List<MipMapLevel>, resolution: SpatialField<DoubleProperty>, baseDimensions: SpatialField<LongProperty>) {
 			val baseAbsoluteFactors = SpatialField.intField(1, { true }, FIELD_WIDTH, *SubmitOn.values()).also { it.editable = false }.also {
 				it.x.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.x.valueProperty())
 				it.y.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.y.valueProperty())
 				it.z.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.z.valueProperty())
 			}
-			mipmapLevels[0].displayAbsoluteValues(resolution, baseAbsoluteFactors)
+			mipmapLevels[0].displayAbsoluteValues(resolution, baseAbsoluteFactors, baseDimensions)
 
 			var previousAbsoluteFactors = baseAbsoluteFactors
 			if (mipmapLevels.size > 1) {
@@ -334,7 +376,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 					absoluteFactors.x.valueProperty().bind(previousAbsoluteFactors.x.valueProperty().multiply(level.relativeDownsamplingFactors.x.valueProperty()))
 					absoluteFactors.y.valueProperty().bind(previousAbsoluteFactors.y.valueProperty().multiply(level.relativeDownsamplingFactors.y.valueProperty()))
 					absoluteFactors.z.valueProperty().bind(previousAbsoluteFactors.z.valueProperty().multiply(level.relativeDownsamplingFactors.z.valueProperty()))
-					level.displayAbsoluteValues(resolution, absoluteFactors)
+					level.displayAbsoluteValues(resolution, absoluteFactors, baseDimensions)
 					previousAbsoluteFactors = absoluteFactors
 				}
 			}
@@ -352,9 +394,10 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			}
 			addButton.onAction = EventHandler { event ->
 				event.consume()
-				val newLevel = MipMapLevel(2, -1, fieldWidth, nameWidth, *submitOn)
-				levels.last()?.let { it.resolution to it.absoluteDownsamplingFactors }?.let { (res, prevAbs) ->
-					if (res != null && prevAbs != null) newLevel.displayAbsoluteValues(res, prevAbs)
+				val newLevel = MipMapLevel(2, -1, fieldWidth, nameWidth, *submitOn).apply {
+					levels.last()?.also { prevLevel ->
+						displayAbsoluteValues(prevLevel.resolution, prevLevel.absoluteDownsamplingFactors, prevLevel.baseDimensions)
+					}
 				}
 				levels.add(newLevel)
 			}
