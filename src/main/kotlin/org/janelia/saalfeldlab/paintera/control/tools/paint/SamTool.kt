@@ -46,7 +46,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
-import net.imglib2.view.BundleView
+import paintera.net.imglib2.view.BundleView
 import net.imglib2.view.Views
 import org.apache.http.HttpException
 import org.apache.http.client.methods.HttpPost
