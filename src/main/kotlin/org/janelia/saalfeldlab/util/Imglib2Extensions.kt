@@ -13,10 +13,12 @@ import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.util.Intervals
+import net.imglib2.view.ExtendedRandomAccessibleInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -47,7 +49,6 @@ fun <T : RealType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: 
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Int) = Views.extendValue(this, extension)!!
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Long) = Views.extendValue(this, extension)!!
 fun <T : BooleanType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Boolean) = Views.extendValue(this, extension)!!
-fun <T : NumericType<T>, F : RandomAccessibleInterval<T>> F.extendZero() = Views.extendZero(this)!!
 fun <T, F : RandomAccessibleInterval<T>> F.expandborder(vararg border: Long) = Views.expandBorder(this, *border)!!
 
 fun <T> RandomAccessible<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!
@@ -62,7 +63,15 @@ fun <T, R : Type<R>> RandomAccessible<T>.convert(type: R, converter: (T, R) -> U
 	return Converters.convert(this, converter, type)
 }
 
+fun <T, R : Type<R>> RandomAccessibleInterval<T>.convert(type: R, converter: (T, R) -> Unit): RandomAccessibleInterval<R> {
+	return Converters.convert(this, converter, type)
+}
+
 fun <A, B, C : Type<C>> RandomAccessible<A>.convertWith(other: RandomAccessible<B>, type: C, converter: (A, B, C) -> Unit): RandomAccessible<C> {
+	return Converters.convert(this, other, converter, type)
+}
+
+fun <A, B, C : Type<C>> RandomAccessibleInterval<A>.convertWith(other: RandomAccessibleInterval<B>, type: C, converter: (A, B, C) -> Unit): RandomAccessibleInterval<C> {
 	return Converters.convert(this, other, converter, type)
 }
 

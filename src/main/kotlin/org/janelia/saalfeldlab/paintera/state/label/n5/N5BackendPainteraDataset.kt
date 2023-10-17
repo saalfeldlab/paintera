@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -28,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
+import org.janelia.saalfeldlab.util.n5.universe.N5DatasetDoesntExist
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -63,7 +65,6 @@ class N5BackendPainteraDataset<D, T>(
 			queue,
 			priority,
 			name,
-			projectDirectory,
 			propagationExecutorService
 		)
 	}
@@ -93,14 +94,13 @@ class N5BackendPainteraDataset<D, T>(
 			queue: SharedQueue,
 			priority: Int,
 			name: String,
-			projectDirectory: Supplier<String>,
 			propagationExecutorService: ExecutorService,
 		): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 			val dataSource = N5DataSource<D, T>(metadataState, name, queue, priority)
 			val containerWriter = metadataState.writer
 			return containerWriter?.let {
-				val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-				Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
+				val canvasDirSupplier = Masks.canvasTmpDirDirectorySupplier(paintera.properties.painteraDirectoriesConfig.appCacheDir)
+				Masks.maskedSource(dataSource, queue, canvasDirSupplier.get(), canvasDirSupplier, CommitCanvasN5(metadataState), propagationExecutorService)
 			} ?: dataSource
 		}
 
@@ -230,10 +230,21 @@ class N5BackendPainteraDataset<D, T>(
 		): N5BackendPainteraDataset<D, T> {
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
-					val container = N5Helpers.deserializeFrom(json.asJsonObject)
+					var container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
-					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+					while (metadataState == null) {
+						container = N5Helpers.promptForNewLocationOrRemove(container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
+						"Dataset not found",
+							"""
+								Expected dataset "${dataset.ifEmpty { "/" }}" not found at
+									${container.uri} 
+							""".trimIndent()
+						)
+						val n5ContainerState = N5ContainerState(container)
+						metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+					}
 					N5BackendPainteraDataset<D, T>(
 						metadataState,
 						projectDirectory,

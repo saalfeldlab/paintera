@@ -7,8 +7,6 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.util.n5.N5Helpers.getReaderOrWriterIfN5ContainerExists
-import org.janelia.saalfeldlab.util.n5.N5Helpers.getWriterIfN5ContainerExists
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.nio.file.Path
@@ -84,10 +82,14 @@ class N5HDF5ReaderAdapter : StatefulSerializer.SerializerAndDeserializer<N5HDF5R
 		arguments: StatefulSerializer.Arguments,
 		projectDirectory: Supplier<String>,
 		dependencyFromIndex: IntFunction<SourceState<*, *>>?,
-	): JsonDeserializer<N5HDF5Reader> = HDF5Deserializer(projectDirectory) { file, overrideBlockSize, defaultBlockSize ->
-		n5Factory.hdf5OverrideBlockSize(overrideBlockSize)
-		n5Factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
-		(getReaderOrWriterIfN5ContainerExists(file) as? N5HDF5Reader) ?: throw hdf5OpenError(file)
+	): JsonDeserializer<N5HDF5Reader> = HDF5Deserializer(projectDirectory) { file, overrideBlockSize, blockSize ->
+		with(n5Factory) {
+			if (overrideBlockSize && blockSize != null) {
+				hdf5OverrideBlockSize(true)
+				hdf5DefaultBlockSize(*blockSize)
+			}
+			 (openWriterElseOpenReader(file)) as? N5HDF5Reader ?: throw hdf5OpenError(file)
+		}
 	}
 
 	override fun getTargetClass() = N5HDF5Reader::class.java
@@ -108,7 +110,7 @@ class N5HDF5WriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5HDF5W
 	): JsonDeserializer<N5HDF5Writer> = HDF5Deserializer(projectDirectory) { file, _, defaultBlockSize ->
 		//FIXME this should be temporary! we should generify these special adaptors if possible.
 		n5Factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
-		(getWriterIfN5ContainerExists(file) as? N5HDF5Writer) ?: throw hdf5OpenError(file)
+		(n5Factory.openWriterElseOpenReader(file) as? N5HDF5Writer) ?: throw hdf5OpenError(file)
 	}
 
 	override fun getTargetClass() = N5HDF5Writer::class.java

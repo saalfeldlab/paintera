@@ -52,14 +52,6 @@ public class ImageOverlayRendererFX
 	protected PixelBufferWritableImage bufferedImage;
 
 	/**
-	 * An {@link ArrayImg} that has been previously set for painting. Whenever a
-	 * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
-	 * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
-	 * swapped into pendingImage. This is used for double-buffering.
-	 */
-	protected PixelBufferWritableImage pendingImage;
-
-	/**
 	 * Whether an image is pending.
 	 */
 	protected boolean pending;
@@ -77,8 +69,6 @@ public class ImageOverlayRendererFX
 	public ImageOverlayRendererFX() {
 
 		bufferedImage = null;
-		pendingImage = null;
-		pending = false;
 		width = 0;
 		height = 0;
 	}
@@ -91,10 +81,12 @@ public class ImageOverlayRendererFX
 	@Override
 	public synchronized PixelBufferWritableImage setBufferedImage(final PixelBufferWritableImage img) {
 
-		final PixelBufferWritableImage tmp = pendingImage;
-		pendingImage = img;
-		pending = true;
-		return tmp;
+		PixelBufferWritableImage oldImage;
+		synchronized (this) {
+			oldImage = bufferedImage;
+			bufferedImage = img;
+		}
+		return oldImage;
 	}
 
 	@Override
@@ -109,11 +101,6 @@ public class ImageOverlayRendererFX
 		return height;
 	}
 
-	public Image getPendingImage() {
-
-		return pendingImage;
-	}
-
 	public Image getBufferedImage() {
 
 		return bufferedImage;
@@ -122,14 +109,6 @@ public class ImageOverlayRendererFX
 	@Override
 	public void drawOverlays(final Consumer<Image> g) {
 
-		synchronized (this) {
-			if (pending) {
-				final PixelBufferWritableImage tmp = bufferedImage;
-				bufferedImage = pendingImage;
-				pendingImage = tmp;
-				pending = false;
-			}
-		}
 		if (bufferedImage != null) {
 			g.accept(bufferedImage);
 		}

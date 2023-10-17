@@ -32,7 +32,10 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -76,10 +79,19 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.IntFunction
-import java.util.function.LongFunction
-import java.util.function.Predicate
-import java.util.function.Supplier
+import java.util.function.*
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.any
+import kotlin.collections.asSequence
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.forEach
+import kotlin.collections.isEmpty
+import kotlin.collections.isNotEmpty
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.toTypedArray
 
 class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
@@ -93,7 +105,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	name: String,
 	labelBlockLookup: LabelBlockLookup? = null,
 ) : SourceStateWithBackend<D, T>, IntersectableSourceState<D, T, FragmentLabelMeshCacheKey>
-		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+	where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
 	override fun getDataSource(): DataSource<D, T> = source
@@ -117,6 +129,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+
+	internal var skipCommit = false
 
 
 	override fun converter(): HighlightingStreamConverter<T> = converter
@@ -287,18 +301,25 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	}
 
 	override fun onShutdown(paintera: PainteraBaseView) {
-		CommitHandler.showCommitDialog(
+		if (!skipCommit) {
+			promptForCommitIfNecessary(paintera) { index, name ->
+				"""
+			Shutting down Paintera.
+			Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
+			Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
+			but can be committed to the data backend, as well
+			""".trimIndent()
+			}
+		}
+		skipCommit = false
+	}
+
+	internal fun promptForCommitIfNecessary(paintera: PainteraBaseView, prompt: BiFunction<Int, String, String>) : ButtonType? {
+		return CommitHandler.showCommitDialog(
 			this,
 			paintera.sourceInfo().indexOf(this.dataSource),
 			false,
-			{ index, name ->
-				"""
-                    Shutting down Paintera.
-                    Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
-                    Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
-                    but can be committed to the data backend, as well
-                """.trimIndent()
-			},
+			prompt,
 			false,
 			"_Skip",
 			fragmentSegmentAssignmentState = fragmentSegmentAssignment
@@ -460,7 +481,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 		@JvmStatic
 		fun <D, T> labelToBooleanFragmentMaskSource(labelSource: ConnectomicsLabelState<D, T>): DataSource<BoolType, Volatile<BoolType>>
-				where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
+			where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
 			return with(labelSource) {
 				val fragmentsInSelectedSegments = FragmentsInSelectedSegments(selectedSegments)
 				PredicateDataSource(dataSource, checkForType(dataSource.dataType, fragmentsInSelectedSegments), name)
@@ -556,7 +577,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
 	class Serializer<D : IntegerType<D>, T> : PainteraSerialization.PainteraSerializer<ConnectomicsLabelState<D, T>>
-			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 		override fun serialize(state: ConnectomicsLabelState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
 			val map = JsonObject()
 			with(SerializationKeys) {
@@ -596,12 +617,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	class Deserializer<D : IntegerType<D>, T>(val viewer: PainteraBaseView) : JsonDeserializer<ConnectomicsLabelState<D, T>>
 
-			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
 		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
 		class Factory<D : IntegerType<D>, T> : StatefulSerializer.DeserializerFactory<ConnectomicsLabelState<D, T>, Deserializer<D, T>>
 
-				where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 			override fun createDeserializer(
 				arguments: StatefulSerializer.Arguments,
 				projectDirectory: Supplier<String>,

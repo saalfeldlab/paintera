@@ -5,58 +5,55 @@ import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
+import org.janelia.saalfeldlab.fx.extensions.addTriggeredListener
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
-import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Companion.isRootLoggerName
-import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Logback.Levels.Companion.levels
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.isRootLoggerName
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
 class LoggingConfig {
 
-	private val _rootLoggerLevel = SimpleObjectProperty<Level>(LogUtils.rootLoggerLevel ?: defaultLogLevel)
-		.also { it.addListener { _, _, level -> LogUtils.rootLoggerLevel = level } }
-	var rootLoggerLevel: Level
-		get() = _rootLoggerLevel.value
-		set(level) = _rootLoggerLevel.set(level)
-
-	fun rootLoggerLevelProperty(): ObjectProperty<Level> = _rootLoggerLevel
-
 	private val loggerLevels = FXCollections.observableHashMap<String, ObjectProperty<Level>>()
+	val unmodifiableLoggerLevels = FXCollections.unmodifiableObservableMap(loggerLevels)!!
 
-	val unmodifiableLoggerLevels
-		get() = FXCollections.unmodifiableObservableMap(loggerLevels)
+	val rootLoggerLevelProperty = SimpleObjectProperty(LogUtils.rootLoggerLevel ?: DEFAULT_LOG_LEVEL)
+		.apply { addTriggeredListener { _, _, level -> LogUtils.rootLoggerLevel = level } }
+	var rootLoggerLevel: Level by rootLoggerLevelProperty.nonnull()
 
-	private val _isLoggingEnabled = SimpleBooleanProperty(defaultIsLoggingEnabled)
-		.also { it.addListener { _, _, new -> LogUtils.setLoggingEnabled(new) } }
-		.also { LogUtils.setLoggingEnabled(it.value) }
-	var isLoggingEnabled: Boolean
-		get() = _isLoggingEnabled.value
-		set(enabled) = _isLoggingEnabled.set(enabled)
-	val loggingEnabledProperty: BooleanProperty = _isLoggingEnabled
+	val isLoggingEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_ENABLED)
+		.apply {
+			addTriggeredListener { _, _, new ->
+				LogUtils.setLoggingEnabled(new)
+				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }
+			}
+		}
+	var isLoggingEnabled: Boolean by isLoggingEnabledProperty.nonnull()
 
-	private val _isLoggingToConsoleEnabled = SimpleBooleanProperty(defaultIsLoggingToConsoleEnabled)
-		.also { it.addListener { _, _, new -> LogUtils.setLoggingToConsoleEnabled(new) } }
-		.also { LogUtils.setLoggingToConsoleEnabled(it.value) }
-	var isLoggingToConsoleEnabled: Boolean
-		get() = _isLoggingToConsoleEnabled.value
-		set(enabled) = _isLoggingToConsoleEnabled.set(enabled)
-	val loggingToConsoleEnabledProperty: BooleanProperty = _isLoggingToConsoleEnabled
+	val isLoggingToConsoleEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_CONSOLE_ENABLED)
+		.apply {
+			addTriggeredListener { _, _, new ->
+				LogUtils.setLoggingToConsoleEnabled(new)
+				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }
+			}
+		}
+	var isLoggingToConsoleEnabled: Boolean by isLoggingEnabledProperty.nonnull()
 
-	private val _isLoggingToFileEnabled = SimpleBooleanProperty(defaultIsLoggingToFileEnabled)
-		.also { it.addListener { _, _, new -> LogUtils.setLoggingToFileEnabled(new) } }
-		.also { LogUtils.setLoggingToFileEnabled(it.value) }
-	var isLoggingToFileEnabled: Boolean
-		get() = _isLoggingToFileEnabled.value
-		set(enabled) = _isLoggingToFileEnabled.set(enabled)
-	val loggingToFileEnabledProperty: BooleanProperty = _isLoggingToFileEnabled
+	val isLoggingToFileEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_FILE_ENABLED)
+		.apply {
+			addTriggeredListener { _, _, new ->
+				LogUtils.setLoggingToFileEnabled(new)
+				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }
+			}
+		}
+	var isLoggingToFileEnabled: Boolean by isLoggingEnabledProperty.nonnull()
 
 	fun setLogLevelFor(name: String, level: String) = LogUtils.Logback.Levels[level]?.let { setLogLevelFor(name, it) }
 
@@ -82,19 +79,16 @@ class LoggingConfig {
 	companion object {
 
 		@JvmStatic
-		val defaultLogLevel = Level.INFO
+		val DEFAULT_LOG_LEVEL: Level = Level.INFO
 
-		@JvmStatic
-		val defaultIsLoggingEnabled = true
+		const val DEFAULT_IS_LOGGING_ENABLED = true
 
-		@JvmStatic
-		val defaultIsLoggingToConsoleEnabled = true
+		const val DEFAULT_IS_LOGGING_TO_CONSOLE_ENABLED = true
 
-		@JvmStatic
-		val defaultIsLoggingToFileEnabled = true
+		const val DEFAULT_IS_LOGGING_TO_FILE_ENABLED = true
 
 
-		fun String.toLogbackLevel(defaultLevel: Level = defaultLogLevel) = Level.toLevel(this, defaultLevel)
+		fun String.toLogbackLevel(defaultLevel: Level = DEFAULT_LOG_LEVEL) = Level.toLevel(this, defaultLevel)
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraAdapter::class)

@@ -32,7 +32,6 @@ package bdv.fx.viewer.render;
 import bdv.viewer.TransformListener;
 import javafx.scene.image.Image;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,25 +71,21 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 			final PixelBufferWritableImage img,
 			final AffineTransform3D transform) {
 
-		pendingTransform.set(transform);
-		return super.setBufferedImage(img);
+		synchronized (paintedTransform) {
+			pendingTransform.set(transform);
+			return super.setBufferedImage(img);
+		}
 	}
 
 	@Override
 	public void drawOverlays(final Consumer<Image> g) {
 
-		boolean notifyTransformListeners = false;
+		boolean notifyTransformListeners = !paintedTransform.equals(pendingTransform);
+		final PixelBufferWritableImage sourceImage;
 		synchronized (this) {
-			if (pending) {
-				final PixelBufferWritableImage tmp = bufferedImage;
-				bufferedImage = pendingImage;
-				paintedTransform.set(pendingTransform);
-				pendingImage = tmp;
-				pending = false;
-				notifyTransformListeners = true;
-			}
+			sourceImage = bufferedImage;
+			paintedTransform.set(pendingTransform);
 		}
-		final PixelBufferWritableImage sourceImage = this.bufferedImage;
 		if (sourceImage != null) {
 			final boolean notify = notifyTransformListeners;
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -111,9 +106,11 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 				 *
 				 * https://docs.oracle.com/javase/8/javafx/api/javafx/scene/effect/BlendMode.html
 				 */
-				for (final ARGBType px : sourceImage.asArrayImg()) {
-					px.set(px.get() | FULL_OPACITY);
-				}
+				//FIXME: Pretty sure we don't want to be iterating over the entire render image AGAIN
+				// in the ovarlay renderer.... It has huge performance implications
+				//for (final ARGBType px : sourceImage.asArrayImg()) {
+				//	px.set(px.get() | FULL_OPACITY);
+				//}
 
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
@@ -156,7 +153,6 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 		synchronized (paintedTransformListeners) {
 			final int s = paintedTransformListeners.size();
 			paintedTransformListeners.add(index < 0 ? 0 : index > s ? s : index, listener);
-			listener.transformChanged(paintedTransform);
 		}
 	}
 

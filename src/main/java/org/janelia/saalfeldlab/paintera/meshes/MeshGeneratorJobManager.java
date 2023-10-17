@@ -1032,12 +1032,12 @@ public class MeshGeneratorJobManager<T> {
 		final int[] indices = verticesAndNormals.getIndices();
 		final int[] faceIndices = new int[indices.length * 3];
 		for (int i = 0; i < indices.length; i++) {
-			/* add idx for point, normal, texCoord*/
+			/* add idx for vertex, normal, texCoord*/
 			final int vertexIdx = i * 3;
-			final int pointIdx = vertexIdx + 1;
+			final int normalIdx = vertexIdx + 1;
 			final int texCoordIdx = vertexIdx + 2;
 			faceIndices[vertexIdx] = indices[i];
-			faceIndices[pointIdx] = indices[i];
+			faceIndices[normalIdx] = indices[i];
 			faceIndices[texCoordIdx] = 0;
 		}
 		mesh.getFaces().addAll(faceIndices);

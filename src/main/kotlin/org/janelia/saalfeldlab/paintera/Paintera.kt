@@ -11,6 +11,7 @@ import javafx.event.EventHandler
 import javafx.scene.Parent
 import javafx.scene.Scene
 import javafx.scene.control.Alert
+import javafx.scene.control.ButtonType
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
@@ -20,6 +21,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -88,7 +90,7 @@ class Paintera : Application() {
 			notifyPreloader(SplashScreenFinishPreloader())
 			PlatformImpl.runAndWait {
 				Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error).apply {
-					setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) }
+					setOnHidden { exitProcess(0); }
 					initModality(Modality.NONE)
 					showAndWait()
 				}
@@ -203,6 +205,42 @@ class Paintera : Application() {
 	}
 
 	fun loadProject(projectDirectory: String? = null) {
+		projectDirectory?.let {
+			if (n5Factory.openReaderOrNull(it) == null) {
+				val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
+				alert.headerText = "Paintera Project Not Found"
+				alert.contentText = """
+					No Paintera project at:
+						${projectDirectory}
+				""".trimIndent()
+				alert.showAndWait()
+				return
+			}
+		}
+
+		paintera.baseView.sourceInfo().apply {
+			trackSources().forEach { source ->
+				(getState(source) as? ConnectomicsLabelState)?.let { state ->
+					val responseButton = state.promptForCommitIfNecessary(paintera.baseView) { index, name ->
+						"""
+						Closing current Paintera project.
+						Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
+						Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
+						but can be committed to the data backend, as well
+						""".trimIndent()
+					}
+
+					when (responseButton) {
+						ButtonType.OK -> Unit
+						ButtonType.NO -> state.skipCommit = true
+						ButtonType.CANCEL, ButtonType.CLOSE -> return
+						null -> Unit
+					}
+				}
+			}
+		}
+
+
 		if (!paintera.askSaveAndQuit()) {
 			return
 		}
@@ -227,7 +265,7 @@ class Paintera : Application() {
 	companion object {
 
 		@JvmStatic
-		val n5Factory = N5FactoryWithCache()
+		val n5Factory = N5FactoryWithCache().apply { cacheAttributes(true) }
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 

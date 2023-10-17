@@ -12,6 +12,8 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
+import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
@@ -27,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.state.FloodFillState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
@@ -39,8 +40,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 	override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
 
 
-	private val floodFillStateProperty = SimpleObjectProperty<FloodFillState?>()
-	private var floodFillState: FloodFillState? by floodFillStateProperty.nullable()
+	private val floodFillTaskProperty = SimpleObjectProperty<UtilityTask<*>?>()
+	private var floodFillTask: UtilityTask<*>? by floodFillTaskProperty.nullable()
 
 	val fill by LazyForeignValue({ statePaintContext }) {
 		with(it!!) {
@@ -48,9 +49,13 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 				activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
 				dataSource,
 				assignment,
-				{ paintera.baseView.orthogonalViews().requestRepaint() },
-				{ MeshSettings.Defaults.Values.isVisible },
-				{ floodFillState = it }
+				{ interval ->
+					val sourceToGlobal = AffineTransform3D().also { transform ->
+						dataSource.getSourceTransform(dataSource.currentMask.info, transform)
+					}
+					paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobal.estimateBounds(interval))
+				},
+				{ MeshSettings.Defaults.Values.isVisible }
 			)
 		}
 	}
@@ -103,6 +108,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 
 						fillIsRunningProperty.set(true)
 						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
+							floodFillTask = task
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 							paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
@@ -112,9 +118,11 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 								fillIsRunningProperty.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
 								statePaintContext?.refreshMeshes?.invoke()
+								floodFillTask = null
 							} else {
 								/* Otherwise, do it when it's done */
-								task.onEnd {
+								task.onEnd(append = true) {
+									floodFillTask = null
 									fillIsRunningProperty.set(false)
 									paintera.baseView.disabledPropertyBindings -= this
 									statePaintContext?.refreshMeshes?.invoke()
@@ -128,9 +136,9 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
 					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
 					filter = true
-					verify { floodFillState != null }
+					verify { floodFillTask != null }
 					onAction {
-						floodFillState?.interrupt?.run()
+						floodFillTask?.cancel()
 						fillIsRunningProperty.set(false)
 						mode?.switchTool(mode.defaultTool)
 					}

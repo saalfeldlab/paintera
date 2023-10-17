@@ -18,6 +18,7 @@ import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
@@ -55,8 +56,8 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -141,10 +142,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 
 		override fun activate() {
-			fillLabel = { controller.interpolationId }
+			super.activate()
 			/* Don't allow filling with depth during shape interpolation */
 			brushProperties?.brushDepth = 1.0
-			super.activate()
+			fillLabel = { controller.interpolationId }
 			fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
 		}
 
@@ -291,7 +292,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify { activeTool is Fill2DTool }
 					onAction {
-						fill2DTool.fill2D.release()
 						switchTool(shapeInterpolationTool)
 					}
 				}
@@ -323,9 +323,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							filter = true
 							onAction {
 								InvokeOnJavaFXApplicationThread {
-									if (activeTool is Fill2DTool) {
-										fill2DTool.fill2D.release()
-									}
 									if (activeTool != shapeInterpolationTool)
 										switchTool(shapeInterpolationTool)
 									/* If triggered, ensure toggle is on. Only can be off when switching to another tool */
@@ -356,6 +353,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 										switchTool(shapeInterpolationTool)
 									} else {
 										switchTool(fill2DTool)
+										fill2DTool.enteredWithoutKeyTrigger = true
 									}
 								}
 							}
@@ -369,6 +367,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 										switchTool(shapeInterpolationTool)
 									} else {
 										switchTool(samTool)
+										samTool.enteredWithoutKeyTrigger = true
 									}
 								}
 							}
@@ -445,7 +444,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					/* On click, generate a new mask, */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						paintClickOrDrag!!.let { paintController ->
-							val previousMask: SourceMask? = source.currentMask
 							source.resetMasks(false)
 							paintController.provideMask(controller.getMask())
 						}
@@ -503,11 +501,22 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				consume = false
 				verify { activeTool == floodFillTool }
 				onAction {
-					/* On click, provide the mask, */
+					/* On click, provide the mask, setup the task listener */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-						fill2DTool.fill2D.let { fillController ->
-							source.resetMasks(false)
-							fillController.provideMask(controller.getMask())
+						source.resetMasks(false)
+						val mask = controller.getMask()
+						mask.pushNewImageLayer()
+						fill2DTool.run {
+							fillTaskProperty.addWithListener { obs, _, task ->
+								task?.let {
+									task.onCancelled(true) { _, _ ->
+										mask.popImageLayer()
+										mask.requestRepaint()
+									}
+									task.onEnd(true) { obs?.removeListener(this) }
+								} ?: obs?.removeListener(this)
+							}
+							fill2D.provideMask(mask)
 						}
 					}
 				}
@@ -726,11 +735,28 @@ class ShapeInterpolationTool(
 					verifyNoKeysDown()
 					verifyEventNotNull()
 					verify { !paintera.mouseTracker.isDragging }
+					verify { mode?.activeTool !is Fill2DTool }
 					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
 					verify { controllerState != Interpolate } // need to be in the select state
+					verify("Can't select BACKGROUND or higher MAX_ID ") { event ->
+
+						source.resetMasks(false)
+						val mask = getMask()
+
+						fill2D.fill2D.provideMask(mask)
+						val pointInMask = mask.displayPointToInitialMaskPoint(event!!.x, event.y)
+						val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
+						val info = mask.info
+						val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
+						return@verify sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
+
+					}
 					onAction { event ->
 						/* get value at position */
-						deleteCurrentSliceOrInterpolant()
+						deleteCurrentSliceOrInterpolant()?.let { prevSliceGlobalInterval ->
+							source.resetMasks(true)
+							paintera.baseView.orthogonalViews().requestRepaint(Intervals.smallestContainingInterval(prevSliceGlobalInterval))
+						}
 						currentTask = fillObjectInSlice(event!!)
 					}
 				}
@@ -769,10 +795,24 @@ class ShapeInterpolationTool(
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<Interval>? {
+	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<*>? {
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()
+
+			/* If a current slice exists, try to preserve it if cancelled */
+			currentSliceMaskInterval?.also {
+				mask.pushNewImageLayer()
+				fill2D.fillTaskProperty.addWithListener { obs, _, task ->
+					task?.let {
+						task.onCancelled(true) { _, _ ->
+							mask.popImageLayer()
+							mask.requestRepaint()
+						}
+						task.onEnd(true) { obs?.removeListener(this) }
+					} ?: obs?.removeListener(this)
+				}
+			}
 
 			fill2D.fill2D.provideMask(mask)
 			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
@@ -783,12 +823,13 @@ class ShapeInterpolationTool(
 				return null
 			}
 
-			val maskLabel = mask.rai[pointInMask].get()
+			val maskLabel = mask.rai.extendValue(Label.INVALID)[pointInMask].get()
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
 			return fill2D.executeFill2DAction(event.x, event.y) {
 				paint(it)
 				currentTask = null
+				fill2D.fill2D.release()
 			}
 		}
 	}

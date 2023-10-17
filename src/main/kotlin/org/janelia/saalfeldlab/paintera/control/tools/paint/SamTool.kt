@@ -37,6 +37,7 @@ import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.converter.Converters
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
+import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Scale3D
 import net.imglib2.realtransform.Translation3D
@@ -77,6 +78,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.creat
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
@@ -89,6 +91,8 @@ import java.io.PipedOutputStream
 import java.lang.invoke.MethodHandles
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import javax.imageio.ImageIO
@@ -100,8 +104,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 import kotlin.properties.Delegates
-
-private val SAM_SERVICE = "http://${System.getenv("SAM_SERVICE_HOST") ?: "gpu3.saalfeldlab.org"}/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -467,7 +469,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			entityBuilder.addBinaryBody("image", predictionImagePngInputStream, ContentType.APPLICATION_OCTET_STREAM, "null")
 
 			val client = HttpClients.createDefault()
-			val post = HttpPost(SAM_SERVICE)
+			val post = HttpPost(paintera.properties.segmentAnythingConfig.serviceUrl)
 			post.entity = entityBuilder.build()
 
 			val response = client.execute(post)
@@ -481,7 +483,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 				val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size)
 				directBuffer.put(decodedEmbedding, 0, decodedEmbedding.size)
-				directBuffer.position(0);
+				directBuffer.position(0)
 				val floatBuffEmbedding = directBuffer.asFloatBuffer()
 				floatBuffEmbedding.position(0)
 				OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
@@ -489,7 +491,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}.onEnd {
 			isBusy = false
 		}.onFailed { _, task ->
-			LOG.error("Failure retrieving image embedding", task.exception);
+			LOG.error("Failure retrieving image embedding", task.exception)
 			mode?.switchTool(mode.defaultTool)
 		}.also {
 			getImageEmbeddingTask = it
@@ -550,11 +552,17 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				)
 
 				val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
-				ConnectedComponents.labelAllConnectedComponents(
-					filter,
-					connectedComponents,
-					StructuringElement.FOUR_CONNECTED
-				)
+				try {
+					ConnectedComponents.labelAllConnectedComponents(
+						filter,
+						connectedComponents,
+						StructuringElement.FOUR_CONNECTED
+					)
+				} catch (e: InterruptedException) {
+					LOG.debug("Connected Components Interrupted During SAM", e)
+					task.cancel()
+					continue
+				}
 
 				val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
 				if (noneAccepted) {
@@ -726,8 +734,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				CompositeProjectorPreMultiply.CompositeProjectorFactory(paintera.baseView.sourceInfo().composites()),
 				sharedQueue,
 				30 * 1000000L,
-				1,
-				Executors.newSingleThreadExecutor()
+				TaskExecutors.singleThreaded() //TODO rendering name it (and more threads? )
 			) {
 
 				override fun paint() {
@@ -757,7 +764,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						val screenInterval = renderer.lastRenderedScreenInterval
 						val renderTargetRealInterval = renderer.lastRenderTargetRealInterval
 
-						val image = renderTarget.pendingImage
+						val image = renderTarget.bufferedImage
 						renderResultProperty.set(RenderResult(image, screenInterval, renderTargetRealInterval, renderedScreenScaleIndex))
 					}
 				}
@@ -780,8 +787,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	companion object {
 
-		private const val H_ONNX_MODEL = "sam/sam_vit_h_4b8939.onnx"
-
 		private object SamPointStyle {
 			const val POINT = "sam-point"
 			const val INCLUDE = "sam-include-point"
@@ -790,7 +795,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private val SAM_TASK_SERVICE = Executors.newCachedThreadPool(
+		private val SAM_TASK_SERVICE = Executors.newFixedThreadPool(
+			Runtime.getRuntime().availableProcessors(),
 			ThreadFactoryBuilder()
 				.setNameFormat("sam-task-%d")
 				.setDaemon(true)
@@ -798,12 +804,21 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		)
 
 		private lateinit var ortEnv: OrtEnvironment
-		private val createOrtSessionTask = Tasks.createTask {
-			ortEnv = OrtEnvironment.getEnvironment()
-			val modelArray = Companion::class.java.classLoader.getResourceAsStream(H_ONNX_MODEL)!!.readAllBytes()
-			val session = ortEnv.createSession(modelArray)
-			session
-		}.submit()
+		private val createOrtSessionTask by LazyForeignValue({ properties.segmentAnythingConfig.modelLocation }) { modelLocation ->
+			Tasks.createTask {
+				if (!::ortEnv.isInitialized)
+					ortEnv = OrtEnvironment.getEnvironment()
+				val modelArray = try {
+					Companion::class.java.classLoader.getResourceAsStream(modelLocation)!!.readAllBytes()
+				} catch (e: Exception) {
+					Files.readAllBytes(Paths.get(modelLocation))
+				}
+				val session = ortEnv.createSession(modelArray)
+				session
+			}.submit()
+		}.beforeValueChange {
+			it?.cancel()
+		}
 
 
 		data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval)

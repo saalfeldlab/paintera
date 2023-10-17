@@ -4,22 +4,17 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Control;
-import javafx.scene.control.Label;
-import javafx.scene.control.TitledPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import net.imglib2.type.label.LabelMultisetType;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController;
@@ -121,12 +116,27 @@ public class SegmentMeshInfoNode {
 			final Optional<SegmentMeshExportResult<Long>> result = exportDialog.showAndWait();
 			if (result.isPresent()) {
 				final SegmentMeshExportResult<Long> parameters = result.get();
-				parameters.getMeshExporter().exportMesh(
+				final MeshExporter<Long> meshExporter = parameters.getMeshExporter();
+
+				final long id = parameters.getSegmentId()[0];
+				final String filePath = parameters.getFilePath();
+				final int scale = parameters.getScale();
+
+				if (meshExporter instanceof MeshExporterObj) {
+					((MeshExporterObj<?>) meshExporter).exportMaterial(
+							filePath,
+							new long[]{id},
+							new Color[]{meshInfo.meshManager().getStateFor(id).getColor()});
+				}
+
+				meshExporter.exportMesh(
 						meshInfo.meshManager().getGetBlockListForLongKey(),
 						meshInfo.meshManager().getGetMeshForLongKey(),
-						parameters.getSegmentId()[0],
-						parameters.getScale(),
-						parameters.getFilePaths()[0]);
+						meshInfo.getMeshSettings(),
+						id,
+						scale,
+						filePath,
+						false);
 			}
 		});
 

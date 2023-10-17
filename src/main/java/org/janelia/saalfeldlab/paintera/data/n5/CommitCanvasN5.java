@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
@@ -36,12 +37,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
@@ -56,15 +52,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 public class CommitCanvasN5 implements PersistCanvas {
@@ -138,7 +130,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 			LOG.debug("Found scale datasets {}", (Object)scaleUniqueLabels);
 			for (int level = 0; level < scaleUniqueLabels.length; ++level) {
-				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5Writer, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString());
+				final String uniqueLabelScalePath = N5URI.normalizeGroupPath(uniqueLabelsPath + n5Writer.getGroupSeparator() + scaleUniqueLabels[level]);
+				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5Writer, uniqueLabelScalePath);
 				final TLongObjectMap<TLongHashSet> removedById = new TLongObjectHashMap<>();
 				final TLongObjectMap<TLongHashSet> addedById = new TLongObjectHashMap<>();
 				final TLongObjectMap<BlockDiff> blockDiffs = blockDiffsByLevel.get(level);
@@ -264,8 +257,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 					final TLongObjectHashMap<BlockDiff> blockDiffsAt = new TLongObjectHashMap<>();
 					blockDiffs.add(blockDiffsAt);
-					final DatasetSpec targetDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level]).toString());
-					final DatasetSpec previousDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level - 1]).toString());
+					final DatasetSpec targetDataset = DatasetSpec.of(n5Writer, N5URI.normalizeGroupPath(dataset + n5Writer.getGroupSeparator() + scaleDatasets[level]));
+					final DatasetSpec previousDataset = DatasetSpec.of(n5Writer, N5URI.normalizeGroupPath(dataset + n5Writer.getGroupSeparator() + scaleDatasets[level - 1]));
 
 					final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, targetDataset.dataset);
 					final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, previousDataset.dataset);
@@ -468,13 +461,13 @@ public class CommitCanvasN5 implements PersistCanvas {
 		for (final Pair<LabelMultisetType, UnsignedLongType> p : backgroundWithCanvas) {
 			final long newLabel = p.getB().getIntegerLong();
 			if (newLabel == Label.INVALID) {
-				for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+				for (LabelMultisetType.Entry<Label> iterEntry : p.getA().entrySetWithRef(entry)) {
 					final long id = iterEntry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
 					blockDiff.addToNewUniqueLabels(id);
 				}
 			} else {
-				for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+				for (LabelMultisetType.Entry<Label> iterEntry : p.getA().entrySetWithRef(entry)) {
 					final long id = iterEntry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
 				}
@@ -538,10 +531,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		final var entry = new LabelMultisetEntry();
 		for (final Iterator<LabelMultisetType> oldIterator = oldLabels.iterator(), newIterator = newLabels.iterator(); oldIterator.hasNext(); ) {
-			for (LabelMultisetEntry labelMultisetEntry : oldIterator.next().entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> labelMultisetEntry : oldIterator.next().entrySetWithRef(entry)) {
 				blockDiff.addToOldUniqueLabels(labelMultisetEntry.getElement().id());
 			}
-			for (LabelMultisetEntry iterEntry : newIterator.next().entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> iterEntry : newIterator.next().entrySetWithRef(entry)) {
 				blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 			}
 
@@ -576,7 +569,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		final var entry = new LabelMultisetEntry();
 		labels.forEach(lmt -> {
-			for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+			for (LabelMultisetType.Entry<Label> iterEntry : lmt.entrySetWithRef(entry)) {
 				blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 			}
 		});
@@ -629,7 +622,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
 		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("write-blocks-label-multiset-%d").build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long blockId : blocks) {
 			final Future<?> submit = threadPool.submit(() -> {
@@ -653,6 +647,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				throw new RuntimeException(e);
 			}
 		}
+		threadPool.shutdown();
 	}
 
 	// TODO the integer type implementation does not need to iterate over all pixels per block but could intersect with bounding box first
@@ -706,7 +701,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 			increment = 0.0;
 		}
 
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("downsample-and-write-blocks-label-multiset-%d").build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final ArrayList<Future<?>> futures = new ArrayList<>();
 		for (final long targetBlock : affectedBlocks) {
 			var future = threadPool.submit(() -> {
@@ -772,6 +768,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				throw new RuntimeException(e);
 			}
 		}
+		threadPool.shutdown();
 	}
 
 	//TODO add progress updates to this when data is available to test against

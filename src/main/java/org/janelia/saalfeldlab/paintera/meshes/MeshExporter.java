@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import gnu.trove.list.array.TFloatArrayList;
+import gnu.trove.list.array.TIntArrayList;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
@@ -11,38 +13,32 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public abstract class MeshExporter<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	protected int numberOfFaces = 0;
-
 	public void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final MeshSettings[] meshSettings,
 			final T[] ids,
 			final int scale,
-			final String[] paths) {
+			final String path) {
 
-		assert ids.length == paths.length;
 		for (int i = 0; i < ids.length; i++) {
-			numberOfFaces = 0;
-			exportMesh(getBlockListFor, getMeshFor, ids[i], scale, paths[i]);
+			exportMesh(getBlockListFor, getMeshFor, meshSettings[i], ids[i], scale, path, i != 0);
 		}
 	}
 
 	public void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final MeshSettings meshSettings,
 			final T id,
 			final int scaleIndex,
-			final String path) {
+			final String path,
+			final boolean append) {
 		// all blocks from id
 		final Set<HashWrapper<Interval>> blockSet = new HashSet<>();
 
@@ -62,49 +58,40 @@ public abstract class MeshExporter<T> {
 			keys.add(new ShapeKey<>(
 					id,
 					scaleIndex,
-					0,
-					0,
-					0,
-					0,
+					meshSettings.getSimplificationIterations(),
+					meshSettings.getSmoothingLambda(),
+					meshSettings.getSmoothingIterations(),
+					meshSettings.getMinLabelRatio(),
 					Intervals.minAsLongArray(block),
 					Intervals.maxAsLongArray(block)
 			));
 		}
 
+		final var vertices = new TFloatArrayList();
+		final var normals = new TFloatArrayList();
+		final var indices = new TIntArrayList();
 		for (final ShapeKey<T> key : keys) {
 			PainteraTriangleMesh verticesAndNormals;
-			try {
-				verticesAndNormals = getMeshFor.getMeshFor(key);
-				if (verticesAndNormals == null)
-					continue;
-				assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
-				try {
-					save(
-							path,
-							id.toString(),
-							verticesAndNormals.getVertices(),
-							verticesAndNormals.getNormals(),
-							hasFaces(numberOfFaces));
-
-					numberOfFaces += verticesAndNormals.getVertices().length / 3;
-				} catch (final IOException e) {
-					Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
-					break;
-				}
-			} catch (final RuntimeException e) {
-				LOG.warn("{} : {}", e.getClass(), e.getMessage());
-				e.printStackTrace();
-				throw e;
+			verticesAndNormals = getMeshFor.getMeshFor(key);
+			if (verticesAndNormals == null) {
+				continue;
+			}
+			assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
+			var indexOffset = vertices.size() / 3;
+			vertices.add(verticesAndNormals.getVertices());
+			normals.add(verticesAndNormals.getNormals());
+			for (int index : verticesAndNormals.getIndices()) {
+				indices.add(indexOffset + index + 1);
 			}
 		}
 
+		try {
+			save(path, id.toString(), vertices.toArray(), normals.toArray(), indices.toArray(), append);
+		} catch (final IOException e) {
+			Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
+		}
 	}
 
-	protected abstract void save(String path, String id, float[] vertices, float[] normals, boolean append) throws IOException;
-
-	public static boolean hasFaces(final int numberOfFaces) {
-
-		return numberOfFaces > 0;
-	}
+	protected abstract void save(String path, String id, float[] vertices, float[] normals, int[] indices, boolean append) throws IOException;
 
 }

@@ -75,7 +75,7 @@ public class LabelSourceStateMergeDetachHandler {
 				action.keysDown(KeyCode.SHIFT);
 				action.verify(MouseEvent::isPrimaryButtonDown);
 				action.verify(event -> activeViewerSupplier.get() != null);
-				action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()));
+				action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()).accept(mouseEvent));
 			});
 			actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
 				action.keyMatchesBinding(keyBindings, LabelSourceStateKeys.MERGE_ALL_SELECTED);
@@ -88,7 +88,7 @@ public class LabelSourceStateMergeDetachHandler {
 				action.keysDown(KeyCode.SHIFT);
 				action.verify(MouseEvent::isSecondaryButtonDown);
 				action.verify(event -> activeViewerSupplier.get() != null);
-				action.onAction(mouseEvent -> new DetachFragment(activeViewerSupplier.get()));
+				action.onAction(mouseEvent -> new DetachFragment(activeViewerSupplier.get()).accept(mouseEvent));
 			});
 			actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
 				action.setName("confirm selection");

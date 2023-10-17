@@ -5,6 +5,7 @@ import javafx.beans.property.ReadOnlyListProperty;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 
@@ -14,7 +15,6 @@ import java.util.Arrays;
 public class SegmentMeshInfos {
 
 	private final ReadOnlyListWrapper<SegmentMeshInfo> readOnlyInfos = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
-
 	private final ManagedMeshSettings meshSettings;
 
 	private final int numScaleLevels;
@@ -48,6 +48,14 @@ public class SegmentMeshInfos {
 
 		meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
 		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
+	}
+
+	public Color getColor(long id) {
+		return readOnlyInfos.stream()
+				.filter(it -> it.segmentId() == id)
+				.map(it -> it.meshManager().getStateFor(it.segmentId()).getColor())
+				.findFirst()
+				.orElse(Color.WHITE);
 	}
 
 	private ObservableList<SegmentMeshInfo> infos() {

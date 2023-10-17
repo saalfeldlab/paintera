@@ -4,6 +4,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.loops.LoopBuilder;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
@@ -81,21 +82,26 @@ public class SourceMask implements Mask {
 
 	public <C extends IntegerType<C>> Set<Long> applyMaskToCanvas(
 			final RandomAccessibleInterval<C> canvas,
-			final Predicate<UnsignedLongType> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted) {
 
-		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(getRai(), canvas);
+		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(Views.extendValue(getRai(), Label.INVALID), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
-		final HashSet<Long> labels = new HashSet<>();
-		LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachPixel((maskVal, bundledCanvasVal) -> {
-			if (acceptAsPainted.test(maskVal)) {
+		final var labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
+			final HashSet<Long> labelsForChunk = new HashSet<>();
+			chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
 				final long label = maskVal.getIntegerLong();
-				bundledCanvasVal.get().setInteger(label);
-				synchronized (labels) {
-					labels.add(label);
+				if (acceptAsPainted.test(label)) {
+					bundledCanvasVal.get().setInteger(label);
+					labelsForChunk.add(label);
 				}
-			}
+			});
+			return labelsForChunk;
 		});
-		return labels;
+		final var allLabels = new HashSet<Long>();
+		for (HashSet<Long> labelSet : labels) {
+			allLabels.addAll(labelSet);
+		}
+		return allLabels;
 	}
 }

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.util.Optional;
 
 public class ProjectDirectoryNotSpecifiedDialog {
@@ -32,8 +33,10 @@ public class ProjectDirectoryNotSpecifiedDialog {
 
 	public Optional<String> showDialog(final String contentText) throws ProjectDirectoryNotSpecified {
 
+		final String currentTempDir = Paintera.getPaintera().getProperties().getPainteraDirectoriesConfig().getTmpDir();
+		final Path tempProjectPath = Path.of(currentTempDir);
 		if (this.defaultToTempDirectory) {
-			return Optional.of(tmpDir());
+			return Optional.of(temporaryProjectDir(tempProjectPath));
 		}
 
 		final StringProperty projectDirectory = new SimpleStringProperty(null);
@@ -43,11 +46,12 @@ public class ProjectDirectoryNotSpecifiedDialog {
 
 		final Dialog<String> dialog = new Dialog<>();
 		dialog.setResultConverter(bt -> {
-			return ButtonType.CANCEL.equals(bt)
-					? null
-					: noProject.equals(bt)
-					? tmpDir()
-					: projectDirectory.get();
+			if (ButtonType.CANCEL.equals(bt))
+				return null;
+			else if (noProject.equals(bt))
+				return temporaryProjectDir(tempProjectPath);
+			else
+				return projectDirectory.get();
 		});
 
 		dialog.getDialogPane().getButtonTypes().setAll(specifyProject, noProject, ButtonType.CANCEL);
@@ -95,11 +99,10 @@ public class ProjectDirectoryNotSpecifiedDialog {
 
 	}
 
-	private static String tmpDir() {
-		// TODO read tmp directory and prefix from ~/.paintera/config if present
-		final String tmpDir = new TmpDirectoryCreator(() -> null, "paintera-project-").get();
-		LOG.info("Using temporary project directory {}", tmpDir);
-		return tmpDir;
+	private static String temporaryProjectDir(final Path projectTempDir) {
+		final String tempProjectDir = new TmpDirectoryCreator(projectTempDir, "paintera-project-").get();
+		LOG.info("Using temporary project directory {}", tempProjectDir);
+		return tempProjectDir;
 	}
 
 }

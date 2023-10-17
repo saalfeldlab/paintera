@@ -37,16 +37,21 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TransformListener;
 import bdv.viewer.ViewerOptions;
+import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.scene.image.Image;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ObservablePosition;
@@ -61,8 +66,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -91,8 +94,6 @@ public class ViewerPanelFX
 
 	private ThreadGroup threadGroup;
 
-	private final ExecutorService renderingExecutorService;
-
 	private final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
 
 	private final ViewerOptions.Values options;
@@ -105,9 +106,10 @@ public class ViewerPanelFX
 			final List<SourceAndConverter<?>> sources,
 			final int numTimePoints,
 			final CacheControl cacheControl,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation);
+		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation, taskExecutor);
 	}
 
 	/**
@@ -120,9 +122,10 @@ public class ViewerPanelFX
 	public ViewerPanelFX(
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(1, cacheControl, optional, interpolation);
+		this(1, cacheControl, optional, interpolation, taskExecutor);
 	}
 
 	/**
@@ -137,9 +140,10 @@ public class ViewerPanelFX
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
-		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation);
+		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation, taskExecutor);
 	}
 
 	/**
@@ -156,11 +160,12 @@ public class ViewerPanelFX
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
 		super();
+		super.setBackground(Background.fill(Color.BLACK));
 		super.getChildren().setAll(canvasPane, overlayPane);
-		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
 		threadGroup = new ThreadGroup(this.toString());
@@ -177,15 +182,14 @@ public class ViewerPanelFX
 				options.getAccumulateProjectorFactory(),
 				cacheControl,
 				options.getTargetRenderNanos(),
-				options.getNumRenderingThreads(),
-				renderingExecutorService
+				taskExecutor
 		);
 
-		setRenderedImageListener();
+		startRenderAnimator();
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
-		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
-		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
+		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
+		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
 
 		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 
@@ -217,7 +221,8 @@ public class ViewerPanelFX
 		this.focusable = focusable;
 	}
 
-	@Override public void requestFocus() {
+	@Override
+	public void requestFocus() {
 
 		if (this.focusable) {
 			super.requestFocus();
@@ -280,6 +285,7 @@ public class ViewerPanelFX
 		sourceToGlobal.applyInverse(pos, pos);
 	}
 
+
 	/**
 	 * Set {@code pos} to the source coordinates (x,y,z)<sup>T</sup> transformed into the display coordinate system.
 	 *
@@ -324,8 +330,8 @@ public class ViewerPanelFX
 
 		assert p.numDimensions() >= 2;
 		synchronized (mouseTracker) {
-			p.setPosition((long)mouseTracker.getMouseX(), 0);
-			p.setPosition((long)mouseTracker.getMouseY(), 1);
+			p.setPosition((long) mouseTracker.getMouseX(), 0);
+			p.setPosition((long) mouseTracker.getMouseY(), 1);
 		}
 	}
 
@@ -345,6 +351,7 @@ public class ViewerPanelFX
 
 		if (intervalInGlobalSpace == null) {
 			requestRepaint();
+			return;
 		}
 
 		final AffineTransform3D globalToViewerTransform = this.viewerTransform.copy();
@@ -433,16 +440,9 @@ public class ViewerPanelFX
 		}
 	}
 
-	/**
-	 * Shutdown the {@link ExecutorService} used for rendering tiles onto the screen.
-	 */
-	public void stop() {
-
-		renderingExecutorService.shutdown();
-	}
-
 	private static final AtomicInteger panelNumber = new AtomicInteger(1);
 
+	//	TODO: rendering
 	protected class RenderThreadFactory implements ThreadFactory {
 
 		private final String threadNameFormat;
@@ -536,14 +536,15 @@ public class ViewerPanelFX
 		this.renderUnit.setScreenScales(screenScales.clone());
 	}
 
+	public double[] getScreenScales() {
+		final double[] screenScale = renderUnit.getScreenScalesProperty().get();
+		return Arrays.copyOf(screenScale, screenScale.length);
+	}
+
 	/**
 	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
 	 */
 	public OverlayPane<?> getDisplay() {
-
-		var pos = new ObservablePosition(0, 0);
-		pos.getX();
-		pos.setX(0.0);
 
 		return this.overlayPane;
 	}
@@ -553,24 +554,47 @@ public class ViewerPanelFX
 		return renderUnit;
 	}
 
-	private void setRenderedImageListener() {
+	private void startRenderAnimator() {
 
-		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
-			if (newv != null && newv.getImage() != null) {
-				final Interval screenInterval = newv.getScreenInterval();
-				final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
-				canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-						newv.getImage(), // src
-						renderTargetRealInterval.realMin(0), // src X
-						renderTargetRealInterval.realMin(1), // src Y
-						renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-						renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-						screenInterval.min(0), // dst X
-						screenInterval.min(1), // dst Y
-						screenInterval.dimension(0), // dst width
-						screenInterval.dimension(1)  // dst height
-				);
+		new AnimationTimer() {
+
+			private RenderUnit.RenderResult renderResult = null;
+
+			@Override
+			public void handle(long now) {
+				final var result = renderUnit.getRenderedImageProperty().get();
+				if (result != renderResult) {
+					renderResult = result;
+				}
+
+				if (renderResult != null) {
+					final Image image = renderResult.getImage();
+					if (image != null) {
+						final Interval screenInterval = renderResult.getScreenInterval();
+						final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+
+						canvasPane.getCanvas().getGraphicsContext2D().clearRect(
+								screenInterval.min(0), // dst X
+								screenInterval.min(1), // dst Y
+								screenInterval.dimension(0), // dst width
+								screenInterval.dimension(1)  // dst height
+						);
+						synchronized (image) {
+							canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+									image, // src
+									renderTargetRealInterval.realMin(0), // src X
+									renderTargetRealInterval.realMin(1), // src Y
+									renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+									renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+									screenInterval.min(0) - 1, // dst X
+									screenInterval.min(1) - 1, // dst Y
+									screenInterval.dimension(0) + 1, // dst width
+									screenInterval.dimension(1) + 1  // dst height
+							);
+						}
+					}
+				}
 			}
-		});
+		}.start();
 	}
 }

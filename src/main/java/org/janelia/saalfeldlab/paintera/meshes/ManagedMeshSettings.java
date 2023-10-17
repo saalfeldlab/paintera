@@ -69,6 +69,14 @@ public class ManagedMeshSettings {
 		return individualSettings.get(id);
 	}
 
+	public MeshSettings getOrAddMesh(final Long id) {
+
+		if (!isManagedProperties.containsKey(id)) {
+			return new MeshSettings(globalSettings.getNumScaleLevels());
+		}
+		return individualSettings.get(id);
+	}
+
 	public MeshSettings getGlobalSettings() {
 
 		return globalSettings;

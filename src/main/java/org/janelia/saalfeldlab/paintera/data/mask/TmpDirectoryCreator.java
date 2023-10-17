@@ -16,17 +16,17 @@ public class TmpDirectoryCreator implements Supplier<String> {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Supplier<Path> dir;
+	private final Path baseTempDir;
 
 	private final String prefix;
 
 	private final FileAttribute<?>[] attrs;
 
-	public TmpDirectoryCreator(final Supplier<Path> dir, final String prefix, final FileAttribute<?>... attrs) {
+	public TmpDirectoryCreator(final Path baseDir, final String prefix, final FileAttribute<?>... attrs) {
 
 		super();
-		LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
-		this.dir = dir;
+		LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), baseDir, prefix, attrs);
+		this.baseTempDir = baseDir;
 		this.prefix = prefix;
 		this.attrs = attrs;
 	}
@@ -34,14 +34,16 @@ public class TmpDirectoryCreator implements Supplier<String> {
 	@Override
 	public String get() {
 
-		final Path dir = this.dir.get();
 		try {
-			Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);
-			final Path tmpDir = dir == null
-					? Files.createTempDirectory(prefix, attrs)
-					: Files.createTempDirectory(dir, prefix, attrs);
+			Optional.ofNullable(baseTempDir).map(Path::toFile).ifPresent(File::mkdirs);
+			final Path tmpDir;
+			if (baseTempDir == null)
+				tmpDir = Files.createTempDirectory(prefix, attrs);
+			else
+				tmpDir = Files.createTempDirectory(baseTempDir, prefix, attrs);
+
 			tmpDir.toFile().deleteOnExit(); //TODO meta ensure this is safe to do. It should be, if they are temporary...
-			LOG.debug("Created tmp dir {}", tmpDir.toString());
+			LOG.debug("Created tmp dir {}", tmpDir);
 			return tmpDir.toString();
 		} catch (final IOException e) {
 			throw new RuntimeException(e);

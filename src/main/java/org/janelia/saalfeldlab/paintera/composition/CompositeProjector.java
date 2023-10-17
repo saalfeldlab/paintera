@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.composition;
 
 import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import bdv.viewer.render.AccumulateProjector;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.VolatileProjector;
@@ -34,25 +35,23 @@ public class CompositeProjector<A extends Type<A>> extends AccumulateProjector<A
 		}
 
 		@Override
-		public VolatileProjector createAccumulateProjector(
-				final ArrayList<VolatileProjector> sourceProjectors,
-				final ArrayList<Source<?>> sources,
-				final ArrayList<? extends RandomAccessible<? extends A>> sourceScreenImages,
-				final RandomAccessibleInterval<A> targetScreenImage,
-				final int numThreads,
-				final ExecutorService executorService) {
+		public VolatileProjector createProjector(
+				List<VolatileProjector> sourceProjectors,
+				List<SourceAndConverter<?>> sources,
+				List<? extends RandomAccessible<? extends A>> sourceScreenImages,
+				RandomAccessibleInterval<A> targetScreenImage,
+				int numThreads,
+				ExecutorService executorService) {
 
 			final CompositeProjector<A> projector = new CompositeProjector<>(
 					sourceProjectors,
 					sourceScreenImages,
-					targetScreenImage,
-					numThreads,
-					executorService
+					targetScreenImage
 			);
 
 			final ArrayList<Composite<A, A>> activeComposites = new ArrayList<>();
-			for (final Source<?> activeSource : sources) {
-				activeComposites.add(composites.get(activeSource));
+			for (final var activeSource : sources) {
+				activeComposites.add(composites.get(activeSource.getSpimSource()));
 			}
 
 			projector.setComposites(activeComposites);
@@ -64,13 +63,11 @@ public class CompositeProjector<A extends Type<A>> extends AccumulateProjector<A
 	final protected ArrayList<Composite<A, A>> composites = new ArrayList<>();
 
 	public CompositeProjector(
-			final ArrayList<VolatileProjector> sourceProjectors,
-			final ArrayList<? extends RandomAccessible<? extends A>> sources,
-			final RandomAccessibleInterval<A> target,
-			final int numThreads,
-			final ExecutorService executorService) {
+			final List<VolatileProjector> sourceProjectors,
+			final List<? extends RandomAccessible<? extends A>> sources,
+			final RandomAccessibleInterval<A> target) {
 
-		super(sourceProjectors, sources, target, numThreads, executorService);
+		super(sourceProjectors, sources, target);
 	}
 
 	public void setComposites(final List<Composite<A, A>> composites) {

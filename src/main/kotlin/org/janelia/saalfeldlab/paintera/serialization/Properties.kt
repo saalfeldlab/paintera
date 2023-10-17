@@ -59,6 +59,12 @@ class Properties : TransformListener<AffineTransform3D> {
 	@Expose
 	val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
+	@Expose
+	val segmentAnythingConfig = SegmentAnythingConfig()
+
+	@Expose
+	val painteraDirectoriesConfig = PainteraDirectoriesConfig()
+
 	@Transient
 	val keyAndMouseConfig = KeyAndMouseConfig()
 
