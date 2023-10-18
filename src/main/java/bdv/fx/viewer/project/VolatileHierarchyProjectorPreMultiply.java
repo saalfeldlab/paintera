@@ -9,7 +9,7 @@ import net.imglib2.loops.LoopBuilder;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.view.BundleView;
+import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.Views;
 
 import java.util.List;

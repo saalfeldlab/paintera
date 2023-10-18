@@ -8,7 +8,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.BundleView;
+import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;

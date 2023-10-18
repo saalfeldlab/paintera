@@ -86,7 +86,7 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.BundleView;
+import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RealRandomAccessibleTriple;
