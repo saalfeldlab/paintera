@@ -985,6 +985,9 @@
 	<profiles>
 		<profile>
 		<id>build-installer</id>
+			<properties>
+				<matrix.os>${os.name}</matrix.os>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -1031,6 +1034,7 @@
 									<!--suppress UnresolvedMavenProperty -->
 									<mainJar>${project.build.finalName}.jar</mainJar>
 									<toolName>jpackage</toolName>
+									<dest>${project.build.directory}/installer-${matrix.os}</dest>
 									<writeOutputToLog>true</writeOutputToLog>
 									<writeErrorsToLog>true</writeErrorsToLog>
 									<failOnError>true</failOnError>

@@ -51,13 +51,13 @@ jobs:
           cache: 'maven'
       - name: "Build with Maven"
         if: matrix.os != 'macos-latest' && matrix.os != 'macOS-ARM64'
-        run: mvn -B clean install -DskipTests -Pbuild-installer --file pom.xml
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Dmatrix.os=${{ matrix.os }} --file pom.xml
       - name: "Build with Maven (macOS No Signing)"
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-latest' || matrix.os == 'macOS-ARM64') }}
-        run: mvn -B clean install -DskipTests -Pbuild-installer --file pom.xml
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Dmatrix.os=${{ matrix.os }} --file pom.xml
       - name: Update Automatic Release
         uses: marvinpinto/action-automatic-releases@latest
         if: ${{ env.RELEASE_INSTALLERS }}
@@ -68,6 +68,4 @@ jobs:
           title: ${{ matrix.os }} Development Build
           files: |
             ${{ env.DMG_PATH }}
-            ./target/*.msi
-            ./target/*.dmg
-            ./target/*.deb
+            ./target/installer-${{ matrix.os }}/*

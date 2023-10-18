@@ -4,7 +4,7 @@
 --win-menu-group ${windows.vendor}
 --vendor ${windows.vendor}
 --icon "${project.basedir}/img/icons/icon-draft.ico"
---dest "${project.build.directory}"
+--dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"
 --runtime-image "${project.build.directory}/jvm-image"

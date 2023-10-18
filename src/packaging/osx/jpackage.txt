@@ -1,6 +1,6 @@
 --name ${app.name}
 --icon "${project.basedir}/img/icons/icon-draft.icns"
---dest "${project.build.directory}"
+--dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"
 --runtime-image "${project.build.directory}/jvm-image"
