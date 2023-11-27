@@ -31,6 +31,7 @@ import org.controlsfx.validation.ValidationSupport
 import org.controlsfx.validation.Validator
 import org.controlsfx.validation.decoration.GraphicValidationDecoration
 import org.janelia.saalfeldlab.fx.SaalFxStyle
+import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.ui.DirectoryField
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.ui.NamedNode.Companion.bufferNode
@@ -91,14 +92,32 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 	private val setFromButton = MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource)
 	private val setFromCurrentBox = HBox(bufferNode(), setFromButton).apply { HBox.setHgrow(children[0], Priority.ALWAYS) }
-	private val name = TextField().apply { maxWidth = Double.MAX_VALUE }
+
+	private val name = object: TextField() {
+		var manuallyNamed = false
+		override fun paste() {
+			super.paste()
+			if (text.isNotEmpty())
+				manuallyNamed = true
+		}
+
+	}.apply {
+		maxWidth = Double.MAX_VALUE
+		onKeyTyped = EventHandler {
+			if (text.isNotEmpty())
+				manuallyNamed = true
+		}
+		textProperty().addListener { _, _, new ->
+			if (new.isEmpty())
+				manuallyNamed = false
+		}
+	}
 
 	private val n5Container: DirectoryField = DirectoryField(System.getProperty("user.home"), FIELD_WIDTH)
 	private val dataset = stringField("", *SubmitOn.values()).apply {
-		valueProperty().addListener { _, _, newv: String? ->
-			if (newv != null && name.text.isNullOrEmpty()) {
-				val split = newv.split("/").toTypedArray()
-				name.text = split[split.size - 1]
+		textField.textProperty().addListener { _, _, newv: String? ->
+			if (!name.manuallyNamed && newv != null) {
+				name.text = newv.split("/").toTypedArray().last()
 			}
 		}
 	}
