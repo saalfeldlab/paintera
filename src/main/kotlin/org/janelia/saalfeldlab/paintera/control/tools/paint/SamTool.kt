@@ -48,6 +48,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import paintera.net.imglib2.view.BundleView
 import net.imglib2.view.Views
+import org.apache.commons.io.output.NullPrintStream
 import org.apache.http.HttpException
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ContentType
@@ -552,6 +553,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				)
 
 				val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
+				/* FIXME: This is annoying, but I don't see a better way around it at the moment.
+				*   `labelAllConnectedComponents` can be interrupted, but doing so causes an
+				*   internal method to `printStackTrace()` on the error. So even when
+				*   It's intentionally and interrupted and handeled, the consol still logs the
+				*   stacktrace to stderr. We temporarily wrap stderr to swalleow it.
+				*   When [https://github.com/imglib/imglib2-algorithm/issues/98] is resolved,
+				*   hopefully this will be as well */
+				val stdErr = System.err
+				System.setErr(NullPrintStream())
 				try {
 					ConnectedComponents.labelAllConnectedComponents(
 						filter,
@@ -559,9 +569,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						StructuringElement.FOUR_CONNECTED
 					)
 				} catch (e: InterruptedException) {
+					System.setErr(stdErr)
 					LOG.debug("Connected Components Interrupted During SAM", e)
 					task.cancel()
 					continue
+				} finally {
+					System.setErr(stdErr)
 				}
 
 				val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
