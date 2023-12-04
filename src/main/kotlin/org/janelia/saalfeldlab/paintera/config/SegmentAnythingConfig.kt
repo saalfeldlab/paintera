@@ -41,7 +41,7 @@ class SegmentAnythingConfig {
 
 	companion object {
 		private const val SAM_SERVICE_HOST_ENV = "SAM_SERVICE_HOST"
-		internal const val DEFAULT_SERVICE_URL = "http://gpu3.saalfeldlab.org/embedded_model"
+		internal const val DEFAULT_SERVICE_URL =  "https://samservice.janelia.org/embedded_model?encoding=compress"
 		internal const val DEFAULT_MODEL_LOCATION = "sam/sam_vit_h_4b8939.onnx"
 	}
 }
