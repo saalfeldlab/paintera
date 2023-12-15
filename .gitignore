@@ -20,4 +20,4 @@ canvases
 *.class
 *.java-version
 *dockerfile
-meshes
+/meshes
