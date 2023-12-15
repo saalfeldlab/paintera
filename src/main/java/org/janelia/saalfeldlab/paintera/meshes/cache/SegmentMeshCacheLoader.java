@@ -9,11 +9,11 @@ import net.imglib2.type.logic.BoolType;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public class SegmentMeshCacheLoader<T> extends AbstractMeshCacheLoader<T, TLongHashSet> {
+public class SegmentMeshCacheLoader<T> extends AbstractMeshCacheLoader<T, Long> {
 
 	public SegmentMeshCacheLoader(
 			final Supplier<RandomAccessibleInterval<T>> data,
-			final BiFunction<TLongHashSet, Double, Converter<T, BoolType>> getMaskGenerator,
+			final BiFunction<Long, Double, Converter<T, BoolType>> getMaskGenerator,
 			final AffineTransform3D transform) {
 
 		super(data, getMaskGenerator, transform);

@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state
 
 import javafx.beans.property.ReadOnlyListProperty
 import javafx.collections.ListChangeListener
+import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
@@ -15,19 +16,16 @@ import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.expandIfEnabled
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
-import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo
-import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshExporterDialog
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
@@ -38,14 +36,14 @@ typealias TPE = TitledPaneExtensions
 class LabelSourceStateMeshPaneNode(
 	private val source: DataSource<*, *>,
 	private val manager: MeshManagerWithAssignmentForSegments,
-	private val meshInfos: SegmentMeshInfos,
+	private val meshInfos: SegmentMeshInfoList,
 ) {
 
 	val node: Node
 		get() = makeNode()
 
 	private fun makeNode(): Node {
-		val settings = manager.settings
+		val settings = manager.globalSettings
 		val tp = MeshSettingsController(settings, manager::refreshMeshes).createTitledPane(
 			source.dataType is LabelMultisetType,
 			manager.managedSettings.meshesEnabledProperty,
@@ -54,78 +52,39 @@ class LabelSourceStateMeshPaneNode(
 		)
 		with(tp.content.asVBox()) {
 			tp.content = this
-			children.add(MeshesList(source, manager, meshInfos).node)
+			children.add(MeshSettingsPane(manager, meshInfos))
 			return tp
 		}
 	}
 
-	private class MeshesList(
-		private val source: DataSource<*, *>,
+	private class MeshSettingsPane(
 		private val manager: MeshManagerWithAssignmentForSegments,
-		private val meshInfos: SegmentMeshInfos,
-	) {
-
-		private class Listener(
-			private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
-			private val totalProgressBar: MeshProgressBar,
-		) : ListChangeListener<SegmentMeshInfo> {
-
-			override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
-				updateTotalProgressBindings()
-			}
-
-			private fun updateTotalProgressBindings() {
-				val individualProgresses = meshInfos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-				val globalProgress = GlobalMeshProgress(individualProgresses)
-				this.totalProgressBar.bindTo(globalProgress)
-			}
-		}
-
-		val node: Node
-			get() = createNode()
+		private val meshInfoList: SegmentMeshInfoList,
+	) : TitledPane("Mesh List", null) {
 
 		private val isMeshListEnabledCheckBox = CheckBox()
 		private val totalProgressBar = MeshProgressBar()
 
-		private fun createNode(): TitledPane {
-
-			val meshesInfoList = ListView(meshInfos.readOnlyInfos())
-
-			meshesInfoList.setCellFactory {
-				object : ListCell<SegmentMeshInfo>() {
-
-					init {
-						style = "-fx-padding: 0px"
-					}
-
-					override fun updateItem(item: SegmentMeshInfo?, empty: Boolean) {
-						super.updateItem(item, empty)
-						text = null
-						InvokeOnJavaFXApplicationThread {
-							graphic = if (empty || item == null) null else SegmentMeshInfoNode(source, item).node.also { cell ->
-								cell.prefWidthProperty().bind(it.prefWidthProperty())
-							}
-						}
-					}
-				}
-			}
-
+		init {
 
 			val exportMeshButton = Button("Export all")
 			exportMeshButton.setOnAction { _ ->
-				val exportDialog = SegmentMeshExporterDialog<Long>(meshesInfoList.items)
+				val exportDialog = MeshExporterDialog(meshInfoList.meshInfos as ObservableList<MeshInfo<Long>>)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
 					result.get().run {
-						val ids = segmentId.map { it }.toTypedArray()
-						val meshSettings = ids.map { meshInfos.meshSettings().getOrAddMesh(it) }.toTypedArray()
+						val ids = meshKeys.toTypedArray()
+						val meshSettings = ids.map { manager.getSettings(it) }.toTypedArray()
 
 						(meshExporter as? MeshExporterObj<*>)?.run {
-							val colors : Array<Color> = ids.map { meshInfos.getColor(it) }.toTypedArray()
-							exportMaterial(filePath, ids.toLongArray(), colors)
+							val colors: Array<Color> = ids.mapIndexed { idx, it ->
+								val color = manager.getStateFor(it)?.color ?: Color.WHITE
+								color.deriveColor(0.0, 1.0, 1.0, meshSettings[idx].opacity)
+							}.toTypedArray()
+							exportMaterial(filePath, ids.map { it.toString() }.toTypedArray(), colors)
 						}
 						meshExporter.exportMesh(
-							manager.getBlockListForLongKey,
+							manager.getBlockListForSegment,
 							manager.getMeshForLongKey,
 							meshSettings,
 							ids,
@@ -137,10 +96,10 @@ class LabelSourceStateMeshPaneNode(
 			}
 
 			val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }
-			val meshesBox = VBox(meshesInfoList, Separator(Orientation.HORIZONTAL), buttonBox)
-			listOf(meshesBox, meshesInfoList).forEach { it.padding = Insets.EMPTY }
+			val meshesBox = VBox(meshInfoList, Separator(Orientation.HORIZONTAL), buttonBox)
+			listOf(meshesBox, meshInfoList).forEach { it.padding = Insets.EMPTY }
 
-			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
+			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(manager.managedSettings.isMeshListEnabledProperty) }
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
 				initModality(Modality.NONE)
@@ -160,17 +119,32 @@ class LabelSourceStateMeshPaneNode(
 				isFillHeight = true
 			}
 
-			meshInfos.readOnlyInfos().addListener(Listener(meshInfos.readOnlyInfos(), totalProgressBar))
+			meshInfoList.meshInfos.addListener(Listener(meshInfoList.meshInfos, totalProgressBar))
 
-			return TitledPane("Mesh List", meshesBox).apply {
-				with(TPE) {
-					expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
-					graphicsOnly(tpGraphics)
-					alignment = Pos.CENTER_RIGHT
-					meshesInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
-				}
+			expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
+			graphicsOnly(tpGraphics)
+			alignment = Pos.CENTER_RIGHT
+			meshInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
+			content = meshesBox
+		}
+
+		private class Listener(
+			private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
+			private val totalProgressBar: MeshProgressBar,
+		) : ListChangeListener<SegmentMeshInfo> {
+
+			override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
+				updateTotalProgressBindings()
+			}
+
+			private fun updateTotalProgressBindings() {
+				val individualProgresses = meshInfos.stream().map { it.progressProperty }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+				val globalProgress = GlobalMeshProgress(individualProgresses)
+				this.totalProgressBar.bindTo(globalProgress)
 			}
 		}
+
+
 	}
 
 

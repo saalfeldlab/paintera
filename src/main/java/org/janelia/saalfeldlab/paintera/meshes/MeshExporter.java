@@ -62,6 +62,7 @@ public abstract class MeshExporter<T> {
 					meshSettings.getSmoothingLambda(),
 					meshSettings.getSmoothingIterations(),
 					meshSettings.getMinLabelRatio(),
+					meshSettings.getOverlap(),
 					Intervals.minAsLongArray(block),
 					Intervals.maxAsLongArray(block)
 			));
@@ -94,4 +95,7 @@ public abstract class MeshExporter<T> {
 
 	protected abstract void save(String path, String id, float[] vertices, float[] normals, int[] indices, boolean append) throws IOException;
 
+	public enum MeshFileFormat {
+		Obj, Binary;
+	}
 }

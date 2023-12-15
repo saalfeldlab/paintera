@@ -22,6 +22,7 @@ class MeshSettings @JvmOverloads constructor(
 		val cullFace: CullFace
 		val isVisible: Boolean
 		val minLabelRatio: Double
+		val overlap: Boolean
 		val levelOfDetail: Int
 
 
@@ -46,6 +47,9 @@ class MeshSettings @JvmOverloads constructor(
 
 			@JvmStatic
 			val isVisible = true
+
+			@JvmStatic
+			val overlap = true
 
 			@JvmStatic
 			val minLabelRatio = 0.25
@@ -81,6 +85,7 @@ class MeshSettings @JvmOverloads constructor(
 		override var cullFace: CullFace = Defaults.Values.cullFace
 		override var isVisible: Boolean = Defaults.Values.isVisible
 		override var minLabelRatio: Double = Defaults.Values.minLabelRatio
+		override var overlap: Boolean = Defaults.Values.overlap
 		override var levelOfDetail: Int = Defaults.Values.levelOfDetail
 
 		val asImmutable: Defaults
@@ -100,6 +105,7 @@ class MeshSettings @JvmOverloads constructor(
 	val cullFaceProperty: ObjectProperty<CullFace> = SimpleObjectProperty(defaults.cullFace)
 	val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(defaults.isVisible)
 	val minLabelRatioProperty: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
+	val overlapProperty: BooleanProperty = SimpleBooleanProperty(defaults.overlap)
 	val levelOfDetailProperty: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
 
 	var coarsestScaleLevel by coarsestScaleLevelProperty.nonnull()
@@ -112,6 +118,7 @@ class MeshSettings @JvmOverloads constructor(
 	var cullFace by cullFaceProperty.nonnull()
 	var isVisible by isVisibleProperty.nonnull()
 	var minLabelRatio by minLabelRatioProperty.nonnull()
+	var overlap by overlapProperty.nonnull()
 	var levelOfDetail by levelOfDetailProperty.nonnull()
 
 	init {
@@ -137,6 +144,7 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambda = that.smoothingLambda
 		smoothingIterations = that.smoothingIterations
 		minLabelRatio = that.minLabelRatio
+		overlap = that.overlap
 		opacity = that.opacity
 		drawMode = that.drawMode
 		cullFace = that.cullFace
@@ -160,6 +168,7 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
 		minLabelRatioProperty.bind(that.minLabelRatioProperty)
+		overlapProperty.bind(that.overlapProperty)
 		opacityProperty.bind(that.opacityProperty)
 		drawModeProperty.bind(that.drawModeProperty)
 		cullFaceProperty.bind(that.cullFaceProperty)
@@ -174,6 +183,7 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.unbind()
 		smoothingIterationsProperty.unbind()
 		minLabelRatioProperty.unbind()
+		overlapProperty.unbind()
 		opacityProperty.unbind()
 		drawModeProperty.unbind()
 		cullFaceProperty.unbind()
@@ -188,6 +198,7 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
 		minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
+		overlapProperty.bindBidirectional(that.overlapProperty)
 		opacityProperty.bindBidirectional(that.opacityProperty)
 		drawModeProperty.bindBidirectional(that.drawModeProperty)
 		cullFaceProperty.bindBidirectional(that.cullFaceProperty)
@@ -202,6 +213,7 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
 		minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
+		overlapProperty.unbindBidirectional(that.overlapProperty)
 		opacityProperty.unbindBidirectional(that.opacityProperty)
 		drawModeProperty.unbindBidirectional(that.drawModeProperty)
 		cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
@@ -214,6 +226,8 @@ class MeshSettings @JvmOverloads constructor(
 				&& simplificationIterations == defaults.simplificationIterations
 				&& smoothingLambda == defaults.smoothingLambda
 				&& smoothingIterations == defaults.smoothingIterations
+				&& minLabelRatio == defaults.minLabelRatio
+				&& overlap == defaults.overlap
 				&& opacity == defaults.opacity
 				&& defaults.drawMode == drawMode
 				&& defaults.cullFace == cullFace

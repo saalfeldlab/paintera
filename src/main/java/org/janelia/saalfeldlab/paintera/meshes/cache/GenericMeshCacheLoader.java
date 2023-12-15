@@ -32,7 +32,6 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>> implements Cach
 		LOG.debug("Constructing {}", getClass().getName());
 		this.data = data;
 		this.transform = transform;
-		//		this.containedLabelsInBlock = containedLabelsInBlock;
 	}
 
 	@Override
@@ -49,7 +48,7 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>> implements Cach
 				Intervals.expand(key.interval(), smoothingIterations + 2)
 		).generateMesh();
 
-		final Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
+		final Mesh meshMesh = new Mesh(vertices, key.interval(), transform, key.overlap());
 		if (smoothingIterations > 0)
 			meshMesh.smooth(key.smoothingLambda(), smoothingIterations);
 

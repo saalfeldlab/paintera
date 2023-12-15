@@ -2,8 +2,10 @@ package org.janelia.saalfeldlab.paintera.state
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
+import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -35,8 +37,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
@@ -53,7 +54,6 @@ class LabelSourceStatePreferencePaneNode(
 	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
 	private val converter: HighlightingStreamConverter<*>,
 	private val meshManager: MeshManagerWithAssignmentForSegments,
-	private val meshSettings: ManagedMeshSettings,
 	private val brushProperties: BrushProperties?
 ) {
 
@@ -65,10 +65,25 @@ class LabelSourceStatePreferencePaneNode(
 	val node: Node
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(composite)
+
+			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
+			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
+				val segements = selectedSegments.selectedSegments.toArray().toList()
+				observableSelectedSegmentsList.removeIf { it !in segements }
+				observableSelectedSegmentsList.addAll(segements.filter { it !in observableSelectedSegmentsList }.toList())
+			}
+			selectedSegments.addListener(selectedSegmentUpdateListener)
+			box.visibleProperty().addListener { _, _, visible ->
+				if (!visible) {
+					selectedSegments.removeListener(selectedSegmentUpdateListener)
+				} else {
+					selectedSegments.addListener(selectedSegmentUpdateListener)
+				}
+			}
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-				LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
+				LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfoList(observableSelectedSegmentsList, meshManager)).node,
 				AssignmentsNode(assignment).node,
 				when (source) {
 					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties, meshManager::refreshMeshes).node }
