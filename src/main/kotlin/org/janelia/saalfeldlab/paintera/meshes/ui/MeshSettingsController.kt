@@ -1,27 +1,33 @@
 package org.janelia.saalfeldlab.paintera.meshes.ui
 
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.DoubleProperty
-import javafx.beans.property.IntegerProperty
-import javafx.beans.property.Property
+import javafx.beans.property.*
 import javafx.collections.FXCollections
+import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.HPos
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.*
+import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.stage.Modality
+import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import kotlin.math.max
 import kotlin.math.min
 
@@ -34,6 +40,7 @@ class MeshSettingsController @JvmOverloads constructor(
 	private val smoothingLambda: DoubleProperty,
 	private val smoothingIterations: IntegerProperty,
 	private val minLabelRatio: DoubleProperty,
+	private val overlap: BooleanProperty,
 	private val drawMode: Property<DrawMode>,
 	private val cullFace: Property<CullFace>,
 	private val isVisible: BooleanProperty,
@@ -50,15 +57,14 @@ class MeshSettingsController @JvmOverloads constructor(
 		meshSettings.smoothingLambdaProperty,
 		meshSettings.smoothingIterationsProperty,
 		meshSettings.minLabelRatioProperty,
+		meshSettings.overlapProperty,
 		meshSettings.drawModeProperty,
 		meshSettings.cullFaceProperty,
 		meshSettings.isVisibleProperty,
 		refreshMeshes
 	)
 
-	fun createContents(
-		addMinLabelRatioSlider: Boolean
-	): GridPane {
+	fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
 		return GridPane().populateGridWithMeshSettings(
 			addMinLabelRatioSlider,
 			CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
@@ -75,6 +81,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			NumericSliderWithField(0.0, 1.00, 1.0).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
 			NumericSliderWithField(0, 10, 1).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
 			NumericSliderWithField(0.0, 1.0, 0.5).apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
+			CheckBox().also { it.selectedProperty().bindBidirectional(overlap) },
 			ComboBox(FXCollections.observableArrayList(*DrawMode.values())).apply { valueProperty().bindBidirectional(drawMode) },
 			ComboBox(FXCollections.observableArrayList(*CullFace.values())).apply { valueProperty().bindBidirectional(cullFace) })
 	}
@@ -115,6 +122,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			alignment = Pos.CENTER
 		}
 
+
 		return TitledPane("", contents).apply {
 			minWidthProperty().set(0.0)
 			isExpanded = false
@@ -151,6 +159,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			smoothingLambdaSlider: NumericSliderWithField,
 			smoothingIterationsSlider: NumericSliderWithField,
 			minLabelRatioSlider: NumericSliderWithField,
+			overlapToggle: CheckBox,
 			drawModeChoice: ComboBox<DrawMode>,
 			cullFaceChoice: ComboBox<CullFace>,
 		): GridPane {
@@ -180,10 +189,11 @@ class MeshSettingsController @JvmOverloads constructor(
 			// min label ratio slider only makes sense for sources of label multiset type
 			if (addMinLabelratioSlider) {
 				val tooltipText = "Min label percentage for a pixel to be filled." + System.lineSeparator() +
-						"0.0 means that a pixel will always be filled if it contains the given label."
+					"0.0 means that a pixel will always be filled if it contains the given label."
 				addGridOption("Min label ratio", minLabelRatioSlider, tooltipText)
 			}
 
+			addGridOption("Overlap", overlapToggle)
 			addGridOption("Draw Mode", drawModeChoice)
 			addGridOption("Cull Face", cullFaceChoice)
 			return this
@@ -245,5 +255,126 @@ class MeshSettingsController @JvmOverloads constructor(
 			}
 		}
 	}
+}
 
+open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
+
+	private val hasIndividualSettings = CheckBox("Individual Settings")
+	private var isManaged = SimpleBooleanProperty()
+	private var controller: MeshSettingsController = MeshSettingsController(meshInfo.meshSettings)
+	private var progressBar = MeshProgressBar()
+
+	init {
+		hasIndividualSettings.selectedProperty().addListener { _, _, newv -> isManaged.set(!newv) }
+		isManaged.addListener { _, _, newv -> hasIndividualSettings.isSelected = !newv }
+		isManaged.set(!hasIndividualSettings.isSelected)
+		isExpanded = false
+		expandedProperty().addListener { _, _, isExpanded ->
+			if (isExpanded && content == null) {
+				content = createMeshInfoGrid()
+			}
+		}
+		progressBar.prefWidth = 200.0
+		progressBar.minWidth = Control.USE_PREF_SIZE
+		progressBar.maxWidth = Control.USE_PREF_SIZE
+		progressBar.text = "" + meshInfo.key
+		progressBar.bindTo(meshInfo.progressProperty)
+		graphic = progressBar
+	}
+
+	protected open fun createMeshInfoGrid(grid: GridPane = GridPane()): GridPane {
+
+		val settingsGrid = controller.createContents(meshInfo.manager.source.getDataType() is LabelMultisetType)
+		val individualSettingsBox = VBox(hasIndividualSettings, settingsGrid)
+		individualSettingsBox.spacing = 5.0
+		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty())
+		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty())
+		hasIndividualSettings.isSelected = !meshInfo.isManagedProperty.get()
+		isManaged.bindBidirectional(meshInfo.isManagedProperty)
+
+		return grid.apply {
+			add(createExportMeshButton(), 0, rowCount, 2, 1)
+			add(individualSettingsBox, 0, rowCount, 2, 1)
+		}
+	}
+
+	private fun createExportMeshButton(): Button {
+		val exportMeshButton = Button("Export")
+		exportMeshButton.setOnAction { event ->
+			val exportDialog = MeshExporterDialog(meshInfo)
+			val result = exportDialog.showAndWait()
+			if (!result.isPresent) return@setOnAction
+
+			val parameters = result.get()
+			val meshExporter = parameters.meshExporter
+
+			val ids = parameters.meshKeys
+			if (ids.isEmpty()) return@setOnAction
+
+			val filePath = parameters.filePath
+			val scale = parameters.scale
+
+			if (meshExporter is MeshExporterObj) {
+				meshExporter.exportMaterial(
+					filePath,
+					arrayOf(ids[0].toString()),
+					arrayOf(meshInfo.manager.getStateFor(ids[0])?.color ?: Color.WHITE)
+				)
+			}
+
+			meshExporter.exportMesh(
+				meshInfo.manager.getBlockListFor,
+				meshInfo.manager.getMeshFor,
+				meshInfo.meshSettings,
+				ids[0],
+				scale,
+				filePath,
+				false
+			)
+		}
+		return exportMeshButton
+	}
+}
+
+abstract class MeshInfoList<T : MeshInfo<K>, K>(
+	protected val meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
+	manager: MeshManager<K>
+) : ListView<T>(meshInfoList) {
+
+
+	val meshInfos: ReadOnlyListWrapper<T> = ReadOnlyListWrapper(meshInfoList)
+
+	init {
+		setCellFactory { MeshInfoListCell() }
+		manager.managedSettings.isMeshListEnabledProperty.addListener { _, _, enabled ->
+			if (!enabled) {
+				itemsProperty().set(FXCollections.emptyObservableList())
+			} else {
+				itemsProperty().set(meshInfoList)
+			}
+		}
+	}
+
+	open fun meshNodeFactory(meshInfo: T): Node = MeshInfoPane(meshInfo)
+
+	private inner class MeshInfoListCell : ListCell<T>() {
+
+		init {
+			style = "-fx-padding: 0px"
+		}
+
+		override fun updateItem(item: T?, empty: Boolean) {
+			super.updateItem(item, empty)
+			text = null
+			if (empty || item == null) {
+				graphic = null
+			} else {
+				InvokeOnJavaFXApplicationThread {
+					graphic = meshNodeFactory(item).apply {
+						prefWidthProperty().addListener { _, _, pref -> prefWidth = pref.toDouble() }
+					}
+				}
+			}
+		}
+	}
 }

@@ -62,6 +62,7 @@ public abstract class MeshExporter<T> {
 					meshSettings.getSmoothingLambda(),
 					meshSettings.getSmoothingIterations(),
 					meshSettings.getMinLabelRatio(),
+					meshSettings.getOverlap(),
 					Intervals.minAsLongArray(block),
 					Intervals.maxAsLongArray(block)
 			));
