@@ -15,12 +15,12 @@ public class MeshExporterObj<T> extends MeshExporter<T> {
 
 	private long numVertices = 0;
 
-	public void exportMaterial(String path, final long[] ids, final Color[] colors) {
+	public void exportMaterial(String path, final String[] ids, final Color[] colors) {
 		final String materialPath = path + ".mtl";
 		try (final FileWriter writer = new FileWriter(materialPath, false)) {
 			final StringBuilder sb = new StringBuilder();
 			for (int i = 0; i < ids.length; i++) {
-				final long id = ids[i];
+				final String id = ids[i];
 				final Color specularColor = colors[i];
 				final double red = specularColor.getRed();
 				final double green = specularColor.getGreen();
