@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class ManagedMeshSettings {
+public class ManagedMeshSettings<K> {
 
 	public static final String MESH_SETTINGS_KEY = "meshSettings";
 
@@ -35,9 +35,9 @@ public class ManagedMeshSettings {
 
 	private final MeshSettings globalSettings;
 
-	private final Map<Long, MeshSettings> individualSettings = new HashMap<>();
+	private final Map<K, MeshSettings> individualSettings = new HashMap<>();
 
-	private final HashMap<Long, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
+	private final HashMap<K, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
 
 	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty(DEFAULT_IS_MESH_LIST_ENABLED);
 
@@ -53,7 +53,18 @@ public class ManagedMeshSettings {
 		this.globalSettings = globalSettings;
 	}
 
-	public MeshSettings getOrAddMesh(final Long id, final boolean isManaged) {
+	/**
+	 * Retrieves a MeshSettings object for the given id.
+	 * If the mesh settings are managed, the existing managed settings will be returned.
+	 * Otherwise, a new MeshSettings object will be created based on the global settings.
+	 * <p>
+	 * The resulting MeshSettings will be added to the `individualSettings` for this `id`, either `isManaged` or not.
+	 *
+	 * @param id        The id of the mesh to retrieve the settings for.
+	 * @param isManaged True if the individual mesh settings should be used.
+	 * @return The mesh settings for the given id, or a new MeshSettings object if the id is not found.
+	 */
+	public MeshSettings getMeshSettings(final K id, final boolean isManaged) {
 
 		if (!isManagedProperties.containsKey(id)) {
 			final SimpleBooleanProperty isManagedProperty = new SimpleBooleanProperty(isManaged);
@@ -69,12 +80,25 @@ public class ManagedMeshSettings {
 		return individualSettings.get(id);
 	}
 
-	public MeshSettings getOrAddMesh(final Long id) {
+	/**
+	 * Retrieves a MeshSettings for the given key.
+	 * If the mesh settings are managed, then the managed settings will be returned.
+	 * Otherwise, a new MeshSettings object will be created based on global settings.
+	 *
+	 * @param meshKey the key of the mesh to retrieve the settings for
+	 * @return the mesh settings for the given mesh key, or a new MeshSettings object if the key is not found
+	 */
+	public MeshSettings getMeshSettings(final K meshKey) {
 
-		if (!isManagedProperties.containsKey(id)) {
-			return new MeshSettings(globalSettings.getNumScaleLevels());
-		}
-		return individualSettings.get(id);
+		final var isManagedProperty = isManagedProperties.get(meshKey);
+
+		final boolean isManaged;
+		if (isManagedProperty != null)
+			isManaged = isManagedProperty.get();
+		else
+			isManaged = false;
+
+		return getMeshSettings(meshKey, isManaged);
 	}
 
 	public MeshSettings getGlobalSettings() {
@@ -82,12 +106,18 @@ public class ManagedMeshSettings {
 		return globalSettings;
 	}
 
-	public boolean isPresent(final Long t) {
+	/**
+	 * Checks if the given mesh key is managed.
+	 *
+	 * @param meshKey the mesh key
+	 * @return true if the mesh key is managed, false otherwise
+	 */
+	public boolean isManaged(final K meshKey) {
 
-		return this.isManagedProperties.containsKey(t);
+		return this.isManagedProperties.containsKey(meshKey);
 	}
 
-	public BooleanProperty isManagedProperty(final Long t) {
+	public BooleanProperty isManagedProperty(final K t) {
 
 		return this.isManagedProperties.get(t);
 	}
@@ -108,9 +138,9 @@ public class ManagedMeshSettings {
 		this.individualSettings.clear();
 	}
 
-	public void keepOnlyMatching(final Predicate<Long> filter) {
+	public void keepOnlyMatching(final Predicate<K> filter) {
 
-		final Set<Long> toBeRemoved = isManagedProperties
+		final Set<K> toBeRemoved = isManagedProperties
 				.keySet()
 				.stream()
 				.filter(filter.negate())
@@ -125,16 +155,16 @@ public class ManagedMeshSettings {
 		return new Serializer();
 	}
 
-	public void set(final ManagedMeshSettings that) {
+	public void set(final ManagedMeshSettings<K> that) {
 
 		clearSettings();
 		globalSettings.setTo(that.globalSettings);
 		isMeshListEnabled.set(that.isMeshListEnabled.get());
 		meshesEnabled.set(that.meshesEnabled.get());
-		for (final Entry<Long, MeshSettings> entry : that.individualSettings.entrySet()) {
-			final Long id = entry.getKey();
+		for (final Entry<K, MeshSettings> entry : that.individualSettings.entrySet()) {
+			final K id = entry.getKey();
 			final boolean isManaged = that.isManagedProperties.get(id).get();
-			this.getOrAddMesh(id, isManaged);
+			this.getMeshSettings(id, isManaged);
 			if (!isManaged)
 				this.individualSettings.get(id).setTo(entry.getValue());
 		}
@@ -188,10 +218,12 @@ public class ManagedMeshSettings {
 					if (!settingsMap.has(ID_KEY)) {
 						continue;
 					}
+					//TODO Caleb: This needs to store and deserialize based on generic key type, not just Long
+					//  Necessary to share logic for meshes across segment and virtual sources
 					final Long id = context.deserialize(settingsMap.get(ID_KEY), Long.class);
 					final MeshSettings settings = Optional
 							.ofNullable(settingsMap.get(SETTINGS_KEY))
-							.map(el -> (MeshSettings)context.deserialize(el, MeshSettings.class))
+							.map(el -> (MeshSettings) context.deserialize(el, MeshSettings.class))
 							.orElseGet(globalSettings::copy);
 					final boolean isManaged = Optional
 							.ofNullable(settingsMap.get(IS_MANAGED_KEY))
@@ -199,13 +231,13 @@ public class ManagedMeshSettings {
 							.orElse(true);
 					LOG.debug("{} is managed? {}", id, isManaged);
 					if (!isManaged)
-						managedSettings.getOrAddMesh(id, false).setTo(settings);
+						managedSettings.getMeshSettings(id, false).setTo(settings);
 					else
-						managedSettings.getOrAddMesh(id, true);
+						managedSettings.getMeshSettings(id, true);
 				}
 				return managedSettings;
 			} catch (final Exception e) {
-				throw e instanceof JsonParseException ? (JsonParseException)e : new JsonParseException(e);
+				throw e instanceof JsonParseException ? (JsonParseException) e : new JsonParseException(e);
 			}
 		}
 
@@ -215,19 +247,22 @@ public class ManagedMeshSettings {
 				final Type typeOfSrc,
 				final JsonSerializationContext context) {
 
+			//TODO Caleb: This also needs to serialize the generic type, instead of casting to Object
+			ManagedMeshSettings<Object> managedMeshSettings = (ManagedMeshSettings<Object>) src;
+
 			final JsonObject map = new JsonObject();
-			map.add(GLOBAL_SETTINGS_KEY, context.serialize(src.globalSettings));
+			map.add(GLOBAL_SETTINGS_KEY, context.serialize(managedMeshSettings.globalSettings));
 
-			if (DEFAULT_IS_MESH_LIST_ENABLED != src.isMeshListEnabledProperty().get())
-				map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
+			if (DEFAULT_IS_MESH_LIST_ENABLED != managedMeshSettings.isMeshListEnabledProperty().get())
+				map.addProperty(IS_MESH_LIST_ENABLED_KEY, managedMeshSettings.isMeshListEnabledProperty().get());
 
-			if (DEFAULT_ARE_MESHES_ENABLED != src.getMeshesEnabledProperty().get())
-				map.addProperty(MESHES_ENABLED_KEY, src.getMeshesEnabledProperty().get());
+			if (DEFAULT_ARE_MESHES_ENABLED != managedMeshSettings.getMeshesEnabledProperty().get())
+				map.addProperty(MESHES_ENABLED_KEY, managedMeshSettings.getMeshesEnabledProperty().get());
 
 			final JsonArray meshSettingsList = new JsonArray();
-			for (final Entry<Long, MeshSettings> entry : src.individualSettings.entrySet()) {
-				final Long id = entry.getKey();
-				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get).orElse(true);
+			for (final Entry<?, MeshSettings> entry : managedMeshSettings.individualSettings.entrySet()) {
+				final Object id = entry.getKey();
+				final Boolean isManaged = Optional.ofNullable(managedMeshSettings.isManagedProperty(id)).map(BooleanProperty::get).orElse(true);
 				if (!isManaged) {
 					final JsonObject settingsMap = new JsonObject();
 					settingsMap.addProperty(IS_MANAGED_KEY, false);

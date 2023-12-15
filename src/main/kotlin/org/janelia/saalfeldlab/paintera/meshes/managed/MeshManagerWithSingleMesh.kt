@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
@@ -8,25 +9,25 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
 import javafx.scene.paint.Color
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.State
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.ExecutorService
 
-/**
- * @author Philipp Hanslovsky
- * @author Igor Pisarev
- */
-class MeshManagerWithSingleMesh<Key>(
-	source: DataSource<*, *>,
-	val getBlockList: GetBlockListFor<Key>,
+abstract class MeshManager<Key>(
+	val source: DataSource<*, *>,
+	val getBlockListFor: GetBlockListFor<Key>,
 	val getMeshFor: GetMeshFor<Key>,
 	viewFrustumProperty: ObservableValue<ViewFrustum>,
 	eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
@@ -35,19 +36,16 @@ class MeshManagerWithSingleMesh<Key>(
 	meshViewUpdateQueue: MeshViewUpdateQueue<Key>,
 ) {
 
-	var meshKey: Key? = null
-		@Synchronized get
-		@Synchronized private set
+	companion object {
+		val LOG = KotlinLogging.logger { }
+	}
 
 	val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
 	var isViewerEnabled: Boolean by viewerEnabledProperty.nonnull()
 
-	val colorProperty: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-	var color: Color by colorProperty.nonnull()
-
-	private val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
+	protected val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
 		source,
-		getBlockList,
+		getBlockListFor,
 		getMeshFor,
 		viewFrustumProperty,
 		eyeToWorldTransformProperty,
@@ -57,63 +55,142 @@ class MeshManagerWithSingleMesh<Key>(
 		meshViewUpdateQueue
 	)
 
-
 	val rendererSettings = manager.rendererSettings
 
-	val settings: MeshSettings = MeshSettings(source.numMipmapLevels)
+	val managedSettings = ManagedMeshSettings<Key>(source.numMipmapLevels).apply { rendererSettings.meshesEnabledProperty.bind(meshesEnabledProperty) }
 
-	val managedSettings = ManagedMeshSettings(source.numMipmapLevels).apply { rendererSettings.meshesEnabledProperty.bind(meshesEnabledProperty) }
+	val globalSettings: MeshSettings = managedSettings.globalSettings
 
 	val meshesGroup: Group = manager.meshesGroup
 
-	private val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
+	// TODO This listener is added to all mesh states. This is a problem if a lot of ids are selected
+	//  and all use global mesh settings. Whenever the global mesh settings are changed, the
+	//  managerCancelAndUpdate would be notified for each of the meshes, which can temporarily slow down
+	//  the UI for quite some time (tens of seconds). A smarter way might be a single thread executor that
+	//  executes only the last request and has a delay.
+	//  This may be fixed now by using manager.requestCancelAndUpdate(), which submits a task
+	//  to a LatestTaskExecutor with a delay of 100ms.
+	protected val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
+
+	open fun getStateFor(key: Key): State? {
+		return manager.getStateFor(key)
+	}
+
+	fun getSettings(key: Key): MeshSettings {
+		return managedSettings.getMeshSettings(key)
+	}
+
+	open suspend fun createMeshFor(key: Key) {
+		manager.createMeshFor(key, true, stateSetup = ::setupMeshState)
+	}
+
+	protected open fun setupMeshState(key: Key, state: State) {
+		LOG.debug { "Setting up state for mesh key $key" }
+		with(globalSettings) {
+			levelOfDetailProperty.addListener(managerCancelAndUpdate)
+			coarsestScaleLevelProperty.addListener(managerCancelAndUpdate)
+			finestScaleLevelProperty.addListener(managerCancelAndUpdate)
+		}
+	}
 
 	@Synchronized
-	fun createMeshFor(key: Key) {
+	protected open fun releaseMeshState(key: Key, state: State) {
+		state.colorProperty().unbind()
+		with(globalSettings) {
+			unbind()
+			levelOfDetailProperty.removeListener(managerCancelAndUpdate)
+			coarsestScaleLevelProperty.removeListener(managerCancelAndUpdate)
+			finestScaleLevelProperty.removeListener(managerCancelAndUpdate)
+		}
+	}
+
+	@Synchronized
+	open fun removeAllMeshes() {
+		manager.removeAllMeshes { key, state -> releaseMeshState(key, state) }
+	}
+
+	@Synchronized
+	open fun removeMesh(key: Key) {
+		manager.removeMeshFor(key) { meshKey, state -> releaseMeshState(meshKey, state) }
+	}
+
+	@Synchronized
+	open fun removeMeshes(keys: Iterable<Key>) {
+		manager.removeMeshesFor(keys) { key, state -> releaseMeshState(key, state) }
+	}
+
+	open fun refreshMeshes() {
+		val currentMeshKeys = manager.allMeshKeys
+		this.removeAllMeshes()
+		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
+		runBlocking {
+			launch {
+				currentMeshKeys.forEach {
+					createMeshFor(it)
+				}
+			}
+		}
+	}
+}
+
+
+/**
+ * @author Philipp Hanslovsky
+ * @author Igor Pisarev
+ */
+class MeshManagerWithSingleMesh<Key>(
+	source: DataSource<*, *>,
+	getBlockList: GetBlockListFor<Key>,
+	getMeshFor: GetMeshFor<Key>,
+	viewFrustumProperty: ObservableValue<ViewFrustum>,
+	eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
+	managers: ExecutorService,
+	workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
+	meshViewUpdateQueue: MeshViewUpdateQueue<Key>
+) : MeshManager<Key>(
+	source,
+	getBlockList,
+	getMeshFor,
+	viewFrustumProperty,
+	eyeToWorldTransformProperty,
+	managers,
+	workers,
+	meshViewUpdateQueue
+) {
+
+	var meshKey: Key? = null
+		@Synchronized get
+		@Synchronized private set
+
+	val colorProperty: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
+	var color: Color by colorProperty.nonnull()
+
+	override suspend fun createMeshFor(key: Key) {
 		if (key == meshKey)
 			return
 		this.removeAllMeshes()
 		meshKey = key
-		manager.createMeshFor(key, true) { it.setup() }
+		super.createMeshFor(key)
+
+	}
+
+	override fun setupMeshState(key: Key, state: State) {
+		with(state) {
+			colorProperty().bind(colorProperty)
+			settings.bindTo(this@MeshManagerWithSingleMesh.globalSettings)
+		}
+		super.setupMeshState(key, state)
 	}
 
 	@Synchronized
-	fun removeAllMeshes() {
-		manager.removeAllMeshes { it.release() }
+	override fun removeAllMeshes() {
+		meshKey?.let { removeMesh(it) }
+	}
+
+	@Synchronized
+	override fun removeMesh(key: Key) {
 		meshKey = null
-	}
-
-	@Synchronized
-	fun refreshMeshes() {
-		val key = meshKey
-		this.removeAllMeshes()
-		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-		key?.let { createMeshFor(it) }
-	}
-
-	private fun MeshGenerator.State.setup() = setupGeneratorState(this)
-
-	@Synchronized
-	private fun setupGeneratorState(state: MeshGenerator.State) {
-		LOG.debug("Setting up state for mesh key {}", meshKey)
-		state.colorProperty().bind(colorProperty)
-		state.settings.bindTo(settings)
-		state.settings.levelOfDetailProperty.addListener(managerCancelAndUpdate)
-		state.settings.coarsestScaleLevelProperty.addListener(managerCancelAndUpdate)
-		state.settings.finestScaleLevelProperty.addListener(managerCancelAndUpdate)
-	}
-
-	@Synchronized
-	private fun MeshGenerator.State.release() {
-		colorProperty().unbind()
-		settings.unbind()
-		settings.levelOfDetailProperty.removeListener(managerCancelAndUpdate)
-		settings.coarsestScaleLevelProperty.removeListener(managerCancelAndUpdate)
-		settings.finestScaleLevelProperty.removeListener(managerCancelAndUpdate)
-	}
-
-	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		super.removeMesh(key)
 	}
 
 }

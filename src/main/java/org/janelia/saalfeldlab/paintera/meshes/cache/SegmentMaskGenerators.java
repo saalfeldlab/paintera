@@ -29,18 +29,22 @@ public class SegmentMaskGenerators {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static <T, B extends BooleanType<B>> BiFunction<TLongHashSet, Double, Converter<T, B>> create(
+	public static <T, B extends BooleanType<B>> BiFunction<Long, Double, Converter<T, B>> create(
 			final DataSource<T, ?> source,
-			final int level) {
+			final int level,
+			final Function<Long, TLongHashSet> fragmentsForSegment
+	) {
 
 		final T t = source.getDataType();
 
-		if (t instanceof LabelMultisetType)
-			return new LabelMultisetTypeMaskGenerator(source, level);
+		if (t instanceof LabelMultisetType) {
+			final LabelMultisetTypeMaskGenerator labelMultisetTypeMaskGenerator = new LabelMultisetTypeMaskGenerator(source, level);
+			return (l, minLabelRatio) -> labelMultisetTypeMaskGenerator.apply(fragmentsForSegment.apply(l), minLabelRatio);
+		}
 
 		if (t instanceof IntegerType<?>) {
 			final IntegerTypeMaskGenerator integerTypeMaskGenerator = new IntegerTypeMaskGenerator();
-			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(l);
+			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(fragmentsForSegment.apply(l));
 		}
 
 		return null;

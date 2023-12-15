@@ -94,4 +94,7 @@ public abstract class MeshExporter<T> {
 
 	protected abstract void save(String path, String id, float[] vertices, float[] normals, int[] indices, boolean append) throws IOException;
 
+	public enum MeshFileFormat {
+		Obj, Binary;
+	}
 }

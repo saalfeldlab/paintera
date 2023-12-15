@@ -144,16 +144,14 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		meshManagerExecutors,
 		meshWorkersExecutors
 	).apply {
-		InvokeOnJavaFXApplicationThread {
-			refreshMeshes()
-		}
+		refreshMeshes()
 	}
 
 	val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createNonNullValueBinding { FragmentLabelMeshCacheKey(it) }
 
 	override fun getMeshCacheKeyBinding(): ObjectBinding<FragmentLabelMeshCacheKey> = meshCacheKeyProperty
 
-	override fun getGetBlockListFor(): GetBlockListFor<FragmentLabelMeshCacheKey> = this.meshManager.getBlockListForMeshCacheKey
+	override fun getGetBlockListFor(): GetBlockListFor<FragmentLabelMeshCacheKey> = this.meshManager.getBlockListForFragments
 
 	override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
@@ -269,7 +267,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		paintera.viewer3D().meshesGroup.children.add(meshManager.meshesGroup)
 		selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
-		meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabled)
+		meshManager.viewerEnabledProperty.bind(paintera.viewer3D().meshesEnabled)
 		meshManager.rendererSettings.showBlockBoundariesProperty.bind(paintera.viewer3D().showBlockBoundaries)
 		meshManager.rendererSettings.blockSizeProperty.bind(paintera.viewer3D().rendererBlockSize)
 		meshManager.rendererSettings.numElementsPerFrameProperty.bind(paintera.viewer3D().numElementsPerFrame)
@@ -342,7 +340,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			compositeProperty(),
 			converter(),
 			meshManager,
-			meshManager.managedSettings,
 			brushProperties
 		).node.let { if (it is VBox) it else VBox(it) }
 
@@ -669,7 +666,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 							interpolation = context[json, INTERPOLATION]!!
 							isVisible = context[json, IS_VISIBLE]!!
 							context.get<LongArray>(json, SELECTED_IDS) { selectedIds.activate(*it) }
-							context.get<ManagedMeshSettings>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it) }
+							context.get<ManagedMeshSettings<*>>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it as ManagedMeshSettings<Long>) }
 							context.get<LongArray>(json, LOCKED_SEGMENTS)?.forEach {
 								lockedSegments.lock(it)
 							}
@@ -689,7 +686,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 }
 
-class FragmentLabelMeshCacheKey constructor(fragmentsInSelectedSegments: FragmentsInSelectedSegments) : MeshCacheKey {
+class FragmentLabelMeshCacheKey(fragmentsInSelectedSegments: FragmentsInSelectedSegments) : MeshCacheKey {
 
 	val fragments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.fragments)
 	val segments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.selectedSegments.selectedSegmentsCopyAsArray)
