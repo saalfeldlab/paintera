@@ -103,11 +103,11 @@ public class Mesh {
 		final ArrayList<TIntArrayList> trianglesPerVertex = new ArrayList<>();
 		final TIntArrayList triangleVertexIndices = new TIntArrayList();
 
-		final double minY = interval.min(1) - 1;
 		final double minX = interval.min(0) - 1;
+		final double minY = interval.min(1) - 1;
 		final double minZ = interval.min(2) - 1;
 
-		final int overlapOffset = overlap ? 1 : 0;
+		final double overlapOffset = overlap ? 1 : .5;
 		final double maxX = interval.max(0) + overlapOffset;
 		final double maxY = interval.max(1) + overlapOffset;
 		final double maxZ = interval.max(2) + overlapOffset;
