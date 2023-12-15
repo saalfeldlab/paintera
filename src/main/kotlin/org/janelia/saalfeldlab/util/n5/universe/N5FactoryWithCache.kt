@@ -1,33 +1,3 @@
-/**
- * Copyright (c) 2017-2021, Saalfeld lab, HHMI Janelia
- * All rights reserved.
- *
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *
- * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- *
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
 package org.janelia.saalfeldlab.util.n5.universe
 
 import org.janelia.saalfeldlab.n5.N5Exception
@@ -39,16 +9,6 @@ import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 
-/**
- * Factory for various N5 readers and writers.  Implementation specific
- * parameters can be provided to the factory instance and will be used when
- * such implementations are generated and ignored otherwise. Reasonable
- * defaults are provided.
- *
- * @author Stephan Saalfeld
- * @author John Bogovic
- * @author Igor Pisarev
- */
 class N5FactoryWithCache : N5Factory() {
 
 	companion object {
@@ -202,7 +162,6 @@ class N5DatasetDoesntExist : N5Exception {
 	constructor(uri : String, dataset: String) : super("Dataset \"${displayDataset(dataset)}\" not found in container $uri")
 	constructor(uri: String, dataset : String, cause: Throwable) : super("Dataset \"${displayDataset(dataset)}\" not found in container $uri", cause)
 }
-
 
 class N5ContainerDoesntExist : N5Exception {
 
