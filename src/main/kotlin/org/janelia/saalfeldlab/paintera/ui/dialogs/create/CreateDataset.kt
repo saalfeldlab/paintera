@@ -91,14 +91,32 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 	private val setFromButton = MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource)
 	private val setFromCurrentBox = HBox(bufferNode(), setFromButton).apply { HBox.setHgrow(children[0], Priority.ALWAYS) }
-	private val name = TextField().apply { maxWidth = Double.MAX_VALUE }
+
+	private val nameField = object: TextField() {
+		var manuallyNamed = false
+		override fun paste() {
+			super.paste()
+			if (text.isNotEmpty())
+				manuallyNamed = true
+		}
+
+	}.apply {
+		maxWidth = Double.MAX_VALUE
+		onKeyTyped = EventHandler {
+			if (text.isNotEmpty())
+				manuallyNamed = true
+		}
+		textProperty().addListener { _, _, new ->
+			if (new.isEmpty())
+				manuallyNamed = false
+		}
+	}
 
 	private val n5Container: DirectoryField = DirectoryField(System.getProperty("user.home"), FIELD_WIDTH)
 	private val dataset = stringField("", *SubmitOn.values()).apply {
-		valueProperty().addListener { _, _, newv: String? ->
-			if (newv != null && name.text.isNullOrEmpty()) {
-				val split = newv.split("/").toTypedArray()
-				name.text = split[split.size - 1]
+		textField.textProperty().addListener { _, _, newv: String? ->
+			if (!nameField.manuallyNamed && newv != null) {
+				nameField.text = newv.split("/").toTypedArray().last()
 			}
 		}
 	}
@@ -110,7 +128,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.values())
 	private val scaleLevels = TitledPane("Scale Levels", mipmapLevelsNode)
 	private val pane = VBox(
-		nameIt("Name", NAME_WIDTH, true, name),
+		nameIt("Name", NAME_WIDTH, true, nameField),
 		nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
 		nameIt("Dataset", NAME_WIDTH, true, dataset.textField),
 		nameIt("Dimensions", NAME_WIDTH, false, bufferNode(), dimensions.node),
@@ -229,7 +247,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			dialogPane.lookupButton(ButtonType.OK).addEventFilter(ActionEvent.ACTION) { e: ActionEvent ->
 				val container = n5Container.directoryProperty().value!!.absolutePath
 				val dataset = dataset.value
-				val name = name.text
+				val name = nameField.text
 				try {
 					LOG.debug("Trying to create empty label dataset `{}' in container `{}'", dataset, container)
 					if (dataset.isNullOrEmpty()) throw IOException("Dataset not specified!")
@@ -270,7 +288,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				}
 			}
 		}.showAndWait()
-		val name = name.text
+		val name = nameField.text
 		return Optional.ofNullable(metadataStateProp.get()).map { metadataState: MetadataState -> Pair(metadataState, name) }
 	}
 
