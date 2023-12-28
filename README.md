@@ -132,6 +132,13 @@ Similarly, you can install maven via `sdkman` if you desire:
 ```shell
 sdk install maven
 ```
+
+### Running Paintera
+To run paintera, execute the follow maven goal:
+```sh
+mvn javafx:run
+```
+
 ## Development Releases
 
 **NOTE** This is still an experimentally supported installation method, and should only be used to test Paintera features still in development.
@@ -149,12 +156,6 @@ Some known issues with these installers:
 It's possible that this will replace the current release process, but for now, we have not committed to this.
 
 Some discussion around this can be found [in github issue #253](https://github.com/saalfeldlab/paintera/issues/253)
-
-### Running Paintera
-To run paintera, execute the follow maven goal:
-```sh
-mvn javafx:run
-```
 
 ## Display help message and command line parameters
 The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line.
