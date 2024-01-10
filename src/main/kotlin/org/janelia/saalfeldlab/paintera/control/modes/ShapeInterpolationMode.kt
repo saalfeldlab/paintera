@@ -314,7 +314,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				activeViewerProperty.get()?.viewer()?.let { viewer ->
 					painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
 						val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
-						activeToolProperty.addListener { obs, old, new ->
+						activeToolProperty.addListener { _, old, new ->
 							toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
 							toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
 						}

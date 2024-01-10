@@ -40,6 +40,9 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.lang.Double.min
 
+internal const val CHANGE_BRUSH_DEPTH = "change brush depth"
+internal const val START_BACKGROUND_ERASE = "start background erase"
+
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
@@ -261,10 +264,10 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 				onAction { paint2D.changeBrushRadius(it!!.deltaY) }
 			}
 		},
-		painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+		painteraActionSet(CHANGE_BRUSH_DEPTH, PaintActionType.SetBrushDepth) {
 			ScrollEvent.SCROLL(KeyCode.SHIFT) {
 				keysExclusive = false
-				name = "change brush depth"
+				name = CHANGE_BRUSH_DEPTH
 				verifyNotPainting()
 				onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
 			}
@@ -295,7 +298,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 						onAction { paint2D.setBrushRadius(it!!.value.toDouble()) }
 					}
 				},
-				painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
+				painteraMidiActionSet(CHANGE_BRUSH_DEPTH, device, viewer, PaintActionType.SetBrushDepth) {
 					MidiToggleEvent.BUTTON_TOGGLE(7) {
 						verify { !isPainting }
 						verifyEventNotNull()
