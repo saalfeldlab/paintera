@@ -3,11 +3,13 @@ package org.janelia.saalfeldlab.paintera
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCode.*
 import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyCombination.*
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 
 infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
-infix fun String.byKeyCombo(combo: KeyCodeCombination) = NamedKeyCombination(this, combo)
+infix fun String.byKeyCombo(modifier: Modifier) = NamedKeyCombination(this, NamedKeyCombination.OnlyModifierKeyCombination(modifier))
+infix fun String.byKeyCombo(combo: KeyCombination) = NamedKeyCombination(this, combo)
 
 operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
 operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
@@ -105,7 +107,8 @@ object LabelSourceStateKeys {
     const val REFRESH_MESHES                               = "refresh meshes"
     const val CANCEL                                       = "cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
-    const val SEGMENT_ANYTHING_MODE                        = "Segment Anything Mode"
+    const val ENTER_SEGMENT_ANYTHING_MODE                  = "segment anything: enter mode"
+    const val EXIT_SEGMENT_ANYTHING_MODE                   = "segment anything: exit mode"
 
 	private val namedComboMap = NamedKeyCombination.CombinationMap(
         SELECT_ALL                                  byKeyCombo A + CONTROL_DOWN,
@@ -127,7 +130,8 @@ object LabelSourceStateKeys {
         REFRESH_MESHES                              byKeyCombo R,
         CANCEL                                      byKeyCombo ESCAPE,
         TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN,
-        SEGMENT_ANYTHING_MODE                       byKeyCombo A
+        ENTER_SEGMENT_ANYTHING_MODE                 byKeyCombo A,
+        EXIT_SEGMENT_ANYTHING_MODE                  byKeyCombo ESCAPE
     )
 
 	fun namedCombinationsCopy() = namedComboMap.deepCopy
@@ -149,12 +153,10 @@ object NavigationKeys {
     const val SET_ROTATION_AXIS_Y                         = "set rotation axis y"
     const val SET_ROTATION_AXIS_Z                         = "set rotation axis z"
     const val KEY_ROTATE_LEFT                             = "rotate left"
-    const val KEY_ROTATE_LEFT_FAST                        = "rotate left fast"
-    const val KEY_ROTATE_LEFT_SLOW                        = "rotate left slow"
     const val KEY_ROTATE_RIGHT                            = "rotate right"
-    const val KEY_ROTATE_RIGHT_FAST                       = "rotate right fast"
-    const val KEY_ROTATE_RIGHT_SLOW                       = "rotate right slow"
     const val REMOVE_ROTATION                             = "remove rotation"
+    const val KEY_MODIFIER_FAST                           = "fast-modifier"
+    const val KEY_MODIFIER_SLOW                           = "slow-modifier"
 
 	private val namedComboMap = NamedKeyCombination.CombinationMap(
         BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD      byKeyCombo COMMA,
@@ -171,11 +173,9 @@ object NavigationKeys {
         SET_ROTATION_AXIS_Y                         byKeyCombo Y,
         SET_ROTATION_AXIS_Z                         byKeyCombo Z,
         KEY_ROTATE_LEFT                             byKeyCombo LEFT,
-        KEY_ROTATE_LEFT_FAST                        byKeyCombo LEFT + SHIFT_DOWN,
-        KEY_ROTATE_LEFT_SLOW                        byKeyCombo LEFT + CONTROL_DOWN,
         KEY_ROTATE_RIGHT                            byKeyCombo RIGHT,
-        KEY_ROTATE_RIGHT_FAST                       byKeyCombo RIGHT + SHIFT_DOWN,
-        KEY_ROTATE_RIGHT_SLOW                       byKeyCombo RIGHT + CONTROL_DOWN,
+        KEY_MODIFIER_FAST                           byKeyCombo SHIFT_DOWN,
+        KEY_MODIFIER_SLOW                           byKeyCombo CONTROL_DOWN,
         REMOVE_ROTATION                             byKeyCombo Z + SHIFT_DOWN
 	)
 
