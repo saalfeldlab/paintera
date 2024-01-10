@@ -462,6 +462,14 @@ class ViewerMask private constructor(
 		} ?: paintera.baseView.orthogonalViews().requestRepaint()
 	}
 
+	/**
+	 * Returns the screen interval in the ViewerMask space, based on the given width and height.
+	 *
+	 * @param width The width of the interval. Defaults to the width of the viewer.
+	 * @param height The height of the interval. Defaults to the height of the viewer.
+	 *
+	 * @return The screen interval.
+	 */
 	@JvmOverloads
 	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong()): Interval {
 		val (x: Long, y: Long) = displayPointToInitialMaskPoint(0, 0)
