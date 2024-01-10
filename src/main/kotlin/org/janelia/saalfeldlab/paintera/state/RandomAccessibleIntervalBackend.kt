@@ -123,7 +123,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 		return RandomAccessibleIntervalDataSource(
 			dataSources.toTypedArray(),
 			volatileSources.toTypedArray(),
-			transforms,
+			{ transforms },
 			NO_OP_INVALIDATE,
 			{ NearestNeighborInterpolatorFactory() },
 			{ NearestNeighborInterpolatorFactory() },
