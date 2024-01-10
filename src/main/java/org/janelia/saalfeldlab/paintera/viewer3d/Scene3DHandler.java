@@ -163,8 +163,8 @@ public class Scene3DHandler {
 			getDragDetectedAction().setFilter(true);
 			getDragAction().setFilter(true);
 			getDragReleaseAction().setFilter(true);
-			/* don't update XY*/
-			setUpdateXY(false);
+			/* each drag is relative to previous */
+			setRelative(true);
 			onDrag(this::drag);
 		}
 
@@ -172,18 +172,15 @@ public class Scene3DHandler {
 
 			synchronized (affine) {
 				LOG.trace("drag - translate");
+				final Affine target = affine.clone();
 				final double dX = event.getX() - getStartX();
 				final double dY = event.getY() - getStartY();
-
 				LOG.trace("dx " + dX + " dy: " + dY);
 
-				final Affine target = affine.clone();
 				target.prependTranslation(2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight());
 
+				LOG.trace("target: {}", target);
 				InvokeOnJavaFXApplicationThread.invoke(() -> setAffine(target));
-
-				setStartX(getStartX() + dX);
-				setStartY(getStartY() + dY);
 			}
 		}
 	}
@@ -208,24 +205,14 @@ public class Scene3DHandler {
 			super(name);
 			LOG.trace(name);
 			verify(MouseEvent::isPrimaryButtonDown);
-			setUpdateXY(false);
+			setRelative(false);
 			onDragDetected(this::dragDetected);
 			onDrag(this::drag);
 		}
 
 		private void dragDetected(MouseEvent event) {
 
-			factor = NORMAL_FACTOR;
-
-			if (event.isShiftDown()) {
-				if (event.isControlDown()) {
-					factor = SLOW_FACTOR;
-				} else {
-					factor = FAST_FACTOR;
-				}
-			}
-
-			speed = baseSpeed * factor;
+			updateSpeed(event);
 
 			synchronized (affine) {
 				affineDragStart.setToTransform(affine);
@@ -233,6 +220,8 @@ public class Scene3DHandler {
 		}
 
 		private void drag(MouseEvent event) {
+
+			updateSpeed(event);
 
 			synchronized (affine) {
 				LOG.trace("drag - rotate");
@@ -248,6 +237,19 @@ public class Scene3DHandler {
 				LOG.trace("target: {}", target);
 				InvokeOnJavaFXApplicationThread.invoke(() -> setAffine(target));
 			}
+		}
+
+		//TODO Caleb: Use same speed control mechanism as NavigationControlMode uses (to be toggleable)
+		private void updateSpeed(MouseEvent event) {
+			factor = NORMAL_FACTOR;
+
+			if (event.isControlDown()) {
+				factor = SLOW_FACTOR;
+			} else if (event.isShiftDown()) {
+				factor = FAST_FACTOR;
+			}
+
+			speed = baseSpeed * factor;
 		}
 	}
 
