@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.binding.BooleanExpression
-import javafx.beans.binding.DoubleExpression
-import javafx.beans.binding.ObjectExpression
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -14,6 +11,7 @@ import javafx.scene.control.ButtonType
 import javafx.scene.control.Label
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.ScrollEvent
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
@@ -24,10 +22,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.control.VPotControl.DisplayType
 import org.janelia.saalfeldlab.fx.ObservablePosition
 import org.janelia.saalfeldlab.fx.actions.*
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.invoke
-import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
@@ -36,20 +31,23 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
+import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_MODIFIER_FAST
+import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_MODIFIER_SLOW
+import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_ROTATE_LEFT
+import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_ROTATE_RIGHT
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.*
-import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate.Axis
+import org.janelia.saalfeldlab.paintera.control.navigation.Rotate.Axis
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import java.util.function.Consumer
 import kotlin.math.absoluteValue
+import kotlin.math.max
 import kotlin.math.sign
 
 /**
@@ -94,13 +92,14 @@ object NavigationTool : ViewerTool() {
 		AffineTransform3D().apply { globalTransformManager.addListener { set(it) } }
 	}
 
-	private val zoomSpeed = SimpleDoubleProperty(1.05)
-
-	private val rotationSpeed = SimpleDoubleProperty(1.0)
 
 	val allowRotationsProperty = SimpleBooleanProperty(true)
 
 	private val buttonRotationSpeedConfig = ButtonRotationSpeedConfig()
+
+	private val speedProperty = SimpleDoubleProperty(buttonRotationSpeedConfig.regular.value)
+
+	private val speed: Double by speedProperty.nonnull()
 
 
 	override fun activate() {
@@ -145,7 +144,7 @@ object NavigationTool : ViewerTool() {
 	}
 
 	val zoomController by LazyForeignValue({ activeViewerAndTransforms }) {
-		Zoom(zoomSpeed, globalTransformManager, viewerTransform)
+		Zoom(globalTransformManager, viewerTransform)
 	}
 	val keyRotationAxis by LazyForeignValue({ activeViewerAndTransforms }) {
 		SimpleObjectProperty(Axis.Z)
@@ -162,13 +161,12 @@ object NavigationTool : ViewerTool() {
 
 	override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
 		viewerAndTransforms?.run {
-
-
 			globalToViewerTransform().addListener {
 				globalToViewerTransform.set(it)
 			}
 
 			val actionSets = mutableListOf<ActionSet?>()
+			actionSets += speedModifierActions()
 			actionSets += translateAlongNormalActions(translationController!!)
 			actionSets += translateInPlaneActions(translationController!!)
 			actionSets += zoomActions(zoomController, targetPositionObservable!!)
@@ -177,6 +175,28 @@ object NavigationTool : ViewerTool() {
 			actionSets += goToPositionAction(translationController!!)
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
+	}
+
+	private fun speedModifierActions() = painteraActionSet("speed-modifier", ignoreDisable = true) {
+		mapOf(
+			KEY_MODIFIER_FAST to buttonRotationSpeedConfig.fast,
+			KEY_MODIFIER_SLOW to buttonRotationSpeedConfig.slow
+		).forEach { (keys, speed) ->
+			KEY_PRESSED(keyBindings, keys, keysExclusive = false) {
+				consume = false
+				onAction {
+					speedProperty.unbind()
+					speedProperty.bind(speed)
+				}
+			}
+			KEY_RELEASED(keyBindings, keys, keysExclusive = false) {
+				consume = false
+				onAction {
+					speedProperty.unbind()
+					speedProperty.bind(buttonRotationSpeedConfig.regular)
+				}
+			}
+		}
 	}
 
 
@@ -313,8 +333,11 @@ object NavigationTool : ViewerTool() {
 				).map { keys ->
 					ScrollEvent.SCROLL {
 						verifyEventNotNull()
+						verify("scroll size at least 1 pixel") { max(it!!.deltaX.absoluteValue, it.deltaY.absoluteValue) > 1.0 }
 						keysDown(*keys)
-						onAction { zoomController.zoomCenteredAt(-ControlUtils.getBiggestScroll(it!!), it.x, it.y) }
+						onAction {
+							val scale = 1 + ControlUtils.getBiggestScroll(it!!) / 1_000
+							zoomController.zoomCenteredAt(scale, it.x, it.y) }
 					}
 				}
 			}
@@ -327,10 +350,13 @@ object NavigationTool : ViewerTool() {
 					1.0 to NavigationKeys.BUTTON_ZOOM_OUT2,
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN,
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN2
-				).map { (delta, key) ->
-					KEY_PRESSED {
-						onAction { zoomController.zoomCenteredAt(delta, targetPositionObservable.x, targetPositionObservable.y) }
-						keyMatchesBinding(keyBindings, key)
+				).map { (direction, key) ->
+					KEY_PRESSED(keyBindings, key, keysExclusive = false) {
+						onAction {
+							val delta = speed / 100
+							val scale = 1 - direction * delta
+							zoomController.zoomCenteredAt(scale, targetPositionObservable.x, targetPositionObservable.y)
+						}
 					}
 				}
 			}
@@ -381,61 +407,34 @@ object NavigationTool : ViewerTool() {
 		}
 
 		val setRotationAxis = painteraActionSet("set rotation axis", NavigationActionType.Rotate) {
-			arrayOf(
-				Axis.X to NavigationKeys.SET_ROTATION_AXIS_X,
-				Axis.Y to NavigationKeys.SET_ROTATION_AXIS_Y,
-				Axis.Z to NavigationKeys.SET_ROTATION_AXIS_Z
-			).map { (axis, key) ->
-				KEY_PRESSED {
-					onAction { keyRotationAxis.set(axis) }
-					keyMatchesBinding(keyBindings, key)
-				}
+			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_X) { onAction { keyRotationAxis.set(Axis.X) } }
+			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Y) { onAction { keyRotationAxis.set(Axis.Y) } }
+			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
+		}
+
+		val rotationController = Rotate(displayTransform, globalToViewerTransform, globalTransformManager)
+
+		val mouseRotation = painteraDragActionSet("mousde-drag-rotate", NavigationActionType.Rotate) {
+			verify { it.isPrimaryButtonDown }
+			dragDetectedAction.verify { NavigationTool.allowRotationsProperty() }
+			onDragDetected { rotationController.initialize(targetPositionObservable.x, targetPositionObservable.y) }
+			onDrag {
+				rotationController.setSpeed(speed / buttonRotationSpeedConfig.regular.value)
+				rotationController.rotate3D(it.x, it.y, startX, startY)
 			}
 		}
 
-		fun newDragRotationAction(name: String, speed: Double, keyDown: KeyCode? = null) =
-			baseRotationAction(
-				name,
-				allowRotationsProperty,
-				rotationSpeed.multiply(speed),
-				displayTransform,
-				globalToViewerTransform,
-				globalTransformManager
-			) { globalTransformManager.transform = it }.apply {
-				keyDown?.let {
-					dragDetectedAction.keysDown(keyDown)
-					dragAction.keysDown(keyDown)
-				} ?: let {
-					dragDetectedAction.verifyNoKeysDown()
-					dragAction.verifyNoKeysDown()
+
+		val keyRotation = painteraActionSet("key-rotate", NavigationActionType.Rotate) {
+			mapOf(-1 to KEY_ROTATE_LEFT, 1 to KEY_ROTATE_RIGHT).forEach { (direction, key) ->
+
+				KEY_PRESSED(keyBindings, key, keysExclusive = false) {
+					verify { allowRotationsProperty() }
+					onAction {
+						rotationController.setSpeed(direction * speed)
+						rotationController.rotateAroundAxis(targetPositionObservable.x, targetPositionObservable.y, keyRotationAxis.get())
+					}
 				}
-			}
-
-		val mouseRotation = newDragRotationAction("rotate", DEFAULT)
-		val fastMouseRotation = newDragRotationAction("rotate fast", FAST, KeyCode.SHIFT)
-		val slowMouseRotation = newDragRotationAction("rotate slow", SLOW, KeyCode.CONTROL)
-
-		val rotationKeyActions = painteraActionSet("rotate", NavigationActionType.Rotate) {
-			mapOf(
-				buttonRotationSpeedConfig.regular.multiply(-1) to NavigationKeys.KEY_ROTATE_LEFT,
-				buttonRotationSpeedConfig.regular to NavigationKeys.KEY_ROTATE_RIGHT,
-
-				buttonRotationSpeedConfig.fast.multiply(-1) to NavigationKeys.KEY_ROTATE_LEFT_FAST,
-				buttonRotationSpeedConfig.fast to NavigationKeys.KEY_ROTATE_RIGHT_FAST,
-
-				buttonRotationSpeedConfig.slow.multiply(-1) to NavigationKeys.KEY_ROTATE_LEFT_SLOW,
-				buttonRotationSpeedConfig.slow to NavigationKeys.KEY_ROTATE_RIGHT_SLOW,
-			).forEach { (speed, key) ->
-				addKeyRotationHandler(
-					key, keyBindings,
-					targetPositionObservable,
-					allowRotationsProperty,
-					keyRotationAxis,
-					speed.multiply(Math.PI / 180.0),
-					displayTransform,
-					globalToViewerTransform,
-					globalTransformManager
-				) { globalTransformManager.transform = it }
 			}
 		}
 
@@ -445,10 +444,7 @@ object NavigationTool : ViewerTool() {
 		rotationActions += removeRotationActions
 		rotationActions += setRotationAxis
 		rotationActions += mouseRotation
-		rotationActions += fastMouseRotation
-		rotationActions += slowMouseRotation
-		rotationActions += rotationKeyActions
-		midiRotationActions()?.let { rotationActions += it }
+		rotationActions += keyRotation
 
 		return rotationActions.filterNotNull()
 	}
@@ -576,44 +572,4 @@ object NavigationTool : ViewerTool() {
 				}
 			}
 		}
-
-	private fun baseRotationAction(
-		name: String,
-		allowRotations: BooleanExpression,
-		speed: DoubleExpression,
-		displayTransform: AffineTransformWithListeners,
-		globalToViewerTransform: AffineTransformWithListeners,
-		manager: GlobalTransformManager,
-		submitTransform: Consumer<AffineTransform3D>
-	): DragActionSet {
-		val rotate = Rotate(speed, displayTransform, globalToViewerTransform, manager, submitTransform)
-
-		return painteraDragActionSet(name, NavigationActionType.Rotate) {
-			verify { it.isPrimaryButtonDown }
-			dragDetectedAction.verify { allowRotations() }
-			onDragDetected { rotate.initialize() }
-			onDrag { rotate.rotate(it.x, it.y, startX, startY) }
-		}
-	}
-
-	private fun ActionSet.addKeyRotationHandler(
-		name: String,
-		keyBindings: NamedKeyCombination.CombinationMap,
-		targetPositionObservable: ObservablePosition,
-		allowRotations: BooleanExpression,
-		axis: ObjectExpression<Axis>,
-		step: DoubleExpression,
-		displayTransformSupplier: AffineTransformWithListeners,
-		globalToViewerTransform: AffineTransformWithListeners,
-		globalTransformManager: GlobalTransformManager,
-		submitTransform: Consumer<AffineTransform3D>
-	) {
-		val rotate = KeyRotate(axis, step, displayTransformSupplier, globalToViewerTransform, globalTransformManager, submitTransform)
-
-		KEY_PRESSED {
-			verify { allowRotations() }
-			onAction { rotate.rotate(targetPositionObservable.x, targetPositionObservable.y) }
-			keyMatchesBinding(keyBindings, name)
-		}
-	}
 }
