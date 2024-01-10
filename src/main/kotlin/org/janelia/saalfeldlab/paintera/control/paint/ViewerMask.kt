@@ -499,7 +499,7 @@ class ViewerMask private constructor(
 		@JvmStatic
 		fun ViewerPanelFX.getGlobalViewerInterval(): RealInterval {
 			val zeroGlobal = doubleArrayOf(0.0, 0.0, 0.0).also { displayToGlobalCoordinates(it) }
-			val sizeGlobal = doubleArrayOf(width, height, 0.0).also { displayToGlobalCoordinates(it) }
+			val sizeGlobal = doubleArrayOf(width, height, 1.0).also { displayToGlobalCoordinates(it) }
 			return FinalRealInterval(zeroGlobal, sizeGlobal)
 		}
 
