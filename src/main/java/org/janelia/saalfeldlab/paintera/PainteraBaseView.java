@@ -372,7 +372,7 @@ public class PainteraBaseView {
 	 * @param <T>        Viewer type of {@code state}
 	 * @return the {@link ConnectomicsRawState} that was built from the inputs and added to the viewer
 	 */
-	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addConnectomicsRawSource(
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addMultiscaleConnectomicsRawSource(
 			final RandomAccessibleInterval<D>[] data,
 			final double[][] resolution,
 			final double[][] offset,
@@ -413,7 +413,7 @@ public class PainteraBaseView {
 			final double max,
 			final String name) {
 
-		return addConnectomicsRawSource(
+		return addMultiscaleConnectomicsRawSource(
 				new RandomAccessibleInterval[]{data},
 				new double[][]{resolution},
 				new double[][]{offset},

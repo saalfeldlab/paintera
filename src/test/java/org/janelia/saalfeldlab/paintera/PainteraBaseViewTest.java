@@ -104,7 +104,7 @@ public class PainteraBaseViewTest extends FxRobot {
 				});
 
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-		var raw = viewer.addConnectomicsRawSource(
+		var raw = viewer.addMultiscaleConnectomicsRawSource(
 				multiscale.images,
 				multiscale.resolutions,
 				multiscale.translations,
