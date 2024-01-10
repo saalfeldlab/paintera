@@ -3,14 +3,23 @@
 .sam-point {
     -fx-stroke: white;
     -fx-stroke-width: 2.0;
+    -include-fill: green;
+    -exclude-fill: red;
 }
 
-.sam-point.sam-include-point {
-    -fx-fill: -accept;
+.sam-box-overlay {
+    -fx-stroke-type: inside;
+    -fx-stroke: #cec9c6;;
+    -fx-stroke-width: 2;
+    -fx-fill: transparent;
 }
 
-.sam-point.sam-exclude-point {
-    -fx-fill: -reject;
+.sam-point.sam-include {
+    -fx-fill: -include-fill;
+}
+
+.sam-point.sam-exclude {
+    -fx-fill: -exclude-fill;
 }
 
 .glyph-icon.sam-select {
