@@ -1187,7 +1187,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		/* Views.tiles doesn't preserver intervals, so zeroMin prior to tiling */
 		final var zeroMinTarget = Views.zeroMin(target);
-		final var sourceInterval = IntervalHelpers.scaleBy(target, steps, true);
+		final var sourceInterval = IntervalHelpers.scale(target, steps, true);
 		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
 		final var tiledSource = Views.tiles(zeroMinSource, steps);
 
