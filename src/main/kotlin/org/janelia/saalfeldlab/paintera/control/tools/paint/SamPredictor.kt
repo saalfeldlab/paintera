@@ -5,15 +5,19 @@ import ai.onnxruntime.OnnxTensorLike
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import io.github.oshai.kotlinlogging.KotlinLogging
+import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealPoint
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.type.NativeType
-import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
+import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.util.interval
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import kotlin.math.ceil
+import kotlin.math.max
 
 private fun allocateDirectFloatBuffer(size: Int, order: ByteOrder = ByteOrder.nativeOrder()): FloatBuffer {
 	return ByteBuffer.allocateDirect(size * Float.SIZE_BYTES).order(order).asFloatBuffer()
@@ -124,19 +128,18 @@ class SamPredictor(
 	}
 
 	data class SamPrediction(
-		val masks: OnnxTensor? = null,
+		val masks: OnnxTensor,
 		val iouPredictions: OnnxTensor,
 		val lowResMasks: OnnxTensor,
 		val predictor: SamPredictor
 	) {
 
-		var image: RandomAccessibleInterval<FloatType> = ArrayImgs.floats(lowResMasks.floatBuffer.array(), LOW_RES_MASK_DIM.toLong(), LOW_RES_MASK_DIM.toLong())
-
-		/*
-		* Binary segmentation mask of connected components, or null if not binarized.
-		* Interval is the smallest bounding box containing the segmentation. May be empty, or the entire original image size.
-		*/
-		var segmentation: RandomAccessibleInterval<UnsignedLongType>? = null
+		val image: RandomAccessibleInterval<FloatType> = ArrayImgs.floats(masks.floatBuffer.array(), predictor.originalImgSize.first.toLong(), predictor.originalImgSize.second.toLong())
+		val lowResImage: RandomAccessibleInterval<FloatType> by lazy {
+			ArrayImgs.floats(lowResMasks.floatBuffer.array(), LOW_RES_MASK_DIM.toLong(), LOW_RES_MASK_DIM.toLong()).interval(lowResIntervalWithoutPadding)
+		}
+		val lowToHighResScale: Double
+		private val lowResIntervalWithoutPadding : Interval
 
 		constructor(result: OrtSession.Result, predictor: SamPredictor) : this(
 			result[MASKS].get() as OnnxTensor,
@@ -144,6 +147,23 @@ class SamPredictor(
 			result[LOW_RES_MASKS].get() as OnnxTensor,
 			predictor
 		)
+
+		init {
+			with(predictor) {
+				val lowResWidth: Long
+				val lowResHeight: Long
+				val (imgWidth, imgHeight) = originalImgSize
+				lowToHighResScale = max(imgWidth, imgHeight).toDouble() / LOW_RES_MASK_DIM
+				if (imgWidth > imgHeight) {
+					lowResWidth = LOW_RES_MASK_DIM.toLong()
+					lowResHeight = ceil(imgHeight / lowToHighResScale).toLong()
+				} else {
+					lowResHeight = LOW_RES_MASK_DIM.toLong()
+					lowResWidth = ceil(imgWidth / lowToHighResScale).toLong()
+				}
+				lowResIntervalWithoutPadding = Intervals.createMinSize(0, 0, lowResWidth, lowResHeight)
+			}
+		}
 
 		companion object {
 			const val MASKS = "masks"
