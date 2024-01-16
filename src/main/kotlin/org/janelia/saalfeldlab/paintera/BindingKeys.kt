@@ -107,8 +107,7 @@ object LabelSourceStateKeys {
     const val REFRESH_MESHES                               = "refresh meshes"
     const val CANCEL                                       = "cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
-    const val ENTER_SEGMENT_ANYTHING_MODE                  = "segment anything: enter mode"
-    const val EXIT_SEGMENT_ANYTHING_MODE                   = "segment anything: exit mode"
+    const val SEGMENT_ANYTHING                        = "Segment Anything Mode"
 
 	private val namedComboMap = NamedKeyCombination.CombinationMap(
         SELECT_ALL                                  byKeyCombo A + CONTROL_DOWN,
@@ -130,8 +129,7 @@ object LabelSourceStateKeys {
         REFRESH_MESHES                              byKeyCombo R,
         CANCEL                                      byKeyCombo ESCAPE,
         TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN,
-        ENTER_SEGMENT_ANYTHING_MODE                 byKeyCombo A,
-        EXIT_SEGMENT_ANYTHING_MODE                  byKeyCombo ESCAPE
+        SEGMENT_ANYTHING                            byKeyCombo A
     )
 
 	fun namedCombinationsCopy() = namedComboMap.deepCopy
