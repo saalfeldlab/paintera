@@ -127,7 +127,7 @@ object NavigationTool : ViewerTool() {
 	override val name: String = "Navigation"
 	override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
-	//TODO Caleb: should standardize the `TransformTracker` and updater concept. Refer to Rotate/KeyRotate/TranslationController
+	//TODO Caleb: should standardize the `TransformTracker` and updater concept. Refer to Rotate/TranslationController
 	val globalToViewerTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
 
 	val viewerTransform by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
@@ -146,9 +146,15 @@ object NavigationTool : ViewerTool() {
 	val zoomController by LazyForeignValue({ activeViewerAndTransforms }) {
 		Zoom(globalTransformManager, viewerTransform)
 	}
+
 	val keyRotationAxis by LazyForeignValue({ activeViewerAndTransforms }) {
 		SimpleObjectProperty(Axis.Z)
 	}
+
+	val rotationController by LazyForeignValue({ activeViewerAndTransforms }) {
+		Rotate(it!!.displayTransform(), it.globalToViewerTransform(), globalTransformManager)
+	}
+
 	val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
 		RemoveRotation(viewerTransform, globalTransform, {
 			globalTransformManager.setTransform(it, Duration(300.0))
@@ -337,7 +343,8 @@ object NavigationTool : ViewerTool() {
 						keysDown(*keys)
 						onAction {
 							val scale = 1 + ControlUtils.getBiggestScroll(it!!) / 1_000
-							zoomController.zoomCenteredAt(scale, it.x, it.y) }
+							zoomController.zoomCenteredAt(scale, it.x, it.y)
+						}
 					}
 				}
 			}
@@ -412,8 +419,6 @@ object NavigationTool : ViewerTool() {
 			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
 		}
 
-		val rotationController = Rotate(displayTransform, globalToViewerTransform, globalTransformManager)
-
 		val mouseRotation = painteraDragActionSet("mousde-drag-rotate", NavigationActionType.Rotate) {
 			verify { it.isPrimaryButtonDown }
 			dragDetectedAction.verify { NavigationTool.allowRotationsProperty() }
@@ -445,6 +450,7 @@ object NavigationTool : ViewerTool() {
 		rotationActions += setRotationAxis
 		rotationActions += mouseRotation
 		rotationActions += keyRotation
+		midiRotationActions()?.let { rotationActions += it }
 
 		return rotationActions.filterNotNull()
 	}
@@ -469,10 +475,6 @@ object NavigationTool : ViewerTool() {
 		DeviceManager.xTouchMini?.let { device ->
 			targetPositionObservable?.let { targetPosition ->
 				val target = vat.viewer()
-				val submitTransform: (AffineTransform3D) -> Unit = { t -> globalTransformManager.transform = t }
-				val step = SimpleDoubleProperty(5 * Math.PI / 180.0)
-				val axisProperty = SimpleObjectProperty<Axis>(keyRotationAxis.get())
-				val rotate = KeyRotate(axisProperty, step, vat.displayTransform(), vat.globalToViewerTransform(), globalTransformManager, submitTransform)
 
 				data class MidiRotationStruct(val handle: Int, val axis: Axis)
 				listOf(
@@ -487,11 +489,9 @@ object NavigationTool : ViewerTool() {
 							verifyEventNotNull()
 							verify { allowRotationsProperty() }
 							onAction {
-								InvokeOnJavaFXApplicationThread {
-									axisProperty.set(axis)
-									step.set(step.value.absoluteValue * it!!.value.sign)
-									rotate.rotate(targetPosition.x, targetPosition.y)
-								}
+								val direction = it!!.value.sign
+								rotationController.setSpeed(direction * speed)
+								rotationController.rotateAroundAxis(targetPosition.x, targetPosition.y, axis)
 							}
 						}
 					}
