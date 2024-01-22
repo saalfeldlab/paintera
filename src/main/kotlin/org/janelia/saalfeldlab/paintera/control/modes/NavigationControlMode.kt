@@ -489,9 +489,11 @@ object NavigationTool : ViewerTool() {
 							verifyEventNotNull()
 							verify { allowRotationsProperty() }
 							onAction {
-								val direction = it!!.value.sign
-								rotationController.setSpeed(direction * speed)
-								rotationController.rotateAroundAxis(targetPosition.x, targetPosition.y, axis)
+								InvokeOnJavaFXApplicationThread {
+									val direction = it!!.value.sign
+									rotationController.setSpeed(direction * speed)
+									rotationController.rotateAroundAxis(targetPosition.x, targetPosition.y, axis)
+								}
 							}
 						}
 					}
