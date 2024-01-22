@@ -44,7 +44,7 @@ public class SourceInfoTest {
 			RandomAccessibleIntervalDataSource<>(
 			rai,
 			rai,
-			new AffineTransform3D(),
+			() -> new AffineTransform3D(),
 			NO_OP_INVALIDATE,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
@@ -55,7 +55,7 @@ public class SourceInfoTest {
 			RandomAccessibleIntervalDataSource<>(
 			rai,
 			rai,
-			new AffineTransform3D(),
+			() -> new AffineTransform3D(),
 			NO_OP_INVALIDATE,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
