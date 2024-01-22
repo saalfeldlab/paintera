@@ -385,7 +385,13 @@ object NavigationTool : ViewerTool() {
 					setDisplayType(DisplayType.TRIM)
 					verifyEventNotNull()
 					onAction {
-						InvokeOnJavaFXApplicationThread { zoomController.zoomCenteredAt(-it!!.value.toDouble(), target.width / 2.0, target.height / 2.0) }
+						InvokeOnJavaFXApplicationThread {
+							val delta = speed / 100
+							val potVal = it!!.value.toDouble()
+							val scale = 1 - delta * potVal
+							val (x,y) = targetPositionObservable!!.let { it.x to it.y }
+							zoomController.zoomCenteredAt(scale, x, y)
+						}
 					}
 				}
 			}
@@ -483,7 +489,7 @@ object NavigationTool : ViewerTool() {
 					MidiRotationStruct(7, Axis.Z),
 				).map { (handle, axis) ->
 					painteraMidiActionSet("rotate", device, target, NavigationActionType.Rotate) {
-						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(handle) {
+						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE ( handle) {
 							name = "midi_rotate_${axis.name.lowercase()}"
 							setDisplayType(DisplayType.TRIM)
 							verifyEventNotNull()
