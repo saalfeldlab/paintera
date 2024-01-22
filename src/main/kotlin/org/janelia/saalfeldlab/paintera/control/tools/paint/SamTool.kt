@@ -321,20 +321,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				verifyPainteraNotDisabled()
 				verify("cannot be in control mode") { !controlMode }
 				verify(" label is not valid ") { isLabelValid }
-				onAction {
-					lastPrediction?.submitPrediction()
-					resetPredictionPoints()
-				}
+				onAction { applyPrediction() }
 			}
 			KEY_PRESSED(KeyCode.ENTER) {
 				name = "key apply last segmentation result to canvas"
 				verifyEventNotNull()
 				verifyPainteraNotDisabled()
 				verify(" label is not valid ") { isLabelValid }
-				onAction {
-					lastPrediction?.submitPrediction()
-					resetPredictionPoints()
-				}
+				onAction { applyPrediction() }
 			}
 			KEY_PRESSED(KeyCode.D) {
 				name = "view prediction"
@@ -564,6 +558,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}
 		}
 	)
+
+	open protected fun applyPrediction() {
+		lastPrediction?.submitPrediction()
+		resetPredictionPoints()
+	}
 
 	private fun drawCircle(it: MouseEvent, point: SamPoint, samStyle: SamPointStyle) {
 		setViewer?.let { viewer ->
@@ -1008,8 +1007,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private enum class SamPointStyle(val styles: Array<String>) {
 			Include(arrayOf(SAM_POINT_STYLE, "sam-include")),
-			Exclude(arrayOf(SAM_POINT_STYLE, "sam-exclude")),
-			Box(arrayOf(SAM_POINT_STYLE, "sam-box"))
+			Exclude(arrayOf(SAM_POINT_STYLE, "sam-exclude"))
 		}
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
