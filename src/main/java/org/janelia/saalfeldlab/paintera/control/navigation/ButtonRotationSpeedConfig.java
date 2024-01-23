@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.navigation;
 
 import javafx.beans.property.SimpleDoubleProperty;
 
+/* TODO: Using this for all speed modifier, not just rotation; should rename, but will require serialization changes. */
 public class ButtonRotationSpeedConfig {
 
 	private static final double DEFAULT_SLOW = 0.5;

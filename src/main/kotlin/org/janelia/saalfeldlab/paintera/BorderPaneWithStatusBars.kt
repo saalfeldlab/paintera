@@ -142,7 +142,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
 		initCrossHairs()
 		toggleOnMenuBarConfigMode(menuBar)
-		paintera.baseView.activeModeProperty.addListener { _, old, new ->
+		paintera.baseView.activeModeProperty.addListener { _, _, new ->
 			(new as? ToolMode)?.also { toolMode ->
 				val toolBar = toolMode.createToolBar()
 				toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)

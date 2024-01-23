@@ -54,10 +54,24 @@ public class GlobalTransformManager {
 		});
 	}
 
+	private Timeline animateSetTransform = null;
+
+	/**
+	 * Set the global transform to {@code affine} with an animation, over {@code duration} amount of time. When
+	 * the animation is stopped, either due to it finishing, or being stopped early, {@code runAfterAnimation} will be triggered.
+	 *
+	 * The animation can be stopped early either by passing in a `duration` of `0` milliseconds or less, OR by setting `duration` to null.
+	 * In both cases of the animation stopping early, the `runAfterrAnimation` will be triggered.
+	 *
+	 * @param affine to set the global transform to
+	 * @param duration to animate the transform update over
+	 * @param runAfterAnimation to run when the animation stops. This could either be when the global transform equals {@code affine} or if it was stopped early.
+	 */
 	public synchronized void setTransform(final AffineTransform3D affine, final Duration duration, final Runnable runAfterAnimation) {
 
-		if (duration.toMillis() == 0.0) {
+		if (duration == null || duration.toMillis() == 0.0) {
 			setTransform(affine);
+			runAfterAnimation.run();
 			return;
 		}
 		final Timeline timeline = new Timeline(60.0);
@@ -75,8 +89,16 @@ public class GlobalTransformManager {
 
 	public synchronized void setTransform(final AffineTransform3D affine) {
 
+		resetTransformAnimation();
 		this.affine.set(affine);
 		notifyListeners();
+	}
+
+	private void resetTransformAnimation() {
+		if (animateSetTransform != null) {
+			animateSetTransform.stop();
+			animateSetTransform = null;
+		}
 	}
 
 	public void addListener(final TransformListener<AffineTransform3D> listener) {

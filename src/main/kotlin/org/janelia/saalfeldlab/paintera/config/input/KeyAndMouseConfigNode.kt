@@ -12,6 +12,7 @@ import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.control.cell.PropertyValueFactory
 import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -199,7 +200,7 @@ class KeyAndMouseConfigNode(
 		val nameColumn = TableColumn<String, String>("Name").apply {
 			cellValueFactory = Callback { SimpleStringProperty(it.value) }
 		}
-		val bindingColumn = TableColumn<String, KeyCodeCombination>("Binding").apply {
+		val bindingColumn = TableColumn<String, KeyCombination>("Binding").apply {
 			cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
 		}
 

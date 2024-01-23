@@ -507,6 +507,13 @@ public class ViewerPanelFX
 		return mouseTracker.getMouseYProperty();
 	}
 
+	/**
+	 *
+	 * Creates a ObservablePosition which refers to either the location on ViewerPanelFX under the mouse, OR the center
+	 *  if the mouse is not on the ViewerPanelFX.
+	 *
+	 * @return the observable position
+	 */
 	public ObservablePosition createMousePositionOrCenterBinding() {
 
 		var xBinding = Bindings.createDoubleBinding(

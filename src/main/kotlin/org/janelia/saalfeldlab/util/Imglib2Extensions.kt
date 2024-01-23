@@ -10,15 +10,12 @@ import net.imglib2.realtransform.RealViews
 import net.imglib2.type.BooleanType
 import net.imglib2.type.Type
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.util.Intervals
-import net.imglib2.view.ExtendedRandomAccessibleInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
-import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -40,6 +37,7 @@ fun <T, F : RandomAccessible<T>> F.interpolate(interpolatorFactory: Interpolator
 fun <T> RandomAccessible<T>.interpolateNearestNeighbor(): RealRandomAccessible<T> = interpolate(NearestNeighborInterpolatorFactory())
 fun <T> RandomAccessibleInterval<T>.interpolateNearestNeighbor(): RealRandomAccessibleRealInterval<T> = interpolate(NearestNeighborInterpolatorFactory()).realInterval(this)
 fun <T> RandomAccessibleInterval<T>.forEach(loop: (T) -> Unit) = Views.iterable(this).forEach(loop)
+fun <T> RandomAccessibleInterval<T>.asIterable() = Views.iterable(this)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Long): T = getAt(*pos)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Int): T = getAt(*pos)
 operator fun <T> RandomAccessible<T>.get(pos: Localizable): T = getAt(pos)
@@ -83,8 +81,13 @@ fun <A, B, C : Type<C>> RealRandomAccessible<A>.convertWith(other: RealRandomAcc
 	return Converters.convert(this, other, converter, type)
 }
 
-/* RealPoint Extensions */
+fun <T> RandomAccessibleInterval<T>.addDimension() = Views.addDimension(this)
 
+fun <T> RandomAccessibleInterval<T>.addDimension(minOfNewDim : Long, maxOfNewDim : Long) =  Views.addDimension(this, minOfNewDim, maxOfNewDim)
+
+fun <T> RealRandomAccessible<T>.addDimension() = RealViews.addDimension(this)
+
+/* RealPoint Extensions */
 fun RealPoint.floor(): Point {
 	val pointVals = LongArray(this.numDimensions())
 	for (i in 0 until this.numDimensions()) {
@@ -116,6 +119,16 @@ fun RealPoint.toPoint(): Point {
 		pointVals[i] = getDoublePosition(i).toLong()
 	}
 	return Point(*pointVals)
+}
+
+fun RealPoint.scale(vararg scales: Double, inplace : Boolean = false): RealPoint {
+	assert(scales.isNotEmpty())
+	val scaledPoint = if (inplace) this else RealPoint(numDimensions())
+	for (i in 0 until scaledPoint.numDimensions()) {
+		val scale = if (scales.size > 1) scales[i] else scales[0]
+		scaledPoint.setPosition(this.getDoublePosition(i) * scale, i)
+	}
+	return scaledPoint
 }
 
 inline fun <reified T> RealPoint.get(i: Int): T {

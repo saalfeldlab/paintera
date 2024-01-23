@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
+import javafx.scene.transform.Affine;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -21,6 +22,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,7 +30,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final AffineTransform3D[] mipmapTransforms;
+	private final Supplier<AffineTransform3D[]> getMipmapTransforms;
 
 	private final RandomAccessibleInterval<T>[] sources;
 
@@ -78,7 +80,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		this(
 				dataWithInvalidate.data,
 				dataWithInvalidate.viewData,
-				dataWithInvalidate.transforms,
+				() -> dataWithInvalidate.transforms,
 				dataWithInvalidate.invalidate,
 				dataInterpolation,
 				interpolation,
@@ -92,14 +94,14 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
 			final String name) {
 
-		this(data.getA(), data.getB(), data.getC(), invalidate, dataInterpolation, interpolation, name);
+		this(data.getA(), data.getB(), data::getC, invalidate, dataInterpolation, interpolation, name);
 	}
 
 	@SuppressWarnings("unchecked")
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval<D> dataSource,
 			final RandomAccessibleInterval<T> source,
-			final AffineTransform3D mipmapTransform,
+			final Supplier<AffineTransform3D> mipmapTransform,
 			final Invalidate<Long> invalidate,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
@@ -108,7 +110,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		this(
 				new RandomAccessibleInterval[]{dataSource},
 				new RandomAccessibleInterval[]{source},
-				new AffineTransform3D[]{mipmapTransform},
+				() -> new AffineTransform3D[]{mipmapTransform.get()},
 				invalidate,
 				dataInterpolation,
 				interpolation,
@@ -118,7 +120,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval<D>[] dataSources,
 			final RandomAccessibleInterval<T>[] sources,
-			final AffineTransform3D[] mipmapTransforms,
+			final Supplier<AffineTransform3D[]> getMipmapTransforms,
 			final Invalidate<Long> invalidate,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
@@ -127,7 +129,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		this(
 				dataSources,
 				sources,
-				mipmapTransforms,
+				getMipmapTransforms,
 				invalidate,
 				dataInterpolation,
 				interpolation,
@@ -140,7 +142,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval<D>[] dataSources,
 			final RandomAccessibleInterval<T>[] sources,
-			final AffineTransform3D[] mipmapTransforms,
+			final Supplier<AffineTransform3D[]> getMipmapTransforms,
 			final Invalidate<Long> invalidate,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
@@ -149,7 +151,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final String name) {
 
 		super();
-		this.mipmapTransforms = mipmapTransforms;
+		this.getMipmapTransforms = getMipmapTransforms;
 		this.dataSources = dataSources;
 		this.sources = sources;
 		this.invalidate = invalidate;
@@ -201,8 +203,9 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	@Override
 	public void getSourceTransform(final int t, final int level, final AffineTransform3D transform) {
 
-		LOG.trace("Requesting mipmap transform for level {} at time {}: {}", level, t, mipmapTransforms[level]);
-		transform.set(mipmapTransforms[level]);
+		final AffineTransform3D[] transforms = getMipmapTransforms.get();
+		LOG.trace("Requesting mipmap transform for level {} at time {}: {}", level, t, transforms[level]);
+		transform.set(transforms[level]);
 	}
 
 	@Override
@@ -227,7 +230,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	@Override
 	public int getNumMipmapLevels() {
 
-		return mipmapTransforms.length;
+		return getMipmapTransforms.get().length;
 	}
 
 	@Override
@@ -258,7 +261,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		return new RandomAccessibleIntervalDataSource<>(
 				dataSources,
 				sources,
-				mipmapTransforms,
+				getMipmapTransforms,
 				invalidate,
 				dataInterpolation,
 				interpolation,

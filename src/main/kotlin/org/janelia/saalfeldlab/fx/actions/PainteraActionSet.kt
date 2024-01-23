@@ -47,14 +47,15 @@ fun painteraDragActionSet(
 	actionType: ActionType? = null,
 	ignoreDisable: Boolean = false,
 	filter: Boolean = true,
+	consumeMouseClicked: Boolean = false,
 	apply: (DragActionSet.() -> Unit)?
 ): DragActionSet {
-	return DragActionSet(name, { paintera.keyTracker }, filter).apply {
+	return DragActionSet(name, { paintera.keyTracker }, filter, consumeMouseClicked).apply {
 		verifyPermission(actionType)
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
 		}
-		apply?.let { it() }
+		apply?.invoke(this)
 	}
 }
 

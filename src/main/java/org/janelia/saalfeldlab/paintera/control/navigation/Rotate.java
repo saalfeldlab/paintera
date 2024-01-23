@@ -1,24 +1,25 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import javafx.beans.binding.DoubleExpression;
+import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.function.Consumer;
+import java.lang.invoke.MethodHandles;
 
 public class Rotate {
 
-	private static final double ROTATION_STEP = Math.PI / 180;
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final DoubleExpression speed;
+	private static final double DEFAULT_STEP = Math.PI / 180;
+	private double speed = 1.0;
 
 	private final AffineTransform3D globalTransform = new AffineTransform3D();
 
 	private final AffineTransformWithListeners displayTransformUpdater;
 
 	private final AffineTransformWithListeners globalToViewerTransformUpdater;
-
-	private final Consumer<AffineTransform3D> submitTransform;
 
 	private final GlobalTransformManager manager;
 
@@ -33,16 +34,14 @@ public class Rotate {
 	private final AffineTransform3D globalToViewerTransform = new AffineTransform3D();
 
 	private final AffineTransform3D displayTransform = new AffineTransform3D();
+	private boolean busy = false;
 
 	public Rotate(
-			final DoubleExpression speed,
 			final AffineTransformWithListeners displayTransformUpdater,
 			final AffineTransformWithListeners globalToViewerTransformUpdater,
-			final GlobalTransformManager globalTransformManager,
-			final Consumer<AffineTransform3D> submitTransform) {
+			final GlobalTransformManager globalTransformManager) {
 
 		super();
-		this.speed = speed;
 
 		this.globalTransformTracker = new TranslationController.TransformTracker(globalTransform, globalTransformManager);
 		this.globalToViewerTransformTracker = new TranslationController.TransformTracker(globalToViewerTransform, globalTransformManager);
@@ -50,12 +49,17 @@ public class Rotate {
 
 		this.displayTransformUpdater = displayTransformUpdater;
 		this.globalToViewerTransformUpdater = globalToViewerTransformUpdater;
-		this.submitTransform = submitTransform;
 		this.manager = globalTransformManager;
 		listenOnTransformChanges();
 	}
 
-	public void initialize() {
+	public void setSpeed(double speed) {
+		this.speed = speed;
+	}
+
+
+
+	public void initialize(final double displayStartX, final double displayStartY) {
 
 		synchronized (manager) {
 			affineDragStart.set(globalTransform);
@@ -76,19 +80,53 @@ public class Rotate {
 		this.globalToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
 	}
 
-	public void rotate(final double x, final double y, final double startX, final double startY) {
+	public enum Axis {
+		X, Y, Z
+	}
 
-		final AffineTransform3D affine = new AffineTransform3D();
+	public synchronized void rotateAroundAxis(final double x, final double y, final Axis axis) {
+		if (busy) return;
+
+		final AffineTransform3D concatenated = displayTransform.copy()
+				.concatenate(globalToViewerTransform)
+				.concatenate(globalTransform);
+
+		concatenated.set(concatenated.get(0, 3) - x, 0, 3);
+		concatenated.set(concatenated.get(1, 3) - y, 1, 3);
+
+		final var step = speed * DEFAULT_STEP;
+		LOG.debug("Rotating {} around axis={} by angley={}", concatenated, axis, step);
+		concatenated.rotate(axis.ordinal(), step);
+		concatenated.set(concatenated.get(0, 3) + x, 0, 3);
+		concatenated.set(concatenated.get(1, 3) + y, 1, 3);
+
+		final AffineTransform3D rotatedTransform = displayTransform.copy()
+				.concatenate(globalToViewerTransform)
+				.inverse()
+				.concatenate(concatenated);
+
+		final double magnitude = Math.abs(speed);
+		if (magnitude > 1) {
+			busy = true;
+			manager.setTransform(rotatedTransform, Duration.millis(Math.log10(magnitude) * 100), () -> this.busy = false);
+		} else {
+			manager.setTransform(rotatedTransform);
+		}
+	}
+
+	public void rotate3D(final double x, final double y, final double startX, final double startY) {
+
+		final AffineTransform3D rotated = new AffineTransform3D();
 		synchronized (manager) {
-			final double v = ROTATION_STEP * this.speed.get();
-			affine.set(affineDragStart);
-			final double[] point = new double[]{x, y, 0};
-			final double[] origin = new double[]{startX, startY, 0};
+			final double v = DEFAULT_STEP * this.speed;
+			rotated.set(affineDragStart);
+			final double[] start = new double[]{startX, startY, 0};
+			final double[] end = new double[]{x, y, 0};
 
-			displayTransform.applyInverse(point, point);
-			displayTransform.applyInverse(origin, origin);
+			displayTransform.applyInverse(end, end);
+			displayTransform.applyInverse(start, start);
 
-			final double[] delta = new double[]{point[0] - origin[0], point[1] - origin[1], 0};
+			final double[] delta = new double[]{end[0] - start[0], end[1] - start[1], 0};
 			// TODO do scaling separately. need to swap .get( 0, 0 ) and
 			// .get( 1, 1 ) ?
 			final double[] rotation = new double[]{
@@ -96,24 +134,24 @@ public class Rotate {
 					-delta[0] * v * displayTransform.get(1, 1),
 					0};
 
-			globalToViewerTransform.applyInverse(origin, origin);
+			globalToViewerTransform.applyInverse(start, start);
 			globalToViewerTransform.applyInverse(rotation, rotation);
 
 			// center shift
-			for (int d = 0; d < origin.length; ++d) {
-				affine.set(affine.get(d, 3) - origin[d], d, 3);
+			for (int d = 0; d < start.length; ++d) {
+				rotated.set(rotated.get(d, 3) - start[d], d, 3);
 			}
 
 			for (int d = 0; d < rotation.length; ++d) {
-				affine.rotate(d, rotation[d]);
+				rotated.rotate(d, rotation[d]);
 			}
 
 			// center un-shift
-			for (int d = 0; d < origin.length; ++d) {
-				affine.set(affine.get(d, 3) + origin[d], d, 3);
+			for (int d = 0; d < start.length; ++d) {
+				rotated.set(rotated.get(d, 3) + start[d], d, 3);
 			}
 
-			submitTransform.accept(affine);
+			manager.setTransform(rotated);
 		}
 	}
 }

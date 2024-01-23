@@ -365,7 +365,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	fun selectAndMoveToSlice(sliceInfo: SliceInfo) {
+	private fun selectAndMoveToSlice(sliceInfo: SliceInfo) {
 		controllerState = ControllerState.Moving
 		InvokeOnJavaFXApplicationThread {
 			paintera().manager().setTransform(sliceInfo.globalTransform, Duration(300.0)) {
@@ -606,16 +606,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	private val globalToViewerTransform: AffineTransform3D get() = AffineTransform3D().also { activeViewer!!.state.getViewerTransform(it) }
 
-	fun getMask(): ViewerMask {
+	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel): ViewerMask {
 
-		val currentLevel = currentBestMipMapLevel
 		/* If we have a mask, get it; else create a new one */
 		currentViewerMask = sliceAtCurrentDepth?.let { oldSlice ->
 			val oldMask = oldSlice.mask
 
 			if (oldMask.xScaleChange == 1.0) return@let oldMask
 
-			val maskInfo = MaskInfo(0, currentLevel)
+			val maskInfo = MaskInfo(0, targetMipMapLevel)
 			val newMask = source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
 
 			val oldToNewMask = ViewerMask.maskToMaskTransformation(oldMask, newMask)
@@ -642,7 +641,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			newMask.viewerImg.wrappedSource = oldInNew
 			newMask.volatileViewerImg.wrappedSource = oldInNewVolatile
 
-			/* then we pop the `newMask` back in front, as a writable layer */
+			/* then we push the `newMask` back in front, as a writable layer */
 			newMask.pushNewImageLayer(newImg to newVolatileImg)
 
 			/* Replace old slice info */
@@ -659,7 +658,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			slicesAndInterpolants.add(currentDepth, newSlice)
 			newMask
 		} ?: let {
-			val maskInfo = MaskInfo(0, currentLevel)
+			val maskInfo = MaskInfo(0, targetMipMapLevel)
 			source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
 		}
 		currentViewerMask?.setViewerMaskOnSource()
@@ -1047,7 +1046,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	class InterpolantInfo(val dataInterpolant: RealRandomAccessible<UnsignedLongType>)
 
-	class SliceInfo(
+	private class SliceInfo(
 		var mask: ViewerMask,
 		val globalTransform: AffineTransform3D,
 		selectionInterval: RealInterval

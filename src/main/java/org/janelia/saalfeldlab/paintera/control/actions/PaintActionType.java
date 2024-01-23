@@ -10,7 +10,8 @@ public enum PaintActionType implements ActionType {
 	Intersect,
 	SetBrushSize,
 	SetBrushDepth,
-	ShapeInterpolation;
+	ShapeInterpolation,
+	SegmentAnything;
 
 	public static EnumSet<PaintActionType> of(final PaintActionType first, final PaintActionType... rest) {
 

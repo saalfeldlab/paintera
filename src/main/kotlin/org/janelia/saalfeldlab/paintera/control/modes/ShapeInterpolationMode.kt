@@ -183,6 +183,14 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			globalTransformAtEmbedding.set(paintera.baseView.manager().transform)
 		}
 
+		override fun applyPrediction() {
+			lastPrediction?.let {
+				super.applyPrediction()
+				controller.paint(it.maskInterval)
+				switchTool(shapeInterpolationTool)
+			}
+		}
+
 		override fun setCurrentLabelToSelection() {
 			currentLabelToPaint = controller.interpolationId
 		}
@@ -314,7 +322,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				activeViewerProperty.get()?.viewer()?.let { viewer ->
 					painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
 						val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
-						activeToolProperty.addListener { obs, old, new ->
+						activeToolProperty.addListener { _, old, new ->
 							toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
 							toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
 						}
@@ -535,35 +543,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	 * */
 	private fun additionalSamActions(samTool: SamTool): ActionSet {
 		return painteraActionSet("Shape Interpolation SAM Actions", PaintActionType.ShapeInterpolation) {
-			KEY_PRESSED(KeyCode.ENTER) {
-				name = "submit sam mask to shape interpolation controller"
-				verify { activeTool == samTool }
-				onAction {
-					samTool.lastPrediction?.let { prediction ->
-						controller.paint(prediction.maskInterval)
-					}
-					switchTool(shapeInterpolationTool)
-				}
-			}
 			KEY_PRESSED(KeyCode.ESCAPE) {
 				name = "toggle off sam tool, back to shapeinterpolation "
 				filter = true
 				verify { activeTool == samTool }
-				onAction {
-					switchTool(shapeInterpolationTool)
-				}
-			}
-			MOUSE_CLICKED(MouseButton.PRIMARY) {
-				name = "submit sam mask to shape interpolation controller"
-				verifyEventNotNull()
-				verify("Control cannot be down") { it?.isControlDown == false }
-				verify { activeTool == samTool }
-				onAction {
-					samTool.lastPrediction?.let { prediction ->
-						controller.paint(prediction.maskInterval)
-					}
-					switchTool(shapeInterpolationTool)
-				}
+				onAction { switchTool(shapeInterpolationTool) }
 			}
 			switchAndApplyShapeInterpolation()
 		}

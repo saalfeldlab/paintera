@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.util
 
-import net.imglib2.FinalInterval
-import net.imglib2.FinalRealInterval
-import net.imglib2.Interval
-import net.imglib2.RealInterval
+import net.imglib2.*
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.realtransform.RealTransform
 import net.imglib2.util.Intervals
-import java.util.Arrays
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scale
+import org.janelia.saalfeldlab.util.shape
+import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
@@ -59,7 +58,7 @@ class IntervalHelpers {
 
 		@JvmStatic
 		@JvmOverloads
-		fun Interval.scaleBy(scaleFactor: Int, scaleMin: Boolean = false): Interval {
+		fun Interval.scale(scaleFactor: Int, scaleMin: Boolean = false): Interval {
 			val newMin = minAsLongArray().also {
 				if (scaleMin) {
 					it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
@@ -70,7 +69,8 @@ class IntervalHelpers {
 
 		@JvmStatic
 		@JvmOverloads
-		fun Interval.scaleBy(vararg scaleFactors: Int, scaleMin: Boolean = false): Interval {
+		fun Interval.scale(vararg scaleFactors: Int, scaleMin: Boolean = false): Interval {
+			/* FIXME:  Look at the modified [RealInterval.scale] below for reference on how this should behave */
 			assert(scaleFactors.size == nDim)
 			val newMin = minAsLongArray().also {
 				if (scaleMin) {
@@ -80,31 +80,45 @@ class IntervalHelpers {
 			return FinalInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + dimension(idx) * scaleFactors[idx] } })
 		}
 
+		/**
+		 * Scale the real interval by the provided scale factors.
+		 *
+		 * If [scaleMin] is true, the size of the resulting interval will be the initial size * [scaleFactors]
+		 * per dimension, and the min position of the resulting interval will also be scaled based on [scaleFactors].
+		 *
+		 * If [scaleMin] is false, the size will still be the result of the size * [scaleFactors] per dimension,
+		 * but the min position will be the same as the original.
+		 *
+		 * @param scaleFactors to scale the interval by
+		 * @param scaleMin whether to scale the min position, or just the size.
+		 * @return the scaled RealInterval
+		 */
 		@JvmStatic
 		@JvmOverloads
-		fun RealInterval.scaleBy(scaleFactor: Double, scaleMin: Boolean = false): RealInterval {
-			val newMin = minAsDoubleArray().also {
-				if (scaleMin) {
-					it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
-				}
+		fun RealInterval.scale(vararg scaleFactors: Double, scaleMin: Boolean = true): RealInterval {
+			/* TODO: WRITE TESTS */
+			var scales = when(scaleFactors.size) {
+				nDim -> scaleFactors
+				1 -> DoubleArray(nDim) {scaleFactors[0]}
+				else -> throw IndexOutOfBoundsException("Provided scales of size ${scaleFactors.size} cannot be used to scale interval with nDim of $nDim")
 			}
-			return FinalRealInterval(
-				newMin,
-				newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + ((min - realMin(idx)) * scaleFactor) } })
-		}
 
-		@JvmStatic
-		@JvmOverloads
-		fun RealInterval.scaleBy(vararg scaleFactors: Double, scaleMin: Boolean = false): RealInterval {
-			assert(scaleFactors.size == nDim)
-			val newMin = minAsDoubleArray().also {
-				if (scaleMin) {
-					it.forEachIndexed { idx, min -> it[idx] = min * scaleFactors[idx] }
+			val newMin = minAsDoubleArray()
+			val newMax = maxAsDoubleArray()
+			if (scaleMin) {
+				newMin.also {
+					it.forEachIndexed { idx, min -> it[idx] = min * scales[idx] }
+				}
+				newMax.also {
+					it.forEachIndexed { idx, max -> it[idx] = max * scales[idx] }
+				}
+			} else {
+				shape().forEachIndexed {idx, dimLen ->
+					val scaledDimLen = dimLen * scales[idx]
+					newMax[idx] = newMin[idx] + scaledDimLen - 1
 				}
 			}
-			return FinalRealInterval(
-				newMin,
-				newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + ((min - realMin(idx)) * scaleFactors[idx]) } })
+			return FinalRealInterval( newMin, newMax)
 		}
 
 
@@ -127,4 +141,41 @@ class IntervalHelpers {
 	}
 
 
+}
+
+fun main() {
+	//TODO Caleb: Move to test
+	val zeroMin = Intervals.createMinMaxReal(0.0, 0.0, 99.0, 99.0)
+	zeroMin.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+
+
+	val zeroMinDoubleTrue = zeroMin.scale(2.0, scaleMin = true)
+	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+
+	val zeroMinDoubleFalse = zeroMin.scale(2.0, scaleMin = false)
+	zeroMinDoubleFalse.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+
+	val zeroMinDoubleFalse5 = zeroMin.scale(5.0, scaleMin = false)
+	zeroMinDoubleFalse5.shape().contentEquals(doubleArrayOf(500.0, 500.0))
+
+	val zeroMinHalfTrue: RealInterval = zeroMin.scale(.5, scaleMin = true)
+	zeroMinHalfTrue.shape().contentEquals(doubleArrayOf(50.0, 50.0))
+
+	val zeroMinHalfFalse = zeroMin.scale(.5, scaleMin = false)
+	zeroMinHalfFalse.shape().contentEquals(doubleArrayOf(50.0, 50.0))
+
+	val min = Intervals.createMinMaxReal(50.0, 50.0, 99.0, 99.0)
+	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+
+	val minDoubleTrue = min.scale(2.0, scaleMin = true)
+	minDoubleTrue.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+
+	val minDoubleFalse = min.scale(2.0, scaleMin = false)
+	minDoubleFalse.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+
+	val minHalfTrue = min.scale(.5, scaleMin = true)
+	minHalfTrue.shape().contentEquals(doubleArrayOf(25.0, 25.0))
+
+	val minHalfFalse = min.scale(.5, scaleMin = false)
+	minHalfFalse.shape().contentEquals(doubleArrayOf(25.0, 25.0))
 }

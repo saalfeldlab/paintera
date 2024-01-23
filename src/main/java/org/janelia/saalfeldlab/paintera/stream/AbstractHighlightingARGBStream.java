@@ -87,7 +87,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
-			Constants.DEFAULT_CAPACITY,
+			Constants.DEFAULT_CAPACITY * 10,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.TRANSPARENT,
 			0
