@@ -81,7 +81,7 @@ enum class PainteraMenuItems(
 				TOGGLE_STATUS_BAR_MODE to EventHandler<ActionEvent> { properties.statusBarConfig.cycleModes() },
 				TOGGLE_SIDE_BAR_MENU_ITEM to EventHandler<ActionEvent> { properties.sideBarConfig.toggleIsVisible() },
 				TOGGLE_TOOL_BAR_MENU_ITEM to EventHandler<ActionEvent> { properties.toolBarConfig.toggleIsVisible() },
-				QUIT to EventHandler<ActionEvent> { askAndQuit() },
+				QUIT to EventHandler<ActionEvent> { doSaveAndQuit() },
 				CYCLE_FORWARD to EventHandler<ActionEvent> { baseView.sourceInfo().incrementCurrentSourceIndex() },
 				CYCLE_BACKWARD to EventHandler<ActionEvent> { baseView.sourceInfo().decrementCurrentSourceIndex() },
 				TOGGLE_VISIBILITY to EventHandler<ActionEvent> {

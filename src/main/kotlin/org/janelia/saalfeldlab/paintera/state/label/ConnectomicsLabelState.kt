@@ -215,22 +215,22 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	private val globalActions = listOf(
 		ActionSet("Connectomics Label State Global Actions") {
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES, keysExclusive = true) {
 				onAction {
 					refreshMeshes()
 					LOG.debug("Key event triggered refresh meshes")
 				}
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, keysExclusive = true) {
 				onAction {
 					showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
 					paintera.baseView.orthogonalViews().requestRepaint()
 				}
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED) {
+			KEY_PRESSED ( keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED, keysExclusive = true) {
 				onAction { streamSeedSetter.incrementStreamSeed() }
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED, keysExclusive = true) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
 		},

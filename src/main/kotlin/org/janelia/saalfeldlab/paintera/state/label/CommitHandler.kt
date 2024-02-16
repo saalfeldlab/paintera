@@ -23,7 +23,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 
 	internal fun makeActionSet(bindings: NamedKeyCombination.CombinationMap, paintera: PainteraBaseView) =
 		painteraActionSet(LabelSourceStateKeys.COMMIT_DIALOG, MenuActionType.CommitCanvas) {
-			KEY_PRESSED(bindings, LabelSourceStateKeys.COMMIT_DIALOG) {
+			KEY_PRESSED ( bindings, LabelSourceStateKeys.COMMIT_DIALOG, keysExclusive = true) {
 				onAction { showCommitDialog(state, paintera.sourceInfo().indexOf(state.dataSource), true, fragmentSegmentAssignmentState = fragmentProvider()) }
 			}
 		}

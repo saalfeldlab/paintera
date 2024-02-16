@@ -255,6 +255,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		}
 	}
 
+	private var wasQuit = false
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
@@ -267,24 +268,28 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			Image("/icon-128.png")
 		)
 		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
-		stage.onCloseRequest = EventHandler { if (!askQuit()) it.consume() }
-		stage.onHiding = EventHandler { quit() }
+		wasQuit = false
+		stage.onCloseRequest = EventHandler { if (!doSaveAndQuit()) it.consume() }
+		stage.onHiding = EventHandler { if (!doSaveAndQuit()) it.consume() }
 	}
 
-	internal fun askAndQuit() {
-		if (askQuit())
-			pane.scene.window.hide()
-	}
-
-	private fun askQuit(): Boolean {
-		return askSaveAndQuit()
-	}
-
-	internal fun askSaveAndQuit(): Boolean {
-		if (!isSaveNecessary()) {
-			return true
+	internal fun askSaveAndQuit() : Boolean {
+		return when {
+			wasQuit -> false
+			!isSaveNecessary() -> true
+			else -> SaveAndQuitDialog.showAndWaitForResponse()
 		}
-		return SaveAndQuitDialog.showAndWaitForResponse()
+	}
+
+	internal fun doSaveAndQuit(): Boolean {
+
+		return if (askSaveAndQuit()) {
+			quit()
+			wasQuit = true
+			/* quit() calls platform.exit() and exitProcess, so we never really get here.
+			 *  But it's useful to know if `false` so we do this */
+			true
+		} else false
 	}
 
 	private fun quit() {
