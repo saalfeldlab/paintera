@@ -86,6 +86,7 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.UtilityTask;
 import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
@@ -811,95 +812,90 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			this.isPersistingProperty.set(true);
 			this.isBusy.set(true);
 		}
+		/* Start the task in the background */
+		final var progressBar = new ProgressBar();
+		progressBar.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		final ObservableList<String> states = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+		final Consumer<String> nextState = (text) -> InvokeOnJavaFXApplicationThread.invoke(() -> states.add(text));
+		final Consumer<String> updateState = (update) -> InvokeOnJavaFXApplicationThread.invoke(() -> states.set(states.size() - 1, update));
+		persistCanvasTask(clearCanvas, progressBar.progressProperty(), nextState, updateState).submit();
+
+		final BooleanBinding stillPersisting = Bindings.createBooleanBinding(
+				() -> this.isPersisting() || progressBar.progressProperty().get() < 1.0,
+				this.isPersistingProperty, progressBar.progressProperty()
+		);
+
+		/*Show the dialog and wait for committing to finish */
+		LOG.warn("Creating commit status dialog.");
+		final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
+		Scene dialogScene = isCommittingDialog.getDialogPane().getScene();
+		final var prevCursor = Optional.ofNullable(dialogScene.cursorProperty().get()).orElse(javafx.scene.Cursor.DEFAULT);
+		ObjectBinding<javafx.scene.Cursor> busyCursorBinding = Bindings.createObjectBinding(() -> {
+			if (isBusy.get()) {
+				return javafx.scene.Cursor.WAIT;
+			} else {
+				return prevCursor;
+			}
+		}, isBusyProperty());
+		dialogScene.cursorProperty().bind(busyCursorBinding);
+		dialogScene.getWindow().setOnCloseRequest(ev -> {
+			if (isBusy.get())
+				ev.consume();
+		});
+		isCommittingDialog.setHeaderText("Committing canvas.");
+		final Node okButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK);
+		okButton.setDisable(true);
+		final var content = new VBox();
+		final var statesText = new TextArea();
+		statesText.setMouseTransparent(true);
+		statesText.setEditable(false);
+		statesText.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		final var textScrollPane = new ScrollPane(statesText);
+		content.getChildren().add(new HBox(textScrollPane));
+		content.getChildren().add(new HBox(progressBar));
+
+		HBox.setHgrow(statesText, Priority.ALWAYS);
+		HBox.setHgrow(progressBar, Priority.ALWAYS);
+		VBox.setVgrow(statesText, Priority.ALWAYS);
+		VBox.setVgrow(progressBar, Priority.ALWAYS);
+		InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
+		states.addListener((ListChangeListener<String>)change -> statesText.setText(String.join("\n", states)));
+		synchronized (this) {
+			okButton.disableProperty().bind(stillPersisting);
+		}
+
+		LOG.info("Will show dialog? {}", stillPersisting.get());
+		if (stillPersisting.get())
+			isCommittingDialog.showAndWait();
+	}
+
+	private synchronized UtilityTask<?> persistCanvasTask(
+			final boolean clearCanvas,
+			final DoubleProperty progress,
+			final Consumer<String> nextState,
+			final Consumer<String> updateState
+			) {
+
 
 		LOG.debug("Merging canvas into background for blocks {}", this.affectedBlocks);
 		final CachedCellImg<UnsignedLongType, ?> canvas = this.dataCanvases[0];
 		final long[] affectedBlocks = this.affectedBlocks.toArray();
 		this.affectedBlocks.clear();
-		final var progressBar = new ProgressBar();
-		progressBar.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		final BooleanBinding proxy = Bindings.createBooleanBinding(() -> this.isPersisting() || progressBar.progressProperty().get() < 1.0,
-				this.isPersistingProperty, progressBar.progressProperty());
 
-		final ObservableList<String> states = FXCollections.observableArrayList();
-
-		final Consumer<String> nextState = (next) -> {
-			synchronized (states) {
-				states.add(next);
-			}
-		};
-		final Consumer<String> updateState = (update) -> {
-			synchronized (states) {
-				states.set(states.size() -1, update);
-			}
-		};
-
-		final Runnable dialogHandler = () -> {
-			LOG.warn("Creating commit status dialog.");
-			final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
-			Scene dialogScene = isCommittingDialog.getDialogPane().getScene();
-			final var prevCursor = Optional.ofNullable(dialogScene.cursorProperty().get()).orElse(javafx.scene.Cursor.DEFAULT);
-			ObjectBinding<javafx.scene.Cursor> busyCursorBinding = Bindings.createObjectBinding(() -> {
-				if (isBusy.get()) {
-					return javafx.scene.Cursor.WAIT;
-				} else {
-					return prevCursor;
-				}
-			}, isBusyProperty());
-			dialogScene.cursorProperty().bind(busyCursorBinding);
-			dialogScene.getWindow().setOnCloseRequest(ev -> {
-				if (isBusy.get())
-					ev.consume();
-			});
-			isCommittingDialog.setHeaderText("Committing canvas.");
-			final Node okButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK);
-			okButton.setDisable(true);
-			final var content = new VBox();
-			final var statesText = new TextArea();
-			statesText.setMouseTransparent(true);
-			statesText.setEditable(false);
-			statesText.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-			final var textScrollPane = new ScrollPane(statesText);
-			content.getChildren().add(new HBox(textScrollPane));
-			content.getChildren().add(new HBox(progressBar));
-
-			HBox.setHgrow(statesText, Priority.ALWAYS);
-			HBox.setHgrow(progressBar, Priority.ALWAYS);
-			VBox.setVgrow(statesText, Priority.ALWAYS);
-			VBox.setVgrow(progressBar, Priority.ALWAYS);
-			InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
-			states.addListener((ListChangeListener<? super String>) change ->
-					InvokeOnJavaFXApplicationThread.invoke(() -> {
-								synchronized (states) {
-									statesText.setText(String.join("\n", states));
-								}
-							}
-					)
-			);
-			synchronized (this) {
-				okButton.disableProperty().bind(proxy);
-			}
-			LOG.info("Will show dialog? {}", proxy.get());
-			if (proxy.get())
-				isCommittingDialog.show();
-		};
-		final Consumer<Double> animateProgressBar = progress -> {
-			if (progressBar.progressProperty().get() > progress) {
-				progressBar.progressProperty().set(0.0);
+		final Consumer<Double> animateProgressBar = newProgress -> {
+			if (progress.get() > newProgress) {
+				progress.set(0.0);
 			}
 			Timeline timeline = new Timeline();
-			KeyValue keyValue = new KeyValue(progressBar.progressProperty(), progress);
+			KeyValue keyValue = new KeyValue(progress, newProgress);
 			KeyFrame keyFrame = new KeyFrame(new Duration(500), keyValue);
 			timeline.getKeyFrames().add(keyFrame);
 			InvokeOnJavaFXApplicationThread.invoke(timeline::play);
 		};
-		ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) ->
-				animateProgressBar.accept(newv.doubleValue());
-		Tasks.createTask(task -> {
+		ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) -> animateProgressBar.accept(newv.doubleValue());
+		return Tasks.createTask(task -> {
 			try {
-				InvokeOnJavaFXApplicationThread.invokeAndWait(dialogHandler);
-
 				nextState.accept("Persisting painted labels...");
 				InvokeOnJavaFXApplicationThread.invoke(() ->
 						this.persistCanvas.getProgressProperty().addListener(animateProgressBarListener)
@@ -927,7 +923,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				} else
 					LOG.info("Not clearing canvas.");
 
-			} catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup | InterruptedException e) {
+			} catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e) {
 				throw new RuntimeException(e);
 			}
 			return null;
@@ -944,7 +940,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				LOG.error("Unable to commit canvas", t.getException());
 				nextState.accept("Unable to commit canvas: " + t.getException().getMessage());
 			}
-		}).submit();
+		});
 	}
 
 	@Override

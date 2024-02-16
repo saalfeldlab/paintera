@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
@@ -219,16 +220,18 @@ class Paintera : Application() {
 		}
 
 		paintera.baseView.sourceInfo().apply {
-			trackSources().forEach { source ->
-				(getState(source) as? ConnectomicsLabelState)?.let { state ->
-					val responseButton = state.promptForCommitIfNecessary(paintera.baseView) { index, name ->
-						"""
-						Closing current Paintera project.
-						Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
-						Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
-						but can be committed to the data backend, as well
-						""".trimIndent()
-					}
+			trackSources()
+				.filterIsInstance(MaskedSource::class.java)
+				.forEach { source ->
+					(getState(source) as? ConnectomicsLabelState)?.let { state ->
+						val responseButton = state.promptForCommitIfNecessary(paintera.baseView) { index, name ->
+							"""
+							Closing current Paintera project.
+							Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
+							Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
+							but can be committed to the data backend, as well
+							""".trimIndent()
+						}
 
 					when (responseButton) {
 						ButtonType.OK -> Unit
