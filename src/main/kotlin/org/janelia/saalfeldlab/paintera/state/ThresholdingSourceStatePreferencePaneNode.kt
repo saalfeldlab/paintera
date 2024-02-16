@@ -16,8 +16,11 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
 
@@ -26,6 +29,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 			.also { it.children.addAll(createBasicNote(), createMeshesNode()) }
 
 	private fun createBasicNote(): Node {
+
 		val min = NumberField
 			.doubleField(state.minProperty().get(), { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 			.also { it.valueProperty().addListener { _, _, new -> state.minProperty().set(new.toDouble()) } }
@@ -82,6 +86,33 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		state.meshManager.managedSettings.meshesEnabledProperty,
 		titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
 		helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
-	)
+	).also {
+		it.content = VBox(it.content).apply {
+			val exportMeshButton = Button("Export all")
+			exportMeshButton.setOnAction { _ ->
+				val exportDialog = MeshExporterDialog(MeshInfo(state.meshManager.meshKey, state.meshManager))
+				val result = exportDialog.showAndWait()
+				if (result.isPresent) {
+					result.get().run {
+						(meshExporter as? MeshExporterObj<*>)?.run {
+							exportMaterial(filePath, arrayOf(""), arrayOf(state.colorProperty().get()))
+						}
+						meshExporter.exportMesh(
+							state.meshManager.getBlockListFor,
+							state.meshManager.getMeshFor,
+							state.meshSettings,
+							state.thresholdBounds,
+							scale,
+							filePath,
+							false
+						)
+					}
+				}
+			}
+			val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }
+			children += buttonBox
+
+		}
+	}
 
 }

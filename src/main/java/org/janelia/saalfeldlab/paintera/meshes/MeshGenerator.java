@@ -93,7 +93,6 @@ public class MeshGenerator<T> {
 
 			showBlockBoundaries.set(isShowBlockBoundaries);
 		}
-
 	}
 
 	private static class SceneUpdateParameters {
@@ -104,6 +103,7 @@ public class MeshGenerator<T> {
 		final double smoothingLambda;
 		final int smoothingIterations;
 		final double minLabelRatio;
+		final boolean overlap;
 
 		SceneUpdateParameters(
 				final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
@@ -111,7 +111,8 @@ public class MeshGenerator<T> {
 				final int meshSimplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final double minLabelRatio) {
+				final double minLabelRatio,
+				final boolean overlap) {
 
 			this.sceneBlockTree = sceneBlockTree;
 			this.rendererGrids = rendererGrids;
@@ -119,6 +120,7 @@ public class MeshGenerator<T> {
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
 			this.minLabelRatio = minLabelRatio;
+			this.overlap = overlap;
 		}
 	}
 
@@ -186,10 +188,11 @@ public class MeshGenerator<T> {
 				sceneUpdateParameters = new SceneUpdateParameters(
 						sceneUpdateParameters != null ? sceneUpdateParameters.sceneBlockTree : null,
 						sceneUpdateParameters != null ? sceneUpdateParameters.rendererGrids : null,
-						this.state.settings.getSimplificationIterations(),// this.meshSimplificationIterations.get(),
-						this.state.settings.getSmoothingLambda(),//this.smoothingLambda.get(),
-						this.state.settings.getSmoothingIterations(),//this.smoothingIterations.get(),
-						this.state.settings.getMinLabelRatio()//this.minLabelRatio.get()
+						this.state.settings.getSimplificationIterations(),
+						this.state.settings.getSmoothingLambda(),
+						this.state.settings.getSmoothingIterations(),
+						this.state.settings.getMinLabelRatio(),
+						this.state.settings.getOverlap()
 				);
 				updateMeshes();
 			}
@@ -199,6 +202,7 @@ public class MeshGenerator<T> {
 		this.state.settings.getSmoothingLambdaProperty().addListener(updateInvalidationListener);
 		this.state.settings.getSmoothingIterationsProperty().addListener(updateInvalidationListener);
 		this.state.settings.getMinLabelRatioProperty().addListener(updateInvalidationListener);
+		this.state.settings.getOverlapProperty().addListener(updateInvalidationListener);
 
 		// initialize
 		updateInvalidationListener.invalidated(null);
@@ -232,12 +236,12 @@ public class MeshGenerator<T> {
 				workers,
 				state.progress);
 
-		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>)change ->
+		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
 		{
 			if (change.wasRemoved()) {
 				if (change.getValueRemoved().getA() != null) {
 					final MeshView meshRemoved = change.getValueRemoved().getA();
-					((PhongMaterial)meshRemoved.getMaterial()).diffuseColorProperty().unbind();
+					((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
 					meshRemoved.drawModeProperty().unbind();
 					meshRemoved.cullFaceProperty().unbind();
 					meshRemoved.scaleXProperty().unbind();
@@ -249,13 +253,13 @@ public class MeshGenerator<T> {
 					final Node blockOutlineRemoved = change.getValueRemoved().getB();
 					final Material material;
 					if (blockOutlineRemoved instanceof PolygonMeshView)
-						material = ((PolygonMeshView)blockOutlineRemoved).getMaterial();
+						material = ((PolygonMeshView) blockOutlineRemoved).getMaterial();
 					else if (blockOutlineRemoved instanceof Shape3D)
-						material = ((Shape3D)blockOutlineRemoved).getMaterial();
+						material = ((Shape3D) blockOutlineRemoved).getMaterial();
 					else
 						material = null;
 					if (material instanceof PhongMaterial)
-						((PhongMaterial)material).diffuseColorProperty().unbind();
+						((PhongMaterial) material).diffuseColorProperty().unbind();
 					blockOutlineRemoved.scaleXProperty().unbind();
 					blockOutlineRemoved.scaleYProperty().unbind();
 					blockOutlineRemoved.scaleZProperty().unbind();
@@ -265,28 +269,22 @@ public class MeshGenerator<T> {
 			if (change.wasAdded()) {
 				if (change.getValueAdded().getA() != null) {
 					final MeshView meshAdded = change.getValueAdded().getA();
-					((PhongMaterial)meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
+					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
 					meshAdded.drawModeProperty().bind(this.state.settings.getDrawModeProperty());
 					meshAdded.cullFaceProperty().bind(this.state.settings.getCullFaceProperty());
-					meshAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
-					meshAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
-					meshAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
 				}
 
 				if (change.getValueAdded().getB() != null) {
 					final Node blockOutlineAdded = change.getValueAdded().getB();
 					final Material material;
 					if (blockOutlineAdded instanceof PolygonMeshView)
-						material = ((PolygonMeshView)blockOutlineAdded).getMaterial();
+						material = ((PolygonMeshView) blockOutlineAdded).getMaterial();
 					else if (blockOutlineAdded instanceof Shape3D)
-						material = ((Shape3D)blockOutlineAdded).getMaterial();
+						material = ((Shape3D) blockOutlineAdded).getMaterial();
 					else
 						material = null;
 					if (material instanceof PhongMaterial)
-						((PhongMaterial)material).diffuseColorProperty().bind(this.state.premultipliedColor);
-					blockOutlineAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
-					blockOutlineAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
-					blockOutlineAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
+						((PhongMaterial) material).diffuseColorProperty().bind(this.state.premultipliedColor);
 					blockOutlineAdded.setDisable(true);
 				}
 			}
@@ -312,7 +310,8 @@ public class MeshGenerator<T> {
 				sceneUpdateParameters.meshSimplificationIterations,
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio);
+				sceneUpdateParameters.minLabelRatio,
+				sceneUpdateParameters.overlap);
 		updateMeshes();
 	}
 
@@ -353,7 +352,8 @@ public class MeshGenerator<T> {
 				sceneUpdateParameters.meshSimplificationIterations,
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio);
+				sceneUpdateParameters.minLabelRatio,
+				sceneUpdateParameters.overlap);
 	}
 
 	public T getId() {

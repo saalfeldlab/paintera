@@ -369,6 +369,7 @@ public class SourceInfo {
 	}
 
 	public Optional<String> canSourcesBeSerialized() {
+
 		for (final var state : states.values()) {
 			if (state instanceof SourceStateWithBackend) {
 				final SourceStateBackend<?, ?> backend = ((SourceStateWithBackend<?, ?>)state).getBackend();

@@ -3,14 +3,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>35.1.1</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
+		<version>36.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.34.2-SNAPSHOT</version>
+	<version>1.1.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -39,17 +39,12 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
-		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-28</bigdataviewer-vistools.version>
-		<picocli.version>4.0.1</picocli.version>
-		<groovy.version>2.5.14</groovy.version>
-
-		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.8.0</kotlin.version>
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
-		<!-- kotlin incremental compilation. -->
+		<!-- kotlin -->
+		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
+		<kotlin.version>1.9.20</kotlin.version>
 		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
 		<!-- NB: Convert README.md to html during compilation. -->
@@ -58,10 +53,8 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.6.0</saalfx.version>
+		<saalfx.version>1.1.0</saalfx.version>
 
-		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
-								probably has to be udpated as well. -->
 		<janino.version>3.0.7</janino.version>
 		<logback.version>1.4.0</logback.version>
 		<slf4j.version>2.0.0</slf4j.version>
@@ -69,16 +62,8 @@
 		<!-- JavaFx Version-->
 		<javafx.version>18.0.1</javafx.version>
 
-		<n5.version>2.5.1</n5.version>
-		<n5-hdf5.version>1.4.2</n5-hdf5.version>
-		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
-		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
-		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
-		<n5-zarr.version>0.0.6</n5-zarr.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
-		<jna.version>5.11.0</jna.version>
-		<enforcer.skip>true</enforcer.skip>
 
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
@@ -90,11 +75,29 @@
 		<macos.sign />
 		<macos.sign.identity />
 
+		<n5.version>3.0.2</n5.version>
+		<n5-hdf5.version>2.0.0</n5-hdf5.version>
+		<n5-google-cloud.version>4.0.0</n5-google-cloud.version>
+		<n5-aws-s3.version>4.0.1</n5-aws-s3.version>
+		<n5-zarr.version>1.0.1</n5-zarr.version>
+		<n5-imglib2.version>7.0.0</n5-imglib2.version>
+		<n5-universe.version>1.1.0</n5-universe.version>
+
+		<enforcer.skip>true</enforcer.skip>
 	</properties>
 
 
 	<dependencies>
-
+		<dependency>
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>2.2.2</version>
+		</dependency>
+		<dependency>
+			<groupId>dev.dirs</groupId>
+			<artifactId>directories</artifactId>
+			<version>26</version>
+		</dependency>
 		<dependency>
 			<groupId>com.microsoft.onnxruntime</groupId>
 			<artifactId>onnxruntime</artifactId>
@@ -108,39 +111,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-universe</artifactId>
-			<version>0.1.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-aws-s3</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-zarr</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-hdf5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-imglib2</artifactId>
-			<version>4.4.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-utils</artifactId>
-			<version>0.0.5</version>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-google-cloud</artifactId>
+			<version>${n5-universe.version}</version>
 		</dependency>
 
 		<dependency>
@@ -184,7 +155,11 @@
 		<dependency>
 			<groupId>org.jetbrains.kotlin</groupId>
 			<artifactId>kotlin-stdlib</artifactId>
-			<version>${kotlin.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.github.oshai</groupId>
+			<artifactId>kotlin-logging-jvm</artifactId>
+			<version>5.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -193,7 +168,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>10.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
@@ -206,7 +180,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>6.0.0</version>
+			<version>6.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -215,12 +189,12 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
-			<version>3.1.2</version>
+			<version>4.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.11.5</version>
+			<version>0.12.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -240,7 +214,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk-platform-logging</artifactId>
-			<version>2.0.0</version>
+			<version>${slf4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
@@ -577,7 +551,7 @@
 		<dependency>
 			<groupId>org.jetbrains.kotlinx</groupId>
 			<artifactId>kotlinx-coroutines-core</artifactId>
-			<version>1.6.4</version>
+			<version>1.7.3</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
@@ -679,10 +653,6 @@
 		<repository>
 			<id>scijava.public</id>
 			<url>https://maven.scijava.org/content/groups/public</url>
-		</repository>
-		<repository>
-			<id>bintray-jerady-maven</id>
-			<url>https://dl.bintray.com/jerady/maven</url>
 		</repository>
 		<repository>
 			<id>jzy3d</id>
@@ -839,8 +809,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven-compiler-plugin.version}</version>
 				<configuration>
-					<source>${maven.compiler.source}</source>
-					<target>${maven.compiler.target}</target>
+					<source>10</source>
+					<target>10</target>
 				</configuration>
 				<executions>
 					<!-- Replacing default-compile as it is treated specially by maven -->
@@ -1025,44 +995,11 @@
 	<profiles>
 		<profile>
 		<id>build-installer</id>
+			<properties>
+				<matrix.os>${os.name}</matrix.os>
+			</properties>
 			<build>
 				<plugins>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>build-helper-maven-plugin</artifactId>
-						<version>3.0.0</version>
-						<executions>
-							<execution>
-								<phase>prepare-package</phase>
-								<id>normalize-app-version1</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>app._normalVersion</name>
-									<value>${project.version}</value>
-									<regex>\.([0-9]+)-SNAPSHOT</regex>
-									<replacement>.000$1</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
-								</configuration>
-							</execution>
-							<execution>
-								<phase>prepare-package</phase>
-								<id>normalize-app-version2</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>app.normalVersion</name>
-									<!--suppress UnresolvedMavenProperty -->
-									<value>${app._normalVersion}</value>
-									<regex>^0\.</regex>
-									<replacement>99.</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
 					<plugin>
 						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
 						<groupId>io.github.wiverson</groupId>
@@ -1105,14 +1042,14 @@
 								</goals>
 								<configuration>
 									<!--suppress UnresolvedMavenProperty -->
-									<appVersion>${app.normalVersion}</appVersion>
 									<mainJar>${project.build.finalName}.jar</mainJar>
 									<toolName>jpackage</toolName>
+									<dest>${project.build.directory}/installer-${matrix.os}</dest>
 									<writeOutputToLog>true</writeOutputToLog>
 									<writeErrorsToLog>true</writeErrorsToLog>
 									<failOnError>true</failOnError>
 									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
-									<args>@${project.build.directory}/packaging/${os.detected.name}-jpackage.txt</args>
+									<args>@${project.build.directory}/packaging/${os.detected.name}/jpackage.txt</args>
 								</configuration>
 							</execution>
 						</executions>

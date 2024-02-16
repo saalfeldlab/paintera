@@ -56,21 +56,19 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 	@Override
 	public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
 
-		final LabelMultisetType a = t.getA();
-		final M b = t.getB();
 		final M c = t.getC();
-
 		if (pickThird.test(c)) {
 			converter.convert(c, scalarValue);
 			return scalarValue;
 		}
 
+		final M b = t.getB();
 		if (pickSecond.test(b, c)) {
 			converter.convert(b, scalarValue);
 			return scalarValue;
 		}
 
-		return a;
+		return t.getA();
 
 	}
 

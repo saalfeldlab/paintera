@@ -1,6 +1,6 @@
- package org.janelia.saalfeldlab.paintera.state.label
+package org.janelia.saalfeldlab.paintera.state.label
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
 import gnu.trove.set.hash.TLongHashSet
@@ -32,7 +32,10 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -60,7 +63,7 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
@@ -76,12 +79,21 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.IntFunction
-import java.util.function.LongFunction
-import java.util.function.Predicate
-import java.util.function.Supplier
+import java.util.function.*
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.any
+import kotlin.collections.asSequence
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.forEach
+import kotlin.collections.isEmpty
+import kotlin.collections.isNotEmpty
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.toTypedArray
 
- class ConnectomicsLabelState<D : IntegerType<D>, T>(
+class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
 	viewFrustumProperty: ObjectProperty<ViewFrustum>,
@@ -93,7 +105,7 @@ import java.util.function.Supplier
 	name: String,
 	labelBlockLookup: LabelBlockLookup? = null,
 ) : SourceStateWithBackend<D, T>, IntersectableSourceState<D, T, FragmentLabelMeshCacheKey>
-		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+	where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
 	override fun getDataSource(): DataSource<D, T> = source
@@ -118,6 +130,8 @@ import java.util.function.Supplier
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 
+	internal var skipCommit = false
+
 
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
@@ -130,16 +144,14 @@ import java.util.function.Supplier
 		meshManagerExecutors,
 		meshWorkersExecutors
 	).apply {
-		InvokeOnJavaFXApplicationThread {
-			refreshMeshes()
-		}
+		refreshMeshes()
 	}
 
 	val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createNonNullValueBinding { FragmentLabelMeshCacheKey(it) }
 
 	override fun getMeshCacheKeyBinding(): ObjectBinding<FragmentLabelMeshCacheKey> = meshCacheKeyProperty
 
-	override fun getGetBlockListFor(): GetBlockListFor<FragmentLabelMeshCacheKey> = this.meshManager.getBlockListForMeshCacheKey
+	override fun getGetBlockListFor(): GetBlockListFor<FragmentLabelMeshCacheKey> = this.meshManager.getBlockListForFragments
 
 	override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
@@ -203,22 +215,22 @@ import java.util.function.Supplier
 
 	private val globalActions = listOf(
 		ActionSet("Connectomics Label State Global Actions") {
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES, keysExclusive = true) {
 				onAction {
 					refreshMeshes()
 					LOG.debug("Key event triggered refresh meshes")
 				}
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, keysExclusive = true) {
 				onAction {
 					showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
 					paintera.baseView.orthogonalViews().requestRepaint()
 				}
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED) {
+			KEY_PRESSED ( keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED, keysExclusive = true) {
 				onAction { streamSeedSetter.incrementStreamSeed() }
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED) {
+			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED, keysExclusive = true) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
 		},
@@ -255,7 +267,7 @@ import java.util.function.Supplier
 		paintera.viewer3D().meshesGroup.children.add(meshManager.meshesGroup)
 		selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
-		meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabled)
+		meshManager.viewerEnabledProperty.bind(paintera.viewer3D().meshesEnabled)
 		meshManager.rendererSettings.showBlockBoundariesProperty.bind(paintera.viewer3D().showBlockBoundaries)
 		meshManager.rendererSettings.blockSizeProperty.bind(paintera.viewer3D().rendererBlockSize)
 		meshManager.rendererSettings.numElementsPerFrameProperty.bind(paintera.viewer3D().numElementsPerFrame)
@@ -287,18 +299,25 @@ import java.util.function.Supplier
 	}
 
 	override fun onShutdown(paintera: PainteraBaseView) {
-		CommitHandler.showCommitDialog(
+		if (!skipCommit) {
+			promptForCommitIfNecessary(paintera) { index, name ->
+				"""
+			Shutting down Paintera.
+			Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
+			Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
+			but can be committed to the data backend, as well
+			""".trimIndent()
+			}
+		}
+		skipCommit = false
+	}
+
+	internal fun promptForCommitIfNecessary(paintera: PainteraBaseView, prompt: BiFunction<Int, String, String>) : ButtonType? {
+		return CommitHandler.showCommitDialog(
 			this,
 			paintera.sourceInfo().indexOf(this.dataSource),
 			false,
-			{ index, name ->
-				"""
-                    Shutting down Paintera.
-                    Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
-                    Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
-                    but can be committed to the data backend, as well
-                """.trimIndent()
-			},
+			prompt,
 			false,
 			"_Skip",
 			fragmentSegmentAssignmentState = fragmentSegmentAssignment
@@ -321,7 +340,6 @@ import java.util.function.Supplier
 			compositeProperty(),
 			converter(),
 			meshManager,
-			meshManager.managedSettings,
 			brushProperties
 		).node.let { if (it is VBox) it else VBox(it) }
 
@@ -460,7 +478,7 @@ import java.util.function.Supplier
 
 		@JvmStatic
 		fun <D, T> labelToBooleanFragmentMaskSource(labelSource: ConnectomicsLabelState<D, T>): DataSource<BoolType, Volatile<BoolType>>
-				where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
+			where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
 			return with(labelSource) {
 				val fragmentsInSelectedSegments = FragmentsInSelectedSegments(selectedSegments)
 				PredicateDataSource(dataSource, checkForType(dataSource.dataType, fragmentsInSelectedSegments), name)
@@ -556,7 +574,7 @@ import java.util.function.Supplier
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
 	class Serializer<D : IntegerType<D>, T> : PainteraSerialization.PainteraSerializer<ConnectomicsLabelState<D, T>>
-			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 		override fun serialize(state: ConnectomicsLabelState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
 			val map = JsonObject()
 			with(SerializationKeys) {
@@ -596,12 +614,12 @@ import java.util.function.Supplier
 
 	class Deserializer<D : IntegerType<D>, T>(val viewer: PainteraBaseView) : JsonDeserializer<ConnectomicsLabelState<D, T>>
 
-			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+		where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
 		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
 		class Factory<D : IntegerType<D>, T> : StatefulSerializer.DeserializerFactory<ConnectomicsLabelState<D, T>, Deserializer<D, T>>
 
-				where T : net.imglib2.type.Type<T>, T : Volatile<D> {
+			where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 			override fun createDeserializer(
 				arguments: StatefulSerializer.Arguments,
 				projectDirectory: Supplier<String>,
@@ -648,7 +666,7 @@ import java.util.function.Supplier
 							interpolation = context[json, INTERPOLATION]!!
 							isVisible = context[json, IS_VISIBLE]!!
 							context.get<LongArray>(json, SELECTED_IDS) { selectedIds.activate(*it) }
-							context.get<ManagedMeshSettings>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it) }
+							context.get<ManagedMeshSettings<*>>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it as ManagedMeshSettings<Long>) }
 							context.get<LongArray>(json, LOCKED_SEGMENTS)?.forEach {
 								lockedSegments.lock(it)
 							}
@@ -668,7 +686,7 @@ import java.util.function.Supplier
 
 }
 
-class FragmentLabelMeshCacheKey constructor(fragmentsInSelectedSegments: FragmentsInSelectedSegments) : MeshCacheKey {
+class FragmentLabelMeshCacheKey(fragmentsInSelectedSegments: FragmentsInSelectedSegments) : MeshCacheKey {
 
 	val fragments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.fragments)
 	val segments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.selectedSegments.selectedSegmentsCopyAsArray)

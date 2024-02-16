@@ -20,9 +20,9 @@ class MeshSettings @JvmOverloads constructor(
 		val opacity: Double
 		val drawMode: DrawMode
 		val cullFace: CullFace
-		val inflate: Double
 		val isVisible: Boolean
 		val minLabelRatio: Double
+		val overlap: Boolean
 		val levelOfDetail: Int
 
 
@@ -46,10 +46,10 @@ class MeshSettings @JvmOverloads constructor(
 			val cullFace = CullFace.FRONT
 
 			@JvmStatic
-			val inflate = 1.0
+			val isVisible = true
 
 			@JvmStatic
-			val isVisible = true
+			val overlap = true
 
 			@JvmStatic
 			val minLabelRatio = 0.25
@@ -83,9 +83,9 @@ class MeshSettings @JvmOverloads constructor(
 		override var opacity: Double = Defaults.Values.opacity
 		override var drawMode: DrawMode = Defaults.Values.drawMode
 		override var cullFace: CullFace = Defaults.Values.cullFace
-		override var inflate: Double = Defaults.Values.inflate
 		override var isVisible: Boolean = Defaults.Values.isVisible
 		override var minLabelRatio: Double = Defaults.Values.minLabelRatio
+		override var overlap: Boolean = Defaults.Values.overlap
 		override var levelOfDetail: Int = Defaults.Values.levelOfDetail
 
 		val asImmutable: Defaults
@@ -103,9 +103,9 @@ class MeshSettings @JvmOverloads constructor(
 	val opacityProperty: DoubleProperty = SimpleDoubleProperty(defaults.opacity)
 	val drawModeProperty: ObjectProperty<DrawMode> = SimpleObjectProperty(defaults.drawMode)
 	val cullFaceProperty: ObjectProperty<CullFace> = SimpleObjectProperty(defaults.cullFace)
-	val inflateProperty: DoubleProperty = SimpleDoubleProperty(defaults.inflate)
 	val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(defaults.isVisible)
 	val minLabelRatioProperty: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
+	val overlapProperty: BooleanProperty = SimpleBooleanProperty(defaults.overlap)
 	val levelOfDetailProperty: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
 
 	var coarsestScaleLevel by coarsestScaleLevelProperty.nonnull()
@@ -116,9 +116,9 @@ class MeshSettings @JvmOverloads constructor(
 	var opacity by opacityProperty.nonnull()
 	var drawMode by drawModeProperty.nonnull()
 	var cullFace by cullFaceProperty.nonnull()
-	var inflate by inflateProperty.nonnull()
 	var isVisible by isVisibleProperty.nonnull()
 	var minLabelRatio by minLabelRatioProperty.nonnull()
+	var overlap by overlapProperty.nonnull()
 	var levelOfDetail by levelOfDetailProperty.nonnull()
 
 	init {
@@ -144,10 +144,10 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambda = that.smoothingLambda
 		smoothingIterations = that.smoothingIterations
 		minLabelRatio = that.minLabelRatio
+		overlap = that.overlap
 		opacity = that.opacity
 		drawMode = that.drawMode
 		cullFace = that.cullFace
-		inflate = that.inflate
 		isVisible = that.isVisible
 	}
 
@@ -168,10 +168,10 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
 		minLabelRatioProperty.bind(that.minLabelRatioProperty)
+		overlapProperty.bind(that.overlapProperty)
 		opacityProperty.bind(that.opacityProperty)
 		drawModeProperty.bind(that.drawModeProperty)
 		cullFaceProperty.bind(that.cullFaceProperty)
-		inflateProperty.bind(that.inflateProperty)
 		isVisibleProperty.bind(that.isVisibleProperty)
 	}
 
@@ -183,10 +183,10 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.unbind()
 		smoothingIterationsProperty.unbind()
 		minLabelRatioProperty.unbind()
+		overlapProperty.unbind()
 		opacityProperty.unbind()
 		drawModeProperty.unbind()
 		cullFaceProperty.unbind()
-		inflateProperty.unbind()
 		isVisibleProperty.unbind()
 	}
 
@@ -198,10 +198,10 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
 		minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
+		overlapProperty.bindBidirectional(that.overlapProperty)
 		opacityProperty.bindBidirectional(that.opacityProperty)
 		drawModeProperty.bindBidirectional(that.drawModeProperty)
 		cullFaceProperty.bindBidirectional(that.cullFaceProperty)
-		inflateProperty.bindBidirectional(that.inflateProperty)
 		isVisibleProperty.bindBidirectional(that.isVisibleProperty)
 	}
 
@@ -213,10 +213,10 @@ class MeshSettings @JvmOverloads constructor(
 		smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
 		smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
 		minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
+		overlapProperty.unbindBidirectional(that.overlapProperty)
 		opacityProperty.unbindBidirectional(that.opacityProperty)
 		drawModeProperty.unbindBidirectional(that.drawModeProperty)
 		cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
-		inflateProperty.unbindBidirectional(that.inflateProperty)
 		isVisibleProperty.unbindBidirectional(that.isVisibleProperty)
 	}
 
@@ -226,10 +226,11 @@ class MeshSettings @JvmOverloads constructor(
 				&& simplificationIterations == defaults.simplificationIterations
 				&& smoothingLambda == defaults.smoothingLambda
 				&& smoothingIterations == defaults.smoothingIterations
+				&& minLabelRatio == defaults.minLabelRatio
+				&& overlap == defaults.overlap
 				&& opacity == defaults.opacity
 				&& defaults.drawMode == drawMode
 				&& defaults.cullFace == cullFace
-				&& inflate == defaults.inflate
 				&& isVisible == defaults.isVisible
 	}
 

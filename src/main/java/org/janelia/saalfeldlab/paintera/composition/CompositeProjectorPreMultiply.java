@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.composition;
 
 import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import bdv.viewer.render.AccumulateProjector;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.VolatileProjector;
@@ -42,10 +43,10 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 		}
 
 		@Override
-		public VolatileProjector createAccumulateProjector(
-				final ArrayList<VolatileProjector> sourceProjectors,
-				final ArrayList<Source<?>> sources,
-				final ArrayList<? extends RandomAccessible<? extends ARGBType>> sourceScreenImages,
+		public VolatileProjector createProjector(
+				final List<VolatileProjector> sourceProjectors,
+				final List<SourceAndConverter<?>> sources,
+				final List<? extends RandomAccessible<? extends ARGBType>> sourceScreenImages,
 				final RandomAccessibleInterval<ARGBType> targetScreenImage,
 				final int numThreads,
 				final ExecutorService executorService) {
@@ -53,14 +54,12 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 			final CompositeProjectorPreMultiply projector = new CompositeProjectorPreMultiply(
 					sourceProjectors,
 					sourceScreenImages,
-					targetScreenImage,
-					numThreads,
-					executorService
+					targetScreenImage
 			);
 
 			final ArrayList<Composite<ARGBType, ARGBType>> activeComposites = new ArrayList<>();
-			for (final Source<?> activeSource : sources) {
-				activeComposites.add(composites.get(activeSource));
+			for (final var activeSource : sources) {
+				activeComposites.add(composites.get(activeSource.getSpimSource()));
 			}
 
 			projector.setComposites(activeComposites);
@@ -72,13 +71,11 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 	final protected ArrayList<Composite<ARGBType, ARGBType>> composites = new ArrayList<>();
 
 	public CompositeProjectorPreMultiply(
-			final ArrayList<VolatileProjector> sourceProjectors,
-			final ArrayList<? extends RandomAccessible<? extends ARGBType>> sources,
-			final RandomAccessibleInterval<ARGBType> target,
-			final int numThreads,
-			final ExecutorService executorService) {
+			final List<VolatileProjector> sourceProjectors,
+			final List<? extends RandomAccessible<? extends ARGBType>> sources,
+			final RandomAccessibleInterval<ARGBType> target) {
 
-		super(sourceProjectors, sources, target, numThreads, executorService);
+		super(sourceProjectors, sources, target);
 		LOG.debug("Creating {}", this.getClass().getName());
 	}
 

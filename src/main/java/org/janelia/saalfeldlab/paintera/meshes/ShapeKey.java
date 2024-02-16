@@ -22,6 +22,8 @@ public class ShapeKey<T> {
 
 	private final double minLabelRatio;
 
+	private final boolean overlap;
+
 	private final long[] min;
 
 	private final long[] max;
@@ -37,6 +39,7 @@ public class ShapeKey<T> {
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final double minLabelRatio,
+			final boolean overlap,
 			final long[] min,
 			final long[] max) {
 
@@ -47,6 +50,7 @@ public class ShapeKey<T> {
 				smoothingLambda,
 				smoothingIterations,
 				minLabelRatio,
+				overlap,
 				min,
 				max,
 				Objects::hashCode,
@@ -60,6 +64,7 @@ public class ShapeKey<T> {
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final double minLabelRatio,
+			final boolean overlap,
 			final long[] min,
 			final long[] max,
 			final ToIntFunction<T> shapeIdHashCode,
@@ -71,6 +76,7 @@ public class ShapeKey<T> {
 		this.smoothingLambda = smoothingLambda;
 		this.smoothingIterations = smoothingIterations;
 		this.minLabelRatio = minLabelRatio;
+		this.overlap = overlap;
 		this.min = min;
 		this.max = max;
 		this.shapeIdHashCode = shapeIdHashCode;
@@ -81,13 +87,14 @@ public class ShapeKey<T> {
 	public String toString() {
 
 		return String.format(
-				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%.2f, smoothings=%d, minLabelRatio=%.2f, min=%s, max=%s}",
+				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%.2f, smoothings=%d, minLabelRatio=%.2f, overlap=%b, min=%s, max=%s}",
 				shapeId,
 				scaleIndex,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
 				minLabelRatio,
+				overlap,
 				Arrays.toString(min),
 				Arrays.toString(max));
 	}
@@ -102,6 +109,7 @@ public class ShapeKey<T> {
 		result = 31 * result + Double.hashCode(smoothingLambda);
 		result = 31 * result + smoothingIterations;
 		result = 31 * result + Double.hashCode(minLabelRatio);
+		result = 31 * result + Boolean.hashCode(overlap);
 		result = 31 * result + Arrays.hashCode(this.min);
 		result = 31 * result + Arrays.hashCode(this.max);
 		return result;
@@ -122,6 +130,7 @@ public class ShapeKey<T> {
 							smoothingLambda == other.smoothingLambda &&
 							smoothingIterations == other.smoothingIterations &&
 							minLabelRatio == other.minLabelRatio &&
+							overlap == other.overlap &&
 							Arrays.equals(min, other.min) &&
 							Arrays.equals(max, other.max);
 		}
@@ -182,6 +191,10 @@ public class ShapeKey<T> {
 	public Interval interval() {
 
 		return new FinalInterval(min, max);
+	}
+
+	public boolean overlap() {
+		return overlap;
 	}
 
 }

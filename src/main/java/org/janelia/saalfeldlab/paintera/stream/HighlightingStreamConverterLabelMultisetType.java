@@ -1,11 +1,8 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
-
-import java.util.Set;
 
 public class HighlightingStreamConverterLabelMultisetType extends HighlightingStreamConverter<VolatileLabelMultisetType> {
 
@@ -24,8 +21,7 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 			return;
 		}
 		// entry
-		final var tmpEntry = new LabelMultisetEntry();
-		final Set<LabelMultisetEntry> entries = input.get().entrySetWithRef(tmpEntry);
+		final var entries = input.get().entrySet();
 		if (entries.size() == 0) {
 			output.set(stream.argb(Label.INVALID));
 		} else {
@@ -34,7 +30,7 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 			double g = 0;
 			double b = 0;
 			double alphaCountSize = 0;
-			for (final LabelMultisetEntry entry : entries) {
+			for (final var entry : entries) {
 				final int argb = stream.argb(entry.getElement().id());
 				final double alpha = ARGBType.alpha(argb);
 				final double alphaCount = alpha * ONE_OVER_255 * entry.getCount();

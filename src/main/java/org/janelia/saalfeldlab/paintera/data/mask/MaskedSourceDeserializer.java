@@ -1,12 +1,14 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import javafx.scene.control.ButtonType;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
@@ -64,7 +66,8 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 
 		try {
 			final JsonObject map = el.getAsJsonObject();
-			final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(currentProjectDirectory);
+			final String appCacheDir = Paintera.getPaintera().getProperties().getPainteraDirectoriesConfig().getAppCacheDir();
+			final Supplier<String> canvasDirSupplier = Masks.canvasTmpDirDirectorySupplier(appCacheDir);
 
 			final String sourceClass = map.get(UNDERLYING_SOURCE_CLASS_KEY).getAsString();
 			final DataSource<?, ?> source = context.deserialize(
@@ -80,18 +83,18 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 							Class.forName(persisterClass)
 					);
 
-			final String initialCanvasPath = canvasCacheDirUpdate.get();
+			final String initialCanvasPath = canvasDirSupplier.get();
 			// TODO re-use canvas
 			//					Optional
 			//					.ofNullable( map.get( CURRENT_CACHE_DIR_KEY ) )
 			//					.map( JsonElement::getAsString )
-			//					.orElseGet( canvasCacheDirUpdate );
+			//					.orElseGet( canvasDirSupplier );
 
 			final DataSource<?, ?> masked = Masks.maskedSource(
 					source,
 					queue,
 					initialCanvasPath,
-					canvasCacheDirUpdate,
+					canvasDirSupplier,
 					mergeCanvasIntoBackground,
 					propagationExecutor);
 			final MaskedSource<?, ?> returnVal = masked instanceof MaskedSource<?, ?>

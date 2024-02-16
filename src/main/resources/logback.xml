@@ -11,22 +11,33 @@
 
     <if condition='isDefined("paintera.log.filename.base")'>
         <then>
-            <appender name="painteraLogDirAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                <file>${user.home}/.paintera/logs/${paintera.log.filename.base:-paintera}.log</file>
-                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                    <!-- daily rollover. Make sure the path matches the one in the file element or else
-                     the rollover logs are placed in the working directory. -->
-                    <fileNamePattern>${user.home}/.paintera/logs/${paintera.log.filename.base:-paintera}.%d{yyyy-MM-dd}.log</fileNamePattern>
-                    <!-- keep 60 days' and 30GB worth of history -->
-                    <maxHistory>60</maxHistory>
-                    <totalSizeCap>30GB</totalSizeCap>
-                </rollingPolicy>
-
-                <encoder>
-                    <charset>UTF-8</charset>
-                    <pattern>%d %-4relative [%thread] %-5level %logger - %msg%n</pattern>
-                </encoder>
-            </appender>
+            <if condition='isDefined("paintera.log.dir")'>
+                <then>
+                    <if condition='isDefined("paintera.startup.date")'>
+                        <then>
+                            <if condition='isDefined("paintera.pid")'>
+                                <then>
+                                    <appender name="painteraLogDirAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                                        <file>${paintera.log.dir}/${paintera.log.filename.base}.log</file>
+                                        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                                            <!-- daily rollover. Make sure the path matches the one in the file element or else
+                                             the rollover logs are placed in the working directory. -->
+                                            <fileNamePattern>${paintera.log.dir}/${paintera.log.filename.base}_%d{yyyy-MM-dd}.log</fileNamePattern>
+                                            <!-- keep 60 days' and 30GB worth of history -->
+                                            <maxHistory>60</maxHistory>
+                                            <totalSizeCap>10GB</totalSizeCap>
+                                        </rollingPolicy>
+                                        <encoder>
+                                            <charset>UTF-8</charset>
+                                            <pattern>%d %-7relative ${paintera.pid} [%thread] %-5level %logger - %msg%n</pattern>
+                                        </encoder>
+                                    </appender>
+                                </then>
+                            </if>
+                        </then>
+                    </if>
+                </then>
+            </if>
         </then>
     </if>
 
@@ -40,7 +51,6 @@
                         <appender-ref ref="consoleAppender"/>
                     </then>
                 </if>
-                <!--                && is not legal sytnax, so split up into two if-conditions here-->
                 <if condition='isDefined("paintera.log.filename.base")'>
                     <then>
                         <if condition='!isDefined("paintera.log.file.enabled") || property("paintera.log.file.enabled").equalsIgnoreCase("true")'>

@@ -12,6 +12,8 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.effect.ColorAdjust;
 import net.imglib2.RealInterval;
+import net.imglib2.parallel.TaskExecutor;
+import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
@@ -22,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,6 +39,12 @@ import java.util.stream.Collectors;
 public class OrthogonalViews<BR extends Node> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private final TaskExecutor renderingTaskExecutor;
+
+	public void stop() {
+		renderingTaskExecutor.close();
+	}
 
 	/**
 	 * Utility class that holds {@link ViewerPanelFX} and related objects.
@@ -133,9 +143,20 @@ public class OrthogonalViews<BR extends Node> {
 			final Function<Source<?>, Interpolation> interpolation) {
 
 		this.manager = manager;
-		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
-		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
-		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
+
+		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
+			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+			worker.setDaemon(true);
+			worker.setPriority(4);
+			worker.setName("render-thread-" + worker.getPoolIndex());
+			return worker;
+		};
+
+		final ForkJoinPool rendererService = new ForkJoinPool(optional.values.getNumRenderingThreads(), factory, null, false);
+		this.renderingTaskExecutor = TaskExecutors.forExecutorService(rendererService);
+		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, renderingTaskExecutor);
+		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, renderingTaskExecutor);
+		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation, renderingTaskExecutor);
 		this.bottomRight = bottomRight;
 		this.pane = new DynamicCellPane();
 		resetPane();
@@ -248,8 +269,7 @@ public class OrthogonalViews<BR extends Node> {
 
 		viewer.setFocusable(false);
 		final var grayedOut = new ColorAdjust();
-		grayedOut.setContrast(-0.2);
-		grayedOut.setBrightness(-0.5);
+		grayedOut.setBrightness(-0.3);
 		viewer.setEffect(grayedOut);
 	}
 
@@ -292,7 +312,8 @@ public class OrthogonalViews<BR extends Node> {
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final ViewerAxis axis,
-			final Function<Source<?>, Interpolation> interpolation) {
+			final Function<Source<?>, Interpolation> interpolation,
+			final TaskExecutor taskExecutor) {
 
 		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer(axis);
 		LOG.debug("Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer);
@@ -300,7 +321,8 @@ public class OrthogonalViews<BR extends Node> {
 				1,
 				cacheControl,
 				optional,
-				interpolation
+				interpolation,
+				taskExecutor
 		);
 		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
 		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners(globalToViewer);

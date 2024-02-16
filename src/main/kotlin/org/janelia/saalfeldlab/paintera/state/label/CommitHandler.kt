@@ -23,7 +23,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 
 	internal fun makeActionSet(bindings: NamedKeyCombination.CombinationMap, paintera: PainteraBaseView) =
 		painteraActionSet(LabelSourceStateKeys.COMMIT_DIALOG, MenuActionType.CommitCanvas) {
-			KEY_PRESSED(bindings, LabelSourceStateKeys.COMMIT_DIALOG) {
+			KEY_PRESSED ( bindings, LabelSourceStateKeys.COMMIT_DIALOG, keysExclusive = true) {
 				onAction { showCommitDialog(state, paintera.sourceInfo().indexOf(state.dataSource), true, fragmentSegmentAssignmentState = fragmentProvider()) }
 			}
 		}
@@ -43,7 +43,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 			cancelButtonText: String = "_Cancel",
 			okButtonText: String = "Commi_t",
 			fragmentSegmentAssignmentState: FragmentSegmentAssignmentState
-		) {
+		): ButtonType? {
 			val assignmentsCanBeCommitted = fragmentSegmentAssignmentState.hasPersistableData()
 			val canvasCanBeCommitted = state.dataSource.let { it is MaskedSource && it.affectedBlocks.isNotEmpty() }
 			val commitAssignmentCheckbox = CheckBox("Fragment-segment assignment").also { it.isSelected = assignmentsCanBeCommitted }
@@ -55,6 +55,12 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 				if (assignmentsCanBeCommitted) contents.children.add(commitAssignmentCheckbox)
 				if (canvasCanBeCommitted) contents.children.add(commitCanvasCheckbox)
 				PainteraAlerts.confirmation(okButtonText, cancelButtonText, true).also {
+					(it.dialogPane.lookupButton(ButtonType.CANCEL) as? Button)?.let { closeButton ->
+						closeButton.isVisible = false
+						closeButton.isManaged = false
+					}
+					it.buttonTypes.add(ButtonType.NO)
+					(it.dialogPane.lookupButton(ButtonType.NO) as? Button)?.text = cancelButtonText
 					it.headerText = headerText.apply(index, name)
 					it.dialogPane.content = contents
 				}
@@ -67,7 +73,8 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 				else
 					null
 			}
-			if (dialog?.showAndWait()?.filter { ButtonType.OK == it }?.isPresent == true && anythingToCommit) {
+			val buttonType = dialog?.showAndWait()
+			if (buttonType?.filter { ButtonType.OK == it }?.isPresent == true && anythingToCommit) {
 				if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) fragmentSegmentAssignmentState.persist()
 				state.dataSource.let {
 					if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
@@ -75,6 +82,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 					}
 				}
 			}
+			return buttonType?.get()
 		}
 
 	}

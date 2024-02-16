@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.ENTER_SHAPE_INTERPOLATION_MODE
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SEGMENT_ANYTHING
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
@@ -59,10 +60,10 @@ object PaintLabelMode : AbstractToolMode() {
 			NavigationTool,
 			paintBrushTool,
 			fill2DTool,
-            fill3DTool,
-            intersectTool,
-            samTool
-        )
+			fill3DTool,
+			intersectTool,
+			samTool
+		)
 	}
 
 	override val modeActions: List<ActionSet> by lazy {
@@ -89,7 +90,7 @@ object PaintLabelMode : AbstractToolMode() {
 		/* Add tool to switch to interpolation mode */
 		toolBarGrid.add(Button().also { siButton ->
 			siButton.styleClass += "toolbar-button"
-            siButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
+			siButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
 			siButton.graphic = StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "enter-shape-interpolation") }
 			siButton.onAction = EventHandler {
 				/* remove the current tool */
@@ -161,35 +162,35 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
-    private val activeSamTool = painteraActionSet("Sam Mode", PaintActionType.Paint) {
-        KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
-            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
-            verify { activeTool !is SamTool }
-            verify {
-                @Suppress("UNCHECKED_CAST")
-                activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
-            }
-            onAction {
-                switchTool(samTool)
-            }
-        }
-        KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
-            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
-            verify { activeTool is SamTool }
-            onAction {
-                switchTool(defaultTool)
-            }
-        }
-        KEY_PRESSED(KeyCode.ESCAPE) {
-            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
-            verify { activeTool is SamTool }
-            filter = true
-            consume = false
-            onAction {
-                switchTool(defaultTool)
-            }
-        }
-    }
+	private val activeSamTool = painteraActionSet(SEGMENT_ANYTHING, PaintActionType.Paint) {
+		KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+			verify { activeTool !is SamTool }
+			verify {
+				@Suppress("UNCHECKED_CAST")
+				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
+			}
+			onAction {
+				switchTool(samTool)
+			}
+		}
+		KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+			verify { activeTool is SamTool }
+			onAction {
+				switchTool(defaultTool)
+			}
+		}
+		KEY_PRESSED(KeyCode.ESCAPE) {
+			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+			verify { activeTool is SamTool }
+			filter = true
+			consume = false
+			onAction {
+				switchTool(defaultTool)
+			}
+		}
+	}
 
 
 	private fun getToolTriggers() = listOf(
@@ -198,7 +199,7 @@ object PaintLabelMode : AbstractToolMode() {
 		toggleFill3D,
 		intersectTool.createTriggers(this, PaintActionType.Intersect),
 		enterShapeInterpolationMode,
-        activeSamTool
+		activeSamTool
 
 	)
 
@@ -246,74 +247,74 @@ object PaintLabelMode : AbstractToolMode() {
 	private fun newShapeInterpolationModeForSource(sourceState: SourceState<*, *>?): ShapeInterpolationMode<*>? {
 		return sourceState?.let { state ->
 			@Suppress("UNCHECKED_CAST")
-            (state as? ConnectomicsLabelState<*, *>)?.run {
-                (dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
-                    ShapeInterpolationController(
-                        maskedSource,
-                        ::refreshMeshes,
-                        selectedIds,
-                        idService,
-                        converter(),
-                        fragmentSegmentAssignment,
-                    )
-                }
-            }?.let { ShapeInterpolationMode(it, this) }
+			(state as? ConnectomicsLabelState<*, *>)?.run {
+				(dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
+					ShapeInterpolationController(
+						maskedSource,
+						::refreshMeshes,
+						selectedIds,
+						idService,
+						converter(),
+						fragmentSegmentAssignment,
+					)
+				}
+			}?.let { ShapeInterpolationMode(it, this) }
 		}
 	}
 
-    internal fun midiToolTogleActions() = DeviceManager.xTouchMini?.let { device ->
-        activeViewerProperty.get()?.viewer()?.let { viewer ->
-            painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
-                val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
-                activeToolProperty.addListener { obs, old, new ->
-                    toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
-                    toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
-                }
-                toggleToolActionMap[NavigationTool] = MidiToggleEvent.BUTTON_TOGGLE(0) {
-                    name = "midi switch back to navigation tool"
-                    filter = true
-                    onAction {
-                        InvokeOnJavaFXApplicationThread {
-                            if (activeTool is Fill2DTool) {
-                                fill2DTool.fill2D.release()
-                            }
-                            if (activeTool != NavigationTool)
-                                switchTool(NavigationTool)
-                            /* If triggered, ensure toggle is on. Only can be off when switching to another tool */
-                            updateControlSilently(MCUButtonControl.TOGGLE_ON)
-                        }
-                    }
-                }
-                toggleToolActionMap[paintBrushTool] = MidiToggleEvent.BUTTON_TOGGLE(1) {
-                    name = "midi switch to paint tool"
-                    verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-                    onAction {
-                        InvokeOnJavaFXApplicationThread {
-                            if (activeTool == paintBrushTool) {
-                                switchTool(NavigationTool)
-                            } else {
-                                switchTool(paintBrushTool)
-                                paintBrushTool.enteredWithoutKeyTrigger = true
-                            }
-                        }
-                    }
-                }
-                toggleToolActionMap[fill2DTool] = MidiToggleEvent.BUTTON_TOGGLE(2) {
-                    name = "midi switch to fill2d tool"
-                    verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-                    onAction {
-                        InvokeOnJavaFXApplicationThread {
-                            if (activeTool == fill2DTool) {
-                                switchTool(NavigationTool)
-                            } else {
-                                switchTool(fill2DTool)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+	internal fun midiToolTogleActions() = DeviceManager.xTouchMini?.let { device ->
+		activeViewerProperty.get()?.viewer()?.let { viewer ->
+			painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
+				val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
+				activeToolProperty.addListener { obs, old, new ->
+					toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
+					toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
+				}
+				toggleToolActionMap[NavigationTool] = MidiToggleEvent.BUTTON_TOGGLE(0) {
+					name = "midi switch back to navigation tool"
+					filter = true
+					onAction {
+						InvokeOnJavaFXApplicationThread {
+							if (activeTool is Fill2DTool) {
+								fill2DTool.fill2D.release()
+							}
+							if (activeTool != NavigationTool)
+								switchTool(NavigationTool)
+							/* If triggered, ensure toggle is on. Only can be off when switching to another tool */
+							updateControlSilently(MCUButtonControl.TOGGLE_ON)
+						}
+					}
+				}
+				toggleToolActionMap[paintBrushTool] = MidiToggleEvent.BUTTON_TOGGLE(1) {
+					name = "midi switch to paint tool"
+					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					onAction {
+						InvokeOnJavaFXApplicationThread {
+							if (activeTool == paintBrushTool) {
+								switchTool(NavigationTool)
+							} else {
+								switchTool(paintBrushTool)
+								paintBrushTool.enteredWithoutKeyTrigger = true
+							}
+						}
+					}
+				}
+				toggleToolActionMap[fill2DTool] = MidiToggleEvent.BUTTON_TOGGLE(2) {
+					name = "midi switch to fill2d tool"
+					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					onAction {
+						InvokeOnJavaFXApplicationThread {
+							if (activeTool == fill2DTool) {
+								switchTool(NavigationTool)
+							} else {
+								switchTool(fill2DTool)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 }
 

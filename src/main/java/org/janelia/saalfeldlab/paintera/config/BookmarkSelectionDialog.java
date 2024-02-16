@@ -167,7 +167,7 @@ public class BookmarkSelectionDialog extends Alert {
 
 			this.bookmark = bookmark;
 			this.fuzzyQuery = fuzzyQuery;
-			this.score = scorer.apply(fuzzyQuery, bookmark.getNote() == null ? "" : bookmark.getNote());//.replace("\n", " "));
+			this.score = scorer.apply(fuzzyQuery, bookmark.getNote() == null ? "" : bookmark.getNote());
 		}
 
 		public BookmarkConfig.Bookmark getBookmark() {

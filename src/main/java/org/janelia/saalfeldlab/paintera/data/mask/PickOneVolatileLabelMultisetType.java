@@ -76,7 +76,6 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 
 		scalarValue.setValid(true);
 
-
 		final M c = vc.get();
 		if (pickThird.test(c)) {
 			converter.convert(c, scalarValue.get());

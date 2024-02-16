@@ -71,6 +71,7 @@ public class MeshGeneratorJobManager<T> {
 		final double smoothingLambda;
 		final int smoothingIterations;
 		final double minLabelRatio;
+		final boolean overlap;
 
 		SceneUpdateParameters(
 				final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
@@ -78,7 +79,8 @@ public class MeshGeneratorJobManager<T> {
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final double minLabelRatio) {
+				final double minLabelRatio,
+				final boolean overlap) {
 
 			this.sceneBlockTree = sceneBlockTree;
 			this.rendererGrids = rendererGrids;
@@ -86,6 +88,7 @@ public class MeshGeneratorJobManager<T> {
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
 			this.minLabelRatio = minLabelRatio;
+			this.overlap = overlap;
 		}
 
 		@Override
@@ -95,7 +98,7 @@ public class MeshGeneratorJobManager<T> {
 				return true;
 
 			if (obj instanceof SceneUpdateParameters) {
-				final SceneUpdateParameters other = (SceneUpdateParameters)obj;
+				final SceneUpdateParameters other = (SceneUpdateParameters) obj;
 
 				if (rendererGrids.length != other.rendererGrids.length)
 					return false;
@@ -104,8 +107,8 @@ public class MeshGeneratorJobManager<T> {
 				for (int i = 0; i < rendererGrids.length; ++i) {
 					//noinspection RedundantCast
 					sameBlockSize &= Intervals.equalDimensions(
-							(Dimensions)Grids.getCellInterval(rendererGrids[i], 0),
-							(Dimensions)Grids.getCellInterval(other.rendererGrids[i], 0));
+							(Dimensions) Grids.getCellInterval(rendererGrids[i], 0),
+							(Dimensions) Grids.getCellInterval(other.rendererGrids[i], 0));
 				}
 
 				return
@@ -113,7 +116,8 @@ public class MeshGeneratorJobManager<T> {
 								simplificationIterations == other.simplificationIterations &&
 								smoothingLambda == other.smoothingLambda &&
 								smoothingIterations == other.smoothingIterations &&
-								minLabelRatio == other.minLabelRatio;
+								minLabelRatio == other.minLabelRatio &&
+								overlap == other.overlap;
 			}
 
 			return false;
@@ -294,7 +298,8 @@ public class MeshGeneratorJobManager<T> {
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final double minLabelRatio) {
+			final double minLabelRatio,
+			final boolean overlap) {
 
 		if (isInterrupted.get())
 			return;
@@ -305,7 +310,8 @@ public class MeshGeneratorJobManager<T> {
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
-				minLabelRatio
+				minLabelRatio,
+				overlap
 		);
 
 		synchronized (sceneUpdateParametersProperty) {
@@ -398,7 +404,7 @@ public class MeshGeneratorJobManager<T> {
 		// calculate how many tasks are already completed
 		final int numCompletedBlocks = numTotalBlocks - blocksToRender.size() - tasks.size();
 		meshProgress.set(numTotalBlocks, numCompletedBlocks);
-		final int numExistingNonEmptyMeshes = (int)meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
+		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
 		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)",
 				identifier,
 				numTotalBlocks, numCompletedBlocks, blocksToRender.size(), meshesAndBlocks.size(), numExistingNonEmptyMeshes);
@@ -611,11 +617,11 @@ public class MeshGeneratorJobManager<T> {
 				"Mesh for block has been generated but it already exists in the current set of generated/visible meshes: " + key;
 		LOG.trace("ID {}: block {} has been generated", identifier, key);
 
-		final boolean nonEmptyMesh = triangleMesh.isNotEmpty();
-		final MeshView mv = nonEmptyMesh ? makeMeshView(triangleMesh) : null;
-		final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
+		final boolean meshIsEmpty = triangleMesh.isEmpty();
+		final MeshView mv = meshIsEmpty ? null : makeMeshView(triangleMesh);
+		final Node blockShape = meshIsEmpty ? null : createBlockShape(key);
 		final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
-		LOG.trace("Found {}/3 vertices and {}/3 normals", triangleMesh.getVertices(), triangleMesh.getNormals());
+		LOG.trace("Found {}/3 vertices and {}/3 normals", triangleMesh.getVertices().length, triangleMesh.getNormals().length);
 
 		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 		treeNode.state = BlockTreeNodeState.RENDERED;
@@ -1015,6 +1021,7 @@ public class MeshGeneratorJobManager<T> {
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
 				sceneUpdateParameters.minLabelRatio,
+				sceneUpdateParameters.overlap,
 				Intervals.minAsLongArray(blockInterval),
 				Intervals.maxAsLongArray(blockInterval)
 		);
@@ -1032,12 +1039,12 @@ public class MeshGeneratorJobManager<T> {
 		final int[] indices = verticesAndNormals.getIndices();
 		final int[] faceIndices = new int[indices.length * 3];
 		for (int i = 0; i < indices.length; i++) {
-			/* add idx for point, normal, texCoord*/
+			/* add idx for vertex, normal, texCoord*/
 			final int vertexIdx = i * 3;
-			final int pointIdx = vertexIdx + 1;
+			final int normalIdx = vertexIdx + 1;
 			final int texCoordIdx = vertexIdx + 2;
 			faceIndices[vertexIdx] = indices[i];
-			faceIndices[pointIdx] = indices[i];
+			faceIndices[normalIdx] = indices[i];
 			faceIndices[texCoordIdx] = 0;
 		}
 		mesh.getFaces().addAll(faceIndices);
@@ -1071,9 +1078,9 @@ public class MeshGeneratorJobManager<T> {
 		//				blockWorldSize[2]
 		//			);
 		final PolygonMeshView box = new PolygonMeshView(Meshes.createQuadrilateralMesh(
-				(float)blockWorldSize[0],
-				(float)blockWorldSize[1],
-				(float)blockWorldSize[2]
+				(float) blockWorldSize[0],
+				(float) blockWorldSize[1],
+				(float) blockWorldSize[2]
 		));
 
 		final double[] blockWorldTranslation = new double[blockWorldInterval.numDimensions()];

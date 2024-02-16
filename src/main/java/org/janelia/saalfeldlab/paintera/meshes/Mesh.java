@@ -91,6 +91,10 @@ public class Mesh {
 	 *                                 Of the form [ t1_v0_x, t1_v1_y, t1_v2_z, t2_v0_x, t2_v1_y, t2_v2_z, ..., tn_v0_x, tn_v1_y, tn_v2_z]
 	 */
 	public Mesh(final float[] flatTrianglesAndVertices, final Interval interval, final AffineTransform3D transform) {
+		this(flatTrianglesAndVertices, interval, transform, true);
+	}
+
+	public Mesh(final float[] flatTrianglesAndVertices, final Interval interval, final AffineTransform3D transform, final boolean overlap) {
 
 		assert flatTrianglesAndVertices.length % 9 == 0;
 
@@ -99,13 +103,14 @@ public class Mesh {
 		final ArrayList<TIntArrayList> trianglesPerVertex = new ArrayList<>();
 		final TIntArrayList triangleVertexIndices = new TIntArrayList();
 
-		final double minY = interval.min(1) - 1;
 		final double minX = interval.min(0) - 1;
+		final double minY = interval.min(1) - 1;
 		final double minZ = interval.min(2) - 1;
 
-		final double maxX = interval.max(0) + 1; // overlap 1
-		final double maxY = interval.max(1) + 1; // overlap 1
-		final double maxZ = interval.max(2) + 1; // overlap 1
+		final double overlapOffset = overlap ? 1 : .5;
+		final double maxX = interval.max(0) + overlapOffset;
+		final double maxY = interval.max(1) + overlapOffset;
+		final double maxZ = interval.max(2) + overlapOffset;
 
 		final RealInterval vertexBounds = new FinalRealInterval(
 				new double[]{minX, minY, minZ},

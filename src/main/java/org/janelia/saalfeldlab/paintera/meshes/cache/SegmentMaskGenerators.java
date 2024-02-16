@@ -8,6 +8,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetEntry;
+import net.imglib2.type.label.LabelMultisetEntryList;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
@@ -19,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
@@ -29,18 +29,22 @@ public class SegmentMaskGenerators {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static <T, B extends BooleanType<B>> BiFunction<TLongHashSet, Double, Converter<T, B>> create(
+	public static <T, B extends BooleanType<B>> BiFunction<Long, Double, Converter<T, B>> create(
 			final DataSource<T, ?> source,
-			final int level) {
+			final int level,
+			final Function<Long, TLongHashSet> fragmentsForSegment
+	) {
 
 		final T t = source.getDataType();
 
-		if (t instanceof LabelMultisetType)
-			return new LabelMultisetTypeMaskGenerator(source, level);
+		if (t instanceof LabelMultisetType) {
+			final LabelMultisetTypeMaskGenerator labelMultisetTypeMaskGenerator = new LabelMultisetTypeMaskGenerator(source, level);
+			return (l, minLabelRatio) -> labelMultisetTypeMaskGenerator.apply(fragmentsForSegment.apply(l), minLabelRatio);
+		}
 
 		if (t instanceof IntegerType<?>) {
 			final IntegerTypeMaskGenerator integerTypeMaskGenerator = new IntegerTypeMaskGenerator();
-			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(l);
+			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(fragmentsForSegment.apply(l));
 		}
 
 		return null;
@@ -90,18 +94,14 @@ public class SegmentMaskGenerators {
 			LOG.debug("Creating {} with valid labels: {}", this.getClass().getSimpleName(), validLabels);
 			this.validLabels = validLabels;
 		}
+		final LabelMultisetEntry reusableReference = new LabelMultisetEntryList().createRef();
 
 		@Override
 		public void convert(final LabelMultisetType input, final B output) {
 
-			final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(new LabelMultisetEntry());
+			final Set<Entry<Label>> inputSet = input.entrySetWithRef(reusableReference);
 			final int validLabelsSize = validLabels.size();
 			final int inputSize = inputSet.size();
-			// no primitive type support for slf4j
-			// http://mailman.qos.ch/pipermail/slf4j-dev/2005-August/000241.html
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
-			}
 
 			if (validLabelsSize < inputSize) {
 				/* usinging an enhanced for-loop is slower!
@@ -131,6 +131,8 @@ public class SegmentMaskGenerators {
 		private final TLongSet validLabels;
 		private final long minNumRequiredPixels;
 
+		private final LabelMultisetEntry reusableReference = new LabelMultisetEntryList().createRef();
+
 		public LabelMultisetTypeMaskWithMinLabelRatio(final TLongSet validLabels, final double minLabelRatio, final long numFullResPixels) {
 
 			assert numFullResPixels > 0;
@@ -141,13 +143,13 @@ public class SegmentMaskGenerators {
 					minLabelRatio,
 					numFullResPixels);
 			this.validLabels = validLabels;
-			this.minNumRequiredPixels = (long)Math.ceil(numFullResPixels * minLabelRatio);
+			this.minNumRequiredPixels = (long) Math.ceil(numFullResPixels * minLabelRatio);
 		}
 
 		@Override
 		public void convert(final LabelMultisetType input, final B output) {
 
-			final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(new LabelMultisetEntry());
+			final Set<Entry<Label>> inputSet = input.entrySetWithRef(reusableReference);
 			final int validLabelsSize = validLabels.size();
 			final int inputSize = inputSet.size();
 			// no primitive type support for slf4j
@@ -159,7 +161,7 @@ public class SegmentMaskGenerators {
 			if (validLabelsSize < inputSize) {
 				final var ref = new LabelMultisetEntry();
 				final var breakEarly = !validLabels.forEach(label -> {
-					final var count = validLabelsContainedCount.addAndGet(input.countWithRef(label, ref));
+					final var count = validLabelsContainedCount.addAndGet(input.countWithRef(label, reusableReference));
 					if (count >= minNumRequiredPixels) {
 						output.set(true);
 						return false;
@@ -171,7 +173,7 @@ public class SegmentMaskGenerators {
 				}
 			} else {
 				final HashSet<Long> labelsInValidLabels = new HashSet<>();
-				for (final LabelMultisetEntry labelEntry : inputSet) {
+				for (final Entry<Label> labelEntry : inputSet) {
 					final long id = labelEntry.getElement().id();
 					boolean valid = false;
 					if (labelsInValidLabels.contains(id)) {

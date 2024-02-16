@@ -28,12 +28,13 @@ import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.serialization.*
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -78,16 +79,18 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
 
-	internal val currentSource : SourceState<*, *>?
+	internal val currentSource: SourceState<*, *>?
 		get() = baseView.sourceInfo().currentState().get()
 
-	internal val currentMode : ControlMode?
+	internal val currentMode: ControlMode?
 		get() = baseView.activeModeProperty.value
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers
 
-	val pane: Parent
+	internal val pane: Parent
 		get() = paneWithStatus.pane
+
+    private lateinit var newProjectSettings : JsonElement
 
 	private fun initProperties(properties: Properties) {
 		this.properties = properties
@@ -95,6 +98,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		this.paneWithStatus = BorderPaneWithStatusBars(this)
 		this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
 		activeViewer.bind(paintera.baseView.currentFocusHolder.createNullableValueBinding { it?.viewer() })
+
+        /* Set newProjectSettings */
+        val builder = GsonHelpers
+            .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
+            .setPrettyPrinting()
+        Paintera.n5Factory.gsonBuilder(builder)
+        this.newProjectSettings = builder.create().toJsonTree(this)
 	}
 
 	fun deserialize() {
@@ -119,16 +129,42 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		}
 	}
 
-	fun save(notify: Boolean = true) {
+	private fun isSaveNecessary(): Boolean {
+		val builder = GsonHelpers
+			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
+			.setPrettyPrinting()
+		Paintera.n5Factory.gsonBuilder(builder)
+		Paintera.n5Factory.openReader(projectDirectory.actualDirectory.absolutePath).use {
+			val expectedSettings = pruneNonEssentialSettings(builder.create().toJsonTree(this))
+			val actualSettings = pruneNonEssentialSettings(it.getAttribute("/", PAINTERA_KEY, JsonObject::class.java))
+            /* If settings file already exists, compare against them; If they don't, compare against newProjectSettings
+            *   This helps avoid annoying "Save Before Quit?" prompts when you open Paintera, and immediately
+            *   Open a different project. */
+ 			return expectedSettings != (actualSettings ?: pruneNonEssentialSettings(newProjectSettings))
+		}
+	}
+
+    private fun pruneNonEssentialSettings(allSettings: JsonElement?): JsonElement? {
+        return allSettings?.asJsonObject?.also { mainWindow ->
+            mainWindow.remove(GLOBAL_TRANSFORM_KEY)
+            mainWindow.remove(Properties::windowProperties.name)
+            mainWindow.remove(VERSION_KEY)
+            /* Should match Viewer3DConfigSerializer AFFINE_KEY*/
+            mainWindow.get("viewer3DConfig")?.asJsonObject?.remove("affine")
+        }
+    }
+
+    fun save(notify: Boolean = true) {
 
 		/* Not allowd to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
-			alert.title = "Cannot Serialize Sources"
+			alert.title = "Cannot Serialize All Sources"
 			alert.contentText = reasonSoureInfoCannotBeSerialized
 			alert.showAndWait()
 			return
 		}
+
 		// ensure that the application is in the normal mode when the project is saved
 		val curMode = baseView.activeModeProperty.value
 		baseView.setDefaultToolMode()
@@ -137,10 +173,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
-		Paintera.n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).use {
+        Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
+		Paintera.n5Factory.createWriter(projectDirectory.actualDirectory.absolutePath).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
+			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectDirectory.directory.canonicalPath, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}
@@ -169,7 +207,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	internal fun saveOrSaveAs(notify: Boolean = true) {
-		if (projectDirectory.directory === null) saveAs(notify) else save(notify)
+		projectDirectory.directory?.let { save(notify) } ?: saveAs(notify)
 	}
 
 	@JvmOverloads
@@ -217,6 +255,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		}
 	}
 
+	private var wasQuit = false
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
@@ -229,32 +268,41 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			Image("/icon-128.png")
 		)
 		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
-		stage.onCloseRequest = EventHandler { if (!askQuit()) it.consume() }
-		stage.onHiding = EventHandler { quit() }
+		wasQuit = false
+		stage.onCloseRequest = EventHandler { if (!doSaveAndQuit()) it.consume() }
+		stage.onHiding = EventHandler { if (!doSaveAndQuit()) it.consume() }
 	}
 
-	internal fun askAndQuit() {
-		if (askQuit())
-			pane.scene.window.hide()
+	internal fun askSaveAndQuit() : Boolean {
+		return when {
+			wasQuit -> false
+			!isSaveNecessary() -> true
+			else -> SaveAndQuitDialog.showAndWaitForResponse()
+		}
 	}
 
-	private fun askQuit(): Boolean {
-		return askSaveAndQuit()
-	}
+	internal fun doSaveAndQuit(): Boolean {
 
-	private fun askSaveAndQuit(): Boolean {
-		if (SaveAndQuitDialog.showAndWaitForResponse())
-			return true
-		return false
+		return if (askSaveAndQuit()) {
+			quit()
+			wasQuit = true
+			/* quit() calls platform.exit() and exitProcess, so we never really get here.
+			 *  But it's useful to know if `false` so we do this */
+			true
+		} else false
 	}
 
 	private fun quit() {
 		LOG.debug("Quitting!")
 		baseView.stop()
 		projectDirectory.close()
-		DeviceManager.closeDevices()
 		Platform.exit()
-		exitProcess(0)
+		if (DeviceManager.closeDevices()) {
+			/* due to a bug (https://bugs.openjdk.org/browse/JDK-8232862) when MIDI devices are opened, the thread
+			* that is created does not exit when closing the devices. If the process is not explicitly exited
+			* then the application hangs after exiting the window.  */
+			exitProcess(0)
+		}
 	}
 
 

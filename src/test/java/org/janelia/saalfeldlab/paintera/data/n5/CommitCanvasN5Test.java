@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -351,10 +352,11 @@ public class CommitCanvasN5Test {
 		testCanvasPersistance(container, dataset, s0, canvas, openLabels, asserts);
 
 		// test highest level block lookups
-		final String uniqueBlock0 = String.join("/", dataset, "unique-labels", "s0");
-		final Path mappingPattern = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s%d", "%d");
-		final Path mapping0 = Paths.get(container.getUrl(), dataset, "label-to-block-mapping", "s0");
-		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0);
+		final String groupSeparator = container.getReader().getGroupSeparator();
+		final String uniqueBlock0Group = N5URI.normalizeGroupPath(String.join(groupSeparator, dataset, "unique-labels","s0"));
+		final Path mappingPattern = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s%d", "%d");
+		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
+		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0Group);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
 		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();
 		for (final Interval block : blocks) {
@@ -374,7 +376,7 @@ public class CommitCanvasN5Test {
 				}
 			});
 
-			final DataBlock<?> uniqueBlock = writer.readBlock(uniqueBlock0, uniqueBlockAttributes, blockPos);
+			final DataBlock<?> uniqueBlock = writer.readBlock(uniqueBlock0Group, uniqueBlockAttributes, blockPos);
 			Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 		}
 
@@ -602,21 +604,12 @@ public class CommitCanvasN5Test {
 
 		}
 
-		@Override public void setWriter(@Nullable N5Writer writer) {
-
-		}
-
 		@Override public void setGroup(String group) {
 
 		}
 
 		@Override public void updateTransform(AffineTransform3D newTransform) {
 
-		}
-
-		@Override public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(SharedQueue queue, int priority) {
-
-			return null;
 		}
 
 		@Override public String getUnit() {
@@ -695,6 +688,12 @@ public class CommitCanvasN5Test {
 
 		@Override public N5ContainerState getN5ContainerState() {
 
+			return null;
+		}
+
+		@NotNull
+		@Override
+		public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(@NotNull bdv.cache.SharedQueue queue, int priority) {
 			return null;
 		}
 	}

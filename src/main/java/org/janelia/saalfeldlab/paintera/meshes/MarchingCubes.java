@@ -1,18 +1,14 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import gnu.trove.list.array.TFloatArrayList;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.BooleanType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.BundleView;
-import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import paintera.net.imglib2.view.BundleView;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
@@ -381,13 +377,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		// This way, we need to remap the cube vertices.
 		// @formatter:on
 
-		final FinalInterval expandedInterval = new FinalInterval(
-				new long[]{
-						interval.min(0) - 1,
-						interval.min(1) - 1,
-						interval.min(2) - 1},
-				Intervals.maxAsLongArray(interval));
-
 		final TFloatArrayList vertices = new TFloatArrayList();
 		final float[][] interpolationPoints = new float[12][3];
 
@@ -395,53 +384,52 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		final int[] idxRemap = new int[]{5, 7, 3, 1, 4, 6, 2, 0};
 		final long[] prevPos = new long[]{Long.MIN_VALUE, 0, 0};
 		final long[] curPos = new long[3];
-		final BundleView<B> bundledInput = new BundleView<>(Views.interval(input, interval));
-		final IntervalView<RandomAccess<B>> expandedBundle = Views.interval(bundledInput, expandedInterval);
 
-		LoopBuilder.setImages(expandedBundle).forEachPixel(pixelAccess -> {
-			pixelAccess.localize(curPos);
-			if (prevPos[0] != Long.MIN_VALUE && curPos[0] - prevPos[0] == 1 && curPos[1] - prevPos[1] == 0 && curPos[2] - prevPos[2] == 0) {
-				vertexVals[0] = vertexVals[1];
-				vertexVals[2] = vertexVals[3];
-				vertexVals[4] = vertexVals[5];
-				vertexVals[6] = vertexVals[7];
-			} else {
-				vertexVals[0] = pixelAccess.get().get();
-				pixelAccess.move(1, 1); //move to offset (0, 1, 0)
-				vertexVals[2] = pixelAccess.get().get();
-				pixelAccess.move(1, 2); //move to offset (0, 1, 1)
-				vertexVals[6] = pixelAccess.get().get();
-				pixelAccess.move(-1, 1); //move to offset (0, 0, 1)
-				vertexVals[4] = pixelAccess.get().get();
-				pixelAccess.move(-1, 2);
-			}
-			pixelAccess.move(1, 0); //move to offset (1, 0, 0)
-			vertexVals[1] = pixelAccess.get().get();
-			pixelAccess.move(1, 1); //move to offset (1, 1, 0)
-			vertexVals[3] = pixelAccess.get().get();
-			pixelAccess.move(1, 2); //move to offset (1, 1, 1)
-			vertexVals[7] = pixelAccess.get().get();
-			pixelAccess.move(-1, 1); //move to offset (1, 0, 1)
-			vertexVals[5] = pixelAccess.get().get();
+		LoopBuilder.setImages(Views.interval(new BundleView<>(input), interval))
+				.forEachPixel(pixelAccess -> {
+					pixelAccess.localize(curPos);
+					if (prevPos[0] != Long.MIN_VALUE && curPos[0] - prevPos[0] == 1 && curPos[1] - prevPos[1] == 0 && curPos[2] - prevPos[2] == 0) {
+						vertexVals[0] = vertexVals[1];
+						vertexVals[2] = vertexVals[3];
+						vertexVals[4] = vertexVals[5];
+						vertexVals[6] = vertexVals[7];
+					} else {
+						vertexVals[0] = pixelAccess.get().get();
+						pixelAccess.move(1, 1); //move to offset (0, 1, 0)
+						vertexVals[2] = pixelAccess.get().get();
+						pixelAccess.move(1, 2); //move to offset (0, 1, 1)
+						vertexVals[6] = pixelAccess.get().get();
+						pixelAccess.move(-1, 1); //move to offset (0, 0, 1)
+						vertexVals[4] = pixelAccess.get().get();
+						pixelAccess.move(-1, 2);
+					}
+					pixelAccess.move(1, 0); //move to offset (1, 0, 0)
+					vertexVals[1] = pixelAccess.get().get();
+					pixelAccess.move(1, 1); //move to offset (1, 1, 0)
+					vertexVals[3] = pixelAccess.get().get();
+					pixelAccess.move(1, 2); //move to offset (1, 1, 1)
+					vertexVals[7] = pixelAccess.get().get();
+					pixelAccess.move(-1, 1); //move to offset (1, 0, 1)
+					vertexVals[5] = pixelAccess.get().get();
 
-			/* setup for next loop*/
-			pixelAccess.setPosition(curPos);
-			System.arraycopy(curPos, 0, prevPos, 0, 3);
+					/* setup for next loop*/
+					pixelAccess.setPosition(curPos);
+					System.arraycopy(curPos, 0, prevPos, 0, 3);
 
-			var vertexIn = 0b00000000;
-			for (int i = 0; i < vertexVals.length; i++) {
-				vertexIn |= (vertexVals[idxRemap[i]] ? 1 : 0) << i;
-			}
+					var vertexIn = 0b00000000;
+					for (int i = 0; i < vertexVals.length; i++) {
+						vertexIn |= (vertexVals[idxRemap[i]] ? 1 : 0) << i;
+					}
 
-			triangulation(
-					vertexIn,
-					curPos[0], //cursor0.getLongPosition(0),
-					curPos[1], //cursor0.getLongPosition(1),
-					curPos[2], //cursor0.getLongPosition(2),
-					vertices,
-					interpolationPoints
-			);
-		});
+					triangulation(
+							vertexIn,
+							curPos[0],
+							curPos[1],
+							curPos[2],
+							vertices,
+							interpolationPoints
+					);
+				});
 		return vertices.toArray();
 	}
 

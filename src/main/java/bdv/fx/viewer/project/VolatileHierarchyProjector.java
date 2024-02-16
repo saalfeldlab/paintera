@@ -28,27 +28,28 @@
  */
 package bdv.fx.viewer.project;
 
-import bdv.viewer.render.ProjectorUtils;
 import bdv.viewer.render.VolatileProjector;
-import net.imglib2.*;
+import net.imglib2.FinalInterval;
+import net.imglib2.IterableInterval;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.loops.LoopBuilder;
-import net.imglib2.parallel.Parallelization;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.operators.SetZero;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
-import net.imglib2.view.BundleView;
+import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.Views;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -115,14 +116,9 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	protected final IterableInterval<B> iterableTarget;
 
 	/**
-	 * Number of threads to use for rendering
-	 */
-	private final int numThreads;
-
-	/**
 	 * Executor service to be used for rendering
 	 */
-	private final ExecutorService executorService;
+	protected final TaskExecutor taskExecutor;
 
 	/**
 	 * Time needed for rendering the last frame, in nano-seconds.
@@ -145,16 +141,14 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	 * Flag to indicate that someone is trying to {@link #cancel()} rendering.
 	 */
 	protected final AtomicBoolean canceled = new AtomicBoolean();
-	protected final Object setTargetLock = new Object();
 
 	public VolatileHierarchyProjector(
 			final List<? extends RandomAccessible<A>> sources,
 			final Converter<? super A, B> converter,
 			final RandomAccessibleInterval<B> target,
-			final int numThreads,
-			final ExecutorService executorService) {
+			final TaskExecutor taskExecutor) {
 
-		this(sources, converter, target, ArrayImgs.bytes(Intervals.dimensionsAsLongArray(target)), numThreads, executorService);
+		this(sources, converter, target, ArrayImgs.bytes(Intervals.dimensionsAsLongArray(target)), taskExecutor);
 	}
 
 	public VolatileHierarchyProjector(
@@ -162,8 +156,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			final Converter<? super A, B> converter,
 			final RandomAccessibleInterval<B> target,
 			final RandomAccessibleInterval<ByteType> mask,
-			final int numThreads,
-			final ExecutorService executorService) {
+			final TaskExecutor taskExecutor) {
 
 		this.converter = converter;
 		this.target = target;
@@ -182,8 +175,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		max[1] = target.max(1);
 		sourceInterval = new FinalInterval(min, max);
 
-		this.numThreads = numThreads;
-		this.executorService = executorService;
+		this.taskExecutor = taskExecutor;
 
 		lastFrameRenderNanoTime = -1;
 		clearMask();
@@ -213,13 +205,12 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	}
 
 	/**
-	 * Set all pixels in target to 100% transparent zero, and mask to all
-	 * Integer.MAX_VALUE.
+	 * Set all mask values to Byte.MAX_VALUE. This will ensure all target values are re-render on the next pass.
 	 */
 	public void clearMask() {
 
 		try {
-			LoopBuilder.setImages(mask).multiThreaded().forEachPixel(val -> val.set(Byte.MAX_VALUE));
+			LoopBuilder.setImages(mask).multiThreaded(taskExecutor).forEachPixel(val -> val.set(Byte.MAX_VALUE));
 		} catch (RuntimeException e) {
 			if (!e.getMessage().contains("Interrupted")) {
 				throw e;
@@ -233,20 +224,16 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	 */
 	private void clearUntouchedTargetPixels() {
 
-		final int[] data = ProjectorUtils.getARGBArrayImgData(target);
-		if (data != null) {
-			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-			final int size = (int)Intervals.numElements(target);
-			for (int i = 0; i < size; ++i) {
-				if (maskCursor.next().get() == Byte.MAX_VALUE)
-					data[i] = 0;
-			}
-		} else {
-			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-			for (final B t : iterableTarget) {
-				if (maskCursor.next().get() == Byte.MAX_VALUE)
-					t.setZero();
-			}
+		try {
+			LoopBuilder.setImages(Views.interval(new BundleView<>(target), target), mask)
+					.multiThreaded(taskExecutor)
+					.forEachPixel((targetRA, maskVal) -> {
+						if (maskVal.get() == Byte.MAX_VALUE) {
+							targetRA.get().setZero();
+						}
+					});
+		} catch (RuntimeException e) {
+			Thread.currentThread().interrupt();
 		}
 	}
 
@@ -262,45 +249,29 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		final long startTimeIo = iostat.getIoNanoTime();
 		final long startTimeIoCumulative = iostat.getCumulativeIoNanoTime();
 
-		final int targetHeight = (int) target.dimension(1);
-		final int numTasks = 1; //numThreads <= 1 ? 1 : Math.min(numThreads * 10, targetHeight);
-		final double taskHeight = (double) targetHeight / numTasks;
-		final int[] taskStartHeights = new int[numTasks + 1];
-		for (int i = 0; i < numTasks; ++i) {
-			taskStartHeights[i] = (int)(i * taskHeight);
-		}
-		taskStartHeights[numTasks] = targetHeight;
-
 		valid = false;
 
-		final boolean createExecutor = (executorService == null);
-		final ExecutorService ex = createExecutor ? Executors.newFixedThreadPool(numThreads) : executorService;
 		int resolutionLevel;
-		try {
-			/*
-			 * After the for loop, resolutionLevel is the highest (coarsest)
-			 * resolution for which all pixels could be filled from valid data. This
-			 * means that in the next pass, i.e., map() call, levels up to
-			 * resolutionLevel have to be re-rendered.
-			 */
-			for (resolutionLevel = 0; resolutionLevel < numInvalidLevels && !valid; ++resolutionLevel) {
-				final List<Callable<Void>> tasks = new ArrayList<>(numTasks);
-				valid = true;
-				numInvalidPixels.set(0);
-				for (int i = 0; i < numTasks; ++i) {
-					tasks.add(createMapTask((byte)resolutionLevel, taskStartHeights[i], taskStartHeights[i + 1]));
-				}
-				try {
-					ex.invokeAll(tasks);
-				} catch (final InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-				if (canceled.get())
-					return false;
+		/*
+		 * After the for loop, resolutionLevel is the highest (coarsest)
+		 * resolution for which all pixels could be filled from valid data. This
+		 * means that in the next pass, i.e., map() call, levels up to
+		 * resolutionLevel have to be re-rendered.
+		 */
+		for (resolutionLevel = 0; resolutionLevel < numInvalidLevels && !valid; ++resolutionLevel) {
+			final List<Callable<Void>> tasks = new ArrayList<>();
+			valid = true;
+			numInvalidPixels.set(0);
+			final byte idx = (byte) resolutionLevel;
+			tasks.add(Executors.callable(() -> map(idx, -1, -1), null));
+
+			try {
+				taskExecutor.getExecutorService().invokeAll(tasks);
+			} catch (final InterruptedException e) {
+				canceled.set(true);
 			}
-		} finally {
-			if (createExecutor)
-				ex.shutdown();
+			if (canceled.get())
+				return false;
 		}
 
 		if (clearUntouchedTargetPixels && !canceled.get())
@@ -308,22 +279,13 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 
 		final long lastFrameTime = stopWatch.nanoTime();
 		lastFrameIoNanoTime = iostat.getIoNanoTime() - startTimeIo;
-		lastFrameRenderNanoTime = lastFrameTime - (iostat.getCumulativeIoNanoTime() - startTimeIoCumulative) / numThreads;
+		lastFrameRenderNanoTime = lastFrameTime - (iostat.getCumulativeIoNanoTime() - startTimeIoCumulative) / taskExecutor.getParallelism();
 
 		if (valid)
 			numInvalidLevels = resolutionLevel - 1;
 		valid = numInvalidLevels == 0;
 
 		return !canceled.get();
-	}
-
-	/**
-	 * @return a {@code Callable} that runs
-	 * {@code map(resolutionIndex, startHeight, endHeight)}
-	 */
-	private Callable<Void> createMapTask(final byte resolutionIndex, final int startHeight, final int endHeight) {
-
-		return Executors.callable(() -> map(resolutionIndex, startHeight, endHeight), null);
 	}
 
 	/**
@@ -348,85 +310,33 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		if (canceled.get())
 			return;
 
-		if (true) {
-			//TODO Caleb: For now this seems to be faster, but some proper benchmarks should be performed.
-			//	The previous logic is left below, in the `else` branch.
-			final AtomicInteger myNumInvalidPixels = new AtomicInteger();
+		final AtomicInteger myNumInvalidPixels = new AtomicInteger();
 
-			final TaskExecutor taskExecutor = Parallelization.getTaskExecutor();
-			LoopBuilder.setImages(
-							Views.interval(new BundleView<>(target), sourceInterval),
-							Views.interval(new BundleView<>(sources.get(resolutionIndex)), sourceInterval),
-							Views.interval(mask, sourceInterval)
-					).multiThreaded(taskExecutor)
-					.forEachChunk(chunk -> {
-						if (canceled.get()) {
-							if (!taskExecutor.getExecutorService().isShutdown()) {
-								taskExecutor.getExecutorService().shutdown();
-							}
-							return null;
-						}
-						chunk.forEachPixel((targetVal, sourceVal, maskVal) -> {
-							if (maskVal.get() > resolutionIndex) {
-								synchronized (setTargetLock) {
-									final A a = sourceVal.get();
-									final boolean v = a.isValid();
-									if (v) {
-										converter.convert(a, targetVal.get());
-										maskVal.set(resolutionIndex);
-									} else
-										myNumInvalidPixels.incrementAndGet();
-								}
-							}
-						});
+		LoopBuilder.setImages(
+						Views.interval(new BundleView<>(target), sourceInterval),
+						Views.interval(new BundleView<>(sources.get(resolutionIndex)), sourceInterval),
+						Views.interval(mask, sourceInterval)
+				).multiThreaded(taskExecutor)
+				.forEachChunk(chunk -> {
+					if (canceled.get()) {
+						Thread.currentThread().interrupt();
 						return null;
-					});
-			numInvalidPixels.addAndGet(myNumInvalidPixels.get());
-			if (myNumInvalidPixels.get() != 0)
-				valid = false;
-		} else {
-			final RandomAccess<B> targetRandomAccess = target.randomAccess(target);
-			final RandomAccess<A> sourceRandomAccess = sources.get(resolutionIndex).randomAccess(sourceInterval);
-			final int width = (int) target.dimension(0);
-			final long[] smin = Intervals.minAsLongArray(sourceInterval);
-			int myNumInvalidPixels = 0;
-
-			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-			maskCursor.jumpFwd((long) startHeight * width);
-
-			final int targetMin = (int) target.min(1);
-			for (int y = startHeight; y < endHeight; ++y) {
-				if (canceled.get())
-					return;
-
-				smin[1] = y + targetMin;
-				sourceRandomAccess.setPosition(smin);
-				targetRandomAccess.setPosition(smin);
-
-				for (int x = 0; x < width; ++x) {
-
-					final ByteType maskByte = maskCursor.next();
-					if (maskByte.get() > resolutionIndex) {
-
-						//TODO Caleb: This should be temporary, currently necessary to stop the canvas from flickering.
-						// Fix underlying issue, so we can remove the lock
-						synchronized (setTargetLock) {
-							final A a = sourceRandomAccess.get();
+					}
+					chunk.forEachPixel((targetVal, sourceVal, maskVal) -> {
+						if (maskVal.get() > resolutionIndex) {
+							final A a = sourceVal.get();
 							final boolean v = a.isValid();
 							if (v) {
-								converter.convert(a, targetRandomAccess.get());
-								maskByte.set(resolutionIndex);
+								converter.convert(a, targetVal.get());
+								maskVal.set(resolutionIndex);
 							} else
-								++myNumInvalidPixels;
+								myNumInvalidPixels.incrementAndGet();
 						}
-					}
-					sourceRandomAccess.fwd(0);
-					targetRandomAccess.fwd(0);
-				}
-			}
-			numInvalidPixels.addAndGet(myNumInvalidPixels);
-			if (myNumInvalidPixels != 0)
-				valid = false;
-		}
+					});
+					return null;
+				});
+		numInvalidPixels.addAndGet(myNumInvalidPixels.get());
+		if (myNumInvalidPixels.get() != 0)
+			valid = false;
 	}
 }

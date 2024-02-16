@@ -34,6 +34,7 @@ import bdv.viewer.render.AccumulateProjectorFactory;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.type.numeric.ARGBType;
 
 import java.util.concurrent.ExecutorService;
@@ -111,8 +112,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Pi
 			final double[] screenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
-			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
+			final TaskExecutor renderingTaskExecutor,
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl) {
@@ -123,8 +123,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Pi
 				screenScales,
 				targetRenderNanos,
 				doubleBuffered,
-				numRenderingThreads,
-				renderingExecutorService,
+			  renderingTaskExecutor,
 				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl,

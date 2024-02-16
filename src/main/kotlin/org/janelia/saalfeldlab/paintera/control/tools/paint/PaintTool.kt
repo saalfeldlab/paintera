@@ -44,9 +44,9 @@ abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectPr
 
 	abstract override val keyTrigger: List<KeyCode>
 
-    protected val activeState by activeSourceStateProperty.nullableVal()
+	protected val activeState by activeSourceStateProperty.nullableVal()
 
-    private val activePaintContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
+	private val activePaintContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
 	val statePaintContext by activePaintContextBinding.nullableVal()
 
 	val brushPropertiesBinding = activePaintContextBinding.createNullableValueBinding { it?.brushProperties }
@@ -154,10 +154,10 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val idService: IdService
 	val paintSelection: () -> Long?
 	val brushProperties: BrushProperties
-	val refreshMeshes : () -> Unit
+	val refreshMeshes: () -> Unit
 
 	fun getMaskForLabel(label: Long): Converter<D, BoolType>
-	fun getBlocksForLabel(level : Int, label: Long): Array<Interval>
+	fun getBlocksForLabel(level: Int, label: Long): Array<Interval>
 	fun nextId(activate: Boolean): Long
 	fun nextId(): Long = nextId(false)
 }

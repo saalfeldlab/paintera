@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -59,6 +59,8 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -116,7 +118,20 @@ public class PainteraBaseView {
 
 	private final ExecutorService paintQueue = Executors.newFixedThreadPool(1);
 
-	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
+	private final ExecutorService propagationQueue;
+
+	{
+		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
+			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+			worker.setDaemon(true);
+			worker.setPriority(4);
+			worker.setName("propagation-queue-" + worker.getPoolIndex());
+			return worker;
+		};
+
+		propagationQueue = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2), factory, null, false);
+
+	}
 
 	private final SharedQueue sharedQueue;
 
@@ -150,7 +165,7 @@ public class PainteraBaseView {
 		this.keyAndMouseBindings = keyAndMouseBindings;
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo.composites()))
-				.numRenderingThreads(Math.min(3, Math.max(1, Runtime.getRuntime().availableProcessors() / 3)));
+				.numRenderingThreads(Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
 		this.views = new OrthogonalViews<>(
 				manager,
 				this.sharedQueue,
@@ -357,15 +372,13 @@ public class PainteraBaseView {
 	 * @param <T>        Viewer type of {@code state}
 	 * @return the {@link ConnectomicsRawState} that was built from the inputs and added to the viewer
 	 */
-	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addConnectomicsRawSource(
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addMultiscaleConnectomicsRawSource(
 			final RandomAccessibleInterval<D>[] data,
 			final double[][] resolution,
 			final double[][] offset,
 			final double min,
 			final double max,
 			final String name) {
-
-
 
 		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
 				new RaiBackendRaw<D, T>(data, resolution, offset, "test"),
@@ -375,10 +388,9 @@ public class PainteraBaseView {
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		state.converter().setMin(min);
-		state.converter().setMin(max);
+		state.converter().setMax(max);
 		return state;
 	}
-
 
 	/**
 	 * Convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsRawState}
@@ -401,7 +413,7 @@ public class PainteraBaseView {
 			final double max,
 			final String name) {
 
-		return addConnectomicsRawSource(
+		return addMultiscaleConnectomicsRawSource(
 				new RandomAccessibleInterval[]{data},
 				new double[][]{resolution},
 				new double[][]{offset},
@@ -416,7 +428,7 @@ public class PainteraBaseView {
 	 * If only a single scale is provided, the resulting {@link ConnectomicsLabelState} will be single scale.
 	 *
 	 * @param data             array of input data, each should be a scale level, mapping to the resolution and offset
-	 * @param resolution      array of voxel size per scale
+	 * @param resolution       array of voxel size per scale
 	 * @param offset           array of offset in global coordinates per scale
 	 * @param maxId            the maximum value in {@code data}
 	 * @param name             name for source
@@ -474,7 +486,7 @@ public class PainteraBaseView {
 			LabelBlockLookup labelBlockLookup) {
 
 		return this.addConnectomicsLabelSource(
-				new RandomAccessibleInterval[]{ data },
+				new RandomAccessibleInterval[]{data},
 				new double[][]{resolution},
 				new double[][]{offset},
 				maxId,
@@ -511,8 +523,10 @@ public class PainteraBaseView {
 	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
 	 */
 	public void stop() {
-		// ensure that the application is in the default mode when the sources are shutting down
-		setDefaultToolMode();
+		// exit current mode, and don't active another when shutting down;
+		final ControlMode currentMode = activeModeProperty.get();
+		if (currentMode != null) currentMode.exit();
+		activeModeProperty.set(null);
 
 		LOG.debug("Notifying sources about upcoming shutdown");
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
@@ -524,9 +538,7 @@ public class PainteraBaseView {
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
 
-		this.orthogonalViews().getTopLeft().viewer().stop();
-		this.orthogonalViews().getTopRight().viewer().stop();
-		this.orthogonalViews().getBottomLeft().viewer().stop();
+		this.orthogonalViews().stop();
 	}
 
 	/**

@@ -13,10 +13,10 @@ import javafx.scene.image.Image;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
+import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -35,7 +34,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final long[] dimensions = {1, 1};
+	private final long[] dimensions = {0, 0};
 
 	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
 
@@ -49,7 +48,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final ThreadGroup threadGroup;
 
-	protected final Supplier<ViewerState> viewerState;
+	protected final Supplier<ViewerState> viewerStateSupplier;
 
 	protected final Function<Source<?>, Interpolation> interpolation;
 
@@ -59,34 +58,26 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long targetRenderNanos;
 
-	private final int numRenderingThreads;
-
-	private final ExecutorService renderingExecutorService;
+	private final TaskExecutor renderingTaskExecutor;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
 	public RenderUnit(
 			final ThreadGroup threadGroup,
-			final Supplier<ViewerState> viewerState,
+			final Supplier<ViewerState> viewerStateSupplier,
 			final Function<Source<?>, Interpolation> interpolation,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
-			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService) {
+			final TaskExecutor renderingTaskExecutor) {
 
 		this.threadGroup = threadGroup;
-		this.viewerState = viewerState;
+		this.viewerStateSupplier = viewerStateSupplier;
 		this.interpolation = interpolation;
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
-		this.numRenderingThreads = numRenderingThreads;
-		this.renderingExecutorService = renderingExecutorService;
-		Paintera.whenPaintable(() -> {
-			update();
-			requestRepaint();
-		});
+		this.renderingTaskExecutor = renderingTaskExecutor;
 	}
 
 	/**
@@ -109,6 +100,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(new FinalInterval(dimensions), screenScaleIndex);
 	}
 
@@ -116,7 +108,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 * Request repaint of the whole screen at highest possible resolution
 	 */
 	public synchronized void requestRepaint() {
-
+		if (renderer == null) return;
 		renderer.requestRepaint(new FinalInterval(dimensions));
 	}
 
@@ -129,6 +121,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)), screenScaleIndex);
 	}
 
@@ -140,6 +133,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final long[] min, final long[] max) {
 
+		if (renderer == null) return;
 		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)));
 	}
 
@@ -166,17 +160,13 @@ public class RenderUnit implements PainterThread.Paintable {
 
 		LOG.debug("Updating render unit");
 
-		if (painterThread != null) {
-			painterThread.stopRendering();
-			painterThread.interrupt();
-		}
-
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
-		renderTarget.setCanvasSize((int)dimensions[0], (int)dimensions[1]);
+		renderTarget.setCanvasSize((int) dimensions[0], (int) dimensions[1]);
 
-		painterThread = new PainterThread(threadGroup, "painter-thread", this);
-		painterThread.setDaemon(true);
-		painterThread.start();
+		if (painterThread == null || !painterThread.isAlive()) {
+			painterThread = new PainterThread(threadGroup, "painter-thread", this);
+			painterThread.start();
+		}
 
 		renderer = new MultiResolutionRendererFX(
 				renderTarget,
@@ -184,8 +174,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				screenScalesProperty.get(),
 				targetRenderNanos,
 				true,
-				numRenderingThreads,
-				renderingExecutorService,
+				renderingTaskExecutor,
 				true,
 				accumulateProjectorFactory,
 				cacheControl
@@ -220,15 +209,16 @@ public class RenderUnit implements PainterThread.Paintable {
 		renderer.getScreenScaleTransform(screenScaleIndex, screenScaleTransform);
 	}
 
+	private AffineTransform3D viewerTransform = new AffineTransform3D();
+
 	@Override
 	public void paint() {
 
 		final List<SourceAndConverter<?>> sacs = new ArrayList<>();
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
 		synchronized (RenderUnit.this) {
-			if (renderer != null && renderTarget != null && viewerState.get().isVisible()) {
-				final ViewerState viewerState = RenderUnit.this.viewerState.get();
+			final ViewerState viewerState = this.viewerStateSupplier.get();
+			if (renderer != null && renderTarget != null && viewerState != null && viewerState.isVisible()) {
 				synchronized (viewerState) {
 					viewerState.getViewerTransform(viewerTransform);
 					timepoint = viewerState.getTimepoint();

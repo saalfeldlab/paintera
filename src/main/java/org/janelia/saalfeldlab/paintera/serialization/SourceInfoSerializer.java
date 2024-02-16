@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,8 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Deserializer.DEPRECATED_STATE_CONVERTERS;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class SourceInfoSerializer implements PainteraSerialization.PainteraSerializer<SourceInfo> {
@@ -154,9 +157,11 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 		}
 
 		final SourceState<?, ?>[] sourceStates = new SourceState[numStates];
+		final boolean[] removeState = new boolean[numStates];
 
 		for (int i = 0; i < numStates && Arrays.stream(sourceStates).anyMatch(Objects::isNull); ++i) {
 			for (int k = 0; k < numStates; ++k) {
+				if (removeState[k]) continue;
 				if (sourceStates[k] == null) {
 					final SourceState<?, ?>[] dependencies = IntStream
 							.of(dependsOn[k].toArray())
@@ -165,24 +170,48 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 					if (Stream.of(dependencies).noneMatch(Objects::isNull)) {
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
 
+						/* In-place conversion of `state` containaing an deprecated source state to a valid one. */
+						final String stateType = state.getAsJsonPrimitive(STATE_TYPE_KEY).getAsString();
+						if (DEPRECATED_STATE_CONVERTERS.containsKey(stateType)) {
+							DEPRECATED_STATE_CONVERTERS.get(stateType).accept(gson, state);
+						}
+
 						final var stateName = state.getAsJsonObject(STATE_KEY).get(STATE_NAME_KEY).getAsString();
 						Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNotification("Loading Source: " + stateName));
 
 						@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>)Class
 								.forName(state.get(STATE_TYPE_KEY).getAsString());
 						LOG.debug("Deserializing state={}, class={}", state, clazz);
-						sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
+						try {
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
+						} catch (Exception e) {
+							//noinspection ConstantValue
+							if (e instanceof N5Helpers.RemoveSourceException) {
+								LOG.info("Removing source: {}", stateName);
+								sourceStates[k] = null;
+								removeState[k] = true;
+								continue;
+							} else {
+								throw e;
+							}
+						}
 						logSourceForDependencies.accept(k, sourceStates[k]);
 					}
 				}
 			}
 		}
 
-		if (Arrays.stream(sourceStates).anyMatch(Objects::isNull)) {
-			throw new RuntimeException("Unable to deserialize all source states");
+		final ArrayList<SourceState<?, ?>> states = new ArrayList<>();
+		for (int i = 0; i < sourceStates.length; i++) {
+			final SourceState<?, ?> sourceState = sourceStates[i];
+			if (sourceState == null && !removeState[i])
+				throw new RuntimeException("Unable to deserialize all source states");
+			else if (sourceState != null)
+				states.add(sourceState);
+
 		}
 
-		return sourceStates;
+		return states.toArray(SourceState[]::new);
 
 	}
 

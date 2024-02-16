@@ -63,7 +63,7 @@ public class OverlayPane<A> extends StackPane {
 	 */
 	final protected CopyOnWriteArrayList<OverlayRendererGeneric<GraphicsContext>> overlayRenderers;
 
-	private final CanvasPane canvasPane = new CanvasPane(1, 1);
+	private final CanvasPane canvasPane = new CanvasPane(0, 0);
 
 	private final ObservableList<Node> children = FXCollections.unmodifiableObservableList(super.getChildren());
 

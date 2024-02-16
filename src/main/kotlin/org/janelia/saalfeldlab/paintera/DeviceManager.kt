@@ -25,7 +25,7 @@ object DeviceManager {
 		}
 	}
 
-	fun closeMidiDevices() {
+	private fun closeMidiDevices() {
 		activeMidiDevices.removeIf {
 			try {
 				it.close()
@@ -37,7 +37,9 @@ object DeviceManager {
 		}
 	}
 
-	fun closeDevices() {
-		closeMidiDevices()
-	}
+	fun closeDevices(): Boolean =
+		if (activeMidiDevices.isNotEmpty()) {
+			closeMidiDevices()
+			true
+		} else false
 }

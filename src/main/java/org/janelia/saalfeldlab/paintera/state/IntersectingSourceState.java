@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
@@ -10,6 +10,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import kotlin.coroutines.EmptyCoroutineContext;
+import kotlinx.coroutines.BuildersKt;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -183,7 +185,14 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 				INTERSECTION_FILL_SERVICE.submit(() -> {
 					getDataSource().invalidateAll();
 					requestRepaint();
-					getMeshManager().createMeshFor(newv);
+					try {
+						BuildersKt.runBlocking(
+								EmptyCoroutineContext.INSTANCE,
+								(scope, continuation) -> getMeshManager().createMeshFor(newv, continuation)
+						);
+					} catch (InterruptedException e) {
+						LOG.debug("create mesh interrupted");
+					}
 				});
 			}
 		});
@@ -232,17 +241,20 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		);
 	}
 
-	@Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
+	@Override
+	public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
 
 		return predicateDataSource;
 	}
 
-	@Override public ObjectBinding<IntersectingSourceStateMeshCacheKey<K1, K2>> getMeshCacheKeyBinding() {
+	@Override
+	public ObjectBinding<IntersectingSourceStateMeshCacheKey<K1, K2>> getMeshCacheKeyBinding() {
 
 		return this.intersectionMeshCacheKeyBinding;
 	}
 
-	@Override public GetBlockListFor<IntersectingSourceStateMeshCacheKey<K1, K2>> getGetBlockListFor() {
+	@Override
+	public GetBlockListFor<IntersectingSourceStateMeshCacheKey<K1, K2>> getGetBlockListFor() {
 
 		return this.getGetUnionBlockListFor;
 	}
@@ -282,7 +294,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		}
 	}
 
-	@Override public void onAdd(PainteraBaseView paintera) {
+	@Override
+	public void onAdd(PainteraBaseView paintera) {
 
 		paintera.viewer3D().getMeshesGroup().getChildren().add(meshManager.getMeshesGroup());
 
@@ -302,7 +315,14 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		});
 
 		colorProperty.addListener((obs, old, newv) -> this.requestRepaint());
-		getMeshManager().createMeshFor(getMeshCacheKeyBinding().get());
+		try {
+			BuildersKt.runBlocking(
+					EmptyCoroutineContext.INSTANCE,
+					(scope, continuation) -> getMeshManager().createMeshFor(getMeshCacheKeyBinding().get(), continuation)
+			);
+		} catch (InterruptedException e) {
+			LOG.debug("create mesh interrupted");
+		}
 	}
 
 	private void requestRepaint() {
@@ -310,7 +330,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		requestRepaintProperty.set(true);
 	}
 
-	@Override public void onRemoval(SourceInfo paintera) {
+	@Override
+	public void onRemoval(SourceInfo paintera) {
 
 		LOG.info("Removed IntersectingSourceState {}", nameProperty().get());
 		meshManager.removeAllMeshes();
@@ -328,7 +349,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	public void refreshMeshes() {
 
-		this.meshManager.refreshMeshes();
+		meshManager.refreshMeshes();
 	}
 
 	public MeshManagerWithSingleMesh<IntersectingSourceStateMeshCacheKey<K1, K2>> getMeshManager() {
@@ -385,9 +406,9 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 			final int[] cellDimensions;
 			if (seedRAI instanceof ConvertedRandomAccessibleInterval
-					&& ((ConvertedRandomAccessibleInterval<?, ?>)seedRAI).getSource() instanceof CachedCellImg) {
-				var crai2 = (ConvertedRandomAccessibleInterval<?, ?>)seedRAI;
-				var cachedCellImg = (CachedCellImg<?, ?>)crai2.getSource();
+					&& ((ConvertedRandomAccessibleInterval<?, ?>) seedRAI).getSource() instanceof CachedCellImg) {
+				var crai2 = (ConvertedRandomAccessibleInterval<?, ?>) seedRAI;
+				var cachedCellImg = (CachedCellImg<?, ?>) crai2.getSource();
 				var grid = cachedCellImg.getCellGrid();
 				cellDimensions = new int[grid.numDimensions()];
 				grid.cellDimensions(cellDimensions);
@@ -407,7 +428,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 			// TODO cannot use VolatileViews because we need access to cache
 			final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedByteType> vimg = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-					(CachedCellImg<UnsignedByteType, VolatileByteArray>)img,
+					(CachedCellImg<UnsignedByteType, VolatileByteArray>) img,
 					queue,
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 
@@ -474,7 +495,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	}
 
 	private static <B extends BooleanType<B>> boolean fillFromSeedPoints(RandomAccessibleInterval<B> fillRAI, RandomAccessibleInterval<UnsignedByteType> img,
-			Point[] seedPointsCopy) {
+	                                                                     Point[] seedPointsCopy) {
 
 		LOG.debug("Filling from seed points");
 		boolean filledFromSeed = false;
@@ -487,7 +508,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 						seed,
 						new UnsignedByteType(1),
 						new DiamondShape(1),
-						(BiPredicate<B, UnsignedByteType>)(source, target) -> source.get() && target.get() == 0
+						(BiPredicate<B, UnsignedByteType>) (source, target) -> source.get() && target.get() == 0
 				);
 				filledFromSeed = true;
 			}
@@ -496,7 +517,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	}
 
 	private static <B extends BooleanType<B>> HashSet<Point> detectIntersectionPoints(RandomAccessibleInterval<B> seedRAI, RandomAccessibleInterval<B> fillRAI,
-			RandomAccessibleInterval<UnsignedByteType> cell) {
+	                                                                                  RandomAccessibleInterval<UnsignedByteType> cell) {
 
 		LOG.trace(
 				"Detecting seed point in cell {} {}",

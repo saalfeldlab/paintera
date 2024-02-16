@@ -11,6 +11,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import kotlin.coroutines.EmptyCoroutineContext;
+import kotlinx.coroutines.BuildersKt;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
@@ -165,17 +167,20 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return this.threshold;
 	}
 
-	@Override public ObjectBinding<ThresholdMeshCacheKey> getMeshCacheKeyBinding() {
+	@Override
+	public ObjectBinding<ThresholdMeshCacheKey> getMeshCacheKeyBinding() {
 
 		return meshCacheKeyProperty;
 	}
 
-	@Override public GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListFor() {
+	@Override
+	public GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListFor() {
 
 		return getGetBlockListForMeshCaheKey();
 	}
 
-	@Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
+	@Override
+	public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
 
 		return getDataSource();
 	}
@@ -217,7 +222,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	public MeshSettings getMeshSettings() {
 
-		return this.meshes.getSettings();
+		return this.meshes.getGlobalSettings();
 	}
 
 	public void refreshMeshes() {
@@ -266,7 +271,14 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
 
-		meshes.createMeshFor(getThresholdBounds());
+		try {
+			BuildersKt.runBlocking(
+					EmptyCoroutineContext.INSTANCE,
+					(scope, continuation) -> meshes.createMeshFor(getThresholdBounds(), continuation)
+			);
+		} catch (InterruptedException e) {
+			LOG.debug("create mesh interrupted");
+		}
 	}
 
 	public Bounds getThresholdBounds() {
@@ -289,17 +301,20 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			this.bounds = bounds;
 		}
 
-		@Override public int hashCode() {
+		@Override
+		public int hashCode() {
 
 			return new HashCodeBuilder().append(bounds).toHashCode();
 		}
 
-		@Override public boolean equals(Object obj) {
+		@Override
+		public boolean equals(Object obj) {
 
-			return obj instanceof ThresholdMeshCacheKey && ((ThresholdMeshCacheKey)obj).bounds.equals(this.bounds);
+			return obj instanceof ThresholdMeshCacheKey && ((ThresholdMeshCacheKey) obj).bounds.equals(this.bounds);
 		}
 
-		@Override public String toString() {
+		@Override
+		public String toString() {
 
 			return "ThresholdMeshCacheKey: (" + bounds.toString() + ")";
 		}

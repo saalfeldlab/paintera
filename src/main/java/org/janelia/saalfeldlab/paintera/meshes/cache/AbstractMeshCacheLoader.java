@@ -64,10 +64,9 @@ public abstract class AbstractMeshCacheLoader<T, K>
 				Intervals.expand(key.interval(), smoothingIterations + 2)
 		).generateMesh();
 
-		Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
-
-		if (key.smoothingIterations() > 0)
-			meshMesh.smooth(key.smoothingLambda(), key.smoothingIterations());
+		Mesh meshMesh = new Mesh(vertices, key.interval(), transform, key.overlap());
+		if (smoothingIterations > 0)
+			meshMesh.smooth(key.smoothingLambda(), smoothingIterations);
 
 		meshMesh.averageNormals();
 

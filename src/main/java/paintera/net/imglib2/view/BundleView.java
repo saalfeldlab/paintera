@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package net.imglib2.view;
+package paintera.net.imglib2.view;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
@@ -51,6 +51,11 @@ import net.imglib2.converter.AbstractConvertedRandomAccess;
  * {@link RandomAccess RandomAccess&lt;RandomAccess&lt;T&gt;&gt;} will preserve
  * this relative offset while absolute positioning will reset it, so, you can
  * do that, but you should know why :).</p>
+ * <p>
+ * NOTE: Copied from imglib2 to expose as public while
+ * <a href="https://github.com/imglib/imglib2/issues/351">Imglib2 Issue #351</a>
+ * is being resolved.
+ * </p>
  *
  * @param <T>
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;

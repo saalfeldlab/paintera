@@ -33,13 +33,13 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String MIN_LABEL_RATIO_KEY = "minLabelRatio";
 
+	private static final String OVERLAP_KEY = "overlap";
+
 	private static final String OPACITY_KEY = "opacity";
 
 	private static final String DRAW_MODE_KEY = "drawMode";
 
 	private static final String CULL_FACE_KEY = "cullFace";
-
-	private static final String INFLATE_KEY = "inflate";
 
 	private static final String IS_VISIBLE_KEY = "isVisible";
 
@@ -54,11 +54,11 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 		Optional.ofNullable(map.get(SMOOTHING_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setSmoothingIterations);
 		Optional.ofNullable(map.get(SMOOTHING_LAMBDA_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setSmoothingLambda);
 		Optional.ofNullable(map.get(OPACITY_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setOpacity);
-		Optional.ofNullable(map.get(INFLATE_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setInflate);
 		Optional.ofNullable(map.get(DRAW_MODE_KEY)).map(el -> (DrawMode)context.deserialize(el, DrawMode.class)).ifPresent(settings::setDrawMode);
 		Optional.ofNullable(map.get(CULL_FACE_KEY)).map(el -> (CullFace)context.deserialize(el, CullFace.class)).ifPresent(settings::setCullFace);
 		Optional.ofNullable(map.get(IS_VISIBLE_KEY)).map(JsonElement::getAsBoolean).ifPresent(settings::setVisible);
 		Optional.ofNullable(map.get(MIN_LABEL_RATIO_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setMinLabelRatio);
+		Optional.ofNullable(map.get(OVERLAP_KEY)).map(JsonElement::getAsBoolean).ifPresent(settings::setOverlap);
 		Optional.ofNullable(map.get(LEVEL_OF_DETAIL_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setLevelOfDetail);
 		return settings;
 	}
@@ -109,11 +109,11 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 		if (defaults.getMinLabelRatio() != src.getMinLabelRatioProperty().get())
 			map.addProperty(MIN_LABEL_RATIO_KEY, src.getMinLabelRatioProperty().get());
 
+		if (defaults.getOverlap() != src.getOverlapProperty().get())
+			map.addProperty(OVERLAP_KEY, src.getOverlapProperty().get());
+
 		if (defaults.getOpacity() != src.getOpacityProperty().get())
 			map.addProperty(OPACITY_KEY, src.getOpacityProperty().get());
-
-		if (defaults.getInflate() != src.getInflate())
-			map.addProperty(INFLATE_KEY, src.getInflate());
 
 		if (defaults.isVisible() != src.isVisible())
 			map.addProperty(IS_VISIBLE_KEY, src.isVisible());

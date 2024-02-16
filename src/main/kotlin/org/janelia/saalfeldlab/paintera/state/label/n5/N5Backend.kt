@@ -29,9 +29,9 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
 			propagationQueue: ExecutorService,
 		): N5Backend<D, T>
 				where D : IntegerType<D>,
-					  D : NativeType<D>,
-					  T : Volatile<D>,
-					  T : NativeType<T> {
+				      D : NativeType<D>,
+				      T : Volatile<D>,
+				      T : NativeType<T> {
 
 			val metadataState = MetadataUtils.createMetadataState(container, dataset).get()
 			return createFrom(metadataState, projectDirectory, propagationQueue)
@@ -45,9 +45,9 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
 			propagationQueue: ExecutorService,
 		): N5Backend<D, T>
 				where D : IntegerType<D>,
-					  D : NativeType<D>,
-					  T : Volatile<D>,
-					  T : NativeType<T> {
+				      D : NativeType<D>,
+				      T : Volatile<D>,
+				      T : NativeType<T> {
 
 			return when (metadataState.metadata) {
 				is N5PainteraLabelMultiScaleGroup -> N5BackendPainteraDataset(

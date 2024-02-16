@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
@@ -230,9 +230,9 @@ public class Masks {
 		);
 	}
 
-	public static Supplier<String> canvasTmpDirDirectorySupplier(final Supplier<String> root) {
+	public static Supplier<String> canvasTmpDirDirectorySupplier(final String projectCacheDir) {
 
-		return new TmpDirectoryCreator(() -> Paths.get(root.get(), "canvases"), "canvas-");
+		return new TmpDirectoryCreator(Paths.get(projectCacheDir, "canvases"), "canvas-");
 	}
 
 }

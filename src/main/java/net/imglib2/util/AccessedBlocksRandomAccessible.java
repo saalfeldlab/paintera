@@ -44,7 +44,7 @@ public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<R
 
 		this(
 				source,
-				IntStream.range(0, grid.numDimensions()).map(grid::cellDimension).toArray(),
+				grid.getCellDimensions(),
 				grid.getGridDimensions()
 		);
 	}
@@ -60,17 +60,22 @@ public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<R
 
 	public void clear() {
 
-		this.visitedBlocks.clear();
+		synchronized (visitedBlocks) {
+			visitedBlocks.clear();
+		}
 	}
 
 	protected void addBlockId(final long id) {
 
-		this.visitedBlocks.add(id);
+		synchronized (visitedBlocks) {
+			visitedBlocks.add(id);
+		}
 	}
 
 	public long[] listBlocks() {
-
-		return visitedBlocks.toArray();
+		synchronized (visitedBlocks) {
+			return visitedBlocks.toArray();
+		}
 	}
 
 	public CellGrid getGrid() {

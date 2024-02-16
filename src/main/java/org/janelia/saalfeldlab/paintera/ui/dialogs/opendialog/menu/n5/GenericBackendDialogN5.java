@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.SharedQueue;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -37,8 +37,8 @@ import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -69,6 +69,7 @@ import se.sawano.java.text.AlphanumericComparator;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -163,13 +164,7 @@ public class GenericBackendDialogN5 implements Closeable {
 				.ofNullable(getDatasetPath())
 				.map(d -> d.split("/"))
 				.filter(a -> a.length > 0)
-				.orElseGet(() -> {
-					if ("/".equals(getDatasetPath())) {
-						return new String[]{"root"};
-					} else {
-						return new String[]{null};
-					}
-				});
+				.orElseGet(() -> new String[]{null});
 		return entries[entries.length - 1];
 	}, activeN5Node);
 
@@ -230,9 +225,9 @@ public class GenericBackendDialogN5 implements Closeable {
 				}
 			}
 
-			final var oldUrl = Optional.ofNullable(oldContainer).map(N5ContainerState::getUrl).orElse(null);
-			final var newUrl = Optional.ofNullable(newContainer).map(N5ContainerState::getUrl).orElse(null);
-			LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUrl, newUrl);
+			final var oldUri = Optional.ofNullable(oldContainer).map(N5ContainerState::getUri).orElse(null);
+			final var newUri = Optional.ofNullable(newContainer).map(N5ContainerState::getUri).orElse(null);
+			LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUri, newUri);
 		});
 
 		this.isContainerValid.addListener((obs, oldv, newv) -> cancelDiscovery());
@@ -276,10 +271,19 @@ public class GenericBackendDialogN5 implements Closeable {
 				LOG.debug("Updating dataset choices!");
 				discoveryIsActive.set(true);
 				resetDatasetChoices(); // clean up whatever is currently shown
+				mapRootToContainerName(choices);
 				datasetChoices.set(FXCollections.synchronizedObservableMap(FXCollections.observableMap(choices)));
 				discoveryIsActive.set(false);
 			});
 		}
+	}
+
+	private <T extends Map<String, N5TreeNode>> T mapRootToContainerName(T choices) {
+		if (choices.containsKey("/")) {
+			var node = choices.remove("/");
+			choices.put(getContainerName(), node);
+		}
+		return choices;
 	}
 
 	private void updateDatasetChoices(N5Reader newReader) {
@@ -317,7 +321,7 @@ public class GenericBackendDialogN5 implements Closeable {
 								return validDatasetChoices;
 							})
 					.onSuccess((event, task) -> {
-						datasetChoices.set(task.getValue());
+						datasetChoices.set(mapRootToContainerName(task.getValue()));
 						previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices.getValue()));
 					}) /* set and cache the choices on success*/
 					.onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
@@ -402,10 +406,11 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	public FragmentSegmentAssignmentState assignments() throws IOException {
 
-		if (getContainer().isReadOnly())
-			throw new N5ReadOnlyException();
-
 		final var writer = getContainer().getWriter();
+
+		if (writer == null) {
+			throw new N5ReadOnlyException();
+		}
 		return N5Helpers.assignments(writer, getDatasetPath());
 	}
 
@@ -508,7 +513,16 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	private String getDatasetPath() {
 
-		return this.datasetPath.get();
+		var datasetPath = this.datasetPath.get();
+		if (Objects.equals(datasetPath, "/")) {
+			return getContainerName();
+		}
+		return datasetPath;
+	}
+
+	private String getContainerName() {
+		var pathParts = URI.create(containerState.get().getUri().getPath()).getPath().split("/");
+		return pathParts[pathParts.length - 1];
 	}
 
 	public N5TreeNode getN5TreeNode() {

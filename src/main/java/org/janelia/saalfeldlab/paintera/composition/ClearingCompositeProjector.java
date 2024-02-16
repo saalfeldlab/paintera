@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.composition;
 
 import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Cursor;
@@ -9,6 +10,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -32,26 +34,24 @@ public class ClearingCompositeProjector<A extends Type<A>> extends CompositeProj
 		}
 
 		@Override
-		public VolatileProjector createAccumulateProjector(
-				final ArrayList<VolatileProjector> sourceProjectors,
-				final ArrayList<Source<?>> sources,
-				final ArrayList<? extends RandomAccessible<? extends A>> sourceScreenImages,
-				final RandomAccessibleInterval<A> targetScreenImage,
-				final int numThreads,
-				final ExecutorService executorService) {
+		public VolatileProjector createProjector(
+				List<VolatileProjector> sourceProjectors,
+				List<SourceAndConverter<?>> sources,
+				List<? extends RandomAccessible<? extends A>> sourceScreenImages,
+				RandomAccessibleInterval<A> targetScreenImage,
+				int numThreads,
+				ExecutorService executorService) {
 
 			final ClearingCompositeProjector<A> projector = new ClearingCompositeProjector<>(
 					sourceProjectors,
 					sourceScreenImages,
 					targetScreenImage,
-					clearValue,
-					numThreads,
-					executorService
+					clearValue
 			);
 
 			final ArrayList<Composite<A, A>> activeComposites = new ArrayList<>();
-			for (final Source<?> activeSource : sources) {
-				activeComposites.add(composites.get(activeSource));
+			for (final var activeSource : sources) {
+				activeComposites.add(composites.get(activeSource.getSpimSource()));
 			}
 
 			projector.setComposites(activeComposites);
@@ -63,14 +63,12 @@ public class ClearingCompositeProjector<A extends Type<A>> extends CompositeProj
 	private final A clearValue;
 
 	public ClearingCompositeProjector(
-			final ArrayList<VolatileProjector> sourceProjectors,
-			final ArrayList<? extends RandomAccessible<? extends A>> sources,
+			final List<VolatileProjector> sourceProjectors,
+			final List<? extends RandomAccessible<? extends A>> sources,
 			final RandomAccessibleInterval<A> target,
-			final A clearValue,
-			final int numThreads,
-			final ExecutorService executorService) {
+			final A clearValue) {
 
-		super(sourceProjectors, sources, target, numThreads, executorService);
+		super(sourceProjectors, sources, target);
 		this.clearValue = clearValue;
 	}
 

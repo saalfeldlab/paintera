@@ -4,6 +4,10 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
+import javafx.stage.DirectoryChooser
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -20,10 +24,12 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
 enum class PainteraMenuItems(
 	private val text: String,
-	private val keys: String,
+	private val keys: String? = null,
 	private val icon: FontAwesomeIcon? = null,
 	private val allowedAction: MenuActionType? = null
 ) {
+	NEW_PROJECT("_New Project", allowedAction = MenuActionType.OpenProject),
+	OPEN_PROJECT("Open _Project", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
 	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
 	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
 	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
@@ -48,56 +54,61 @@ enum class PainteraMenuItems(
 	REPL_ITEM("Show _REPL", PBK.SHOW_REPL_TABS),
 	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS),
 	SHOW_README("Show _Readme", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
-	SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT)
-	;
+	SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
 
-	val menu: MenuItem by lazy { createMenuItem(this) }
+    val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
 
 	companion object {
 
 		private val replDialog = ReplDialog(paintera.gateway.context, { paintera.pane.scene.window }, "paintera" to this)
 
 		//@formatter:off
-		private val namedEventHandler = with(paintera) {
+		private fun PainteraMainWindow.namedEventHandlers():Map<PainteraMenuItems, EventHandler<ActionEvent>> {
 			val getProjectDirectory = { projectDirectory.actualDirectory.absolutePath }
-			mapOf(
-				PBK.OPEN_SOURCE to EventHandler<ActionEvent> { N5Opener().onAction().accept(baseView, getProjectDirectory) },
-				PBK.SAVE to EventHandler<ActionEvent> { saveOrSaveAs() },
-				PBK.SAVE_AS to EventHandler<ActionEvent> { saveAs() },
-				PBK.TOGGLE_MENUBAR_VISIBILITY to EventHandler<ActionEvent> { properties.menuBarConfig.toggleIsVisible() },
-				PBK.TOGGLE_MENUBAR_MODE to EventHandler<ActionEvent> { properties.menuBarConfig.cycleModes() },
-				PBK.TOGGLE_STATUSBAR_VISIBILITY to EventHandler<ActionEvent> { properties.statusBarConfig.toggleIsVisible() },
-				PBK.TOGGLE_STATUSBAR_MODE to EventHandler<ActionEvent> { properties.statusBarConfig.cycleModes() },
-				PBK.TOGGLE_SIDE_BAR to EventHandler<ActionEvent> { properties.sideBarConfig.toggleIsVisible() },
-				PBK.TOGGLE_TOOL_BAR to EventHandler<ActionEvent> { properties.toolBarConfig.toggleIsVisible() },
-				PBK.QUIT to EventHandler<ActionEvent> { askAndQuit() },
-				PBK.CYCLE_CURRENT_SOURCE_FORWARD to EventHandler<ActionEvent> { baseView.sourceInfo().incrementCurrentSourceIndex() },
-				PBK.CYCLE_CURRENT_SOURCE_BACKWARD to EventHandler<ActionEvent> { baseView.sourceInfo().decrementCurrentSourceIndex() },
-				PBK.TOGGLE_CURRENT_SOURCE_VISIBILITY to EventHandler<ActionEvent> {
+			return mapOf(
+				NEW_PROJECT to EventHandler<ActionEvent> { Paintera.application.loadProject() },
+                OPEN_PROJECT to EventHandler<ActionEvent> {
+					DirectoryChooser().showDialog(paintera.pane.scene.window)?.let{ newProject ->
+						Paintera.application.loadProject(newProject.path)
+					}
+				},
+				OPEN_SOURCE to EventHandler<ActionEvent> { N5Opener().onAction().accept(baseView, getProjectDirectory) },
+				SAVE to EventHandler<ActionEvent> { saveOrSaveAs() },
+				SAVE_AS to EventHandler<ActionEvent> { saveAs() },
+				TOGGLE_MENU_BAR_VISIBILITY to EventHandler<ActionEvent> { properties.menuBarConfig.toggleIsVisible() },
+				TOGGLE_MENU_BAR_MODE to EventHandler<ActionEvent> { properties.menuBarConfig.cycleModes() },
+				TOGGLE_STATUS_BAR_VISIBILITY to EventHandler<ActionEvent> { properties.statusBarConfig.toggleIsVisible() },
+				TOGGLE_STATUS_BAR_MODE to EventHandler<ActionEvent> { properties.statusBarConfig.cycleModes() },
+				TOGGLE_SIDE_BAR_MENU_ITEM to EventHandler<ActionEvent> { properties.sideBarConfig.toggleIsVisible() },
+				TOGGLE_TOOL_BAR_MENU_ITEM to EventHandler<ActionEvent> { properties.toolBarConfig.toggleIsVisible() },
+				QUIT to EventHandler<ActionEvent> { doSaveAndQuit() },
+				CYCLE_FORWARD to EventHandler<ActionEvent> { baseView.sourceInfo().incrementCurrentSourceIndex() },
+				CYCLE_BACKWARD to EventHandler<ActionEvent> { baseView.sourceInfo().decrementCurrentSourceIndex() },
+				TOGGLE_VISIBILITY to EventHandler<ActionEvent> {
 					CurrentSourceVisibilityToggle(
 						baseView.sourceInfo().currentState()
 					).toggleIsVisible()
 				},
-				PBK.CREATE_NEW_LABEL_DATASET to EventHandler<ActionEvent> { CreateDatasetHandler.createAndAddNewLabelDataset(baseView, getProjectDirectory) },
-				PBK.SHOW_REPL_TABS to EventHandler<ActionEvent> { replDialog.show() },
-				PBK.TOGGLE_FULL_SCREEN to EventHandler<ActionEvent> { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
-				PBK.OPEN_README to EventHandler<ActionEvent> { ReadMeDialog.showReadme() },
-				PBK.OPEN_KEY_BINDINGS to EventHandler<ActionEvent> { KeyBindingsDialog.show() },
-				PBK.FILL_CONNECTED_COMPONENTS to EventHandler<ActionEvent> { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView, getProjectDirectory ) },
-				PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView, getProjectDirectory ) },
-				PBK.RESET_VIEWER_POSITIONS to EventHandler<ActionEvent> { baseView.orthogonalViews().resetPane() },
-				PBK.RESET_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().reset3DAffine() },
-				PBK.CENTER_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().center3DAffine() },
-				PBK.SAVE_3D_PNG to EventHandler<ActionEvent> { baseView.viewer3D().saveAsPng() }
+				NEW_LABEL_SOURCE to EventHandler<ActionEvent> { CreateDatasetHandler.createAndAddNewLabelDataset(baseView, getProjectDirectory) },
+				REPL_ITEM to EventHandler<ActionEvent> { replDialog.show() },
+				FULL_SCREEN_ITEM to EventHandler<ActionEvent> { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
+				SHOW_README to EventHandler<ActionEvent> { ReadMeDialog.showReadme() },
+				SHOW_KEY_BINDINGS to EventHandler<ActionEvent> { KeyBindingsDialog.show() },
+				NEW_CONNECTED_COMPONENT_SOURCE to EventHandler<ActionEvent> { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView, getProjectDirectory ) },
+				NEW_THRESHOLDED_SOURCE to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView, getProjectDirectory ) },
+				RESET_VIEWER_POSITIONS to EventHandler<ActionEvent> { baseView.orthogonalViews().resetPane() },
+				RESET_3D_LOCATION_MENU_ITEM to EventHandler<ActionEvent> { baseView.viewer3D().reset3DAffine() },
+				CENTER_3D_LOCATION_MENU_ITEM to EventHandler<ActionEvent> { baseView.viewer3D().center3DAffine() },
+				SAVE_3D_PNG_MENU_ITEM to EventHandler<ActionEvent> { baseView.viewer3D().saveAsPng() }
 			)
 		}
 		//@formatter:on
 
 		private val namedKeyCombindations by lazy { ControlMode.keyAndMouseBindings.keyCombinations }
 
-		private fun createMenuItem(namedEventHandlerMenuItem: PainteraMenuItems): MenuItem {
-			return with(namedEventHandlerMenuItem) {
-				namedEventHandler[keys]?.let { handler ->
+		private fun createMenuItem(paintera : PainteraMainWindow, namedEventHandlerMenuItem: PainteraMenuItems): MenuItem {
+			return paintera.namedEventHandlers()[namedEventHandlerMenuItem]?.let { handler ->
+				namedEventHandlerMenuItem.run {
 					MenuItem(text).apply {
 						icon?.let { graphic = FontAwesome[it, 1.5] }
 						onAction = handler
@@ -107,8 +118,8 @@ enum class PainteraMenuItems(
 							disableProperty().bind(paintera.baseView.allowedActionsProperty().allowedActionBinding(allowedAction).not())
 						}
 					}
-				} ?: error("No namedActions for $keys")
-			}
+				}
+			} ?: error("No namedActions for $namedEventHandlerMenuItem")
 		}
 	}
 }

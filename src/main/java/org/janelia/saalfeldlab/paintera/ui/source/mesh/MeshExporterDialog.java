@@ -6,71 +6,161 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import org.controlsfx.control.CheckListView;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.util.fx.UIUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// TODO: make more uniform with SegmentMeshExporterDialog
-public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
+public class MeshExporterDialog<K> extends Dialog<MeshExportResult<K>> {
 
-	public enum FILETYPE {
-		obj, binary
+
+	public enum MeshFileFormat {
+		Obj, Binary;
 	}
 
-	private final MeshInfo<T> meshInfo;
+	final int LIST_CELL_HEIGHT = 25;
 
-	private final TextField scale;
+	protected final Spinner<Integer> scale;
 
-	private final TextField dirPath;
+	private final TextField filePathField;
 
-	private String filePath;
+	private final TextField meshFileNameField;
 
-	private MeshExporter<T> meshExporter;
+	private MeshExporter<K> meshExporter;
 
-	private ComboBox<String> fileFormats;
+	private ComboBox<MeshFileFormat> fileFormats;
 
+	private CheckListView<K> checkListView;
+	private CheckBox selectAll;
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog(final MeshInfo<T> meshInfo) {
+	private static String previousFilePath = null;
 
+	public MeshExporterDialog(MeshInfo<K> meshInfo) {
 		super();
-		this.meshInfo = meshInfo;
-		this.dirPath = new TextField();
-		this.setTitle("Export mesh");
-		this.isError = (Bindings.createBooleanBinding(() -> dirPath.getText().isEmpty(), dirPath.textProperty()));
-		final MeshSettings settings = meshInfo.getMeshSettings();
-		this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
-		UIUtils.setNumericTextField(scale, settings.getNumScaleLevels() - 1);
+		this.filePathField = new TextField();
+		if (previousFilePath != null)
+			filePathField.setText(previousFilePath);
+		this.meshFileNameField = new TextField();
+		this.setTitle("Export Mesh ");
+		this.isError = (Bindings.createBooleanBinding(() -> filePathField.getText().isEmpty() || meshFileNameField.getText().isEmpty() || pathExists(), filePathField.textProperty(), meshFileNameField.textProperty()));
+		final K meshKey = meshInfo.getKey();
+		final MeshSettings settings = meshInfo.getManager().getManagedSettings().getMeshSettings(meshKey);
+		this.scale = new Spinner<>(0, settings.getNumScaleLevels() - 1, settings.getFinestScaleLevel());
+		this.scale.setEditable(true);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) {
 				return null;
 			}
-			return new MeshExportResult(
+			previousFilePath = filePathField.getText();
+
+			return new MeshExportResult<>(
 					meshExporter,
-					filePath,
-					Integer.parseInt(scale.getText())
+					resolveFilePath(),
+					scale.getValue(),
+					meshKey
 			);
 		});
 
 		createDialog();
+	}
+
+	public MeshExporterDialog(ObservableList<MeshInfo<K>> meshInfoList) {
+
+		super();
+		this.filePathField = new TextField();
+		if (previousFilePath != null)
+			filePathField.setText(previousFilePath);
+		this.meshFileNameField = new TextField();
+		this.setTitle("Export mesh ");
+		this.checkListView = new CheckListView<>();
+		this.selectAll = new CheckBox("Select All");
+		selectAll.selectedProperty().addListener((obs, oldv, selected) -> {
+			if (selected) {
+				checkListView.getCheckModel().checkAll();
+			} else {
+				checkListView.getCheckModel().clearChecks();
+			}
+		});
+		this.isError = (Bindings.createBooleanBinding(() ->
+						filePathField.getText().isEmpty()
+								|| meshFileNameField.getText().isEmpty()
+								|| checkListView.getItems().isEmpty()
+								|| pathExists(),
+				meshFileNameField.textProperty(),
+				filePathField.textProperty(),
+				checkListView.itemsProperty()
+		));
+
+		int minCommonScaleLevels = Integer.MAX_VALUE;
+		int minCommonScale = Integer.MAX_VALUE;
+		final ObservableList<K> ids = FXCollections.observableArrayList();
+		for (int i = 0; i < meshInfoList.size(); i++) {
+			final MeshInfo<K> info = meshInfoList.get(i);
+			final MeshSettings settings = info.getMeshSettings();
+			ids.add(info.getKey());
+
+			if (minCommonScaleLevels > settings.getNumScaleLevels()) {
+				minCommonScaleLevels = settings.getNumScaleLevels();
+			}
+
+			if (minCommonScale > settings.getFinestScaleLevel()) {
+				minCommonScale = settings.getFinestScaleLevel();
+			}
+		}
+
+		scale = new Spinner<>(minCommonScale, minCommonScaleLevels-1, minCommonScale);
+		scale.setEditable(true);
+
+		setResultConverter(button -> {
+			if (button.getButtonData().isCancelButton()) {
+				return null;
+			}
+			previousFilePath = filePathField.getText();
+
+			return new MeshExportResult<>(
+					meshExporter,
+					resolveFilePath(),
+					scale.getValue(),
+					checkListView.getCheckModel().getCheckedItems()
+			);
+		});
+
+		createMultiKeyDialog(ids);
+
+
+	}
+
+	private boolean pathExists() {
+
+		return Path.of(resolveFilePath()).toFile().exists();
+	}
+
+	@NotNull
+	private String resolveFilePath() {
+		final String file = Path.of(filePathField.getText(), meshFileNameField.getText()).toString();
+		final String path = file.replace("~", System.getProperty("user.home"));
+		return path;
 	}
 
 	private void createDialog() {
@@ -80,20 +170,46 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
 
 		int row = createCommonDialog(contents);
 
+		final Button browseButton = new Button("Browse");
+		browseButton.setOnAction(event -> {
+			final DirectoryChooser directoryChooser = new DirectoryChooser();
+			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
+			if (directory != null) {
+				filePathField.setText(directory.getAbsolutePath());
+			}
+		});
+
+		contents.add(browseButton, 2, row);
+		++row;
+
+		vbox.getChildren().add(contents);
+		this.getDialogPane().setContent(vbox);
+	}
+
+	private void createMultiKeyDialog(final ObservableList<K> keys) {
+
+		final VBox vbox = new VBox();
+		final GridPane contents = new GridPane();
+		int row = createCommonDialog(contents);
+
+		checkListView.setItems(keys);
+		checkListView.getSelectionModel().selectAll();
+		selectAll.setSelected(true);
+		checkListView.prefHeightProperty().bind(Bindings.size(checkListView.itemsProperty().get()).multiply(LIST_CELL_HEIGHT));
+
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
-			if (directory != null) {
-				dirPath.setText(directory.getAbsolutePath());
-				filePath = Paths.get(directory.getAbsolutePath(), "synapses" + meshInfo.getKey().toString()).toString();
-				createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
-			}
+			if (directory != null)
+				filePathField.setText(directory.getAbsolutePath());
 		});
 
 		contents.add(button, 2, row);
 		++row;
 
+		vbox.getChildren().add(selectAll);
+		vbox.getChildren().add(checkListView);
 		vbox.getChildren().add(contents);
 		this.getDialogPane().setContent(vbox);
 	}
@@ -109,13 +225,15 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
 
 		contents.add(new Label("Format"), 0, row);
 
-		final List<String> typeNames = Stream.of(FILETYPE.values()).map(FILETYPE::name).collect(Collectors
+		final List<String> typeNames = Stream.of(MeshFileFormat.values()).map(MeshFileFormat::name).collect(Collectors
 				.toList());
-		final ObservableList<String> options = FXCollections.observableArrayList(typeNames);
-		fileFormats = new ComboBox<>(options);
-		fileFormats.getSelectionModel().select(0);
+		fileFormats = new ComboBox<>();
+		fileFormats.getItems().addAll(MeshFileFormat.values());
+		fileFormats.getSelectionModel().select(MeshFileFormat.Obj);
+		createMeshExporter(MeshFileFormat.Obj);
 		fileFormats.setMinWidth(0);
 		fileFormats.setMaxWidth(Double.POSITIVE_INFINITY);
+		fileFormats.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> createMeshExporter(newVal));
 		contents.add(fileFormats, 1, row);
 		fileFormats.maxWidth(300);
 		GridPane.setFillWidth(fileFormats, true);
@@ -123,8 +241,10 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
 
 		++row;
 
-		contents.add(new Label("Save to:"), 0, row);
-		contents.add(dirPath, 1, row);
+		contents.add(new Label("Name "), 0, row);
+		contents.add(meshFileNameField, 1, row++);
+		contents.add(new Label("Save to "), 0, row);
+		contents.add(filePathField, 1, row);
 
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
@@ -132,16 +252,16 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
 		return row;
 	}
 
-	private void createMeshExporter(final String filetype) {
+	private void createMeshExporter(final MeshFileFormat format) {
 
-		switch (filetype) {
-		case "binary":
-			meshExporter = new MeshExporterBinary<>();
-			break;
-		case ".obj":
-		default:
-			meshExporter = new MeshExporterObj<>();
-			break;
+		switch (format) {
+			case Binary:
+				meshExporter = new MeshExporterBinary<>();
+				break;
+			case Obj:
+				meshExporter = new MeshExporterObj<>();
+				break;
 		}
 	}
+
 }

@@ -23,11 +23,12 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Collections
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
+import java.util.function.BiConsumer
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 
@@ -35,7 +36,7 @@ import java.util.function.Consumer
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
-class AdaptiveResolutionMeshManager<ObjectKey> constructor(
+class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val source: DataSource<*, *>,
 	private val getBlockListFor: GetBlockListFor<ObjectKey>,
 	private val getMeshFor: GetMeshFor<ObjectKey>,
@@ -115,25 +116,25 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
 	@Synchronized
 	private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
-		val state = removeMeshFor(key) { }
+		val state = removeMeshFor(key) { _, _ -> }
 		state
-			?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = s, stateSetup = { }) }
-			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { })
+			?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = s, stateSetup = { _, _ -> }) }
+			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { _, _ -> })
 	}
 
 	@Synchronized
 	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
-	fun removeMeshFor(key: ObjectKey, releaseState: (MeshGenerator.State) -> Unit) = removeMeshFor(key, Consumer { releaseState(it) })
+	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshFor(key, BiConsumer { key, state -> releaseState(key, state) })
 
 	@Synchronized
-	fun removeMeshFor(key: ObjectKey, releaseState: Consumer<MeshGenerator.State>): MeshGenerator.State? {
+	fun removeMeshFor(key: ObjectKey, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>): MeshGenerator.State? {
 		return meshes.remove(key)?.let { generator ->
 			unbindService.submit {
 				generator.interrupt()
 				generator.unbindFromThis()
 				generator.root.visibleProperty().unbind()
-				releaseState.accept(generator.state)
+				releaseState.accept(key, generator.state)
 				Platform.runLater {
 					generator.root.isVisible = false
 					meshesGroup.children -= generator.root
@@ -143,18 +144,20 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 		}
 	}
 
-	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (MeshGenerator.State) -> Unit) = removeMeshesFor(keys, Consumer { releaseState(it) })
+	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshesFor(keys, BiConsumer { key, state -> releaseState(key, state) })
 
 	@Synchronized
-	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: Consumer<MeshGenerator.State>) {
-		val generators = synchronized(this) { keys.map { meshes.remove(it) } }
+	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>) {
+		val keysAndGenerators = synchronized(this) { keys.map { it to meshes.remove(it) } }
 		unbindService.submit {
-			val roots = generators.mapNotNull { generator ->
-				generator?.interrupt()
-				generator?.unbindFromThis()
-				generator?.root?.visibleProperty()?.unbind()
-				generator?.let { releaseState.accept(it.state) }
-				generator?.root
+			val roots = keysAndGenerators.mapNotNull { (key, generator) ->
+				generator?.run {
+					interrupt()
+					unbindFromThis()
+					root?.visibleProperty()?.unbind()
+					let { releaseState.accept(key, state) }
+					root
+				}
 			}
 			Platform.runLater {
 				// The roots list has to be converted to array first and then passed as vararg
@@ -165,16 +168,16 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 		}
 	}
 
-	fun removeAllMeshes(releaseState: (MeshGenerator.State) -> Unit) = removeAllMeshes(Consumer { releaseState(it) })
+	fun removeAllMeshes(releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeAllMeshes(BiConsumer { key, state -> releaseState(key, state) })
 
-	fun removeAllMeshes(releaseState: Consumer<MeshGenerator.State>) = removeMeshesFor(allMeshKeys, releaseState)
+	fun removeAllMeshes(releaseState: BiConsumer<ObjectKey, MeshGenerator.State>) = removeMeshesFor(allMeshKeys, releaseState)
 
 	fun createMeshFor(
 		key: ObjectKey,
 		cancelAndUpdate: Boolean,
 		state: MeshGenerator.State = MeshGenerator.State(),
-		stateSetup: (MeshGenerator.State) -> Unit
-	) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(it) })
+		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit
+	) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(key, it) })
 
 	@JvmOverloads
 	fun createMeshFor(

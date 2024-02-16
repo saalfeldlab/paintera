@@ -40,6 +40,9 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.lang.Double.min
 
+internal const val CHANGE_BRUSH_DEPTH = "change brush depth"
+internal const val START_BACKGROUND_ERASE = "start background erase"
+
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
@@ -190,7 +193,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			name = "start transparent erase"
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
-			verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
+			verify { KeyCode.SHIFT !in keyTracker()!!.getActiveKeyCodes(true) }
 			onAction {
 				isPainting = true
 				currentLabelToPaint = Label.TRANSPARENT
@@ -212,8 +215,8 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
 			name = "end erase"
 			onAction {
-				setCurrentLabelToSelection()
 				paintClickOrDrag?.busySubmitPaint()
+				setCurrentLabelToSelection()
 				isPainting = false
 			}
 		}
@@ -230,19 +233,22 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private fun PaintClickOrDragController.busySubmitPaint() {
 		isApplyingMaskProperty()?.apply {
-			lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
-			setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
-				if (isBusy) {
-					paint2D.setBrushCursor(Cursor.WAIT)
-				} else {
-					paint2D.setBrushCursor(Cursor.NONE)
-					if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
-						InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+			if (submitMask) {
+				lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+				setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+					if (isBusy) {
+						paint2D.setBrushCursor(Cursor.WAIT)
+					} else {
+						paint2D.setBrushCursor(Cursor.NONE)
+						if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+						}
+						obs.removeListener(setFalseAndRemoveListener)
 					}
-					obs.removeListener(setFalseAndRemoveListener)
 				}
+
+				paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 			}
-			paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 			submitPaint()
 		}
 	}
@@ -258,10 +264,10 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 				onAction { paint2D.changeBrushRadius(it!!.deltaY) }
 			}
 		},
-		painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+		painteraActionSet(CHANGE_BRUSH_DEPTH, PaintActionType.SetBrushDepth) {
 			ScrollEvent.SCROLL(KeyCode.SHIFT) {
 				keysExclusive = false
-				name = "change brush depth"
+				name = CHANGE_BRUSH_DEPTH
 				verifyNotPainting()
 				onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
 			}
@@ -292,7 +298,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 						onAction { paint2D.setBrushRadius(it!!.value.toDouble()) }
 					}
 				},
-				painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
+				painteraMidiActionSet(CHANGE_BRUSH_DEPTH, device, viewer, PaintActionType.SetBrushDepth) {
 					MidiToggleEvent.BUTTON_TOGGLE(7) {
 						verify { !isPainting }
 						verifyEventNotNull()

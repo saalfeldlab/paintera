@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.channel
 
-import bdv.util.volatiles.SharedQueue
+import bdv.cache.SharedQueue
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 

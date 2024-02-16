@@ -53,8 +53,12 @@ final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAc
 
 	private final B converted;
 
-	public ConvertedRandomAccess(final RandomAccess<A> source, final Converter<? super A, ? super B> converter, final
-	Supplier<B> b) {
+	public ConvertedRandomAccess(
+			final RandomAccess<A> source,
+			final Converter<? super A, ? super B> converter,
+			final
+			Supplier<B> b
+	) {
 
 		super(source);
 		this.converter = converter;
