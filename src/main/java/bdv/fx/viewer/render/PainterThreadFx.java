@@ -6,11 +6,11 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.RejectedExecutionException;
 
-public final class PainterThread extends Thread {
+public final class PainterThreadFx extends Thread {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final PainterThread.Paintable paintable;
+	private final PainterThreadFx.Paintable paintable;
 
 	private boolean pleaseRepaint;
 
@@ -19,17 +19,17 @@ public final class PainterThread extends Thread {
 	private long lastUpdate = -1;
 	private long targetFrameRateMs = 1000 / 60;
 
-	public PainterThread(PainterThread.Paintable paintable) {
+	public PainterThreadFx(PainterThreadFx.Paintable paintable) {
 
 		this(null, "PainterThread", paintable);
 	}
 
-	public PainterThread(ThreadGroup group, PainterThread.Paintable paintable) {
+	public PainterThreadFx(ThreadGroup group, PainterThreadFx.Paintable paintable) {
 
 		this(group, "PainterThread", paintable);
 	}
 
-	public PainterThread(ThreadGroup group, String name, PainterThread.Paintable paintable) {
+	public PainterThreadFx(ThreadGroup group, String name, PainterThreadFx.Paintable paintable) {
 
 		super(group, name);
 		this.paintable = paintable;

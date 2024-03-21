@@ -110,7 +110,7 @@ public class MultiResolutionRendererGeneric<T> {
 	/**
 	 * Thread that triggers repainting of the display. Requests for repainting are send there.
 	 */
-	private final PainterThread painterThread;
+	private final PainterThreadFx painterThread;
 
 	/**
 	 * Currently active projector, used to re-paint the display. It maps the source data to {@link #screenImages}.
@@ -270,7 +270,7 @@ public class MultiResolutionRendererGeneric<T> {
 	 */
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
-			final PainterThread painterThread,
+			final PainterThreadFx painterThread,
 			final double[] screenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,

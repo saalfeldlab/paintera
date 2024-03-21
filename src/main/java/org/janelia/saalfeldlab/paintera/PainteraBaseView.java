@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
+import bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -556,7 +557,7 @@ public class PainteraBaseView {
 	 * @return {@link ExecutorService} for managing mesh generation tasks
 	 * <p>
 	 * TODO this should probably be removed by a management thread for every single mesh manager
-	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
+	 * TODO like the {@link PainterThreadFx} for rendering
 	 */
 	public ExecutorService getMeshManagerExecutorService() {
 

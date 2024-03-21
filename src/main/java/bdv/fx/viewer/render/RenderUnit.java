@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-public abstract class RenderUnit implements PainterThread.Paintable {
+public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	protected final ObjectProperty<RenderResult> renderResultProperty = new SimpleObjectProperty<>();
 	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
@@ -39,7 +39,7 @@ public abstract class RenderUnit implements PainterThread.Paintable {
 	private final List<Runnable> updateListeners = new ArrayList<>();
 	protected MultiResolutionRendererFX renderer;
 	protected TransformAwareBufferedImageOverlayRendererFX renderTarget;
-	protected PainterThread painterThread;
+	protected PainterThreadFx painterThread;
 
 	public RenderUnit(final ThreadGroup threadGroup, final Function<Source<?>, Interpolation> interpolation, final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory, final CacheControl cacheControl, final long targetRenderNanos, final TaskExecutor renderingTaskExecutor) {
 
@@ -163,7 +163,7 @@ public abstract class RenderUnit implements PainterThread.Paintable {
 		renderTarget.setCanvasSize((int)dimensions[0], (int)dimensions[1]);
 
 		if (painterThread == null || !painterThread.isAlive()) {
-			painterThread = new PainterThread(threadGroup, "painter-thread", this);
+			painterThread = new PainterThreadFx(threadGroup, "painter-thread", this);
 			painterThread.start();
 		}
 
