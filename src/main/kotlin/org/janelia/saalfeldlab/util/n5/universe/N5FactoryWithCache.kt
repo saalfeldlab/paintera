@@ -31,7 +31,7 @@ class N5FactoryWithCache : N5Factory() {
 	override fun openWriter(uri: String): N5Writer {
 		return getFromWriterCache(uri) ?: openAndCacheExistingN5Writer(uri)
 	}
-	fun createWriter(uri: String): N5Writer {
+	fun newWriter(uri: String): N5Writer {
 		return getFromWriterCache(uri) ?: createAndCacheN5Writer(uri)
 	}
 

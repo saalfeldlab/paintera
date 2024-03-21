@@ -173,8 +173,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
-        Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
-		Paintera.n5Factory.createWriter(projectDirectory.actualDirectory.absolutePath).use {
+		Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
+		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.absolutePath).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
