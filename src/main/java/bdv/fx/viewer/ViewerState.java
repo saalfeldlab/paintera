@@ -43,6 +43,10 @@ public class ViewerState extends ObservableWithListenersList {
 		to.set(this.viewerTransform);
 	}
 
+	public synchronized double[] getDimensions() {
+		return new double[]{viewer.getWidth(), viewer.getHeight()};
+	}
+
 	public void setTimepoint(final int timepoint) {
 
 		synchronized (this) {
