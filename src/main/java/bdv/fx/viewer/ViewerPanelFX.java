@@ -30,7 +30,7 @@
 package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.render.RenderUnit;
+import bdv.fx.viewer.render.ViewerRenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
@@ -82,7 +82,7 @@ public class ViewerPanelFX
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final RenderUnit renderUnit;
+	private final ViewerRenderUnit renderUnit;
 
 	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
@@ -175,7 +175,7 @@ public class ViewerPanelFX
 
 		ActionSet.installActionSet(this, mouseTracker.getActions());
 
-		this.renderUnit = new RenderUnit(
+		this.renderUnit = new ViewerRenderUnit(
 				threadGroup,
 				this::getState,
 				interpolation,
@@ -556,7 +556,7 @@ public class ViewerPanelFX
 		return this.overlayPane;
 	}
 
-	public RenderUnit getRenderUnit() {
+	public ViewerRenderUnit getRenderUnit() {
 
 		return renderUnit;
 	}
@@ -565,7 +565,7 @@ public class ViewerPanelFX
 
 		new AnimationTimer() {
 
-			private RenderUnit.RenderResult renderResult = null;
+			private ViewerRenderUnit.RenderResult renderResult = null;
 
 			@Override
 			public void handle(long now) {
