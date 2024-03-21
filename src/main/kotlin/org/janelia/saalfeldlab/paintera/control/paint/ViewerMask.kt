@@ -37,7 +37,7 @@ import kotlin.math.ceil
 
 class ViewerMask private constructor(
 	val source: MaskedSource<out RealType<*>, *>,
-	val viewer: ViewerPanelFX,
+	internal val viewer: ViewerPanelFX,
 	info: MaskInfo,
 	invalidate: Invalidate<*>? = null,
 	invalidateVolatile: Invalidate<*>? = null,
@@ -45,18 +45,32 @@ class ViewerMask private constructor(
 	private inline val paintedLabelIsValid: (Long) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
 	val paintDepthFactor: Double? = 1.0,
 	private val maskSize: Interval? = null,
-	private val defaultValue: Long = Label.INVALID
+	private val defaultValue: Long = Label.INVALID,
+	initialViewerTransform: AffineTransform3D? = null
 ) : SourceMask(info) {
 	private val sourceIntervalInSource = source.getDataSource(info.time, info.level)
 
+	val sourceToGlobalTransform: AffineTransform3D = source.getSourceTransformForMask(info)
+
+
+	/**
+	 * Transform from global space to either:
+	 *  1. the top-left corner of the [ViewerPanelFX] used to create this mask, OR
+	 *  2. the passed in initialViewerTransform
+	 */
+	val initialGlobalToViewerTransform = initialViewerTransform ?: currentGlobalToViewerTransform
+	/**
+	 * Transform from global to the current viewer.
+	 *  May be different from initial if the viewer has moved/resized, etc.
+	 */
 	val currentGlobalToViewerTransform: AffineTransform3D get() = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
-	val initialGlobalToViewerTransform = currentGlobalToViewerTransform
 
-	val currentSourceToGlobalTransform: AffineTransform3D get() = source.getSourceTransformForMask(info)
-	val initialSourceToGlobalTransform: AffineTransform3D = currentSourceToGlobalTransform
 
-	val currentSourceToViewerTransform: AffineTransform3D get() = currentSourceToGlobalTransform.preConcatenate(currentGlobalToViewerTransform)
-	val initialSourceToViewerTransform: AffineTransform3D = currentSourceToViewerTransform
+	/**
+	 * Transform to the initial Viewer space from the [source] space for the given [MaskInfo] (including mipmap levels)
+	 */
+	val initialSourceToViewerTransform: AffineTransform3D = sourceToGlobalTransform.copy().preConcatenate(initialGlobalToViewerTransform)
+	val currentSourceToViewerTransform: AffineTransform3D get() = sourceToGlobalTransform.copy().preConcatenate(currentGlobalToViewerTransform)
 
 	init {
 		maskSize?.let { actualSize ->
@@ -86,8 +100,8 @@ class ViewerMask private constructor(
 		it.translate(-sourceIntervalInInitialViewer.realMin(0), -sourceIntervalInInitialViewer.realMin(1), 0.0)
 	}
 
-	val currentMaskToSourceTransform: AffineTransform3D = currentSourceToGlobalTransform.copy().inverse().concatenate(currentGlobalToMaskTransform.inverse())
-	val initialMaskToSourceTransform: AffineTransform3D = initialSourceToGlobalTransform.copy().inverse().concatenate(initialGlobalToMaskTransform.inverse())
+	val currentMaskToSourceTransform: AffineTransform3D = sourceToGlobalTransform.copy().inverse().concatenate(currentGlobalToMaskTransform.inverse())
+	val initialMaskToSourceTransform: AffineTransform3D = sourceToGlobalTransform.copy().inverse().concatenate(initialGlobalToMaskTransform.inverse())
 
 	//TODO Caleb: This tracks zoom only now (translation shouldn't change). May not be needed.
 	val initialToCurrentMaskTransform: AffineTransform3D get() = currentGlobalToMaskTransform.copy().concatenate(initialGlobalToMaskTransform.inverse())
@@ -182,7 +196,7 @@ class ViewerMask private constructor(
 	fun displayPointToInitialMaskPoint(displayX: Double, displayY: Double) = displayPointToInitialMaskPoint(RealPoint(displayX, displayY, 0.0))
 	fun displayPointToInitialMaskPoint(displayPoint: Point) = displayPointToInitialMaskPoint(displayPoint.positionAsRealPoint())
 	fun displayPointToInitialMaskPoint(displayPoint: RealPoint): Point {
-		val globalPoint = displayPoint.also { viewer.displayToGlobalCoordinates(it) }
+		val globalPoint = displayPoint.also { currentGlobalToViewerTransform.applyInverse(it, it) }
 
 		val xyScaleOnly = depthScaleTransform.copy().also {
 			it.set(it.getScale(0), it.getScale(1), 1.0)
@@ -190,6 +204,19 @@ class ViewerMask private constructor(
 
 		val pointInInitialMask = RealPoint(globalPoint).also { initialGlobalToMaskTransform.copy().concatenate(xyScaleOnly.inverse()).apply(globalPoint, it) }
 		return pointInInitialMask.toPoint()
+	}
+
+	fun removeDisplayTransform(transform: AffineTransform3D): AffineTransform3D {
+		/* The viewerTransform is scaled and not centered, compared to the resulting transform
+         *   The resulting transform also is equivalent to if we move to the resulting location
+         *   call paintera.baseView.manager.transform
+         *
+         * TODO: Caleb It's not clear if we should update what `getViewerTransform` returns, or
+         *   update what a `ViewerMask` expects, or change what the TransformListener of ViewerPanelFx does.
+         *   Potentially worth some investigation.
+         * */
+		val displayTransform = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.displayTransform().transformCopy
+		return transform.preConcatenate(displayTransform.inverse())
 	}
 
 
@@ -209,7 +236,7 @@ class ViewerMask private constructor(
 		viewerCellImg: RandomAccessibleInterval<UnsignedLongType>,
 		volatileViewerCellImg: RandomAccessibleInterval<VolatileUnsignedLongType>
 	):
-		Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> {
+			Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> {
 
 		val realViewerImg = viewerCellImg.extendValue(Label.INVALID).interpolateNearestNeighbor()
 		val realVolatileViewerImg = volatileViewerCellImg.extendValue(VolatileUnsignedLongType(Label.INVALID)).interpolateNearestNeighbor()
@@ -287,7 +314,7 @@ class ViewerMask private constructor(
 		}
 	}
 
-	internal fun popImageLayer() : Boolean {
+	internal fun popImageLayer(): Boolean {
 		var popped = false
 		((viewerImg.wrappedSource as? WrappedRandomAccessibleInterval)?.writableSource as? WrappedRandomAccessibleInterval)?.let { prevImg ->
 			viewerImg.wrappedSource = prevImg.wrappedSource
@@ -450,8 +477,8 @@ class ViewerMask private constructor(
 					}
 				}
 			}
-		paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
-		return paintedLabelSet
+		paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
+ 		return paintedLabelSet
 	}
 
 	@JvmOverloads
@@ -505,8 +532,16 @@ class ViewerMask private constructor(
 
 		@JvmStatic
 		@JvmOverloads
-		fun MaskedSource<*, *>.createViewerMask(maskInfo: MaskInfo, viewer: ViewerPanelFX, paintDepth: Double? = 1.0, maskSize: Interval? = null, defaultValue: Long = Label.INVALID, setMask: Boolean = true): ViewerMask {
-			val viewerMask = ViewerMask(this, viewer, maskInfo, paintDepthFactor = paintDepth, maskSize = maskSize, defaultValue = defaultValue)
+		fun MaskedSource<*, *>.createViewerMask(
+			maskInfo: MaskInfo,
+			viewer: ViewerPanelFX,
+			paintDepth: Double? = 1.0,
+			maskSize: Interval? = null,
+			defaultValue: Long = Label.INVALID,
+			setMask: Boolean = true,
+			initialViewerTransform: AffineTransform3D? = null
+		): ViewerMask {
+			val viewerMask = ViewerMask(this, viewer, maskInfo, paintDepthFactor = paintDepth, maskSize = maskSize, defaultValue = defaultValue, initialViewerTransform = initialViewerTransform)
 			if (setMask) {
 				viewerMask.setViewerMaskOnSource()
 			}

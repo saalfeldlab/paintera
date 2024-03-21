@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.TransformListener
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
@@ -111,7 +112,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	private var activeViewer: ViewerPanelFX? = null
 
 	private val currentViewerMaskProperty: ObjectProperty<ViewerMask?> = SimpleObjectProperty(null)
-	private var currentViewerMask by currentViewerMaskProperty.nullable()
+	internal var currentViewerMask by currentViewerMaskProperty.nullable()
 
 	private val doneApplyingMaskListener = ChangeListener<Boolean> { _, _, newv -> if (!newv!!) InvokeOnJavaFXApplicationThread { doneApplyingMask() } }
 
@@ -127,7 +128,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 
-	private val currentBestMipMapLevel: Int
+	internal val currentBestMipMapLevel: Int
 		get() {
 			val viewerState = activeViewer!!.state
 			val screenScaleTransform = AffineTransform3D()
@@ -136,12 +137,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 
-	private val currentDepth: Double by LazyForeignValue(this::globalToViewerTransform) { globalToViewer ->
-		val currentViewerInInitialViewer = DoubleArray(3).also {
-			initialGlobalToViewerTransform!!.copy().concatenate(globalToViewer.inverse()).apply(it, it)
-		}
-		BigDecimal(currentViewerInInitialViewer[2]).setScale(5, RoundingMode.HALF_EVEN).toDouble()
-	}
+	private val currentDepth: Double by LazyForeignValue(this::globalToViewerTransform) { depthAt(it) }
 
 	private var selector: Task<Unit>? = null
 	private var interpolator: Task<Unit>? = null
@@ -165,13 +161,20 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
+	private fun depthAt(globalToViewer: AffineTransform3D): Double {
+		val currentViewerInInitialViewer = DoubleArray(3).also {
+			initialGlobalToViewerTransform!!.copy().concatenate(globalToViewer.inverse()).apply(it, it)
+		}
+		return BigDecimal(currentViewerInInitialViewer[2]).setScale(5, RoundingMode.HALF_EVEN).toDouble()
+	}
 
-	fun paint(maskPaintInterval: Interval) {
+
+	fun paint(maskPaintInterval: Interval, currentGlobalTransform: AffineTransform3D = paintera().manager().transform) {
 		if (controllerState == ControllerState.Off) {
 			return
 		}
 		isBusy = true
-		addSelection(maskPaintInterval)
+		addSelection(maskPaintInterval, globalToSelectionTransform = currentGlobalTransform)
 	}
 
 	/**
@@ -200,28 +203,33 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	@JvmOverloads
-	fun addSelection(maskIntervalOverSelection: Interval, keepInterpolation: Boolean = true, z: Double = currentDepth) {
-		val globalTransform = paintera().manager().transform
+	fun addSelection(
+		maskIntervalOverSelection: Interval,
+		keepInterpolation: Boolean = true,
+		globalToSelectionTransform: AffineTransform3D,
+		viewerMask: ViewerMask = currentViewerMask!!
+	) {
 
-		if (!keepInterpolation && slicesAndInterpolants.getSliceAtDepth(z) != null) {
-			slicesAndInterpolants.removeSliceAtDepth(z)
+		val selectionDepth = depthAt(globalToSelectionTransform)
+		if (!keepInterpolation && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null) {
+			slicesAndInterpolants.removeSliceAtDepth(selectionDepth)
 			updateFillAndInterpolantsCompositeMask()
-			val slice = SliceInfo(
-				currentViewerMask!!,
-				globalTransform,
-				maskIntervalOverSelection
-			)
-			slicesAndInterpolants.add(z, slice)
+			val slice = SliceInfo(viewerMask, globalToSelectionTransform, maskIntervalOverSelection)
+			slicesAndInterpolants.add(selectionDepth, slice)
 		}
-		if (slicesAndInterpolants.getSliceAtDepth(z) == null) {
-			val slice = SliceInfo(currentViewerMask!!, globalTransform, maskIntervalOverSelection)
-			slicesAndInterpolants.add(z, slice)
+		if (slicesAndInterpolants.getSliceAtDepth(selectionDepth) == null) {
+			val slice = SliceInfo(viewerMask, globalToSelectionTransform, maskIntervalOverSelection)
+			slicesAndInterpolants.add(selectionDepth, slice)
 		} else {
-			slicesAndInterpolants.getSliceAtDepth(z)!!.addSelection(maskIntervalOverSelection)
-			slicesAndInterpolants.clearInterpolantsAroundSlice(z)
+			slicesAndInterpolants.getSliceAtDepth(selectionDepth)!!.addSelection(maskIntervalOverSelection)
+			slicesAndInterpolants.clearInterpolantsAroundSlice(selectionDepth)
 		}
 		interpolateBetweenSlices(true)
 	}
+
+	internal fun getSliceAt(depth: Double) = slicesAndInterpolants.getSliceAtDepth(depth)
+	internal fun getSliceAt(globalToSelection: AffineTransform3D) = slicesAndInterpolants.getSliceAtDepth(depthAt(globalToSelection))
+	internal fun removeSlice(slice: SliceInfo) : Boolean = slicesAndInterpolants.removeSlice(slice)
 
 
 	fun enterShapeInterpolation(viewer: ViewerPanelFX?) {
@@ -368,10 +376,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	private fun selectAndMoveToSlice(sliceInfo: SliceInfo) {
 		controllerState = ControllerState.Moving
 		InvokeOnJavaFXApplicationThread {
-			paintera().manager().setTransform(sliceInfo.globalTransform, Duration(300.0)) {
-				paintera().manager().transform = sliceInfo.globalTransform
-				updateDepth()
-				controllerState = ControllerState.Select
+			val sliceGlobalTransform = sliceInfo.globalTransform
+			paintera().manager().apply {
+				setTransform(sliceGlobalTransform, Duration(300.0)) {
+					transform = sliceGlobalTransform
+					updateDepth()
+					controllerState = ControllerState.Select
+				}
 			}
 		}
 	}
@@ -480,6 +491,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 							.interpolateNearestNeighbor()
 							.affineReal(initialGlobalToMaskTransform.inverse())
 					}
+
+
 				}
 			}
 			val constantInvalid = ConstantUtils.constantRandomAccessible(UnsignedLongType(Label.INVALID), 3).interpolateNearestNeighbor()
@@ -532,7 +545,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			globalCompositeFillAndInterpolationImgs = ValuePair(compositeMaskInGlobal, compositeVolatileMaskInGlobal)
 			val maskInfo = currentViewerMask?.info ?: MaskInfo(0, currentBestMipMapLevel)
 			currentViewerMask?.setMaskOnUpdate = false
-			val globalToSource = source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false).initialSourceToGlobalTransform.inverse()
+			val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, currentBestMipMapLevel, it) }.inverse()
 			source.setMask(
 				maskInfo,
 				compositeMaskInGlobal.affine(globalToSource),
@@ -596,7 +609,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private val sourceToGlobalTransform: AffineTransform3D
+	internal val sourceToGlobalTransform: AffineTransform3D
 		get() = AffineTransform3D().also {
 			source.getSourceTransform(
 				activeViewer!!.state.timepoint,
@@ -663,40 +676,40 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 		currentViewerMask?.setViewerMaskOnSource()
 
-		if (sliceAtCurrentDepth == null) {
-			/* if we are between slices, we need to copy the interpolated data into the mask before we return it */
-
-			/* Only copy existing interpolation data into mask if:
-			 *  - we have two slices,
-			 *  - we want to preview the interpolation,
-			 *  - and an interpolant between the two slices exists */
-			val prevSlice = slicesAndInterpolants.getPreviousSlice(currentDepth)
-			val nextSlice = slicesAndInterpolants.getNextSlice(currentDepth)
-			if (prevSlice != null && nextSlice != null && preview && slicesAndInterpolants.getInterpolantsAround(prevSlice).b != null) {
-				/* copy interpolation into paintMask */
-				copyInterpolationAtDepthToMask(prevSlice, nextSlice)
-			}
-		}
+		if (preview && slicesAndInterpolants.getInterpolantAtDepth(currentDepth) != null)
+			copyInterpolationToMask()
 
 		return currentViewerMask!!
 	}
 
-	private fun copyInterpolationAtDepthToMask(prevSlice: SliceInfo, nextSlice: SliceInfo) {
+	private fun copyInterpolationToMask(viewerMask: ViewerMask = currentViewerMask!!, globalTransform: AffineTransform3D = paintera().manager().transform) {
+		val maskDepth = depthAt(viewerMask.currentGlobalToViewerTransform)
+		val nextSlice = slicesAndInterpolants.getNextSlice(maskDepth) ?: let {
+			logger.warn { "No following slice, nothing to copy" }
+			return
+		}
+		val prevSlice = slicesAndInterpolants.getPreviousSlice(maskDepth) ?: let {
+			logger.warn { "No previous slice, nothing to copy" }
+			return
+		}
+		val interpolant = slicesAndInterpolants.getInterpolantsAround(prevSlice).b ?: let {
+			logger.warn { "No Interpolant to copy" }
+			return
+		}
+
 		/* get union of adjacent slices bounding boxes */
 		val globalIntervalOverAdjacentSlices = Intervals.union(prevSlice.globalBoundingBox, nextSlice.globalBoundingBox)
-		val adjacentSelectionIntervalInMaskSpace = currentViewerMask!!.currentGlobalToMaskTransform.estimateBounds(globalIntervalOverAdjacentSlices)
+		val adjacentSelectionIntervalInMaskSpace = viewerMask.currentGlobalToMaskTransform.estimateBounds(globalIntervalOverAdjacentSlices)
 
 		val minZSlice = adjacentSelectionIntervalInMaskSpace.minAsDoubleArray().also { it[2] = 0.0 }
 		val maxZSlice = adjacentSelectionIntervalInMaskSpace.maxAsDoubleArray().also { it[2] = 0.0 }
-
 		val unionAdjacentSlicesInMaskSpace = FinalRealInterval(minZSlice, maxZSlice)
-		val existingInterpolationMask = slicesAndInterpolants.getInterpolantsAround(prevSlice).b
 
 
-		val interpolatedMaskView = existingInterpolationMask!!.dataInterpolant
+		val interpolatedMaskView = interpolant.dataInterpolant
 			.affine(currentViewerMask!!.currentGlobalToMaskTransform)
 			.interval(unionAdjacentSlicesInMaskSpace)
-		val fillMaskOverInterval = currentViewerMask!!.viewerImg.interval(unionAdjacentSlicesInMaskSpace)
+		val fillMaskOverInterval = viewerMask.viewerImg.interval(unionAdjacentSlicesInMaskSpace)
 
 		LoopBuilder.setImages(interpolatedMaskView, fillMaskOverInterval)
 			.multiThreaded()
@@ -707,11 +720,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 					fillMaskType.set(interpolationVal)
 				}
 			}
-
-
-		val globalTransform = paintera().manager().transform
 		val slice = SliceInfo(
-			currentViewerMask!!,
+			viewerMask,
 			globalTransform,
 			unionAdjacentSlicesInMaskSpace.smallestContainingInterval
 		)
@@ -723,6 +733,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	companion object {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val logger = KotlinLogging.logger { }
 		private fun paintera(): PainteraBaseView = Paintera.getPaintera().baseView
 
 		private val Long.isInterpolationLabel
@@ -781,7 +792,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			val transformToGlobal = AffineTransform3D()
 			transformToGlobal
-				.concatenate(sliceInfoPair[0].mask.initialSourceToGlobalTransform)
+				.concatenate(sliceInfoPair[0].mask.sourceToGlobalTransform)
 				.concatenate(sliceInfoPair[0].mask.initialMaskToSourceTransform)
 				.concatenate(Translation3D(unionInSlice1Initial.realMin(0), unionInSlice1Initial.realMin(1), 0.0))
 
@@ -854,6 +865,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		private fun computeDistanceBetweenSlices(s1: SliceInfo, s2: SliceInfo) = ViewerMask.maskToMaskTransformation(s2.mask, s1.mask).translation[2]
 	}
 
+	fun getGlobalBoundingBoxAtDepth(globalToSelectionTransform: AffineTransform3D): RealInterval? {
+		return slicesAndInterpolants.getGlobalIntervalAtDepth(depthAt(globalToSelectionTransform))
+	}
+
 	private class SliceOrInterpolant {
 		private val sliceAndDepth: Pair<Double, SliceInfo>?
 		private val interpolant: InterpolantInfo?
@@ -871,9 +886,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val isSlice: Boolean
 			get() = sliceAndDepth != null
 
-		fun isInterpolant(): Boolean {
-			return interpolant != null
-		}
+		val isInterpolant: Boolean
+			get() = interpolant != null
+
 
 		fun getSlice(): SliceInfo {
 			return sliceAndDepth!!.b
@@ -895,7 +910,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		private fun equalsInterpolant(other: Any?): Boolean {
-			return isInterpolant() && getInterpolant() == other
+			return isInterpolant && getInterpolant() == other
 		}
 
 		override fun hashCode(): Int {
@@ -907,136 +922,199 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private class SlicesAndInterpolants : ObservableList<SliceOrInterpolant> by FXCollections.observableArrayList() {
+	private class SlicesAndInterpolants : ObservableList<SliceOrInterpolant> by FXCollections.synchronizedObservableList(FXCollections.observableArrayList()) {
 
 		fun removeSlice(slice: SliceInfo): Boolean {
-			for (idx in indices) {
-				if (idx >= 0 && idx <= size - 1 && get(idx).equals(slice)) {
-					removeIfInterpolant(idx + 1)
-					LOG.trace("Removing Slice: $idx")
-					removeAt(idx).getSlice()
-					removeIfInterpolant(idx - 1)
-					return true
+			synchronized(this) {
+				for (idx in indices) {
+					if (idx >= 0 && idx <= size - 1 && get(idx).equals(slice)) {
+						removeIfInterpolant(idx + 1)
+						LOG.trace("Removing Slice: $idx")
+						removeAt(idx).getSlice()
+						removeIfInterpolant(idx - 1)
+						return true
+					}
 				}
+				return false
 			}
-			return false
 		}
 
 		fun removeSliceAtDepth(depth: Double): SliceInfo? {
-			return getSliceAtDepth(depth)?.also {
-				removeSlice(it)
+			synchronized(this) {
+				return getSliceAtDepth(depth)?.also {
+					removeSlice(it)
+				}
 			}
 		}
 
 		fun removeIfInterpolant(idx: Int): InterpolantInfo? {
-			return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant()) {
-				LOG.trace("Removing Interpolant: $idx")
-				removeAt(idx).getInterpolant()
-			} else null
+			synchronized(this) {
+				return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant) {
+					LOG.trace("Removing Interpolant: $idx")
+					removeAt(idx).getInterpolant()
+				} else null
+			}
+
 		}
 
 		fun add(depth: Double, slice: SliceInfo) {
-			for (idx in this.indices) {
-				if (get(idx).isSlice && get(idx).sliceDepth > depth) {
-					LOG.trace("Adding Slice: $idx")
-					add(idx, SliceOrInterpolant(depth, slice))
-					removeIfInterpolant(idx - 1)
-					return
+			synchronized(this) {
+				for (idx in this.indices) {
+					if (get(idx).isSlice && get(idx).sliceDepth > depth) {
+						LOG.trace("Adding Slice: $idx")
+						add(idx, SliceOrInterpolant(depth, slice))
+						removeIfInterpolant(idx - 1)
+						return
+					}
 				}
+				LOG.trace("Adding Slice: ${this.size}")
+				add(SliceOrInterpolant(depth, slice))
 			}
-			LOG.trace("Adding Slice: ${this.size}")
-			add(SliceOrInterpolant(depth, slice))
 		}
 
 		fun add(idx: Int, interpolant: InterpolantInfo?) {
-			LOG.trace("Adding Interpolant: $idx")
-			add(idx, SliceOrInterpolant(interpolant))
+			synchronized(this) {
+				LOG.trace("Adding Interpolant: $idx")
+				add(idx, SliceOrInterpolant(interpolant))
+			}
 		}
 
 		fun removeAllInterpolants() {
-			for (i in size - 1 downTo 0) {
-				removeIfInterpolant(i)
+			synchronized(this) {
+				for (i in size - 1 downTo 0) {
+					removeIfInterpolant(i)
+				}
 			}
 		}
 
 		fun getSliceAtDepth(depth: Double): SliceInfo? {
-			for (sliceOrInterpolant in this) {
-				if (sliceOrInterpolant.isSlice && sliceOrInterpolant.sliceDepth == depth) {
-					return sliceOrInterpolant.getSlice()
-				}
-			}
-			return null
-		}
-
-		fun getPreviousSlice(depth: Double): SliceInfo? {
-			var prevSlice: SliceInfo? = null
-			for (sliceOrInterpolant in this) {
-				if (sliceOrInterpolant.isSlice) {
-					prevSlice = if (sliceOrInterpolant.sliceDepth < depth) {
-						sliceOrInterpolant.getSlice()
-					} else {
-						break
+			synchronized(this) {
+				for (sliceOrInterpolant in this) {
+					if (sliceOrInterpolant.isSlice && sliceOrInterpolant.sliceDepth == depth) {
+						return sliceOrInterpolant.getSlice()
 					}
 				}
+				return null
 			}
-			return prevSlice
+		}
+
+		fun getInterpolantAtDepth(depth: Double): InterpolantInfo? {
+			synchronized(this) {
+				for ((index, sliceOrInterpolant) in this.withIndex()) {
+					if (
+						sliceOrInterpolant.isInterpolant
+						&& this.getOrNull(index - 1)?.let { it.sliceDepth < depth } == true
+						&& this.getOrNull(index + 1)?.let { it.sliceDepth > depth } == true
+					)
+						return sliceOrInterpolant.getInterpolant()
+				}
+				return null
+			}
+		}
+
+		/**
+		 * Get global interval at [depth]. Behavior has 4 possibilities:
+		 * 1. [depth] is at a slice, so return the [SliceInfo.globalBoundingBox]
+		 * 2. [depth] is between slices, return the union of both [SliceInfo.globalBoundingBox]
+		 * 3. [depth] is before OR after a slice, but not both (i.e., depth is farther from the interpolation than any slices).
+		 *      return the closest [SliceInfo.globalBoundingBox]
+		 * 4. No slices, return `null`
+		 *
+		 * @param depth to query the
+		 * @return an interval, or null if no slices present
+		 */
+		fun getGlobalIntervalAtDepth(depth: Double): RealInterval? {
+			synchronized(this) {
+				return getSliceAtDepth(depth)?.globalBoundingBox
+					?: getPreviousSlice(depth)?.globalBoundingBox?.let { prev -> prev union getNextSlice(depth)?.globalBoundingBox }
+					?: getNextSlice(depth)?.globalBoundingBox
+			}
+		}
+
+
+		fun getPreviousSlice(depth: Double): SliceInfo? {
+			synchronized(this) {
+				var prevSlice: SliceInfo? = null
+				for (sliceOrInterpolant in this) {
+					if (sliceOrInterpolant.isSlice) {
+						prevSlice = if (sliceOrInterpolant.sliceDepth < depth) {
+							sliceOrInterpolant.getSlice()
+						} else {
+							break
+						}
+					}
+				}
+				return prevSlice
+			}
 		}
 
 		fun getNextSlice(depth: Double): SliceInfo? {
-			for (sliceOrInterpolant in this) {
-				if (sliceOrInterpolant.isSlice && sliceOrInterpolant.sliceDepth > depth) {
-					return sliceOrInterpolant.getSlice()
+			synchronized(this) {
+				for (sliceOrInterpolant in this) {
+					if (sliceOrInterpolant.isSlice && sliceOrInterpolant.sliceDepth > depth) {
+						return sliceOrInterpolant.getSlice()
+					}
 				}
+				return null
 			}
-			return null
 		}
 
 		fun getInterpolantsAround(slice: SliceInfo?): Pair<InterpolantInfo?, InterpolantInfo?> {
-			var interpolantAfter: InterpolantInfo? = null
-			var interpolantBefore: InterpolantInfo? = null
-			for (idx in 0 until size - 1) {
-				if (get(idx).equals(slice)) {
-					if (get(idx + 1).isInterpolant()) {
-						interpolantAfter = get(idx + 1).getInterpolant()
-						if (idx - 1 >= 0 && get(idx - 1).isInterpolant()) {
-							interpolantBefore = get(idx - 1).getInterpolant()
+			synchronized(this) {
+				var interpolantAfter: InterpolantInfo? = null
+				var interpolantBefore: InterpolantInfo? = null
+				for (idx in 0 until size - 1) {
+					if (get(idx).equals(slice)) {
+						if (get(idx + 1).isInterpolant) {
+							interpolantAfter = get(idx + 1).getInterpolant()
+							if (idx - 1 >= 0 && get(idx - 1).isInterpolant) {
+								interpolantBefore = get(idx - 1).getInterpolant()
+							}
 						}
+						break
 					}
-					break
 				}
+				return ValuePair(interpolantBefore, interpolantAfter)
 			}
-			return ValuePair(interpolantBefore, interpolantAfter)
 		}
 
 		val slices: List<SliceInfo>
-			get() = stream()
-				.filter { it.isSlice }
-				.map { it.getSlice() }
-				.collect(Collectors.toList())
+			get() = synchronized(this) {
+				stream()
+					.filter { it.isSlice }
+					.map { it.getSlice() }
+					.collect(Collectors.toList())
+			}
 		val interpolants: List<InterpolantInfo>
-			get() = stream()
-				.filter { it.isInterpolant() }
-				.map { it.getInterpolant()!! }
-				.collect(Collectors.toList())
+			get() = synchronized(this) {
+				stream()
+					.filter { it.isInterpolant }
+					.map { it.getInterpolant()!! }
+					.collect(Collectors.toList())
+			}
 
 		fun clearInterpolantsAroundSlice(z: Double) {
-			for (idx in this.indices) {
-				if (get(idx).isSlice && get(idx).sliceDepth == z) {
-					removeIfInterpolant(idx + 1)
-					removeIfInterpolant(idx - 1)
-					return
+			synchronized(this) {
+				for (idx in this.indices) {
+					if (get(idx).isSlice && get(idx).sliceDepth == z) {
+						removeIfInterpolant(idx + 1)
+						removeIfInterpolant(idx - 1)
+						return
+					}
 				}
 			}
 		}
 
 		fun removeIfInterpolantAt(depthInMaskDisplay: Double): Boolean {
-			for (idx in this.indices) {
-				if (get(idx).isSlice && get(idx).sliceDepth > depthInMaskDisplay) {
-					if (removeIfInterpolant(idx - 1) != null)
-						return true
+			synchronized(this) {
+				for (idx in this.indices) {
+					if (get(idx).isSlice && get(idx).sliceDepth > depthInMaskDisplay) {
+						if (removeIfInterpolant(idx - 1) != null)
+							return true
+					}
 				}
+				return false
 			}
-			return false
 		}
 	}
 
@@ -1046,13 +1124,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	class InterpolantInfo(val dataInterpolant: RealRandomAccessible<UnsignedLongType>)
 
-	private class SliceInfo(
+	internal open class SliceInfo(
 		var mask: ViewerMask,
 		val globalTransform: AffineTransform3D,
 		selectionInterval: RealInterval
 	) {
-		internal val maskBoundingBox: Interval get() = computeBoundingBoxInInitialMask()
-		internal val globalBoundingBox: RealInterval
+		val maskBoundingBox: Interval get() = computeBoundingBoxInInitialMask()
+		val globalBoundingBox: RealInterval
 			get() = mask.initialGlobalToMaskTransform.inverse().estimateBounds(maskBoundingBox)
 
 		private val selectionIntervalsInInitialSpace: MutableList<RealInterval> = mutableListOf()

@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import ai.onnxruntime.OnnxTensor
-import bdv.util.Affine3DHelpers
+import bdv.fx.viewer.render.RenderUnitState
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -15,10 +15,12 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
+import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.util.Intervals
+import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
@@ -50,20 +52,26 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.nio.file.FileSystem
 import kotlin.collections.component1
 import kotlin.collections.component2
+import kotlin.collections.filter
+import kotlin.collections.forEach
 import kotlin.collections.set
+import kotlin.math.max
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, val previousMode: ControlMode) : AbstractToolMode() {
 
@@ -160,10 +168,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	}
 
-	private val samTool: SamTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
-		private var lastEmbedding: OnnxTensor? = null
-		private var globalTransformAtEmbedding = AffineTransform3D()
+	internal val samTool: SamTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
 		init {
 			activeViewerProperty.unbind()
@@ -173,14 +179,18 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		override fun activate() {
 			maskedSource?.resetMasks(false)
 			viewerMask = controller.getMask()
-			providedEmbedding = if (Affine3DHelpers.equals(paintera.baseView.manager().transform, globalTransformAtEmbedding)) lastEmbedding else null
 			super.activate()
 		}
 
 		override fun deactivate() {
+			shapeInterpolationTool?.let { tool ->
+				paintera.baseView.manager().transform?.also { transform ->
+					(providedEmbedding ?: imageEmbeddingTask?.run { if (isDone && !isCancelled) get() else null })?.let { embedding ->
+						tool.samSliceInfo[transform] = SamSliceInfo(transform, embedding, controller.getSliceAt(transform))
+					}
+				}
+			}
 			super.deactivate()
-			lastEmbedding = getImageEmbeddingTask.get()!!
-			globalTransformAtEmbedding.set(paintera.baseView.manager().transform)
 		}
 
 		override fun applyPrediction() {
@@ -583,7 +593,25 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 }
 
+internal data class SamSliceInfo(val globalToSelectionTransform: AffineTransform3D, val embedding: OnnxTensor, val sliceInfo: ShapeInterpolationController.SliceInfo?)
 
+private class HashableTransform(affineTransform3D: AffineTransform3D) : AffineTransform3D()  {
+	init {
+		set(affineTransform3D)
+	}
+
+	override fun hashCode(): Int {
+		return HashCodeBuilder()
+			.append(doubleArrayOf(a.m00, a.m01, a.m02, a.m03))
+			.append(doubleArrayOf(a.m10, a.m11, a.m12, a.m13))
+			.append(doubleArrayOf(a.m20, a.m21, a.m22, a.m23))
+			.hashCode()
+	}
+
+	override fun equals(other: Any?): Boolean {
+		return (other as? HashableTransform)?.hashCode() == hashCode()
+	}
+}
 class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
 	val keyCombinations: NamedKeyCombination.CombinationMap,
@@ -591,6 +619,27 @@ class ShapeInterpolationTool(
 	mode: ToolMode? = null,
 	private var fill2D: Fill2DTool
 ) : ViewerTool(mode) {
+
+	internal val samSliceInfo = FXCollections.synchronizedObservableMap(FXCollections.observableMap(object : HashMap<AffineTransform3D, SamSliceInfo>() {
+
+		override fun get(key: AffineTransform3D): SamSliceInfo? {
+			val hashableKey = when (key) {
+				is HashableTransform -> key
+				else -> HashableTransform(key)
+			}
+			return super.get(hashableKey)
+		}
+
+		override fun put(key: AffineTransform3D, value: SamSliceInfo): SamSliceInfo? {
+			val hashableKey = when (key) {
+				is HashableTransform -> key
+				else -> HashableTransform(key)
+			}
+			return super.put(hashableKey, value)
+		}
+	}))
+
+
 
 	override val actionSets: MutableList<ActionSet> = mutableListOf(
 		shapeInterpolationActions(keyCombinations),
@@ -663,6 +712,87 @@ class ShapeInterpolationTool(
 		}
 	}
 
+	private fun ShapeInterpolationController<*>.requestSamPrediction(depth: Double) {
+		val viewerAndTransforms = activeViewerAndTransforms!!
+		val viewer = viewerAndTransforms.viewer()!!
+
+		val newMaskViewerTransform = AffineTransform3D().also {
+			viewer.state.getViewerTransform(it)
+			it.translate(0.0, 0.0, -depth)
+		}
+		requestSamPrediction(newMaskViewerTransform)
+	}
+
+	/**
+	 * Request sam prediction at [globalToSelectionTransform]
+	 *
+	 * @param globalToSelectionTransform transform from global space to the sam prediction
+	 */
+	private fun ShapeInterpolationController<*>.requestSamPrediction(globalToSelectionTransform: AffineTransform3D) {
+
+		val samInfo = samSliceInfo[globalToSelectionTransform]?.let { samInfo ->
+			controller.getSliceAt(globalToSelectionTransform)?.let {
+				if (it.globalTransform == samInfo.globalToSelectionTransform)
+					samInfo
+				else {
+					removeSlice(it)
+					samSliceInfo -= globalToSelectionTransform
+					null
+				}
+			} ?: samInfo
+		}
+
+		val mask = samInfo?.sliceInfo?.mask ?: let {
+
+			val viewerAndTransforms = activeViewerAndTransforms!!
+			val viewer = viewerAndTransforms.viewer()!!
+
+			val maskInfo = MaskInfo(0, controller.currentBestMipMapLevel)
+			source.createViewerMask(maskInfo, viewer, paintDepth = null, setMask = false, initialViewerTransform = globalToSelectionTransform.copy())
+		}
+
+		val (width, height) = mask.maskOverScreenInterval().run {
+			dimension(0) to dimension(1)
+		}
+
+		val sources = mask.viewer.state.sources
+
+		val globalToViewerMask = mask.removeDisplayTransform(mask.initialGlobalToViewerTransform.copy())
+
+		val selectionInImage = controller.getGlobalBoundingBoxAtDepth(globalToSelectionTransform)?.let { globalBox ->
+			mask.currentGlobalToViewerTransform.estimateBounds(globalBox).let { maskBox ->
+				FinalRealInterval(doubleArrayOf(maskBox.realMin(0), maskBox.realMin(1), 0.0), doubleArrayOf(maskBox.realMax(0), maskBox.realMax(1), 0.0))
+			}
+		} ?: mask.run { FinalRealInterval(doubleArrayOf(width * .25, height * .25, 0.0), doubleArrayOf(width * .75, height * .75, 0.0)) }
+
+
+		val samTool = SamTool(mode!!.activeSourceStateProperty, mode)
+		samTool.unwrapResult = false //TODO Caleb: document this; it stops `cleanup()` from removing the wrapped overlay of the prediction
+		samTool.cleanup()
+		samTool.enteredWithoutKeyTrigger = true
+		samTool.activeViewerProperty.bind(activeViewerProperty)
+		samTool.initializeSam(RenderUnitState(mask.initialGlobalToViewerTransform.copy(), 0, sources, width, height))
+		samTool.unwrapResult = false
+		samTool.currentLabelToPaint = controller.interpolationId
+		samTool.viewerMask = mask
+		samTool.providedEmbedding = samInfo?.embedding
+		samTool.setBoxPrompt(selectionInImage)
+		samTool.lastPredictionProperty.addListener { _, _, prediction ->
+			prediction?.let {
+				controller.currentViewerMask = mask //TODO Caleb: Don't think this is necessary?
+				controller.addSelection(
+					it.maskInterval,
+					globalToSelectionTransform = globalToViewerMask,
+					viewerMask = mask
+				)
+				samSliceInfo[globalToSelectionTransform] = SamSliceInfo(globalToViewerMask, it.embedding, getSliceAt(globalToSelectionTransform)!!)
+				samTool.cleanup()
+				samTool.activeViewerProperty.unbind()
+			}
+		}
+		samTool.requestPrediction()
+	}
+
 	private fun shapeInterpolationActions(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
 		return painteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
 			with(controller) {
@@ -699,6 +829,52 @@ class ShapeInterpolationTool(
 					onAction { controller.togglePreviewMode() }
 					handleException {
 						paintera.baseView.changeMode(previousMode)
+					}
+				}
+
+				KEY_PRESSED(KeyCode.SHIFT, KeyCode.T) {
+					keysExclusive = true
+					onAction {
+						samSliceInfo.forEach { (transform, _) ->
+							requestSamPrediction(transform)
+						}
+					}
+
+				}
+				KEY_PRESSED(KeyCode.T) {
+					keysExclusive = true
+					onAction {
+
+						infix fun ClosedRange<Double>.step(step: Double): Iterable<Double> {
+							require(start.isFinite())
+							require(endInclusive.isFinite())
+							require(step > 0.0) { "Step must be positive, was: $step." }
+							val sequence = generateSequence(start) { previous ->
+								if (previous == Double.POSITIVE_INFINITY) return@generateSequence null
+								val next = previous + step
+								if (next > endInclusive) null else next
+							}
+							return sequence.asIterable()
+						}
+
+						val depths = controller.sortedSliceDepths
+						when (depths.size) {
+							0 -> {
+								requestSamPrediction(0.0)
+							}
+							1 -> {
+								requestSamPrediction(-20.0)
+								requestSamPrediction(20.0)
+							}
+							else -> {
+								val range = depths.max() - depths.min()
+								val inc = max(range / 5.0, 1.0)
+								for (depth in (depths.first() + inc)..(depths.last() - inc) step inc) {
+									requestSamPrediction(-depth)
+								}
+							}
+
+						}
 					}
 				}
 
@@ -761,6 +937,7 @@ class ShapeInterpolationTool(
 			}
 		}
 	}
+
 
 	private fun cancelShapeInterpolationTask(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
 		return painteraActionSet("cancel shape interpolation task", PaintActionType.ShapeInterpolation, ignoreDisable = true) {
