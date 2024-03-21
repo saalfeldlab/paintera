@@ -139,7 +139,7 @@ public class PainteraBaseView {
 
 	private final SimpleObjectProperty<ControlMode> activeModeProperty = new SimpleObjectProperty<>();
 
-	public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.observableHashMap();
+	public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
 
 	/**
 	 * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
@@ -201,15 +201,16 @@ public class PainteraBaseView {
 		});
 
 		disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
-			isDisabledProperty.unbind();
-
-			final var isDisabledBinding = Bindings.createBooleanBinding(
-					() -> disabledPropertyBindings.values().stream()
-							.map(ObservableBooleanValue::get)
-							.reduce(Boolean::logicalOr)
-							.orElse(false),
-					disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
-			isDisabledProperty.bind(isDisabledBinding);
+			synchronized (disabledPropertyBindings) {
+				isDisabledProperty.unbind();
+				final var isDisabledBinding = Bindings.createBooleanBinding(
+						() -> disabledPropertyBindings.values().stream()
+								.map(ObservableBooleanValue::get)
+								.reduce(Boolean::logicalOr)
+								.orElse(false),
+						disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
+				isDisabledProperty.bind(isDisabledBinding);
+			}
 		});
 
 		activeModeProperty.set(AppControlMode.INSTANCE);
