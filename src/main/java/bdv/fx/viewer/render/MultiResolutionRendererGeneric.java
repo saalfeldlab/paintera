@@ -251,6 +251,8 @@ public class MultiResolutionRendererGeneric<T> {
 
 	private final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
 
+	final AnimationTimer animation;
+
 	/**
 	 * @param display                    The canvas that will display the images we render.
 	 * @param painterThread              Thread that triggers repainting of the display. Requests for repainting are send there.
@@ -303,7 +305,7 @@ public class MultiResolutionRendererGeneric<T> {
 		newFrameRequest = false;
 		previousTimepoint = -1;
 
-		new AnimationTimer() {
+		this.animation = new AnimationTimer() {
 
 			@Override
 			public void handle(long now) {
@@ -311,7 +313,8 @@ public class MultiResolutionRendererGeneric<T> {
 					painterThread.requestRepaint();
 				}
 			}
-		}.start();
+		};
+		this.animation.start();
 	}
 
 	/**
@@ -457,7 +460,7 @@ public class MultiResolutionRendererGeneric<T> {
 			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
 			newFrameRequest = false;
 
-			final List<SourceAndConverter<?>> sacs = sources;
+			final List<SourceAndConverter<?>> sacs = List.copyOf(sources);
 
 			if (createProjector) {
 				currentScreenScaleIndex = requestedScreenScaleIndex;
