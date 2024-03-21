@@ -90,7 +90,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	internal val pane: Parent
 		get() = paneWithStatus.pane
 
-    private lateinit var newProjectSettings : JsonElement
+	private lateinit var newProjectSettings: JsonElement
 
 	private fun initProperties(properties: Properties) {
 		this.properties = properties
@@ -99,12 +99,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
 		activeViewer.bind(paintera.baseView.currentFocusHolder.createNullableValueBinding { it?.viewer() })
 
-        /* Set newProjectSettings */
-        val builder = GsonHelpers
-            .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
-            .setPrettyPrinting()
-        Paintera.n5Factory.gsonBuilder(builder)
-        this.newProjectSettings = builder.create().toJsonTree(this)
+		/* Set newProjectSettings */
+		val builder = GsonHelpers
+			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
+			.setPrettyPrinting()
+		Paintera.n5Factory.gsonBuilder(builder)
+		this.newProjectSettings = builder.create().toJsonTree(this)
 	}
 
 	fun deserialize() {
@@ -137,24 +137,24 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		Paintera.n5Factory.openReader(projectDirectory.actualDirectory.absolutePath).use {
 			val expectedSettings = pruneNonEssentialSettings(builder.create().toJsonTree(this))
 			val actualSettings = pruneNonEssentialSettings(it.getAttribute("/", PAINTERA_KEY, JsonObject::class.java))
-            /* If settings file already exists, compare against them; If they don't, compare against newProjectSettings
-            *   This helps avoid annoying "Save Before Quit?" prompts when you open Paintera, and immediately
-            *   Open a different project. */
- 			return expectedSettings != (actualSettings ?: pruneNonEssentialSettings(newProjectSettings))
+			/* If settings file already exists, compare against them; If they don't, compare against newProjectSettings
+			*   This helps avoid annoying "Save Before Quit?" prompts when you open Paintera, and immediately
+			*   Open a different project. */
+			return expectedSettings != (actualSettings ?: pruneNonEssentialSettings(newProjectSettings))
 		}
 	}
 
-    private fun pruneNonEssentialSettings(allSettings: JsonElement?): JsonElement? {
-        return allSettings?.asJsonObject?.also { mainWindow ->
-            mainWindow.remove(GLOBAL_TRANSFORM_KEY)
-            mainWindow.remove(Properties::windowProperties.name)
-            mainWindow.remove(VERSION_KEY)
-            /* Should match Viewer3DConfigSerializer AFFINE_KEY*/
-            mainWindow.get("viewer3DConfig")?.asJsonObject?.remove("affine")
-        }
-    }
+	private fun pruneNonEssentialSettings(allSettings: JsonElement?): JsonElement? {
+		return allSettings?.asJsonObject?.also { mainWindow ->
+			mainWindow.remove(GLOBAL_TRANSFORM_KEY)
+			mainWindow.remove(Properties::windowProperties.name)
+			mainWindow.remove(VERSION_KEY)
+			/* Should match Viewer3DConfigSerializer AFFINE_KEY*/
+			mainWindow.get("viewer3DConfig")?.asJsonObject?.remove("affine")
+		}
+	}
 
-    fun save(notify: Boolean = true) {
+	fun save(notify: Boolean = true) {
 
 		/* Not allowd to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->

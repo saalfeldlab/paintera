@@ -309,9 +309,9 @@ class PaintClickOrDragController(
 	@Synchronized
 	private fun paint(pos: Postion) = pos.run { paint(x, y) }
 
-	private var paintService : ExecutorService? = null
+	private var paintService: ExecutorService? = null
 		get() = if (field == null || field!!.isShutdown) {
-			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread",true))
+			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread", true))
 			field
 		} else field
 

@@ -233,14 +233,14 @@ class Paintera : Application() {
 							""".trimIndent()
 						}
 
-					when (responseButton) {
-						ButtonType.OK -> Unit
-						ButtonType.NO -> state.skipCommit = true
-						ButtonType.CANCEL, ButtonType.CLOSE -> return
-						null -> Unit
+						when (responseButton) {
+							ButtonType.OK -> Unit
+							ButtonType.NO -> state.skipCommit = true
+							ButtonType.CANCEL, ButtonType.CLOSE -> return
+							null -> Unit
+						}
 					}
 				}
-			}
 		}
 
 
