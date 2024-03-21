@@ -482,7 +482,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval paintedInterval,
 			final Predicate<Long> acceptAsPainted) {
 
-		if (mask == null)
+		if (mask == null || Intervals.isEmpty(Intervals.intersect(mask.getRai(), paintedInterval)))
 			return;
 		final var applyMaskThread = new Thread(() -> {
 			Thread.currentThread().setName("apply mask");
@@ -504,14 +504,16 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final int[] blockSize = new int[grid.numDimensions()];
 			grid.cellDimensions(blockSize);
 
-			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedInterval);
+			final FinalInterval paintedIntervalOverCanvas = Intervals.intersect(canvas, paintedInterval);
+
+			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedIntervalOverCanvas);
 
 			final var labelToBlocks = paintAffectedPixels(
 					affectedBlocks,
 					mask,
 					canvas,
 					canvas.getCellGrid(),
-					paintedInterval,
+					paintedIntervalOverCanvas,
 					acceptAsPainted);
 
 			for (var label : labelToBlocks.entrySet()) {
@@ -537,7 +539,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							mask.getRai(),
 							affectedBlocks,
 							maskInfo.level,
-							paintedInterval,
+							paintedIntervalOverCanvas,
 							acceptAsPainted,
 							propagationExecutor);
 				} finally {
@@ -601,27 +603,32 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		}
 		var expectedTasks = intervals.size() * 2;
 		final var completedTasks = new AtomicInteger();
+
+		final MaskInfo maskInfo = mask.getInfo();
+		final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
+		final CellGrid grid = canvas.getCellGrid();
+		final RandomAccessibleInterval<UnsignedLongType> maskRai = mask.getRai();
+
 		for (Interval interval : intervals) {
+			final FinalInterval intervalOverCanvas = Intervals.intersect(canvas, interval);
+			if (Intervals.isEmpty(intervalOverCanvas))
+				continue;
 
 			/* Start as busy, so a new mask isn't generated until we are done applying this one. */
 			this.isBusy.set(true);
 
 			var applyFuture = applyPool.submit(() -> {
-				final MaskInfo maskInfo = mask.getInfo();
-				final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
-				final CellGrid grid = canvas.getCellGrid();
-
 				final int[] blockSize = new int[grid.numDimensions()];
 				grid.cellDimensions(blockSize);
 
-				final TLongSet directlyAffectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), interval);
+				final TLongSet directlyAffectedBlocks = affectedBlocks(maskRai, grid, intervalOverCanvas);
 
 				final var labelToBlocks = paintAffectedPixels(
 						directlyAffectedBlocks,
 						mask,
 						canvas,
-						canvas.getCellGrid(),
-						interval,
+						grid,
+						intervalOverCanvas,
 						acceptAsPainted);
 
 				synchronized (progressBinding) {
@@ -647,16 +654,15 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				}
 
 				try {
-					propagationExecutor.submit(() -> {
-						propagateMask(
-								mask.getRai(),
-								directlyAffectedBlocks,
-								maskInfo.level,
-								interval,
-								acceptAsPainted,
-								propagationExecutor);
-
-					}).get();
+					propagationExecutor.submit(
+							() -> propagateMask(
+									maskRai,
+									directlyAffectedBlocks,
+									maskInfo.level,
+									intervalOverCanvas,
+									acceptAsPainted,
+									propagationExecutor)
+					).get();
 					synchronized (progressBinding) {
 						var progress = completedTasks.incrementAndGet() / (double) expectedTasks;
 						progressBinding.set(progress);
@@ -1406,23 +1412,20 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public static TLongSet affectedBlocks(final CellGrid grid, final Interval interval) {
 
-		final int[] blockSize = IntStream.range(0, grid.numDimensions()).map(grid::cellDimension).toArray();
-		return affectedBlocks(grid.getGridDimensions(), blockSize, interval);
+		return affectedBlocks(grid.getGridDimensions(), grid.getCellDimensions(), interval);
 	}
 
-	public static TLongSet affectedBlocks(final long[] gridDimensions, final int[] blockSize, final Interval interval) {
+	public static TLongSet affectedBlocks(final long[] gridDimensions, final int[] blockSize, final Interval intervalOverImg) {
 
 		final TLongHashSet blocks = new TLongHashSet();
 		final int[] ones = IntStream.generate(() -> 1).limit(blockSize.length).toArray();
-		final long[] relevantIntervalMin = new long[blockSize.length];
-		final long[] relevantIntervalMax = new long[blockSize.length];
-		Arrays.setAll(relevantIntervalMin, d -> (interval.min(d) / blockSize[d]));
-		Arrays.setAll(relevantIntervalMax, d -> (interval.max(d) / blockSize[d]));
+		final long[] intervalMinOverGrid = IntStream.range(0, gridDimensions.length).mapToLong(it -> intervalOverImg.min(it) / blockSize[it]).toArray();
+		final long[] intervalMaxOverGrid = IntStream.range(0, gridDimensions.length).mapToLong(it -> intervalOverImg.max(it) / blockSize[it]).toArray();
 		Grids.forEachOffset(
-				relevantIntervalMin,
-				relevantIntervalMax,
+				intervalMinOverGrid,
+				intervalMaxOverGrid,
 				ones,
-				offset -> blocks.add(IntervalIndexer.positionToIndex(offset, gridDimensions))
+				gridPosition -> blocks.add(IntervalIndexer.positionToIndex(gridPosition, gridDimensions))
 		);
 
 		return blocks;
