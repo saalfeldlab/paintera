@@ -7,7 +7,8 @@ import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
-import org.janelia.saalfeldlab.n5.N5FSWriter
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess
+import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
@@ -116,13 +117,14 @@ class N5BackendPainteraDataset<D, T>(
 			const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
 		}
 
-		private fun N5FSWriter.makeN5LabelBlockLookupRelative(
+		private fun N5KeyValueWriter.makeN5LabelBlockLookupRelative(
 			painteraDataset: String,
 			backupAttributes: Boolean,
 			date: Date = Date(),
 			dateFormat: DateFormat = SimpleDateFormat("'.bkp.'yyyy-mm-dd_HH-mm-ss"),
 			overwrite: Boolean = false
 		) {
+			if (keyValueAccess !is FileSystemKeyValueAccess) return
 			val constants = MakeLabelBlockLookupRelativeConstants
 			val painteraDatasetNoLeadingSlash = painteraDataset.trimSlashStart()
 			val labelBlockLookupJson = this.getAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, JsonObject::class.java)
@@ -166,11 +168,13 @@ class N5BackendPainteraDataset<D, T>(
 	}
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup {
-		return (metadataState.writer as? N5FSWriter)?.let { writer ->
-			writer.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
-			N5Helpers.getLabelBlockLookup(metadataState).also {
-				if (it is IsRelativeToContainer) {
-					it.setRelativeTo(writer, dataset)
+		return (metadataState.writer as? N5KeyValueWriter)?.let { writer ->
+			(writer.keyValueAccess as? FileSystemKeyValueAccess)?.let {
+				writer.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
+				N5Helpers.getLabelBlockLookup(metadataState).also {
+					if (it is IsRelativeToContainer) {
+						it.setRelativeTo(writer, dataset)
+					}
 				}
 			}
 		} ?: LabelBlockLookupNoBlocks()
