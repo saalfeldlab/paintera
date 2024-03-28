@@ -21,7 +21,7 @@ import javafx.stage.FileChooser
 import javafx.util.Duration
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.util.SimilarityTransformInterpolator
+import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.fx.Transforms
@@ -157,14 +157,9 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 			Transforms.fromTransformFX(currentState),
 			Transforms.fromTransformFX(affine)
 		)
-		progressProperty.addListener { _: ObservableValue<out Number>?, oldv: Number?, newv: Number ->
-			setAffine(
-				Transforms.toTransformFX(
-					interpolator.interpolateAt(
-						newv.toDouble()
-					)
-				)
-			)
+		progressProperty.addListener { _: ObservableValue<out Number>?, _: Number, new: Number ->
+			val interpolatedTransform = Transforms.toTransformFX(interpolator[new.toDouble()])
+			setAffine(interpolatedTransform)
 		}
 		val kv = KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH)
 		timeline.keyFrames.add(KeyFrame(duration, kv))

@@ -9,7 +9,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.SimilarityTransformInterpolator;
+import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +80,7 @@ public class GlobalTransformManager {
 		final AffineTransform3D currentState = this.affine.copy();
 		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
 		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(currentState, affine.copy());
-		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
+		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.get(newv.doubleValue())));
 		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
 		timeline.onFinishedProperty().set(t -> runAfterAnimation.run());
