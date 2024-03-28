@@ -233,7 +233,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
 		activeViewerProperty.get()?.viewer()?.let {
-			disableUnfocusedViewers()
 			shapeInterpolationTool?.let { shapeInterpolationTool ->
 				controller.apply {
 					if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
@@ -654,12 +653,14 @@ class ShapeInterpolationTool(
 	override fun activate() {
 
 		super.activate()
+		mode?.disableUnfocusedViewers() //TODO Caleb: this should be in the `enter()` of the mode, and the `disabled translate` logic should also
 		/* This action set allows us to translate through the unfocused viewers */
 		paintera.baseView.orthogonalViews().viewerAndTransforms()
 			.filter { !it.viewer().isFocusable }
 			.forEach { disabledViewerAndTransform ->
-				val translateWhileDisabled = disabledViewerTranslateOnlyMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerTranslateOnly)
-				disabledViewerAndTransform.viewer().installActionSet(translateWhileDisabled)
+				val disabledTranslationActions = disabledViewerActions.computeIfAbsent(disabledViewerAndTransform, disabledViewerTranslateOnly)
+				val disabledViewer = disabledViewerAndTransform.viewer()
+				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
 		/* Activate, but we want to bind it to our activeViewer bindings instead of the default. */
 		NavigationTool.activate()
@@ -674,8 +675,8 @@ class ShapeInterpolationTool(
 		* Still deactive it first, to handle the rest of the cleanup */
 		NavigationTool.removeFrom(activeViewer!!)
 		NavigationTool.deactivate()
-		disabledViewerTranslateOnlyMap.forEach { (vat, actionSet) -> vat.viewer().removeActionSet(actionSet) }
-		disabledViewerTranslateOnlyMap.clear()
+		disabledViewerActions.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
+		disabledViewerActions.clear()
 		super.deactivate()
 	}
 
@@ -697,18 +698,35 @@ class ShapeInterpolationTool(
 			}
 		}
 
-	private val disabledViewerTranslateOnlyMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, DragActionSet>()
+	private val disabledViewerActions = mutableMapOf<OrthogonalViews.ViewerAndTransforms, Array<ActionSet>>()
 
 	private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
 		val translator = vat.run {
 			val globalTransformManager = paintera.baseView.manager()
 			TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
 		}
-		painteraDragActionSet("disabled translate xy", NavigationActionType.Pan) {
-			verify { it.isSecondaryButtonDown }
-			verify { controller.controllerState != Interpolate }
-			onDragDetected { translator.init() }
-			onDrag { translator.translate(it.x - startX, it.y - startY) }
+		arrayOf(
+			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {
+				verify { it.isSecondaryButtonDown }
+				verify { controller.controllerState != Interpolate }
+				onDragDetected { translator.init() }
+				onDrag { translator.translate(it.x - startX, it.y - startY) }
+			},
+			painteraActionSet("disabled_move_to_cursor", NavigationActionType.Pan, ignoreDisable = true) {
+				MOUSE_CLICKED(MouseButton.PRIMARY) {
+					verify("only double click") { it?.clickCount!! > 1 }
+					onAction {
+						val viewer = vat.viewer()
+						val x = viewer.width / 2 - viewer.mouseXProperty.value
+						val y = viewer.height / 2 - viewer.mouseYProperty.value
+						translator.init()
+						translator.translate(x, y, 0.0, Duration.millis(500.0))
+					}
+				}
+			}
+
+		)
+	}
 		}
 	}
 
