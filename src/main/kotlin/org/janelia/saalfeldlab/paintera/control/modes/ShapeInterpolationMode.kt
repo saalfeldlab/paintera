@@ -15,6 +15,7 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
+import javafx.util.Duration
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
@@ -726,8 +727,6 @@ class ShapeInterpolationTool(
 			}
 
 		)
-	}
-		}
 	}
 
 	private fun ShapeInterpolationController<*>.requestSamPrediction(depth: Double) {
