@@ -57,7 +57,8 @@ public class OrthogonalViews<BR extends Node> {
 
 		private final AffineTransformWithListeners displayTransform;
 
-		private final AffineTransformWithListeners globalToViewerTransform;
+		/* transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation */
+		private final AffineTransformWithListeners sharedViewerSpaceToViewerTransform;
 
 		private final TransformConcatenator concatenator;
 
@@ -65,25 +66,25 @@ public class OrthogonalViews<BR extends Node> {
 		 * @param viewer                  viewer
 		 * @param manager                 manages the transform from world coordinates to shared viewer space
 		 * @param displayTransform        accounts for scale after all other translations are applied
-		 * @param globalToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 * @param sharedViewerSpaceToViewerTransform   transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
 		 *                                only, without scaling or rotation.
 		 */
 		public ViewerAndTransforms(
 				final ViewerPanelFX viewer,
 				final GlobalTransformManager manager,
 				final AffineTransformWithListeners displayTransform,
-				final AffineTransformWithListeners globalToViewerTransform) {
+				final AffineTransformWithListeners sharedViewerSpaceToViewerTransform) {
 
 			super();
 			this.viewer = viewer;
 			this.manager = manager;
 			this.displayTransform = displayTransform;
-			this.globalToViewerTransform = globalToViewerTransform;
+			this.sharedViewerSpaceToViewerTransform = sharedViewerSpaceToViewerTransform;
 
 			this.concatenator = new TransformConcatenator(
 					this.manager,
 					displayTransform,
-					globalToViewerTransform,
+					sharedViewerSpaceToViewerTransform,
 					manager
 			);
 			this.concatenator.setTransformListener(viewer);
@@ -98,11 +99,11 @@ public class OrthogonalViews<BR extends Node> {
 		}
 
 		/**
-		 * @return global to viewer transform ({@link #ViewerAndTransforms constructor} for details)
+		 * @return shared viewer space to viewer transform ({@link #ViewerAndTransforms constructor} for details)
 		 */
-		public AffineTransformWithListeners globalToViewerTransform() {
+		public AffineTransformWithListeners sharedViewerSpaceToViewerTransform() {
 
-			return this.globalToViewerTransform;
+			return this.sharedViewerSpaceToViewerTransform;
 		}
 
 		/**

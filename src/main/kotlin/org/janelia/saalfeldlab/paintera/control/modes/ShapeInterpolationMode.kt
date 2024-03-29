@@ -66,7 +66,6 @@ import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.nio.file.FileSystem
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.filter
@@ -704,7 +703,7 @@ class ShapeInterpolationTool(
 	private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
 		val translator = vat.run {
 			val globalTransformManager = paintera.baseView.manager()
-			TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
+			TranslationController(globalTransformManager, displayTransform(), sharedViewerSpaceToViewerTransform())
 		}
 		arrayOf(
 			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {

@@ -127,9 +127,6 @@ object NavigationTool : ViewerTool() {
 	override val name: String = "Navigation"
 	override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
-	//TODO Caleb: should standardize the `TransformTracker` and updater concept. Refer to Rotate/TranslationController
-	val globalToViewerTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
-
 	val viewerTransform by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
 		viewerAndTransforms?.run {
 			AffineTransform3D().apply {
@@ -139,7 +136,7 @@ object NavigationTool : ViewerTool() {
 	}
 	val translationController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
 		viewerAndTransforms?.run {
-			TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
+			TranslationController(globalTransformManager, displayTransform(), sharedViewerSpaceToViewerTransform())
 		}
 	}
 
@@ -152,7 +149,7 @@ object NavigationTool : ViewerTool() {
 	}
 
 	val rotationController by LazyForeignValue({ activeViewerAndTransforms }) {
-		Rotate(it!!.displayTransform(), it.globalToViewerTransform(), globalTransformManager)
+		Rotate(it!!.displayTransform(), it.sharedViewerSpaceToViewerTransform(), globalTransformManager)
 	}
 
 	val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
@@ -167,17 +164,13 @@ object NavigationTool : ViewerTool() {
 
 	override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
 		viewerAndTransforms?.run {
-			globalToViewerTransform().addListener {
-				globalToViewerTransform.set(it)
-			}
-
 			val actionSets = mutableListOf<ActionSet?>()
 			actionSets += speedModifierActions()
 			actionSets += translateAlongNormalActions(translationController!!)
 			actionSets += translateInPlaneActions(translationController!!)
 			actionSets += zoomActions(zoomController, targetPositionObservable!!)
 
-			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, displayTransform(), globalToViewerTransform(), resetRotationController)
+			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, resetRotationController)
 			actionSets += goToPositionAction(translationController!!)
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
@@ -401,8 +394,6 @@ object NavigationTool : ViewerTool() {
 	private fun rotationActions(
 		targetPositionObservable: ObservablePosition,
 		keyRotationAxis: SimpleObjectProperty<Axis>,
-		displayTransform: AffineTransformWithListeners,
-		globalToViewerTransform: AffineTransformWithListeners,
 		resetRotationController: RemoveRotation
 	): List<ActionSet?> {
 

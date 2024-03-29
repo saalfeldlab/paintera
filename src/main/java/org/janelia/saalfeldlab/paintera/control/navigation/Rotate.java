@@ -19,7 +19,7 @@ public class Rotate {
 
 	private final AffineTransformWithListeners displayTransformUpdater;
 
-	private final AffineTransformWithListeners globalToViewerTransformUpdater;
+	private final AffineTransformWithListeners sharedViewerSpaceToViewerTransformUpdater;
 
 	private final GlobalTransformManager manager;
 
@@ -38,7 +38,7 @@ public class Rotate {
 
 	public Rotate(
 			final AffineTransformWithListeners displayTransformUpdater,
-			final AffineTransformWithListeners globalToViewerTransformUpdater,
+			final AffineTransformWithListeners sharedViewerSpaceToViewerTransformUpdater,
 			final GlobalTransformManager globalTransformManager) {
 
 		super();
@@ -48,7 +48,7 @@ public class Rotate {
 		this.displayTransformTracker = new TranslationController.TransformTracker(displayTransform, globalTransformManager);
 
 		this.displayTransformUpdater = displayTransformUpdater;
-		this.globalToViewerTransformUpdater = globalToViewerTransformUpdater;
+		this.sharedViewerSpaceToViewerTransformUpdater = sharedViewerSpaceToViewerTransformUpdater;
 		this.manager = globalTransformManager;
 		listenOnTransformChanges();
 	}
@@ -70,14 +70,14 @@ public class Rotate {
 
 		this.manager.addListener(this.globalTransformTracker);
 		this.displayTransformUpdater.addListener(this.displayTransformTracker);
-		this.globalToViewerTransformUpdater.addListener(this.globalToViewerTransformTracker);
+		this.sharedViewerSpaceToViewerTransformUpdater.addListener(this.globalToViewerTransformTracker);
 	}
 
 	public void stopListeningOnTransformChanges() {
 
 		this.manager.removeListener(this.globalTransformTracker);
 		this.displayTransformUpdater.removeListener(this.displayTransformTracker);
-		this.globalToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
+		this.sharedViewerSpaceToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
 	}
 
 	public enum Axis {

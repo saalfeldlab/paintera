@@ -35,7 +35,7 @@ public class TranslationController {
 
 	private final AffineTransformWithListeners displayTransformUpdater;
 
-	private final AffineTransformWithListeners globalToViewerTransformUpdater;
+	private final AffineTransformWithListeners sharedViewerSpaceToViewerTransformUpdater;
 
 	private final double[] delta = new double[3];
 
@@ -44,11 +44,11 @@ public class TranslationController {
 	public TranslationController(
 			final GlobalTransformManager manager,
 			final AffineTransformWithListeners displayTransformUpdater,
-			final AffineTransformWithListeners globalToViewerTransformUpdater) {
+			final AffineTransformWithListeners sharedViewerSpaceToViewerTransformUpdater) {
 
 		this.manager = manager;
 		this.displayTransformUpdater = displayTransformUpdater; //scale
-		this.globalToViewerTransformUpdater = globalToViewerTransformUpdater; //translation
+		this.sharedViewerSpaceToViewerTransformUpdater = sharedViewerSpaceToViewerTransformUpdater; //translation
 		this.globalTransformTracker = new TransformTracker(global, manager);
 		this.displayTransformTracker = new TransformTracker(displayTransform, manager);
 		this.globalToViewerTransformTracker = new TransformTracker(globalToViewerTransform, manager);
@@ -107,14 +107,14 @@ public class TranslationController {
 
 		this.manager.addListener(this.globalTransformTracker);
 		this.displayTransformUpdater.addListener(this.displayTransformTracker);
-		this.globalToViewerTransformUpdater.addListener(this.globalToViewerTransformTracker);
+		this.sharedViewerSpaceToViewerTransformUpdater.addListener(this.globalToViewerTransformTracker);
 	}
 
 	public void stopListeningOnTransformChanges() {
 
 		this.manager.removeListener(this.globalTransformTracker);
 		this.displayTransformUpdater.removeListener(this.displayTransformTracker);
-		this.globalToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
+		this.sharedViewerSpaceToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
 	}
 
 	/*TODO: Move this to somewhere else*/
