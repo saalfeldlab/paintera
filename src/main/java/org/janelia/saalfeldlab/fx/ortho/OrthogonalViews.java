@@ -87,7 +87,11 @@ public class OrthogonalViews<BR extends Node> {
 					sharedViewerSpaceToViewerTransform,
 					manager
 			);
-			this.concatenator.setTransformListener(viewer);
+			this.globalToViewerTransformListener.addListener(viewer);
+		}
+
+		public AffineTransformWithListeners getGlobalToViewerTransform() {
+			return globalToViewerTransformListener;
 		}
 
 		/**
