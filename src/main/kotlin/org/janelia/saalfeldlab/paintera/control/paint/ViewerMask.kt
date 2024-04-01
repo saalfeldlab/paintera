@@ -206,6 +206,10 @@ class ViewerMask private constructor(
 		return pointInInitialMask.toPoint()
 	}
 
+	val viewerTransform: AffineTransform3D = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
+		it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
+	}
+
 	fun removeDisplayTransform(transform: AffineTransform3D): AffineTransform3D {
 		/* The viewerTransform is scaled and not centered, compared to the resulting transform
          *   The resulting transform also is equivalent to if we move to the resulting location
@@ -215,7 +219,9 @@ class ViewerMask private constructor(
          *   update what a `ViewerMask` expects, or change what the TransformListener of ViewerPanelFx does.
          *   Potentially worth some investigation.
          * */
-		val displayTransform = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.displayTransform().transformCopy
+		val displayTransform = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
+			it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
+		}
 		return transform.preConcatenate(displayTransform.inverse())
 	}
 
