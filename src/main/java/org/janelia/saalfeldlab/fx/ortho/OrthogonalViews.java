@@ -58,34 +58,33 @@ public class OrthogonalViews<BR extends Node> {
 		private final AffineTransformWithListeners displayTransform;
 
 		/* transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation */
-		private final AffineTransformWithListeners sharedViewerSpaceToViewerTransform;
+		private final AffineTransformWithListeners viewerSpaceToViewerTransform;
 
-		private final TransformConcatenator concatenator;
+		private final TransformConcatenator globalToViewerTransformListener;
 
 		/**
 		 * @param viewer                  viewer
 		 * @param manager                 manages the transform from world coordinates to shared viewer space
 		 * @param displayTransform        accounts for scale after all other translations are applied
-		 * @param sharedViewerSpaceToViewerTransform   transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 * @param viewerSpaceToViewerTransform   transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
 		 *                                only, without scaling or rotation.
 		 */
 		public ViewerAndTransforms(
 				final ViewerPanelFX viewer,
 				final GlobalTransformManager manager,
 				final AffineTransformWithListeners displayTransform,
-				final AffineTransformWithListeners sharedViewerSpaceToViewerTransform) {
+				final AffineTransformWithListeners viewerSpaceToViewerTransform) {
 
 			super();
 			this.viewer = viewer;
 			this.manager = manager;
 			this.displayTransform = displayTransform;
-			this.sharedViewerSpaceToViewerTransform = sharedViewerSpaceToViewerTransform;
+			this.viewerSpaceToViewerTransform = viewerSpaceToViewerTransform;
 
-			this.concatenator = new TransformConcatenator(
+			this.globalToViewerTransformListener = new TransformConcatenator(
 					this.manager,
 					displayTransform,
-					sharedViewerSpaceToViewerTransform,
-					manager
+					viewerSpaceToViewerTransform
 			);
 			this.globalToViewerTransformListener.addListener(viewer);
 		}
@@ -97,7 +96,7 @@ public class OrthogonalViews<BR extends Node> {
 		/**
 		 * @return display transform ({@link #ViewerAndTransforms constructor} for details)
 		 */
-		public AffineTransformWithListeners displayTransform() {
+		public AffineTransformWithListeners getDisplayTransform() {
 
 			return this.displayTransform;
 		}
@@ -105,9 +104,9 @@ public class OrthogonalViews<BR extends Node> {
 		/**
 		 * @return shared viewer space to viewer transform ({@link #ViewerAndTransforms constructor} for details)
 		 */
-		public AffineTransformWithListeners sharedViewerSpaceToViewerTransform() {
+		public AffineTransformWithListeners getViewerSpaceToViewerTransform() {
 
-			return this.sharedViewerSpaceToViewerTransform;
+			return this.viewerSpaceToViewerTransform;
 		}
 
 		/**

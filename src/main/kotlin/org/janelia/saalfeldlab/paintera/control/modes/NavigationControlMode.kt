@@ -136,7 +136,7 @@ object NavigationTool : ViewerTool() {
 	}
 	val translationController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
 		viewerAndTransforms?.run {
-			TranslationController(globalTransformManager, displayTransform(), sharedViewerSpaceToViewerTransform())
+			TranslationController(globalTransformManager, globalToViewerTransform)
 		}
 	}
 
@@ -149,7 +149,7 @@ object NavigationTool : ViewerTool() {
 	}
 
 	val rotationController by LazyForeignValue({ activeViewerAndTransforms }) {
-		Rotate(it!!.displayTransform(), it.sharedViewerSpaceToViewerTransform(), globalTransformManager)
+		Rotate(globalTransformManager, it!!.globalToViewerTransform)
 	}
 
 	val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
@@ -213,7 +213,6 @@ object NavigationTool : ViewerTool() {
 						name = actionName
 						onAction {
 							val delta = -ControlUtils.getBiggestScroll(it).sign * speed
-							translationController.init()
 							translationController.translate(0.0, 0.0, delta)
 						}
 						this.keysInit()
@@ -236,7 +235,6 @@ object NavigationTool : ViewerTool() {
 					KEY_PRESSED {
 						keyMatchesBinding(keyBindings, keyName)
 						onAction {
-							translationController.init()
 							translationController.translate(0.0, 0.0, step * speed)
 						}
 					}
@@ -264,7 +262,6 @@ object NavigationTool : ViewerTool() {
 							verifyEventNotNull()
 							onAction {
 								InvokeOnJavaFXApplicationThread {
-									translator.init()
 									translator.translate(0.0, 0.0, it!!.value.sign * FAST)
 								}
 							}
@@ -278,8 +275,8 @@ object NavigationTool : ViewerTool() {
 
 		fun dragAction(translateXYController: TranslationController) =
 			painteraDragActionSet("drag translate xy", NavigationActionType.Pan) {
+				relative = true
 				verify { it.isSecondaryButtonDown }
-				onDragDetected { translateXYController.init() }
 				onDrag { translateXYController.translate(it.x - startX, it.y - startY) }
 			}
 
@@ -300,7 +297,6 @@ object NavigationTool : ViewerTool() {
 						verifyEventNotNull()
 						onAction {
 							InvokeOnJavaFXApplicationThread {
-								translator.init()
 								translator.translate(it!!.value.toDouble(), 0.0)
 							}
 						}
@@ -311,7 +307,6 @@ object NavigationTool : ViewerTool() {
 						verifyEventNotNull()
 						onAction {
 							InvokeOnJavaFXApplicationThread {
-								translator.init()
 								translator.translate(0.0, it!!.value.toDouble())
 							}
 						}
@@ -351,7 +346,7 @@ object NavigationTool : ViewerTool() {
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN,
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN2
 				).map { (direction, key) ->
-					KEY_PRESSED(keyBindings, key, keysExclusive = false) {
+					KEY_PRESSED(keyBindings, key, keysExclusive = true) {
 						onAction {
 							val delta = speed / 100
 							val scale = 1 - direction * delta
@@ -419,7 +414,9 @@ object NavigationTool : ViewerTool() {
 		val mouseRotation = painteraDragActionSet("mousde-drag-rotate", NavigationActionType.Rotate) {
 			verify { it.isPrimaryButtonDown }
 			dragDetectedAction.verify { NavigationTool.allowRotationsProperty() }
-			onDragDetected { rotationController.initialize(targetPositionObservable.x, targetPositionObservable.y) }
+			onDragDetected {
+				rotationController.initialize(targetPositionObservable.x, targetPositionObservable.y)
+			}
 			onDrag {
 				rotationController.setSpeed(speed / buttonRotationSpeedConfig.regular.value)
 				rotationController.rotate3D(it.x, it.y, startX, startY)
@@ -563,7 +560,6 @@ object NavigationTool : ViewerTool() {
 								val deltaY = viewer.height / 2.0 - newViewerCenter.getDoublePosition(1)
 								val deltaZ = 0 - newViewerCenter.getDoublePosition(2)
 
-								translateXYController.init()
 								translateXYController.translate(deltaX, deltaY, deltaZ, Duration(300.0))
 							}
 						}
