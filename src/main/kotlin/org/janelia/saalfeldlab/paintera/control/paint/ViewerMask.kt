@@ -66,6 +66,17 @@ class ViewerMask private constructor(
 	val currentGlobalToViewerTransform: AffineTransform3D get() = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
 
 
+
+	val initialViewerTransform: AffineTransform3D = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
+		it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
+	}
+
+	val currentViewerTransform: AffineTransform3D
+		get() = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
+		it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
+	}
+
+
 	/**
 	 * Transform to the initial Viewer space from the [source] space for the given [MaskInfo] (including mipmap levels)
 	 */
@@ -204,25 +215,6 @@ class ViewerMask private constructor(
 
 		val pointInInitialMask = RealPoint(globalPoint).also { initialGlobalToMaskTransform.copy().concatenate(xyScaleOnly.inverse()).apply(globalPoint, it) }
 		return pointInInitialMask.toPoint()
-	}
-
-	val viewerTransform: AffineTransform3D = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
-		it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
-	}
-
-	fun removeDisplayTransform(transform: AffineTransform3D): AffineTransform3D {
-		/* The viewerTransform is scaled and not centered, compared to the resulting transform
-         *   The resulting transform also is equivalent to if we move to the resulting location
-         *   call paintera.baseView.manager.transform
-         *
-         * TODO: Caleb It's not clear if we should update what `getViewerTransform` returns, or
-         *   update what a `ViewerMask` expects, or change what the TransformListener of ViewerPanelFx does.
-         *   Potentially worth some investigation.
-         * */
-		val displayTransform = paintera.baseView.orthogonalViews().viewerAndTransforms().first { it.viewer() == viewer }.let {
-			it.displayTransform.transformCopy.concatenate(it.viewerSpaceToViewerTransform.transformCopy)
-		}
-		return transform.preConcatenate(displayTransform.inverse())
 	}
 
 
