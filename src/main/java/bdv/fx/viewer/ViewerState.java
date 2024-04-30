@@ -38,6 +38,10 @@ public class ViewerState extends ObservableWithListenersList {
 		stateChanged();
 	}
 
+	/**
+	 * set {@param to} to the global to viewer transform for this ViewerState
+	 * @param to the target transform object
+	 */
 	public synchronized void getViewerTransform(final AffineTransform3D to) {
 
 		to.set(this.viewerTransform);
