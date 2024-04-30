@@ -9,7 +9,6 @@ import javafx.scene.control.ButtonType
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
-import javafx.scene.layout.GridPane
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -22,7 +21,7 @@ import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.StyleableImageView
+import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
@@ -149,6 +148,7 @@ object PaintLabelMode : AbstractToolMode() {
 
 	private val enterShapeInterpolationMode = painteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
 		KEY_PRESSED(KeyCode.S) {
+			graphic = { ScaleView().also { it.styleClass += "enter-shape-interpolation" } }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify {
 				@Suppress("UNCHECKED_CAST")

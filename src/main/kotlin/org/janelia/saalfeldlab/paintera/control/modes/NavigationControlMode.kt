@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
@@ -122,7 +123,7 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
+	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "navigation-tool" }) }
 
 	override val name: String = "Navigation"
 	override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */

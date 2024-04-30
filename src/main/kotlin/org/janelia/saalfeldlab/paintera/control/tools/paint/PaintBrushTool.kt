@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
@@ -46,7 +47,7 @@ internal const val START_BACKGROUND_ERASE = "start background erase"
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "paint-brush") } }
+	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("paint-brush") } ) }
 	override val name = "Paint"
 	override val keyTrigger = listOf(KeyCode.SPACE)
 

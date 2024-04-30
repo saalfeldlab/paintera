@@ -14,12 +14,13 @@ import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
-import org.janelia.saalfeldlab.fx.ui.StyleableImageView
+import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
@@ -32,7 +33,7 @@ import kotlin.collections.set
 open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "fill-2d") } }
+	override val graphic = { ScaleView().also { it.styleClass += "fill-2d" } }
 
 	override val name = "Fill 2D"
 	override val keyTrigger = listOf(KeyCode.F)
@@ -106,6 +107,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
 					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
 					filter = true
 					onAction {
 						fillTask?.run { if (!isCancelled) cancel() } ?: mode?.switchTool(mode.defaultTool)

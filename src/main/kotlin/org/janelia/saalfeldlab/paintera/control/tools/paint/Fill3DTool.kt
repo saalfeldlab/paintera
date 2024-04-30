@@ -20,11 +20,12 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.fx.ui.StyleableImageView
+import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -34,7 +35,7 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
 class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "fill-3d") } }
+	override val graphic = { ScaleView().also { it.styleClass += "fill-3d" } }
 
 	override val name = "Fill 3D"
 	override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
@@ -135,6 +136,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
 					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply{ styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
 					filter = true
 					verify { floodFillTask != null }
 					onAction {
