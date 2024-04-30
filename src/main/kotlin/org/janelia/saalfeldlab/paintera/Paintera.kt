@@ -35,6 +35,7 @@ import kotlin.system.exitProcess
 
 
 internal lateinit var paintera: PainteraMainWindow
+
 internal val properties
 	get() = paintera.properties
 

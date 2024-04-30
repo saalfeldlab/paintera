@@ -307,6 +307,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 
 	companion object {
+
 		@JvmStatic
 		val NAME = "Paintera"
 

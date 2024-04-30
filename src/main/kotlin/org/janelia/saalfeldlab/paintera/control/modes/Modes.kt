@@ -287,9 +287,9 @@ abstract class AbstractSourceMode : SourceMode {
 	final override val activeViewerProperty = SimpleObjectProperty<ViewerAndTransforms?>()
 
 	private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?>
-        get() = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
+		get() = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
 	private val currentViewerObservable
-        get() = paintera.baseView.currentFocusHolder
+		get() = paintera.baseView.currentFocusHolder
 
 	private val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
 		it?.let { paintera.baseView.keyAndMouseBindings.getConfigFor(it).keyCombinations }
