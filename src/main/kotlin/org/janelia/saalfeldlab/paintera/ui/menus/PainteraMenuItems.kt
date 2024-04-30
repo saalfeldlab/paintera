@@ -112,7 +112,7 @@ enum class PainteraMenuItems(
 					MenuItem(text).apply {
 						icon?.let { graphic = FontAwesome[it, 1.5] }
 						onAction = handler
-						namedKeyCombindations[keys]?.let { acceleratorProperty().bind(it.primaryCombinationProperty()) }
+						namedKeyCombindations[keys]?.let { acceleratorProperty().bind(it.primaryCombinationProperty) }
 						/* Set up the disabled binding*/
 						allowedAction?.let {
 							disableProperty().bind(paintera.baseView.allowedActionsProperty().allowedActionBinding(allowedAction).not())

@@ -267,7 +267,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			Image("/icon-96.png"),
 			Image("/icon-128.png")
 		)
-		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
+		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty)
 		wasQuit = false
 		stage.onCloseRequest = EventHandler { if (!doSaveAndQuit()) it.consume() }
 		stage.onHiding = EventHandler { if (!doSaveAndQuit()) it.consume() }

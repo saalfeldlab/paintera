@@ -68,7 +68,7 @@ public class LabelSourceStateMergeDetachHandler {
 		this.idService = idService;
 	}
 
-	public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, Supplier<ViewerPanelFX> activeViewerSupplier) {
+	public List<ActionSet> makeActionSets(Supplier<ViewerPanelFX> activeViewerSupplier) {
 
 		final var mergeFragments = painteraActionSet("merge fragments", LabelActionType.Merge, actionSet -> {
 			actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
@@ -78,7 +78,7 @@ public class LabelSourceStateMergeDetachHandler {
 				action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()).accept(mouseEvent));
 			});
 			actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
-				action.keyMatchesBinding(keyBindings, LabelSourceStateKeys.MERGE_ALL_SELECTED);
+				action.keyMatchesBinding(LabelSourceStateKeys.MERGE_ALL_SELECTED);
 				action.onAction(event -> mergeAllSelected());
 			});
 		});

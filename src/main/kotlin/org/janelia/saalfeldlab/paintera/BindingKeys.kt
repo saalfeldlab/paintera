@@ -5,20 +5,24 @@ import javafx.scene.input.KeyCode.*
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyCombination.*
+import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 
-infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
-infix fun String.byKeyCombo(modifier: Modifier) = NamedKeyCombination(this, NamedKeyCombination.OnlyModifierKeyCombination(modifier))
-infix fun String.byKeyCombo(combo: KeyCombination) = NamedKeyCombination(this, combo)
+private fun KeyCode.asCombination() = KeyCodeCombination(this)
+private fun Modifier.asCombination() = NamedKeyCombination.OnlyModifierKeyCombination(this)
 
-operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
-operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
+private infix fun String.byKeyCombo(keyCode: KeyCode) = this byKeyCombo keyCode.asCombination()
+private infix fun String.byKeyCombo(modifier: Modifier) = this byKeyCombo modifier.asCombination()
+private infix fun String.byKeyCombo(combo: KeyCombination) = NamedKeyCombination(this, combo)
 
-operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
-operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
+private operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
+private operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
 
-operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
-operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
+private operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
+private operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
+
+private operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
+private operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 
 
 private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
@@ -84,56 +88,69 @@ object PainteraBaseKeys {
 	@JvmStatic
     fun namedCombinationsCopy() = NAMED_COMBINATIONS.deepCopy
 
-
 }
 
-object LabelSourceStateKeys {
-    const val SELECT_ALL                                   = "select all"
-    const val SELECT_ALL_IN_CURRENT_VIEW                   = "select all in current view"
-    const val LOCK_SEGEMENT                                = "lock segment"
-    const val NEXT_ID                                      = "next id"
-    const val COMMIT_DIALOG                                = "commit dialog"
-    const val MERGE_ALL_SELECTED                           = "merge all selected"
-    const val ENTER_SHAPE_INTERPOLATION_MODE               = "shape interpolation: enter mode"
-    const val EXIT_SHAPE_INTERPOLATION_MODE                = "shape interpolation: exit mode"
-    const val SHAPE_INTERPOLATION_TOGGLE_PREVIEW           = "shape interpolation: toggle preview mode"
-    const val SHAPE_INTERPOLATION_APPLY_MASK               = "shape interpolation: apply mask"
-    const val SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION     = "shape interpolation: edit first selection"
-    const val SHAPE_INTERPOLATION_EDIT_LAST_SELECTION      = "shape interpolation: edit last selection"
-    const val SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION  = "shape interpolation: edit previous selection"
-    const val SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION      = "shape interpolation: edit next selection"
-    const val ARGB_STREAM_INCREMENT_SEED                   = "argb stream: increment seed"
-    const val ARGB_STREAM_DECREMENT_SEED                   = "argb stream: decrement seed"
-    const val REFRESH_MESHES                               = "refresh meshes"
-    const val CANCEL                                       = "cancel"
-    const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
-    const val SEGMENT_ANYTHING                        = "Segment Anything Mode"
+private class LateInitNamedKeyCombination(keyCombination: KeyCombination, initName : String?) : NamedKeyCombination("LateInitNamedKeyCombo", keyCombination) {
+    lateinit var lateName : String
+    override val keyBindingName: String
+        get() = lateName
 
-	private val namedComboMap = NamedKeyCombination.CombinationMap(
-        SELECT_ALL                                  byKeyCombo A + CONTROL_DOWN,
-        SELECT_ALL_IN_CURRENT_VIEW                  byKeyCombo CONTROL_DOWN + SHIFT_DOWN + A,
-        LOCK_SEGEMENT                               byKeyCombo L,
-        NEXT_ID                                     byKeyCombo N,
-        COMMIT_DIALOG                               byKeyCombo C + CONTROL_DOWN,
-        MERGE_ALL_SELECTED                          byKeyCombo ENTER + CONTROL_DOWN,
-        ENTER_SHAPE_INTERPOLATION_MODE              byKeyCombo S,
-        EXIT_SHAPE_INTERPOLATION_MODE               byKeyCombo ESCAPE,
-        SHAPE_INTERPOLATION_APPLY_MASK              byKeyCombo ENTER,
-        SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION    byKeyCombo DIGIT1,
-        SHAPE_INTERPOLATION_EDIT_LAST_SELECTION     byKeyCombo DIGIT0,
-		SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION byKeyCombo LEFT,
-        SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION     byKeyCombo RIGHT,
-        SHAPE_INTERPOLATION_TOGGLE_PREVIEW          byKeyCombo CONTROL_DOWN + P ,
-        ARGB_STREAM_INCREMENT_SEED                  byKeyCombo C,
-        ARGB_STREAM_DECREMENT_SEED                  byKeyCombo C + SHIFT_DOWN,
-        REFRESH_MESHES                              byKeyCombo R,
-        CANCEL                                      byKeyCombo ESCAPE,
-        TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN,
-        SEGMENT_ANYTHING                            byKeyCombo A
-    )
+    init {
+        initName?.let {setName(it)}
+    }
 
-	fun namedCombinationsCopy() = namedComboMap.deepCopy
+    fun setName(name: String) { if (!::lateName.isInitialized) lateName = name}
+}
 
+enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombination) : NamedKeyBinding by lateInitNamedKeyCombo {
+    SELECT_ALL                                        ( CONTROL_DOWN + A),
+    SELECT_ALL_IN_CURRENT_VIEW                        ( CONTROL_DOWN + SHIFT_DOWN + A),
+    LOCK_SEGMENT                                      ( L),
+    NEXT_ID                                           ( N),
+    COMMIT_DIALOG                                     ( C + CONTROL_DOWN),
+    MERGE_ALL_SELECTED                                ( ENTER + CONTROL_DOWN),
+    ARGB_STREAM__INCREMENT_SEED                       ( C),
+    ARGB_STREAM__DECREMENT_SEED                       ( C + SHIFT_DOWN),
+    REFRESH_MESHES                                    ( R),
+    CANCEL                                            ( ESCAPE, "cancel tool / exit mode"),
+    TOGGLE_NON_SELECTED_LABELS_VISIBILITY             ( V + SHIFT_DOWN, "toggle non-selected labels visibility"),
+    SEGMENT_ANYTHING__TOGGLE_MODE                     ( A),
+    PAINT_BRUSH                                       ( SPACE),
+    FILL_2D                                           ( F),
+    FILL_3D                                           ( SHIFT_DOWN + F),
+    CLEAR_CANVAS                                      ( CONTROL_DOWN + SHIFT_DOWN + C),
+    INTERSECT_UNDERLYING_LABEL                        ( SHIFT_DOWN + R),
+    SHAPE_INTERPOLATION__TOGGLE_MODE                  ( S),
+    SHAPE_INTERPOLATION__TOGGLE_PREVIEW               ( CONTROL_DOWN + P),
+    SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION         ( ENTER),
+    SHAPE_INTERPOLATION__SELECT_FIRST_SLICE           ( SHIFT_DOWN + LEFT),
+    SHAPE_INTERPOLATION__SELECT_LAST_SLICE            ( SHIFT_DOWN + RIGHT),
+    SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE        ( LEFT),
+    SHAPE_INTERPOLATION__SELECT_NEXT_SLICE            ( RIGHT ),
+    SHAPE_INTERPOLATION__REMOVE_SLICE_1               ( DELETE, "delete current slice "),
+    SHAPE_INTERPOLATION__REMOVE_SLICE_2               ( BACK_SPACE, "delete current slice  "),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT     ( OPEN_BRACKET, "auto SAM: new slice left" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT  ( QUOTE, "auto SAM: new bisect slices" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT    ( CLOSE_BRACKET, "auto SAM: new slice right"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE     ( SHIFT_DOWN + A, "auto SAM: new slice at current location"   ),
+    ;
+
+
+    private val formattedName = name.lowercase()
+        .replace("__", ": ")
+        .replace("_", " ")
+
+    constructor(keys : KeyCombination, name : String? = null) : this(LateInitNamedKeyCombination(keys, name))
+    constructor(key : KeyCode, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+    constructor(key : Modifier, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+
+    init {
+        lateInitNamedKeyCombo.setName(formattedName)
+    }
+
+    companion object {
+        fun namedCombinationsCopy() = NamedKeyCombination.CombinationMap(*entries.map { it.deepCopy }.toTypedArray())
+    }
 }
 
 object NavigationKeys {

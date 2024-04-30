@@ -36,7 +36,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 	override val graphic = { ScaleView().also { it.styleClass += "fill-2d" } }
 
 	override val name = "Fill 2D"
-	override val keyTrigger = listOf(KeyCode.F)
+	override val keyTrigger = LabelSourceStateKeys.FILL_2D
 	var fillLabel: () -> Long = { statePaintContext?.paintSelection?.invoke() ?: Label.INVALID }
 
 	val fill2D by LazyForeignValue({ statePaintContext }) {
@@ -105,8 +105,8 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
-				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
-					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
+				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+					name = "Cancel Fill 2D"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
 					filter = true
 					onAction {
@@ -154,7 +154,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 						overlay.cursor = Cursor.WAIT
 					} else {
 						overlay.cursor = Cursor.CROSSHAIR
-						if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+						if (!paintera.keyTracker.areKeysDown(*keyTrigger.keyCodes.toTypedArray()) && !enteredWithoutKeyTrigger) {
 							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
 						}
 						obs?.removeListener(this)

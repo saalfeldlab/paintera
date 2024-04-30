@@ -7,7 +7,6 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableValue
 import javafx.scene.Cursor
-import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
@@ -38,7 +37,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 	override val graphic = { ScaleView().also { it.styleClass += "fill-3d" } }
 
 	override val name = "Fill 3D"
-	override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
+	override val keyTrigger = LabelSourceStateKeys.FILL_3D
 
 
 	private val floodFillTaskProperty = SimpleObjectProperty<UtilityTask<*>?>()
@@ -100,7 +99,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 								overlay.cursor = Cursor.WAIT
 							} else {
 								overlay.cursor = Cursor.CROSSHAIR
-								if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+								if (!paintera.keyTracker.areKeysDown(keyTrigger) && !enteredWithoutKeyTrigger) {
 									InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
 								}
 								obs.removeListener(setFalseAndRemoveListener)
@@ -134,8 +133,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
-				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
-					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "ignore-disable") } }
+				KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+					name = "cancel Fill 3D"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply{ styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
 					filter = true
 					verify { floodFillTask != null }

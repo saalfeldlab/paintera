@@ -24,6 +24,11 @@ fun Action<*>.verifyPainteraNotDisabled() {
 }
 
 @JvmSynthetic
+fun painteraActionSet(namedKey: NamedKeyBinding, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (ActionSet.() -> Unit)?): ActionSet {
+	return painteraActionSet(namedKey.keyBindingName, actionType, ignoreDisable, apply)
+}
+
+@JvmSynthetic
 fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (ActionSet.() -> Unit)?): ActionSet {
 	return ActionSet(name, { paintera.keyTracker }).apply {
 		verifyPermission(actionType)

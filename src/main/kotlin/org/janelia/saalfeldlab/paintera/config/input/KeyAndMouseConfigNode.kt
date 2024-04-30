@@ -11,7 +11,6 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.control.cell.PropertyValueFactory
-import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
@@ -23,6 +22,7 @@ import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
+import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
@@ -95,8 +95,10 @@ class KeyAndMouseConfigNode(
 			val sortedKeys = sourcesByClass.keys.sortedBy { it.simpleName }
 			sourceSpecificConfigPanes.panes.setAll(sortedKeys
 				.filter { config.hasConfigFor(it) }
-				.map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).makeNode() })
+				.mapNotNull { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).makeNode() })
 		}.apply { invalidated(sourcesByClass) })
+
+		sourceSpecificConfigPanes.panes.firstOrNull()?.let { sourceSpecificConfigPanes.expandedPane = it }
 
 		return Accordion(painteraPane, navigationPane, sourceSpecificBindings).apply {
 			expandedPane = painteraPane
@@ -113,7 +115,9 @@ class KeyAndMouseConfigNode(
 		val indexColumn = TableColumn<Pair<Int, String>, String>("Index").apply { cellValueFactory = PropertyValueFactory("first") }
 		val nameColumn = TableColumn<Pair<Int, String>, String>("Name").apply { cellValueFactory = PropertyValueFactory("second") }
 
-		fun makeNode(): TitledPane {
+		fun makeNode(): TitledPane? {
+
+			if (bindings.keyCombinations.isEmpty()) return null
 
 			val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
 			val sortedNames = sortedStates.map { it.nameProperty().value }
@@ -135,6 +139,9 @@ class KeyAndMouseConfigNode(
 			).apply { alignment = Pos.CENTER }
 
 			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
+				if (bindings.keyCombinations.isEmpty())
+					managedProperty().value = false
+				maxWidth = Double.MAX_VALUE
 				graphicsOnly(tpGraphics)
 				alignment = Pos.CENTER_RIGHT
 			}
@@ -185,7 +192,7 @@ class KeyAndMouseConfigNode(
 			val grid = GridPane().apply { alignment = Pos.CENTER_LEFT }
 			bindings.keys.sorted().forEachIndexed { index, s ->
 				val combination = bindings[s]!!
-				grid.add(Labels.withTooltip(combination.name).also { GridPane.setHgrow(it, Priority.ALWAYS) }, 0, index)
+				grid.add(Labels.withTooltip(combination.keyBindingName).also { GridPane.setHgrow(it, Priority.ALWAYS) }, 0, index)
 				grid.add(Buttons.withTooltip("${combination.primaryCombination}") {}.also { it.prefWidth = BUTTON_PREF_WIDTH }, 1, index)
 			}
 			return grid
@@ -201,7 +208,7 @@ class KeyAndMouseConfigNode(
 			cellValueFactory = Callback { SimpleStringProperty(it.value) }
 		}
 		val bindingColumn = TableColumn<String, KeyCombination>("Binding").apply {
-			cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
+			cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty }
 		}
 
 		private fun makeNode(): Node = TableView(FXCollections.observableArrayList(bindings.keys.sorted())).apply {
