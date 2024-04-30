@@ -9,15 +9,33 @@ import javafx.scene.image.Image
 import net.imglib2.parallel.TaskExecutor
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
+import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
+import java.util.Objects
 import java.util.function.Function
 
-data class RenderUnitState(
+open class RenderUnitState(
 	val transform: AffineTransform3D,
 	val timepoint: Int,
 	val sources: List<SourceAndConverter<*>>,
 	val width: Long,
 	val height: Long
-)
+) {
+
+	override fun equals(other: Any?): Boolean {
+		return (other as? RenderUnitState)?.let {
+			val transformEquals = it.transform.hashable() == transform.hashable()
+			it.timepoint == timepoint
+					&& it.width == width
+					&& it.height == height
+					&& transformEquals
+					&& it.sources == sources
+		} ?: false
+	}
+
+	override fun hashCode(): Int {
+		return Objects.hash(timepoint, width, height, transform.hashable(), *sources.toTypedArray())
+	}
+}
 
 open class BaseRenderUnit(
 	threadGroup: ThreadGroup,

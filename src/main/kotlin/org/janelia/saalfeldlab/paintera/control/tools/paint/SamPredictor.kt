@@ -181,7 +181,7 @@ class SamPredictor(
 	}
 
 
-	interface PredictionRequest {
+	sealed interface PredictionRequest {
 
 		fun mapParameters(predictor: SamPredictor, environment: OrtEnvironment): Map<String, OnnxTensorLike>
 	}
