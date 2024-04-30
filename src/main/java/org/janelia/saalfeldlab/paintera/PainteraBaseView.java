@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -202,16 +203,14 @@ public class PainteraBaseView {
 		});
 
 		disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
-			synchronized (disabledPropertyBindings) {
-				isDisabledProperty.unbind();
-				final var isDisabledBinding = Bindings.createBooleanBinding(
-						() -> disabledPropertyBindings.values().stream()
-								.map(ObservableBooleanValue::get)
-								.reduce(Boolean::logicalOr)
-								.orElse(false),
-						disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
-				isDisabledProperty.bind(isDisabledBinding);
-			}
+			isDisabledProperty.unbind();
+			final var isDisabledBinding = Bindings.createBooleanBinding(
+					() -> Arrays.stream(disabledPropertyBindings.values().toArray(ObservableBooleanValue[]::new))
+							.map(ObservableBooleanValue::get)
+							.reduce(Boolean::logicalOr)
+							.orElse(false),
+					disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
+			isDisabledProperty.bind(isDisabledBinding);
 		});
 
 		activeModeProperty.set(AppControlMode.INSTANCE);
