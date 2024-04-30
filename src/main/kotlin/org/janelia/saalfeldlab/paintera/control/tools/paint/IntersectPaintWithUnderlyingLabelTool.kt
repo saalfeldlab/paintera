@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 import bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
-import javafx.scene.input.KeyCode
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -25,7 +24,7 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
 
 	override val graphic = { ScaleView().also { it.styleClass += "intersect-tool" } }
 	override val name = "Intersect Paint with Underlying Label"
-	override val keyTrigger = listOf(KeyCode.R, KeyCode.SHIFT)
+	override val keyTrigger = LabelSourceStateKeys.INTERSECT_UNDERLYING_LABEL
 
 	private val overlay by lazy {
 		IntersecttOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() })
