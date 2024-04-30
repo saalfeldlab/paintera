@@ -238,16 +238,16 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
 			note: String?
 		): Pair<Alert, MarkdownPane> {
 			val dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
-			val label = MarkdownPane()
+			val editor = MarkdownPane()
 				.also { it.text = note }
 				.also { it.showEditTab() }
 
 			dialog.dialogPane.content = VBox(
-				label,
+				editor,
 				TitledPanes.createCollapsed("Global Transform", affineTransformGrid(globalTransform)),
 				TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid(viewer3DTransform))
 			)
-			return Pair(dialog, label)
+			return Pair(dialog, editor)
 
 		}
 	}
