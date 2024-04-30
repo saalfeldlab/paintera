@@ -36,7 +36,7 @@ public class N5TestUtil {
 			dir.deleteOnExit();
 			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
 		}
-		return new N5Factory().openFSWriter(tmp.toAbsolutePath().toString());
+		return (N5FSWriter)new N5Factory().openWriter("file://" + tmp.toAbsolutePath());
 	}
 
 	static DatasetAttributes defaultAttributes() {
