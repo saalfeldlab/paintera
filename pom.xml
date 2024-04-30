@@ -53,7 +53,7 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>1.1.0</saalfx.version>
+		<saalfx.version>1.2.0</saalfx.version>
 
 		<janino.version>3.0.7</janino.version>
 		<logback.version>1.4.0</logback.version>
@@ -195,7 +195,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.13.0</version>
+			<version>0.13.1</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
