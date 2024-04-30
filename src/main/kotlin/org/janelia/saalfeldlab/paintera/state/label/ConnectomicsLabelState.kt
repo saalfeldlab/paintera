@@ -232,6 +232,14 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			KEY_PRESSED(ARGB_STREAM__DECREMENT_SEED) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
+			KEY_PRESSED(CLEAR_CANVAS) {
+				verify { dataSource is MaskedSource<*,*> }
+				onAction {
+					(dataSource as? MaskedSource<*,*>)?.let {
+						LabelSourceStatePreferencePaneNode.askForgetCanvasAlert(it)
+					}
+				}
+			}
 		},
 		commitHandler.makeActionSet(paintera.baseView)
 	)
