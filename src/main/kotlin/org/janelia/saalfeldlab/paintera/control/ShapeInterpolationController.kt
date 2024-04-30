@@ -624,7 +624,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				it
 			)
 		}
-	private val globalToViewerTransform: AffineTransform3D get() = AffineTransform3D().also { activeViewer!!.state.getViewerTransform(it) }
+	private val globalToViewerTransform: AffineTransform3D
+		get() = AffineTransform3D().also {
+			activeViewer!!.state.getViewerTransform(it)
+		}
 
 	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel): ViewerMask {
 
@@ -987,7 +990,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	private class SlicesAndInterpolants : ObservableList<SliceOrInterpolant> by FXCollections.synchronizedObservableList(FXCollections.observableArrayList()) {
-
 		fun removeSlice(slice: SliceInfo): Boolean {
 			synchronized(this) {
 				for (idx in indices) {

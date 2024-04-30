@@ -317,7 +317,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				verify("no current prediction ") { currentPrediction != null }
 				var toggle = true
 				onAction {
-
 					val highResPrediction = currentPrediction!!.image
 					val lowResPrediction = currentPrediction!!.lowResImage
 
@@ -469,7 +468,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					requestPrediction(listOf(SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)))
 				}
 			}
-
 			/* Handle Include Points */
 			MOUSE_CLICKED(MouseButton.PRIMARY) {
 				name = "add include point"
@@ -787,7 +785,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private var embeddingRequest: Deferred<OnnxTensor>? = null
 
 	private var currentPrediction: SamPredictor.SamPrediction? = null
-
 	private fun startPredictionTask() {
 		val maskSource = maskedSource ?: return
 		val task = Tasks.createTask { task ->
@@ -1089,10 +1086,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 
 
-	private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {
-		val highestScreenScale = viewer.renderUnit.screenScalesProperty.get().max()
-		return calculateTargetScreenScaleFactor(viewer.width, viewer.height, highestScreenScale)
-	}
+		private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {
+			val highestScreenScale = viewer.renderUnit.screenScalesProperty.get().max()
+			return calculateTargetScreenScaleFactor(viewer.width, viewer.height, highestScreenScale)
+		}
 
 		private fun RenderUnitState.calculateTargetScreenScaleFactor(): Double {
 			val maxScreenScale = paintera.properties.screenScalesConfig.screenScalesProperty().get().scalesCopy.max()

@@ -82,7 +82,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
 	}
 
-	private fun GridPane.addServiceUrlConfigRow(row : Int) {
+	private fun GridPane.addServiceUrlConfigRow(row: Int) {
 		Label("Service URL").also {
 			add(it, 0, row)
 			it.alignment = Pos.BASELINE_LEFT
@@ -95,7 +95,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			it.textProperty().addListener { _, _, new ->
 				if (new.isBlank()) {
 					it.text = DEFAULT_SERVICE_URL
-					Platform.runLater {  it.positionCaret(0) }
+					Platform.runLater { it.positionCaret(0) }
 				} else {
 					config.serviceUrl = new
 				}
@@ -109,7 +109,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 		}
 	}
 
-	private fun GridPane.addModelLocationConfigRow(row : Int) {
+	private fun GridPane.addModelLocationConfigRow(row: Int) {
 		Label("Model Location").also {
 			add(it, 0, row)
 			it.alignment = Pos.BASELINE_LEFT
@@ -122,7 +122,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			it.textProperty().addListener { _, _, new ->
 				if (new.isBlank()) {
 					it.text = DEFAULT_MODEL_LOCATION
-					Platform.runLater {  it.positionCaret(0) }
+					Platform.runLater { it.positionCaret(0) }
 				} else {
 					config.modelLocation = new
 				}
