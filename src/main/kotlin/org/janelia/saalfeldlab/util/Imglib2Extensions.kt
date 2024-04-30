@@ -25,7 +25,10 @@ infix fun RealInterval.union(other: RealInterval?): RealInterval = other?.let { 
 infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.let { Intervals.intersect(this, other) }
 	?: this
 
-internal fun RealInterval.shape() = maxAsDoubleArray().zip(minAsDoubleArray()).map { (max, min) -> max - min + 1 }.toDoubleArray()
+fun RealInterval.shape() = maxAsDoubleArray().zip(minAsDoubleArray()).map { (max, min) -> max - min + 1 }.toDoubleArray()
+fun RealInterval.center() = DoubleArray(numDimensions()) { i -> (realMin(i) + realMax(i)) / 2.0 }
+fun Interval.center() = LongArray(numDimensions()) { i -> (min(i) + max(i)) / 2 }
+
 fun <T> RealRandomAccessible<T>.raster(): RandomAccessibleOnRealRandomAccessible<T> = Views.raster(this)
 fun <T> RandomAccessible<T>.interval(interval: Interval): IntervalView<T> = Views.interval(this, interval)
 fun <T> RandomAccessible<T>.interval(interval: RealInterval): IntervalView<T> = Views.interval(this, interval.smallestContainingInterval)
@@ -83,7 +86,7 @@ fun <A, B, C : Type<C>> RealRandomAccessible<A>.convertWith(other: RealRandomAcc
 
 fun <T> RandomAccessibleInterval<T>.addDimension() = Views.addDimension(this)
 
-fun <T> RandomAccessibleInterval<T>.addDimension(minOfNewDim : Long, maxOfNewDim : Long) =  Views.addDimension(this, minOfNewDim, maxOfNewDim)
+fun <T> RandomAccessibleInterval<T>.addDimension(minOfNewDim: Long, maxOfNewDim: Long) = Views.addDimension(this, minOfNewDim, maxOfNewDim)
 
 fun <T> RealRandomAccessible<T>.addDimension() = RealViews.addDimension(this)
 
@@ -121,7 +124,7 @@ fun RealPoint.toPoint(): Point {
 	return Point(*pointVals)
 }
 
-fun RealPoint.scale(vararg scales: Double, inplace : Boolean = false): RealPoint {
+fun RealPoint.scale(vararg scales: Double, inplace: Boolean = false): RealPoint {
 	assert(scales.isNotEmpty())
 	val scaledPoint = if (inplace) this else RealPoint(numDimensions())
 	for (i in 0 until scaledPoint.numDimensions()) {
