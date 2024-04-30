@@ -235,8 +235,43 @@ interface ToolMode : SourceMode {
 				/* listen for ESC if we wish to cancel*/
 				addEventFilter(KEY_PRESSED, escapeFilter)
 			}
-
 		}
+	}
+
+
+
+	fun <T : Event> Node.waitForEvent(event : EventType<T>) : T? {
+		/* temporarily revoke permissions, so no actions are performed until we receive event [T]   */
+		paintera.baseView.allowedActionsProperty().suspendPermisssions()
+
+		val queue = LinkedBlockingQueue<T?>()
+
+		InvokeOnJavaFXApplicationThread {
+			lateinit var escapeFilter: EventHandler<KeyEvent>
+			lateinit var waitForEventFilter: EventHandler<T>
+
+			val resetFilterAndPermissions = { it : T? ->
+				removeEventFilter(event, waitForEventFilter)
+				removeEventFilter(KEY_PRESSED, escapeFilter)
+				paintera.baseView.allowedActionsProperty().restorePermisssions()
+				queue.offer(it)
+			}
+
+			waitForEventFilter = EventHandler<T> {
+				it.consume()
+				resetFilterAndPermissions(it)
+			}
+
+			/* In case ESC is pressed stop waiting  */
+			escapeFilter = EventHandler<KeyEvent> {
+				resetFilterAndPermissions(null)
+			}
+
+			addEventFilter(event, waitForEventFilter)
+			addEventFilter(KEY_PRESSED, escapeFilter)
+		}
+
+		return queue.take()
 	}
 
 	fun disableUnfocusedViewers() {
