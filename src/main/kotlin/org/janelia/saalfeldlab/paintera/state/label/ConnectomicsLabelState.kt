@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -211,36 +212,42 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	// display status
 	override fun getDisplayStatus(): Node = createDisplayStatus(dataSource, floodFillState, selectedIds, fragmentSegmentAssignment, stream)
 
-	val keyBindings = paintera.baseView.keyAndMouseBindings.getConfigFor(this).keyCombinations
-
 	private val globalActions = listOf(
 		ActionSet("Connectomics Label State Global Actions") {
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES, keysExclusive = true) {
+			KEY_PRESSED(REFRESH_MESHES) {
 				onAction {
 					refreshMeshes()
 					LOG.debug("Key event triggered refresh meshes")
 				}
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, keysExclusive = true) {
+			KEY_PRESSED(TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
 				onAction {
 					showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
 					paintera.baseView.orthogonalViews().requestRepaint()
 				}
 			}
-			KEY_PRESSED ( keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED, keysExclusive = true) {
+			KEY_PRESSED ( ARGB_STREAM__INCREMENT_SEED) {
 				onAction { streamSeedSetter.incrementStreamSeed() }
 			}
-			KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED, keysExclusive = true) {
+			KEY_PRESSED(ARGB_STREAM__DECREMENT_SEED) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
+			KEY_PRESSED(CLEAR_CANVAS) {
+				verify { dataSource is MaskedSource<*,*> }
+				onAction {
+					(dataSource as? MaskedSource<*,*>)?.let {
+						LabelSourceStatePreferencePaneNode.askForgetCanvasAlert(it)
+					}
+				}
+			}
 		},
-		commitHandler.makeActionSet(keyBindings, paintera.baseView)
+		commitHandler.makeActionSet(paintera.baseView)
 	)
 
 	@JvmSynthetic
 	private val viewerActions = listOf(
-		*idSelectorHandler.makeActionSets(keyBindings, paintera.keyTracker, paintera.activeViewer::get).toTypedArray(),
-		*mergeDetachHandler.makeActionSets(keyBindings, paintera.activeViewer::get).toTypedArray()
+		*idSelectorHandler.makeActionSets(paintera.keyTracker, paintera.activeViewer::get).toTypedArray(),
+		*mergeDetachHandler.makeActionSets(paintera.activeViewer::get).toTypedArray()
 	)
 
 	override fun getViewerActionSets(): List<ActionSet> = viewerActions

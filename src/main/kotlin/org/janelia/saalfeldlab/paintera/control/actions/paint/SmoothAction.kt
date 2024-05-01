@@ -44,10 +44,7 @@ import paintera.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.Action
-import org.janelia.saalfeldlab.fx.extensions.component1
-import org.janelia.saalfeldlab.fx.extensions.component2
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -93,10 +90,10 @@ open class MenuAction(val label: String) : Action<Event>(Event.ANY) {
 		name = label
 	}
 
-	val menuItem by lazy {
-		MenuItem(label).also {
-			it.onAction = EventHandler { this(it) }
-			it.isDisable = isValid(null)
+	val menuItem by LazyForeignValue( ::paintera ) {
+		MenuItem(label).also { item ->
+			item.onAction = EventHandler { this(it) }
+			item.isDisable = isValid(null)
 		}
 	}
 

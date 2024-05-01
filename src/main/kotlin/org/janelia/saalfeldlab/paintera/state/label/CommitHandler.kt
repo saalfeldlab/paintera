@@ -21,9 +21,9 @@ import java.util.function.BiFunction
 
 class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fragmentProvider: () -> FragmentSegmentAssignmentState) {
 
-	internal fun makeActionSet(bindings: NamedKeyCombination.CombinationMap, paintera: PainteraBaseView) =
+	internal fun makeActionSet(paintera: PainteraBaseView) =
 		painteraActionSet(LabelSourceStateKeys.COMMIT_DIALOG, MenuActionType.CommitCanvas) {
-			KEY_PRESSED ( bindings, LabelSourceStateKeys.COMMIT_DIALOG, keysExclusive = true) {
+			KEY_PRESSED ( LabelSourceStateKeys.COMMIT_DIALOG, keysExclusive = true) {
 				onAction { showCommitDialog(state, paintera.sourceInfo().indexOf(state.dataSource), true, fragmentSegmentAssignmentState = fragmentProvider()) }
 			}
 		}

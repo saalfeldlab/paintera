@@ -90,7 +90,7 @@ public class LabelSourceStateIdSelectorHandler {
 		this.refreshMeshes = refreshMeshes;
 	}
 
-	public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, KeyTracker keyTracker, Supplier<ViewerPanelFX> getActiveViewer) {
+	public List<ActionSet> makeActionSets(KeyTracker keyTracker, Supplier<ViewerPanelFX> getActiveViewer) {
 
 		final IdSelector selector = new IdSelector(source, selectedIds, getActiveViewer, FOREGROUND_CHECK);
 
@@ -121,7 +121,7 @@ public class LabelSourceStateIdSelectorHandler {
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
-				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL);
+				keyAction.keyMatchesBinding(LabelSourceStateKeys.SELECT_ALL);
 				keyAction.verify(event -> selectAllTask == null);
 				keyAction.onAction(keyEvent -> {
 					final var selectTask = Tasks.createTask(task -> {
@@ -139,7 +139,7 @@ public class LabelSourceStateIdSelectorHandler {
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
-				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
+				keyAction.keyMatchesBinding(LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
 				keyAction.verify(event -> selectAllTask == null);
 				keyAction.verify(event -> getActiveViewer.get() != null);
 				keyAction.onAction(keyEvent -> {
@@ -170,7 +170,7 @@ public class LabelSourceStateIdSelectorHandler {
 		});
 		final var lockSegmentActions = painteraActionSet("Toggle Segment Lock", LabelActionType.Lock, actionSet -> {
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
-				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.LOCK_SEGEMENT);
+				keyAction.keyMatchesBinding(LabelSourceStateKeys.LOCK_SEGMENT);
 				keyAction.onAction(keyEvent -> selector.toggleLock(assignment, lockedSegments));
 			});
 		});

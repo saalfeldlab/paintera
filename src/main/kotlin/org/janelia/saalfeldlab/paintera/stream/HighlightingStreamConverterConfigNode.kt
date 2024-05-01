@@ -117,7 +117,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				event.consume()
 				try {
 					val id = parseLong(addIdField.text)
-					converter.setColor(id, addColorPicker.value)
+					converter.setColor(id, addColorPicker.value, true)
 					addIdField.text = ""
 				} catch (e: NumberFormatException) {
 					LOG.error("Not a valid long/integer format: {}", addIdField.text)

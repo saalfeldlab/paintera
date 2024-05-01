@@ -4,18 +4,15 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.Event
 import javafx.scene.Node
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyEvent
+import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.input.KeyEvent.KEY_RELEASED
 import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.actions.Action
-import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
+import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
@@ -39,10 +36,12 @@ interface ConfigurableTool {
 	fun getConfigurableNodes(): List<Node>
 }
 
-abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : ViewerTool(mode),
-	ConfigurableTool, ToolBarItem {
+abstract class PaintTool(
+	protected val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>,
+	mode: ToolMode? = null
+) : ViewerTool(mode), ConfigurableTool, ToolBarItem {
 
-	abstract override val keyTrigger: List<KeyCode>
+	abstract override val keyTrigger: NamedKeyBinding
 
 	protected val activeState by activeSourceStateProperty.nullableVal()
 
@@ -92,14 +91,13 @@ abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectPr
 
 	open fun createTriggers(mode: ToolMode, actionType: ActionType? = null, ignoreDisable: Boolean = true): ActionSet {
 		return painteraActionSet("toggle $name", actionType, ignoreDisable) {
-			val keys = keyTrigger.toTypedArray()
-			KeyEvent.KEY_PRESSED(*keys) {
+			KEY_PRESSED(keyTrigger) {
 				name = "switch to ${this@PaintTool.name}"
 				consume = false
 				verifyPainteraNotDisabled()
 				onAction { mode.switchTool(this@PaintTool) }
 			}
-			KeyEvent.KEY_PRESSED(*keys) {
+			KEY_PRESSED(keyTrigger) {
 				name = "suppress trigger key for ${this@PaintTool.name} while active"
 				/* swallow keyTrigger down events while Filling*/
 				filter = true
@@ -107,8 +105,7 @@ abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectPr
 				verifyPainteraNotDisabled()
 				verify { mode.activeTool == this@PaintTool }
 			}
-
-			KeyEvent.KEY_RELEASED(*keys) {
+			KEY_RELEASED(keyTrigger) {
 				name = "switch out of ${this@PaintTool.name}"
 				verify { mode.activeTool == this@PaintTool }
 				onAction { mode.switchTool(mode.defaultTool) }

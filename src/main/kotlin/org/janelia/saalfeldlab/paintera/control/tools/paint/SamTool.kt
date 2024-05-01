@@ -1,27 +1,19 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtException
-import bdv.cache.SharedQueue
 import bdv.fx.viewer.ViewerPanelFX
-import bdv.fx.viewer.render.RenderUnit
-import bdv.viewer.Interpolation
-import bdv.viewer.SourceAndConverter
-import com.amazonaws.util.Base64
-import com.google.common.util.concurrent.ThreadFactoryBuilder
+import bdv.fx.viewer.render.RenderUnitState
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
+import javafx.beans.property.*
 import javafx.beans.value.ChangeListener
-import javafx.embed.swing.SwingFXUtils
-import javafx.event.EventHandler
 import javafx.scene.control.ButtonBase
 import javafx.scene.control.ToggleButton
-import javafx.scene.control.Tooltip
+import javafx.scene.control.ToggleGroup
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
@@ -30,11 +22,14 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.input.MouseEvent.MOUSE_MOVED
 import javafx.scene.input.ScrollEvent.SCROLL
+import javafx.scene.layout.Pane
 import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
+import kotlinx.coroutines.*
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealInterval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.converter.Converters
@@ -43,7 +38,6 @@ import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.iterator.IntervalIterator
 import net.imglib2.loops.LoopBuilder
-import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.*
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.integer.UnsignedLongType
@@ -53,12 +47,6 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.apache.commons.io.output.NullPrintStream
-import org.apache.http.HttpException
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.ContentType
-import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.impl.client.HttpClients
-import org.apache.http.util.EntityUtils
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -66,28 +54,32 @@ import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraDragActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
-import org.janelia.saalfeldlab.fx.event.KeyTracker
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
-import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.createOrtSessionTask
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.getSamRenderState
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.ortEnv
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
-import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.fx.ui.CircleScaleView
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode.waitForEvent
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
-import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.getGlobalViewerInterval
+import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SamPoint
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SparsePrediction
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.predicate.threshold.Bounds
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
@@ -96,18 +88,10 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.algorithms.otsuThresholdPrediction
 import org.janelia.saalfeldlab.util.*
-import org.slf4j.LoggerFactory
 import paintera.net.imglib2.view.BundleView
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
-import java.lang.invoke.MethodHandles
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.concurrent.Executors
+import java.util.concurrent.CancellationException
+import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.LinkedBlockingQueue
-import javax.imageio.ImageIO
 import kotlin.collections.set
 import kotlin.math.*
 import kotlin.properties.Delegates
@@ -115,49 +99,26 @@ import kotlin.properties.Delegates
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "sam-select") } }
+	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "sam-select" }) }
 	override val name = "Segment Anything"
-	override val keyTrigger = listOf(KeyCode.A)
+	override val keyTrigger = LabelSourceStateKeys.SEGMENT_ANYTHING__TOGGLE_MODE
 
 	override val toolBarButton: ButtonBase
 		get() {
-			val button = ToggleButton(null, graphic())
-			mode?.apply {
-				button.onAction = EventHandler {
-					this@SamTool.activeViewer?.let {
-						if (activeTool == this@SamTool) {
-							switchTool(defaultTool)
-						} else {
-							disableUnfocusedViewers()
-							switchTool(this@SamTool)
-						}
-					} ?: let {
-						if (activeTool == this@SamTool) {
-							switchTool(defaultTool)
-						} else {
-							statusProperty.unbind()
-							selectViewerBefore {
-								disableUnfocusedViewers()
-								switchTool(this@SamTool)
-							}
-						}
-					}
-				}
-			}
-
-			return button.also {
-				it.userData = this
-				it.disableProperty().bind(paintera.baseView.isDisabledProperty)
-				it.styleClass += "toolbar-button"
-				it.tooltip = Tooltip("$name: ${KeyTracker.keysToString(*keyTrigger.toTypedArray())}")
+			return super.toolBarButton.apply {
+				properties[REQUIRES_ACTIVE_VIEWER] = true
 			}
 		}
 
 
-	private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
-	internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
+	internal var currentLabelToPaint: Long = Label.INVALID
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
-	private var controlMode = false
+
+	private val controlModeProperty = SimpleBooleanProperty(false)
+	private var controlMode by controlModeProperty.nonnull()
+
+	private val controlPointLabelProperty = SimpleObjectProperty(SamPredictor.SparseLabel.IN)
+	private var controlPointLabel: SamPredictor.SparseLabel by controlPointLabelProperty.nonnull()
 
 	override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
@@ -183,6 +144,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private var originalVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
 	private var originalWritableVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
 	private var maskProvided = false
+
+	//TODO Caleb: document this; it stops `cleanup()` from removing the wrapped overlay of the prediction
+	var unwrapResult = true
 
 	private var setViewer: ViewerPanelFX? = null
 
@@ -219,13 +183,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var predictionTask: UtilityTask<Unit>? = null
 
-	private val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
+	internal val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
 	var lastPrediction by lastPredictionProperty.nullable()
 		private set
-	private val points = mutableListOf<SamPoint>()
 
-	private var clearPoints = true;
-
+	var temporaryPrompt = true
 
 	private var thresholdBounds = Bounds(-40.0, 30.0)
 	private var threshold = 0.0
@@ -245,67 +207,91 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var screenScale by Delegates.notNull<Double>()
 
+	private val predictionQueue = LinkedBlockingQueue<Pair<SamPredictor.PredictionRequest, Boolean>>(1)
 
-	private var predictionImagePngInputStream = PipedInputStream()
-	private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
+	private var currentPredictionRequest: Pair<SamPredictor.PredictionRequest, Boolean>? = null
+		set(value) = synchronized(predictionQueue) {
+			predictionQueue.clear()
+			value?.let { (request, _) ->
+				predictionQueue.put(value)
+				if (!temporaryPrompt)
+					request.drawPrompt()
+			}
+			field = value
+		}
+
+	internal lateinit var renderState: RenderUnitState
+
 	override fun activate() {
+		mode?.apply {
+			modeActionsBar.show(false)
+			modeToolsBar.show(false)
+			toolActionsBar
+		}
 		super.activate()
 		if (mode is PaintLabelMode) {
 			PaintLabelMode.disableUnfocusedViewers()
 		}
 		controlMode = false
-		threshold = 0.0
-		setCurrentLabelToSelection()
-		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
-		setViewer = activeViewer
-		screenScale = calculateTargetScreenScaleFactor()
-		statusProperty.set("Preparing SAM")
-		paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
-		Tasks.createTask {
-			predictionImagePngInputStream = PipedInputStream()
-			predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
-			saveActiveViewerImageFromRenderer()
-			providedEmbedding ?: getImageEmbeddingTask()
-			setViewer?.let { viewer ->
-				if (viewer.isMouseInside) {
-					Platform.runLater { statusProperty.set("Predicting...") }
-					val x = viewer.mouseXProperty.get().toLong()
-					val y = viewer.mouseYProperty.get().toLong()
-					resetPredictionPoints()
-					points += SamPoint(x * screenScale, y * screenScale, SamPredictor.SparseLabel.IN)
-					requestPrediction(points)
-				}
-			}
-		}.onSuccess { _, _ ->
-			Platform.runLater { statusProperty.set("Ready") }
-		}.onCancelled { _, _ ->
-			Platform.runLater { statusProperty.set("Cancelled") }
-			deactivate()
-		}.submit(SAM_TASK_SERVICE)
+		controlPointLabel = SamPredictor.SparseLabel.IN
+		initializeSam()
+		/* Trigger initial prediction request when activating the tool */
+		setViewer?.let { viewer ->
+			if (maskProvided || !viewer.isMouseInside) return@let
+
+			Platform.runLater { statusProperty.set("Predicting...") }
+			val x = viewer.mouseXProperty.get().toLong()
+			val y = viewer.mouseYProperty.get().toLong()
+
+			temporaryPrompt = true
+			requestPrediction(listOf(SamPoint(x * screenScale, y * screenScale, SamPredictor.SparseLabel.IN)))
+		}
 	}
 
 	override fun deactivate() {
-		resetPredictionPoints()
-		currentLabelToPaint = Label.INVALID
-		predictionTask?.cancel()
-		predictionTask = null
-		if (!maskProvided) {
-			maskedSource?.resetMasks()
-		} else {
-			currentViewerMask?.updateBackingImages(
-				originalBackingImage!! to originalVolatileBackingImage!!,
-				originalWritableBackingImage!! to originalWritableVolatileBackingImage!!
-			)
-		}
-		currentViewerMask?.viewer?.children?.removeIf { SAM_POINT_STYLE in it.styleClass }
-		paintera.baseView.disabledPropertyBindings -= this
-		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
-		viewerMask = null
-		controlMode = false
+		cleanup()
 		if (mode is PaintLabelMode) {
 			PaintLabelMode.enableAllViewers()
 		}
 		super.deactivate()
+	}
+
+	internal fun initializeSam(renderUnitState: RenderUnitState? = null) {
+		unwrapResult = true
+		controlMode = false
+		threshold = 0.0
+		setCurrentLabelToSelection()
+		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
+		setViewer = activeViewer //TODO Caleb: We should try not to use the viewer directly
+		screenScale = renderUnitState?.calculateTargetScreenScaleFactor() ?: calculateTargetScreenScaleFactor(setViewer!!)
+		statusProperty.set("Preparing SAM")
+		paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
+		renderState = renderUnitState ?: activeViewer!!.getSamRenderState()
+		embeddingRequest = SamEmbeddingLoaderCache.request(renderState)
+	}
+
+	internal fun cleanup() {
+		clearPromptDrawings()
+		currentLabelToPaint = Label.INVALID
+		predictionTask?.cancel()
+		predictionTask = null
+		if (unwrapResult) {
+			if (!maskProvided) {
+				maskedSource?.resetMasks()
+			} else {
+				currentViewerMask?.updateBackingImages(
+					originalBackingImage!! to originalVolatileBackingImage!!,
+					originalWritableBackingImage!! to originalWritableVolatileBackingImage!!
+				)
+			}
+		}
+		setViewer?.children?.removeIf { SAM_POINT_STYLE in it.styleClass }
+		paintera.baseView.disabledPropertyBindings -= this
+		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
+		viewerMask = null
+		controlMode = false
+		controlPointLabel = SamPredictor.SparseLabel.IN
+		embeddingRequest = null
 	}
 
 	protected open fun setCurrentLabelToSelection() {
@@ -323,21 +309,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				verify(" label is not valid ") { isLabelValid }
 				onAction { applyPrediction() }
 			}
-			KEY_PRESSED(KeyCode.ENTER) {
-				name = "key apply last segmentation result to canvas"
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				verify(" label is not valid ") { isLabelValid }
-				onAction { applyPrediction() }
-			}
 			KEY_PRESSED(KeyCode.D) {
 				name = "view prediction"
 				verifyEventNotNull()
 				verifyPainteraNotDisabled()
-				verify("now current prediction ") { currentPrediction != null }
+				verify { Paintera.debugMode }
+				verify("no current prediction ") { currentPrediction != null }
 				var toggle = true
 				onAction {
-
 					val highResPrediction = currentPrediction!!.image
 					val lowResPrediction = currentPrediction!!.lowResImage
 
@@ -389,8 +368,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						}
 					}
 
+					viewerMask!!.getInitialGlobalViewerInterval(setViewer!!.width, setViewer!!.height).also {
 
-					setViewer!!.getGlobalViewerInterval().also {
 						val width = it.realMax(0) - it.realMin(0)
 						val height = it.realMax(1) - it.realMin(1)
 						val depth = it.realMax(2) - it.realMin(2)
@@ -404,37 +383,51 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						)
 					}
 					predictionSource.backend.updateTransform(transform)
-
-//					Stage().apply {
-//						val makeFields: (Int) -> SpatialField<DoubleProperty> = { idx ->
-//							SpatialField.doubleField(0.0, { true }, Region.USE_COMPUTED_SIZE, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST).also {
-//								it.showHeader = false
-//								if (idx == 3) {
-//									it.setValues(transform[0, idx], transform[1, idx], transform[2, idx])
-//									it.x.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), 0, idx) }
-//									it.y.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), 1, idx) }
-//									it.z.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), 2, idx) }
-//								} else {
-//									it.setValues(transform[idx, 0], transform[idx, 1], transform[idx, 2])
-//									it.x.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), idx, 0) }
-//									it.y.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), idx, 1) }
-//									it.z.valueProperty().addListener { _, _, new -> transform.set(new.toDouble(), idx, 2) }
-//								}
-//							}
-//						}
-//						val sf1 = makeFields(0)
-//						val sf2 = makeFields(1)
-//						val sf3 = makeFields(2)
-//						val sf4 = makeFields(3)
-//						scene = Scene(VBox(sf1.node, sf2.node, sf3.node, sf4.node), 450.0, 800.0)
-//					}.show()
-
 					predictionSource.composite = ARGBCompositeAlphaAdd()
 					setViewer!!.requestRepaint()
 				}
 			}
+
+			val controlPointLabelToggleGroup = ToggleGroup().also {
+				it.selectedToggleProperty().addListener { _, _, selected ->
+					controlMode = selected != null
+				}
+			}
 			KEY_PRESSED(KeyCode.CONTROL) {
-				onAction { controlMode = true }
+				val iconClsBinding = controlModeProperty.createNonNullValueBinding { if (it) "toggle-on" else "toggle-off" }
+				val iconCls by iconClsBinding.nonnullVal()
+				graphic = {
+					val icon = FontAwesomeIconView().also {
+						it.styleClass.addAll(iconCls)
+						it.id = iconCls
+						"asdfasd f".stripLeading()
+						iconClsBinding.addListener { _, old, new ->
+							it.styleClass.removeAll(old)
+							it.styleClass.add(new)
+						}
+					}
+					GlyphScaleView(icon).apply {
+						styleClass += "ignore-disable"
+					}
+				}
+				onAction { event ->
+					if (event != null) {
+						/* If triggered by key down, always on when down*/
+						controlMode = true
+						controlPointLabelToggleGroup.selectedToggle?.isSelected = false
+						controlPointLabelToggleGroup.selectToggle(null)
+						controlPointLabel = SamPredictor.SparseLabel.IN
+					} else {
+						/* If triggered programmatically, negate the current state */
+						controlMode = !controlMode
+						if (!controlMode) {
+							controlPointLabel = SamPredictor.SparseLabel.IN
+							resetPromptAndPrediction()
+							controlPointLabelToggleGroup.selectedToggle?.isSelected = false
+							controlPointLabelToggleGroup.selectToggle(null)
+						}
+					}
+				}
 			}
 			KEY_RELEASED(KeyCode.CONTROL) {
 				onAction { controlMode = false }
@@ -457,7 +450,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 					val increment = (thresholdBounds.max - thresholdBounds.min) / 100.0
 					threshold += delta * increment
-					requestPrediction(points, true)
+					(currentPredictionRequest?.first as? SparsePrediction)?.points?.let {
+						requestPrediction(it, false)
+					}
 				}
 			}
 
@@ -465,46 +460,113 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				name = "prediction overlay"
 				verifyEventNotNull()
 				verifyPainteraNotDisabled()
-				verify("Cannot be in control mode") { !controlMode }
+				verify("Must be a temporary prompt, or not in controlMode ") { temporaryPrompt || !controlMode }
 				verify("Label is not valid") { isLabelValid }
 				onAction {
-					resetPredictionPoints()
-					points += SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)
-					requestPrediction(points)
+					clearPromptDrawings()
+					temporaryPrompt = true
+					requestPrediction(listOf(SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)))
 				}
 			}
-
 			/* Handle Include Points */
 			MOUSE_CLICKED(MouseButton.PRIMARY) {
-				name = "include point"
-				verifyEventNotNull()
+				name = "add include point"
+				graphic = {
+					val circle = Circle().apply {
+						styleClass += "sam-point-in"
+					}
+					CircleScaleView(circle).apply {
+						styleClass += listOf("sam-point", "ignore-disable")
+						properties["TOGGLE_GROUP"] = controlPointLabelToggleGroup
+					}
+				}
 				verifyPainteraNotDisabled()
-				verify { controlMode }
+				verify { controlMode || it == null }
 				onAction {
-					if (clearPoints)
-						resetPredictionPoints()
-					clearPoints = false
-					val point = SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)
-					drawCircle(it, point, SamPointStyle.Include)
-					points += point
-					requestPrediction(points)
+					CoroutineScope(Dispatchers.IO).launch {
+						/* If no event, triggered via button; enter control mode, set Label to IN */
+						it ?: let {
+							if ((controlPointLabelToggleGroup.selectedToggle as? ToggleButton)?.id == name) {
+								controlPointLabel = SamPredictor.SparseLabel.IN
+								controlMode = true
+							} else {
+								resetPromptAndPrediction()
+								return@launch
+							}
+						}
+
+						/*If not in control mode, Label for this Action is always IN*/
+						if (!controlMode)
+							controlPointLabel = SamPredictor.SparseLabel.IN
+
+						/* If no event, triggered via button, wait for click before continuing */
+						(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
+							val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, controlPointLabel))
+							temporaryPrompt = false
+							requestPrediction(points)
+						}
+					}
 				}
 			}
 
 			MOUSE_CLICKED(MouseButton.SECONDARY) {
-				name = "exclude point"
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				verify { controlMode }
-				onAction {
-					if (clearPoints)
-						resetPredictionPoints()
-					clearPoints = false
-					val point = SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.OUT)
-					drawCircle(it, point, SamPointStyle.Exclude)
-					points += point
-					requestPrediction(points)
+				name = "add exclude point"
+				graphic = {
+					val circle = Circle().apply {
+						styleClass += "sam-point-out"
+					}
+					CircleScaleView(circle).apply {
+						styleClass += listOf("sam-point", "ignore-disable")
+						properties["TOGGLE_GROUP"] = controlPointLabelToggleGroup
+					}
 				}
+				verifyPainteraNotDisabled()
+				verify { controlMode || it == null }
+				onAction {
+					CoroutineScope(Dispatchers.IO).launch {
+						it ?: let {
+							if ((controlPointLabelToggleGroup.selectedToggle as? ToggleButton)?.id == name) {
+								controlPointLabel = SamPredictor.SparseLabel.OUT
+								controlMode = true
+							} else {
+								resetPromptAndPrediction()
+								return@launch
+							}
+						}
+
+						/* If no event, triggered via button, wait for click before continuing */
+						(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
+							val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, SamPredictor.SparseLabel.OUT))
+							temporaryPrompt = false
+							requestPrediction(points)
+						}
+					}
+				}
+			}
+
+			KEY_PRESSED(KeyCode.DELETE, KeyCode.BACK_SPACE) {
+				name = "Reset Prompt"
+				graphic = { GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }) }
+				onAction {
+					resetPromptAndPrediction()
+				}
+			}
+
+			KEY_PRESSED(KeyCode.ENTER) {
+				name = "apply last segmentation result to canvas"
+				graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "accept" }) }
+				verifyPainteraNotDisabled()
+				verify(" label is not valid ") { isLabelValid }
+				onAction {
+					applyPrediction()
+					currentPredictionRequest = null
+				}
+			}
+
+			KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+				name = "exit SAM tool"
+				graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply {styleClass += "ignore-disable"} }
+				onAction { mode?.switchTool(mode.defaultTool) }
 			}
 		},
 
@@ -522,84 +584,151 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		},
 
 		painteraDragActionSet("box prediction request", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
-			var boxOverlay: Rectangle? = null
-			onDragDetected {
-				clearPoints = false
-				boxOverlay = Rectangle().also { newBox ->
-					newBox.styleClass += SAM_BOX_OVERLAY_STYLE
-					setViewer?.let { viewer ->
-						val oldBox = boxOverlay
-						InvokeOnJavaFXApplicationThread {
-							oldBox?.let { viewer.children -= oldBox }
-							viewer.children += newBox
-						}
-					}
-				}
-			}
 			onDrag { mouse ->
-				val box = boxOverlay!!
-				setViewer?.let { viewer ->
-					InvokeOnJavaFXApplicationThread {
-						val (minX, maxX) = (if (startX < mouse.x) startX to mouse.x else mouse.x to startX)
-						val (minY, maxY) = (if (startY < mouse.y) startY to mouse.y else mouse.y to startY)
+				val (minX, maxX) = (if (startX < mouse.x) startX to mouse.x else mouse.x to startX)
+				val (minY, maxY) = (if (startY < mouse.y) startY to mouse.y else mouse.y to startY)
 
-						box.width = maxX - minX
-						box.height = maxY - minY
-						box.translateX = maxX - (box.width + viewer.width) / 2
-						box.translateY = maxY - (box.height + viewer.height) / 2
-
-
-						points.removeIf { it.label > SamPredictor.SparseLabel.IN }
-						points += SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
-						points += SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
-						requestPrediction(points)
-					}
-				}
+				val topLeft = SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
+				val bottomRight = SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
+				val points = setBoxPrompt(topLeft, bottomRight)
+				temporaryPrompt = false
+				requestPrediction(points)
 			}
 		}
 	)
 
-	open protected fun applyPrediction() {
-		lastPrediction?.submitPrediction()
-		resetPredictionPoints()
+	private fun resetPromptAndPrediction() {
+		clearPromptDrawings()
+		currentPredictionRequest = null
+		viewerMask?.apply {
+			val newImgs = newBackingImages()
+			updateBackingImages(newImgs, newImgs)
+			requestRepaint()
+		}
 	}
 
-	private fun drawCircle(it: MouseEvent, point: SamPoint, samStyle: SamPointStyle) {
-		setViewer?.let { viewer ->
-			Platform.runLater {
-				viewer.children += Circle(5.0).apply {
-					translateX = it.x - viewer.width / 2
-					translateY = it.y - viewer.height / 2
-					styleClass += samStyle.styles
+	private fun SamPredictor.PredictionRequest?.addPoints(vararg newPoints: SamPoint): List<SamPoint> {
+		return (this as? SparsePrediction)?.points?.let { oldPoints ->
+			if (!temporaryPrompt)
+				oldPoints.toMutableList().also { it.addAll(newPoints) }
+			else null
+		} ?: newPoints.toMutableList()
+	}
 
-					/* If clicked again, remove it */
-					painteraActionSet("remove-circle", ignoreDisable = true) {
-						MOUSE_CLICKED {
-							onAction {
-								points -= point
-								viewer.children -= this@apply
-								requestPrediction(points)
-							}
+	private fun SamPredictor.PredictionRequest?.removePoints(vararg removePoints: SamPoint, removeBox: Boolean = false): MutableList<SamPoint> {
+		if (temporaryPrompt) {
+			return mutableListOf()
+		}
+		return (this as? SparsePrediction)?.points
+			?.filterNot { it in removePoints || removeBox && it.label > SamPredictor.SparseLabel.IN }
+			?.toMutableList() ?: mutableListOf()
+	}
+
+	fun setBoxPrompt(topLeft: SamPoint, bottomRight: SamPoint): List<SamPoint> {
+		return currentPredictionRequest?.first.removePoints(removeBox = true).also {
+			it += topLeft
+			it += bottomRight
+		}
+	}
+
+	fun setBoxPromptFromImageInterval(box: RealInterval): List<SamPoint> {
+		val (minX, minY) = box.minAsDoubleArray()
+		val (maxX, maxY) = box.maxAsDoubleArray()
+		val topLeft = SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
+		val bottomRight = SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
+		return setBoxPrompt(topLeft, bottomRight)
+	}
+
+	fun addPointFromImagePosition(imgX: Double, imgY: Double, label: SamPredictor.SparseLabel): List<SamPoint> {
+		val samPoint = SamPoint(imgX * screenScale, imgY * screenScale, label)
+		return currentPredictionRequest?.first.addPoints(samPoint)
+	}
+
+	private fun Pane.drawCircle(point: SamPoint) {
+		InvokeOnJavaFXApplicationThread {
+			children += Circle(5.0).apply {
+				translateX = point.x / screenScale - width / 2
+				translateY = point.y / screenScale - height / 2
+				styleClass += SamPointStyle[point.label]
+
+				/* If clicked again, remove it */
+				painteraActionSet("remove-circle", ignoreDisable = true) {
+					MOUSE_CLICKED {
+						onAction {
+							children -= this@apply
+							requestPrediction(currentPredictionRequest?.first.removePoints(point))
 						}
-					}.also { installActionSet(it) }
+					}
+				}.also { installActionSet(it) }
+			}
+		}
+	}
+
+	private fun SamPredictor.PredictionRequest.drawPrompt() {
+		clearPromptDrawings()
+		when (this) {
+			is SparsePrediction -> drawPromptPoints(points)
+			is SamPredictor.MaskPrediction -> LOG.warn { "MaskPrediction for SAM not currently implemented" }
+		}
+	}
+
+	private fun drawPromptPoints(points: List<SamPoint>) {
+		setViewer?.apply {
+			points.filter { point ->
+				/* Draw circles for IN and OUT points */
+				if (point.label > SamPredictor.SparseLabel.IN) {
+					true
+				} else {
+					drawCircle(point)
+					false
+				}
+			}.toList().let { boxPoints ->
+				/* draw box if present */
+				val topLeft = boxPoints.find { it.label == SamPredictor.SparseLabel.TOP_LEFT_BOX }
+				val bottomRight = boxPoints.find { it.label == SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX }
+				if (topLeft != null && bottomRight != null) {
+					drawBox(topLeft, bottomRight)
 				}
 			}
 		}
 	}
 
-	private fun resetPredictionPoints() {
-		points.clear()
-		clearCircles()
-		clearBox()
-		clearPoints = true
+	private fun clearPromptDrawings() {
+		setViewer?.let { viewer ->
+			InvokeOnJavaFXApplicationThread {
+				viewer.children.removeIf {
+					it.styleClass.any { style -> style == SAM_POINT_STYLE || style == SAM_BOX_OVERLAY_STYLE }
+				}
+			}
+		}
 	}
 
-	private fun clearCircles() = setViewer?.let { viewer ->
-		Platform.runLater { viewer.children.removeIf { SAM_POINT_STYLE in it.styleClass } }
+	private fun Pane.drawBox(topLeft: SamPoint, bottomRight: SamPoint) {
+		InvokeOnJavaFXApplicationThread {
+			val boxOverlay = children
+				.filterIsInstance<Rectangle>()
+				.firstOrNull { it.styleClass.contains(SAM_BOX_OVERLAY_STYLE) }
+				?: Rectangle().also {
+					it.isMouseTransparent = true
+					it.styleClass += SAM_BOX_OVERLAY_STYLE
+					children += it
+				}
+
+			val maxX = bottomRight.x / screenScale
+			val maxY = bottomRight.y / screenScale
+			val minX = topLeft.x / screenScale
+			val minY = topLeft.y / screenScale
+			boxOverlay.width = maxX - minX
+			boxOverlay.height = maxY - minY
+			boxOverlay.translateX = maxX - (boxOverlay.width + width) / 2
+			boxOverlay.translateY = maxY - (boxOverlay.height + height) / 2
+		}
 	}
 
-	private fun clearBox() = setViewer?.let { viewer ->
-		Platform.runLater { viewer.children.removeIf { SAM_BOX_OVERLAY_STYLE in it.styleClass } }
+
+	open fun applyPrediction() {
+		lastPrediction?.submitPrediction()
+		clearPromptDrawings()
 	}
 
 	private fun SamTaskInfo.submitPrediction() {
@@ -628,82 +757,69 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 	}
 
-	protected lateinit var getImageEmbeddingTask: UtilityTask<OnnxTensor>
+	fun requestPrediction(predictionRequest: SamPredictor.PredictionRequest, estimateThreshold: Boolean = true) {
+		when (predictionRequest) {
+			is SparsePrediction -> {
+				requestPrediction(predictionRequest.points, estimateThreshold)
+			}
 
-	private val predictionQueue = LinkedBlockingQueue<Pair<SamPredictor.PredictionRequest, Boolean>>(1)
+			is SamPredictor.MaskPrediction -> LOG.warn { "Mask Prediction not supported in SAM tool" }
+		}
 
-	fun requestPrediction(points: List<SamPoint> = emptyList(), refresh: Boolean = false) {
+	}
+
+	open fun requestPrediction(promptPoints: List<SamPoint>, estimateThreshold: Boolean = true) {
 		if (predictionTask == null || predictionTask?.isCancelled == true) {
 			startPredictionTask()
 		}
-		synchronized(predictionQueue) {
-			predictionQueue.clear()
-			predictionQueue.put(SamPredictor.points(listOf(*points.toTypedArray())) to refresh)
-		}
+		currentPredictionRequest = SamPredictor.points(promptPoints.toList()) to estimateThreshold
 	}
 
-	private fun getImageEmbeddingTask() {
-		Tasks.createTask {
-			isBusy = true
-			val entityBuilder = MultipartEntityBuilder.create()
-			entityBuilder.addBinaryBody("image", predictionImagePngInputStream, ContentType.APPLICATION_OCTET_STREAM, "null")
-
-			val client = HttpClients.createDefault()
-			val post = HttpPost(paintera.properties.segmentAnythingConfig.serviceUrl)
-			post.entity = entityBuilder.build()
-
-			val response = client.execute(post)
-			val entity = response.entity
-			EntityUtils.toByteArray(entity).let {
-				val decodedEmbedding: ByteArray
-				try {
-					decodedEmbedding = Base64.decode(it)
-				} catch (e: IllegalArgumentException) {
-					throw HttpException(String(it))
-				}
-				val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size).order(ByteOrder.nativeOrder())
-				directBuffer.put(decodedEmbedding, 0, decodedEmbedding.size)
-				directBuffer.position(0)
-				val floatBuffEmbedding = directBuffer.asFloatBuffer()
-				floatBuffEmbedding.position(0)
-				/* need the ortEnv to be initialized, which is done during session initialization; So block and wait here. */
-				createOrtSessionTask.get() /* But we don't actually need the session here. */
-				OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
-			}
-		}.onEnd {
-			isBusy = false
-		}.onFailed { _, task ->
-			LOG.error("Failure retrieving image embedding", task.exception)
-			mode?.switchTool(mode.defaultTool)
-		}.also {
-			getImageEmbeddingTask = it
-			it.submit(SAM_TASK_SERVICE)
-		}
+	enum class MaskPriority {
+		MASK,
+		PREDICTION
 	}
 
+	var maskPriority = MaskPriority.PREDICTION
 
-	internal var providedEmbedding: OnnxTensor? = null
+	private var embeddingRequest: Deferred<OnnxTensor>? = null
+
 	private var currentPrediction: SamPredictor.SamPrediction? = null
-
-
 	private fun startPredictionTask() {
 		val maskSource = maskedSource ?: return
 		val task = Tasks.createTask { task ->
 			val session = createOrtSessionTask.get()
-			val embedding = providedEmbedding ?: getImageEmbeddingTask.get()
-			val predictor = SamPredictor(ortEnv, session, embedding, imgWidth to imgHeight)
+			val imageEmbedding = try {
+				runBlocking {
+					isBusy = true
+					embeddingRequest!!.await()
+				}
+			} catch (e: InterruptedException) {
+				if (!task.isCancelled) throw e
+				return@createTask
+			} catch (e: CancellationException) {
+				return@createTask
+			} finally {
+				isBusy = false
+			}
+			val predictor = SamPredictor(ortEnv, session, imageEmbedding, imgWidth to imgHeight)
 			while (!task.isCancelled) {
-				val (predictionRequest, refresh) = predictionQueue.take()
+				val predictionPair = predictionQueue.take()
+				val (predictionRequest, estimateThreshold) = predictionPair
+				val points = (predictionRequest as SparsePrediction).points
 
-				val newPredictionRequest = !refresh || currentPrediction == null
+				val newPredictionRequest = estimateThreshold || currentPrediction == null
 				if (newPredictionRequest) {
 					currentPrediction = runPredictionWithRetry(predictor, predictionRequest)
 				}
 				val prediction = currentPrediction!!
+				val predictionLabel = currentLabelToPaint
 
-				if (!refresh) {
-					val thresholdPredictorInterval = if (points.all { it.label > SamPredictor.SparseLabel.IN }) intervalOfBox(prediction) else null
-					setBestEstimatedThreshold(thresholdPredictorInterval)
+				if (estimateThreshold) {
+					/* If there is only a box (no points) then use the sub-interval of the box to estimate the threshold.
+					*   In all other cases, estimate threshold based on the entire image. */
+					val estimateOverBox = if (points.all { it.label > SamPredictor.SparseLabel.IN }) intervalOfBox(points, prediction) else null
+					setBestEstimatedThreshold(estimateOverBox)
 				}
 
 				val paintMask = viewerMask!!
@@ -752,7 +868,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					)
 				} catch (e: InterruptedException) {
 					System.setErr(stdErr)
-					LOG.debug("Connected Components Interrupted During SAM", e)
+					LOG.debug(e) { "Connected Components Interrupted During SAM" }
 					task.cancel()
 					continue
 				} finally {
@@ -760,23 +876,21 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 
 
-				val previousPredictionInterval = lastPredictionProperty.get()?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
+				val previousPredictionInterval = lastPrediction?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
 				if (noneAccepted) {
 					paintMask.requestRepaint(previousPredictionInterval)
-					lastPredictionProperty.set(null)
+					lastPrediction = null
 					continue
 				}
-				val predictionPoints = (predictionRequest as? SamPredictor.SparsePrediction)?.points
-				val acceptedComponents = predictionPoints
-					?.asSequence()
-					?.filter { it.label == SamPredictor.SparseLabel.IN }
-					?.map { it.x.toLong() to it.y.toLong() }
-					?.filter { (x, y) -> thresholdFilter.getAt(x, y).get() }
-					?.map { (x, y) -> connectedComponents.getAt(x, y).get() }
-					?.toMutableSet() ?: mutableSetOf()
+				val acceptedComponents = points.asSequence()
+					.filter { it.label == SamPredictor.SparseLabel.IN }
+					.map { it.x.toLong() to it.y.toLong() }
+					.filter { (x, y) -> thresholdFilter.getAt(x, y).get() }
+					.map { (x, y) -> connectedComponents.getAt(x, y).get() }
+					.toMutableSet()
 
-				predictionPoints?.firstOrNull { it.label == SamPredictor.SparseLabel.TOP_LEFT_BOX }?.let { topLeft ->
-					predictionPoints.firstOrNull { it.label == SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX }?.let { bottomRight ->
+				points.firstOrNull { it.label == SamPredictor.SparseLabel.TOP_LEFT_BOX }?.let { topLeft ->
+					points.firstOrNull { it.label == SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX }?.let { bottomRight ->
 
 						val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
 						val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
@@ -809,7 +923,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					.extendValue(0.0)
 					.interpolate(NLinearInterpolatorFactory())
 					.affineReal(predictionToViewerTransform)
-					.convert(UnsignedLongType(Label.INVALID)) { source, output -> output.set(if (source.get() > .8) currentLabelToPaint else Label.INVALID) }
+					.convert(UnsignedLongType(Label.INVALID)) { source, output -> output.set(if (source.get() > .8) predictionLabel else Label.INVALID) }
 					.addDimension()
 					.raster()
 					.interval(paintMask.viewerImg)
@@ -817,29 +931,44 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				val compositeMask = originalBackingImage!!
 					.extendValue(Label.INVALID)
-					.convertWith(maskAlignedSelectedComponents, UnsignedLongType(Label.INVALID)) { original, overlay, composite ->
-						val overlayVal = overlay.get()
-						composite.set(
-							if (overlayVal == currentLabelToPaint) currentLabelToPaint else original.get()
-						)
+					.convertWith(maskAlignedSelectedComponents, UnsignedLongType(Label.INVALID)) { original, prediction, composite ->
+						val getCompositeVal = {
+							val predictedVal = prediction.get()
+							if (predictedVal == predictionLabel) predictionLabel else original.get()
+						}
+						val compositeVal =
+							if (maskPriority == MaskPriority.PREDICTION) getCompositeVal()
+							else original.get().takeIf { it != Label.INVALID } ?: getCompositeVal()
+						composite.set(compositeVal)
 					}.interval(maskAlignedSelectedComponents)
 
 
 				val compositeVolatileMask = originalVolatileBackingImage!!
 					.extendValue(VolatileUnsignedLongType(Label.INVALID))
 					.convertWith(maskAlignedSelectedComponents, VolatileUnsignedLongType(Label.INVALID)) { original, overlay, composite ->
-						var checkOriginal = false
-						val overlayVal = overlay.get()
-						if (overlayVal == currentLabelToPaint) {
-							composite.get().set(currentLabelToPaint)
-							composite.isValid = true
-						} else checkOriginal = true
-						if (checkOriginal) {
-							if (original.isValid) {
-								composite.set(original)
+						val setCompositeVal = {
+							var checkOriginal = false
+							val overlayVal = overlay.get()
+							if (overlayVal == predictionLabel) {
+								composite.get().set(predictionLabel)
 								composite.isValid = true
-							} else composite.isValid = false
-							composite.isValid = true
+							} else checkOriginal = true
+							if (checkOriginal) {
+								if (original.isValid) {
+									composite.set(original)
+									composite.isValid = true
+								} else composite.isValid = false
+								composite.isValid = true
+							}
+						}
+						if (maskPriority == MaskPriority.PREDICTION || !original.isValid) {
+							setCompositeVal()
+						} else {
+							val originalVal = original.get().get()
+							if (originalVal != Label.INVALID) {
+								composite.set(originalVal)
+								composite.isValid = true
+							} else setCompositeVal()
 						}
 					}.interval(maskAlignedSelectedComponents)
 
@@ -852,18 +981,24 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				val predictionIntervalInViewerSpace = predictionToViewerTransform.estimateBounds(predictionInterval3D).smallestContainingInterval
 
 				paintMask.requestRepaint(predictionIntervalInViewerSpace union previousPredictionInterval)
-				lastPredictionProperty.set(SamTaskInfo(maskSource, predictionIntervalInViewerSpace))
+				lastPrediction = SamTaskInfo(maskSource, predictionIntervalInViewerSpace, imageEmbedding, predictionRequest)
 			}
 		}
 		predictionTask = task
 		task.submit(SAM_TASK_SERVICE)
 	}
 
-	private fun setBestEstimatedThreshold(interval: FinalInterval? = null) {
+	private fun setBestEstimatedThreshold(interval: Interval? = null) {
+		/* [-40..30] seems from testing like a reasonable range to include the vast majority of
+		*  prediction values, excluding perhaps some extreme outliers (which imo is desirable) */
 		val binMapper = Real1dBinMapper<FloatType>(-40.0, 30.0, 256, false)
 		val histogram = LongArray(binMapper.binCount.toInt())
 
-		val predictionRAI = interval?.let { currentPrediction!!.image.interval(it) } ?: currentPrediction!!.image
+		val threshPredictInterval = interval?.intersect(currentPrediction?.image)?.let { intersection ->
+			if (Intervals.isEmpty(intersection)) null else intersection
+		}
+
+		val predictionRAI = threshPredictInterval?.let { currentPrediction!!.image.interval(it) } ?: currentPrediction!!.image
 		LoopBuilder.setImages(predictionRAI)
 			.forEachPixel {
 				val binIdx = binMapper.map(it).toInt()
@@ -890,7 +1025,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		threshold = binVar.get().toDouble()
 	}
 
-	private fun intervalOfBox(samPrediction: SamPredictor.SamPrediction, lowRes: Boolean = false): FinalInterval? {
+	private fun intervalOfBox(points: List<SamPoint>, samPrediction: SamPredictor.SamPrediction, lowRes: Boolean = false): FinalInterval? {
 		return points.filter { it.label > SamPredictor.SparseLabel.IN }.let {
 			if (it.size == 2) {
 				val scale = if (lowRes) samPrediction.lowToHighResScale else 1.0
@@ -914,89 +1049,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		return try {
 			predictor.predict(*predictionRequest)
 		} catch (e: OrtException) {
-			LOG.trace(e.message)
+			LOG.trace { "${e.message}" }
 			runPredictionWithRetry(predictor, *predictionRequest)
-		}
-	}
-
-	/**
-	 * Calculates the target screen scale factor based on the highest screen scale and the viewer's dimensions.
-	 * The resulting scale factor will always be the smaller of either:
-	 *  1. the highest explicitly specified factor, or
-	 *  2. [SamPredictor.MAX_DIM_TARGET] / `max(width, height)`
-	 *
-	 *  This means if the `scaleFactor * maxEdge` is less than [SamPredictor.MAX_DIM_TARGET] it will be used,
-	 *  but if the `scaleFactor * maxEdge` is still larger than [SamPredictor.MAX_DIM_TARGET], then a more
-	 *  aggressive scale factor will be returned. See [SamPredictor.MAX_DIM_TARGET] for more information.
-	 *
-	 * @return The calculated scale factor.
-	 */
-	private fun calculateTargetScreenScaleFactor(): Double {
-		val highestScreenScale = setViewer!!.renderUnit.screenScalesProperty.get().max()
-		val (width, height) = setViewer!!.width to setViewer!!.height
-		val maxEdge = max(ceil(width * highestScreenScale), ceil(height * highestScreenScale))
-		return min(highestScreenScale, SamPredictor.MAX_DIM_TARGET / maxEdge)
-	}
-
-	private fun saveActiveViewerImageFromRenderer() {
-		setViewer?.let { viewer ->
-			val width = viewer.width
-			val height = viewer.height
-
-			val threadGroup = ThreadGroup(this.toString())
-			val sharedQueue = SharedQueue(PainteraBaseView.reasonableNumFetcherThreads(), 50)
-
-			val renderUnit = object : RenderUnit(
-				threadGroup,
-				viewer::getState,
-				{ Interpolation.NLINEAR },
-				CompositeProjectorPreMultiply.CompositeProjectorFactory(paintera.baseView.sourceInfo().composites()),
-				sharedQueue,
-				30 * 1000000L,
-				TaskExecutors.singleThreaded() //TODO rendering name it (and more threads? )
-			) {
-
-				override fun paint() {
-					val viewerTransform = AffineTransform3D()
-					var timepoint = 0
-					val sacs = mutableListOf<SourceAndConverter<*>>()
-					synchronized(this) {
-						if (renderer != null && renderTarget != null && viewerStateSupplier.get().isVisible) {
-							val viewerState = viewerStateSupplier.get()
-							synchronized(viewerState) {
-								viewerState.getViewerTransform(viewerTransform)
-								timepoint = viewerState.timepoint
-								val activeSourceToSkip = activeState?.sourceAndConverter?.spimSource
-								viewerState.sources.forEach {
-									if (it.spimSource != activeSourceToSkip) {
-										sacs += it
-									}
-								}
-							}
-
-						}
-
-					}
-
-					val renderedScreenScaleIndex = renderer.paint(sacs, timepoint, viewerTransform, interpolation, null)
-					if (renderedScreenScaleIndex != -1) {
-						val screenInterval = renderer.lastRenderedScreenInterval
-						val renderTargetRealInterval = renderer.lastRenderTargetRealInterval
-
-						val image = renderTarget.bufferedImage
-						renderResultProperty.set(RenderResult(image, screenInterval, renderTargetRealInterval, renderedScreenScaleIndex))
-					}
-				}
-			}
-			renderUnit.setScreenScales(doubleArrayOf(screenScale))
-			renderUnit.setDimensions(width.toLong(), height.toLong())
-			renderUnit.renderedImageProperty.addListener { _, _, result ->
-				result.image?.let { img ->
-					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
-					predictionImagePngOutputStream.close()
-				}
-			}
-			renderUnit.requestRepaint()
 		}
 	}
 
@@ -1007,37 +1061,59 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private enum class SamPointStyle(val styles: Array<String>) {
 			Include(arrayOf(SAM_POINT_STYLE, "sam-include")),
-			Exclude(arrayOf(SAM_POINT_STYLE, "sam-exclude"))
-		}
+			Exclude(arrayOf(SAM_POINT_STYLE, "sam-exclude"));
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+			companion object {
 
-		private val SAM_TASK_SERVICE = Executors.newFixedThreadPool(
-			Runtime.getRuntime().availableProcessors(),
-			ThreadFactoryBuilder()
-				.setNameFormat("sam-task-%d")
-				.setDaemon(true)
-				.build()
-		)
-
-		private lateinit var ortEnv: OrtEnvironment
-		private val createOrtSessionTask by LazyForeignValue({ properties.segmentAnythingConfig.modelLocation }) { modelLocation ->
-			Tasks.createTask {
-				if (!::ortEnv.isInitialized)
-					ortEnv = OrtEnvironment.getEnvironment()
-				val modelArray = try {
-					Companion::class.java.classLoader.getResourceAsStream(modelLocation)!!.readAllBytes()
-				} catch (e: Exception) {
-					Files.readAllBytes(Paths.get(modelLocation))
+				operator fun get(label: SamPredictor.SparseLabel) = when (label) {
+					SamPredictor.SparseLabel.IN -> Include.styles
+					SamPredictor.SparseLabel.OUT -> Exclude.styles
+					else -> emptyArray()
 				}
-				val session = ortEnv.createSession(modelArray)
-				session
-			}.submit()
-		}.beforeValueChange {
-			it?.cancel()
+			}
 		}
 
-		data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval)
+		private val LOG = KotlinLogging.logger { }
 
+		internal val SAM_TASK_SERVICE = ForkJoinPool.ForkJoinWorkerThreadFactory { pool: ForkJoinPool ->
+			val worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool)
+			worker.isDaemon = true
+			worker.priority = 4
+			worker.name = "sam-task-" + worker.poolIndex
+			worker
+		}.let { factory ->
+			ForkJoinPool(max(4.0, 4 * (Runtime.getRuntime().availableProcessors()).toDouble()).toInt(), factory, null, false)
+		}
+
+
+		private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {
+			val highestScreenScale = viewer.renderUnit.screenScalesProperty.get().max()
+			return calculateTargetScreenScaleFactor(viewer.width, viewer.height, highestScreenScale)
+		}
+
+		private fun RenderUnitState.calculateTargetScreenScaleFactor(): Double {
+			val maxScreenScale = paintera.properties.screenScalesConfig.screenScalesProperty().get().scalesCopy.max()
+			return calculateTargetScreenScaleFactor(width.toDouble(), height.toDouble(), maxScreenScale)
+		}
+
+		/**
+		 * Calculates the target screen scale factor based on the highest screen scale and the viewer's dimensions.
+		 * The resulting scale factor will always be the smallest of either:
+		 *  1. the highest explicitly specified factor, or
+		 *  2. [SamPredictor.MAX_DIM_TARGET] / `max(width, height)`
+		 *
+		 *  This means if the `scaleFactor * maxEdge` is less than [SamPredictor.MAX_DIM_TARGET] it will be used,
+		 *  but if the `scaleFactor * maxEdge` is still larger than [SamPredictor.MAX_DIM_TARGET], then a more
+		 *  aggressive scale factor will be returned. See [SamPredictor.MAX_DIM_TARGET] for more information.
+		 *
+		 * @return The calculated scale factor.
+		 */
+		private fun calculateTargetScreenScaleFactor(width: Double, height: Double, highestScreenScale: Double): Double {
+			val maxEdge = max(ceil(width * highestScreenScale), ceil(height * highestScreenScale))
+			return min(highestScreenScale, SamPredictor.MAX_DIM_TARGET / maxEdge)
+		}
+
+
+		data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval, val embedding: OnnxTensor, val predictionRequest: SamPredictor.PredictionRequest)
 	}
 }

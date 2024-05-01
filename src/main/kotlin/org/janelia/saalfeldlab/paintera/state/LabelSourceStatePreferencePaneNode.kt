@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
@@ -13,6 +14,7 @@ import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.*
 import javafx.stage.Modality
+import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.Buttons
@@ -43,8 +45,6 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.text.DecimalFormat
 import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
 
@@ -396,7 +396,7 @@ class LabelSourceStatePreferencePaneNode(
 						"Clear any modifications to the canvas. Any changes that have not been committed will be lost."
 					)
 					{
-						showForgetAlert(source)
+						askForgetCanvasAlert(source)
 						refreshMeshes()
 					}
 
@@ -460,33 +460,31 @@ class LabelSourceStatePreferencePaneNode(
 				} else
 					null
 			}
+	}
 
-		private fun showForgetAlert(source: MaskedSource<*, *>) {
-			if (showForgetAlert()) {
+	companion object {
+		private val LOG = KotlinLogging.logger { }
+		fun askForgetCanvasAlert(source: MaskedSource<*, *>, owner: Window? = null) {
+			if (askForgetCanvasAlert()) {
 				try {
 					source.forgetCanvases()
 				} catch (e: CannotClearCanvas) {
-					LOG.error("Unable to clear canvas.", e)
-					Exceptions.exceptionAlert(Constants.NAME, "Unable to clear canvas.", e, owner = node?.scene?.window)
+					LOG.error(e) { "Unable to clear canvas." }
+					Exceptions.exceptionAlert(Constants.NAME, "Unable to clear canvas.", e, owner = owner)
 				}
 			}
 
 		}
 
-		private fun showForgetAlert() = PainteraAlerts.confirmation("_Yes", "_No", true)
-			.also { it.headerText = "Clear Canvas" }
-			.also {
-				it.dialogPane.content = TextArea("Clearing canvas will remove all painted data that have not been committed yet. Proceed?")
-					.also { it.isEditable = false }
-					.also { it.isWrapText = true }
+		private fun askForgetCanvasAlert() = PainteraAlerts.confirmation("_Yes", "_No", true).apply {
+			headerText = "Clear Canvas"
+			dialogPane.content = TextArea("Clearing canvas will remove all painted data that have not been committed yet. Proceed?").apply {
+				isEditable = false
+				isWrapText = true
 			}
+		}
 			.showAndWait()
 			.filter { ButtonType.OK == it }
 			.isPresent
-
-		companion object {
-			private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-		}
 	}
-
 }

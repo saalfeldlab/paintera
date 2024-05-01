@@ -17,7 +17,7 @@ class N5FactoryWithCache : N5Factory() {
 
 	private val writerCache = HashMap<String, N5Writer>()
 	private val readerCache = HashMap<String, N5Reader>()
-	override fun openReader(uri: String): N5Reader {
+	override fun  openReader(uri: String): N5Reader {
 		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: super.openReader(uri).let {
 			if (containerIsReadable(it)) {
 				readerCache[uri] = it
@@ -31,7 +31,7 @@ class N5FactoryWithCache : N5Factory() {
 	override fun openWriter(uri: String): N5Writer {
 		return getFromWriterCache(uri) ?: openAndCacheExistingN5Writer(uri)
 	}
-	fun createWriter(uri: String): N5Writer {
+	fun newWriter(uri: String): N5Writer {
 		return getFromWriterCache(uri) ?: createAndCacheN5Writer(uri)
 	}
 

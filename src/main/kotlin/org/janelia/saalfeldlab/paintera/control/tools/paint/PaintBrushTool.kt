@@ -31,8 +31,10 @@ import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
@@ -40,15 +42,19 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.lang.Double.min
 
-internal const val CHANGE_BRUSH_DEPTH = "change brush depth"
-internal const val START_BACKGROUND_ERASE = "start background erase"
+private const val CHANGE_BRUSH_DEPTH = "change brush depth"
+private const val START_BACKGROUND_ERASE = "start background erase"
+private const val START_TRANSPARENT_ERASE = "start transparent erase"
+private const val END_ERASE = "end erase"
+private const val START_SELECTION_PAINT = "start selection paint"
+private const val END_SELECTION_PAINT = "end selection paint"
 
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "paint-brush") } }
+	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("paint-brush") } ) }
 	override val name = "Paint"
-	override val keyTrigger = listOf(KeyCode.SPACE)
+	override val keyTrigger = LabelSourceStateKeys.PAINT_BRUSH
 
 
 	private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
@@ -90,7 +96,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
-			*super<PaintTool>.actionSets.toTypedArray(),
+			*super.actionSets.toTypedArray(),
 			*getBrushActions(),
 			*getPaintActions(),
 			*(midiBrushActions() ?: arrayOf())
@@ -113,16 +119,6 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private val selectedIdListener: (obs: Observable) -> Unit = {
 		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
-	}
-
-	/* lateinit so we can self-reference, so it removes itself after being triggered. */
-	private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
-
-	init {
-		setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-			paint2D.setBrushOverlayVisible(true)
-			observable.removeListener(setCursorWhenDoneApplying)
-		}
 	}
 
 	override fun activate() {
@@ -160,7 +156,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint, ignoreDisable = true) {
 		/* Handle Painting */
 		MOUSE_PRESSED(MouseButton.PRIMARY) {
-			name = "start selection paint"
+			name = START_SELECTION_PAINT
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			verify { isLabelValid }
@@ -171,7 +167,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 
 		MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
-			name = "end selection paint"
+			name = END_SELECTION_PAINT
 			verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
 			onAction {
 				paintClickOrDrag?.busySubmitPaint()
@@ -180,7 +176,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 
 		KEY_RELEASED(KeyCode.SPACE) {
-			name = "end selection paint"
+			name = END_SELECTION_PAINT
 			verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
 			onAction {
 				paintClickOrDrag?.submitPaint()
@@ -190,7 +186,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 		/* Handle Erasing */
 		MOUSE_PRESSED(MouseButton.SECONDARY) {
-			name = "start transparent erase"
+			name = START_TRANSPARENT_ERASE
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			verify { KeyCode.SHIFT !in keyTracker()!!.getActiveKeyCodes(true) }
@@ -202,7 +198,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 		/* Handle painting background */
 		MOUSE_PRESSED(MouseButton.SECONDARY) {
-			name = "start background erase"
+			name = START_BACKGROUND_ERASE
 			keysDown(KeyCode.SHIFT, exclusive = false)
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
@@ -213,7 +209,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			}
 		}
 		MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
-			name = "end erase"
+			name = END_ERASE
 			onAction {
 				paintClickOrDrag?.busySubmitPaint()
 				setCurrentLabelToSelection()
@@ -240,7 +236,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 						paint2D.setBrushCursor(Cursor.WAIT)
 					} else {
 						paint2D.setBrushCursor(Cursor.NONE)
-						if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+						if (!paintera.keyTracker.areKeysDown(*keyTrigger.keyCodes.toTypedArray()) && !enteredWithoutKeyTrigger) {
 							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
 						}
 						obs.removeListener(setFalseAndRemoveListener)

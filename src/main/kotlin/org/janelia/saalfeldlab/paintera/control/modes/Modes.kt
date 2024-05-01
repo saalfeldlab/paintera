@@ -1,42 +1,38 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import javafx.event.Event
 import javafx.event.EventHandler
-import javafx.geometry.Pos
+import javafx.event.EventType
 import javafx.scene.Cursor
-import javafx.scene.control.ButtonBase
-import javafx.scene.control.Toggle
-import javafx.scene.control.ToggleGroup
+import javafx.scene.Node
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
+import org.janelia.saalfeldlab.fx.ui.ActionBar
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
-import org.janelia.saalfeldlab.paintera.control.tools.Tool
-import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
-import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
+import org.janelia.saalfeldlab.paintera.control.tools.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
-import org.janelia.saalfeldlab.paintera.control.tools.toolBarItemsForActions
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.slf4j.LoggerFactory
+import java.util.concurrent.LinkedBlockingQueue
 
 interface ControlMode {
 
@@ -69,6 +65,10 @@ interface ToolMode : SourceMode {
 	var activeToolProperty: ObjectProperty<Tool?>
 	var activeTool: Tool?
 
+	val modeToolsBar: ActionBar
+	val modeActionsBar: ActionBar
+	val toolActionsBar : ActionBar
+
 	override fun enter() {
 		super.enter()
 		/* Keep deafult tool selected if nothing else */
@@ -80,84 +80,74 @@ interface ToolMode : SourceMode {
 	fun switchTool(tool: Tool?) {
 		if (activeTool == tool)
 			return
-		LOG.debug("Switch from $activeTool to $tool")
+		LOG.debug { "Switch from $activeTool to $tool" }
 		(activeTool as? ViewerTool)?.apply {
 			activeViewer?.let { removeFrom(it) }
 		}
 		activeTool?.deactivate()
 
+		showToolBars()
+		modeToolsBar.toggleGroup?.toggles?.forEach { it.isSelected = false }
+
 		tool?.activate()
 		activeTool = tool
 	}
 
+	private fun showToolBars(show : Boolean = true) {
+		modeToolsBar.show(show)
+		modeActionsBar.show(show)
+		toolActionsBar.show(show)
+	}
+
 	fun createToolBar(): GridPane {
 		return GridPane().apply {
-			val toolToggleBarGroup = ToggleGroup()
 
-			/* When the selected toggle changes, switch to that tool (if we aren't already) or default if unselected only */
-			toolToggleBarGroup.selectedToggleProperty().addListener { _, _, selected ->
-				selected?.let {
-					(it.userData as? Tool)?.let { tool ->
-						if (activeTool != tool) {
-							switchTool(tool)
-							//TODO this should be refactored and more generic
-							(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+			var col = 0
+
+			modeToolsBar.set(*tools.filterIsInstance<ToolBarItem>().toTypedArray())
+			addColumn(col++, modeToolsBar)
+
+			modeActionsBar.set(*modeActions.toTypedArray())
+			addColumn(col++, modeActionsBar)
+
+			addColumn(col, toolActionsBar)
+
+
+			modeToolsBar.toggleGroup?.apply {
+				/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
+				selectedToggleProperty().addListener { _, _, selected ->
+					selected?.let {
+						(it.userData as? Tool)?.let { tool ->
+							if (activeTool != tool) {
+								if ((it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true) {
+									switchTool(null)
+									selectViewerBefore {
+										switchTool(tool)
+									}
+								} else {
+									switchTool(tool)
+								}
+								//TODO this should be refactored and more generic
+								(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+							}
 						}
+					} ?: switchTool(defaultTool)
+				}
+
+				/* when the active tool changes, update the toggle to reflect the active tool */
+				activeToolProperty.addTriggeredListener { _, old, new ->
+					old?.let { toolActionsBar.reset() }
+					new?.let { newTool ->
+						toggles
+							.firstOrNull { it.userData == newTool }
+							?.also { toggleForTool -> selectToggle(toggleForTool) }
+						toolActionsBar.set(*newTool.actionSets.toTypedArray())
 					}
-				} ?: switchTool(defaultTool)
-			}
-			val toolButtons = tools.filterIsInstance<ToolBarItem>().map { tool ->
-				tool.toolBarButton.apply {
-					(this as? Toggle)?.apply {
-						toggleGroup = toolToggleBarGroup
-					}
-					this.onAction ?: let {
-						userData = tool
-					}
-					isFocusTraversable = false
 				}
 			}
 
-			val toolbox = HBox().apply {
-				alignment = Pos.CENTER_RIGHT
-				children += toolButtons
-			}
-
-			fun List<ActionSet>.actionButtonsFromActionSets(): List<ButtonBase> = map { it.toolBarItemsForActions().toSet() }
-				.filter { it.isNotEmpty() }
-				.fold(setOf<ToolBarItem>()) { l, r -> l + r }
-				.map { it.toolBarButton }
 
 
-			val actionbox = HBox().apply { alignment = Pos.CENTER_RIGHT }
-
-
-			val triggerOnActiveToolChange = { newTool: Tool ->
-
-				toolToggleBarGroup.toggles.firstOrNull { it.userData == newTool }?.also { toggleForTool ->
-					toolToggleBarGroup.selectToggle(toggleForTool)
-				}
-				val toolActionButtons = newTool.actionSets.actionButtonsFromActionSets()
-				actionbox.children.addAll(toolActionButtons)
-			}
-
-			/* The first time, we haven't triggered yet, so ensure it does */
-			activeTool?.let { triggerOnActiveToolChange(it) }
-
-			/* listen for changes to the activeToolProperty*/
-			activeToolProperty.addListener { _, old, new ->
-				old?.let { actionbox.children.clear() }
-				new?.let { newTool -> triggerOnActiveToolChange(newTool) }
-			}
-
-			val modebox = HBox().apply { alignment = Pos.CENTER_RIGHT }
-			val modeActionButtons = modeActions.actionButtonsFromActionSets()
-			modebox.children += modeActionButtons
-
-
-			addColumn(2, toolbox)
-			addColumn(1, actionbox)
-			addColumn(0, modebox)
 		}
 
 	}
@@ -235,8 +225,43 @@ interface ToolMode : SourceMode {
 				/* listen for ESC if we wish to cancel*/
 				addEventFilter(KEY_PRESSED, escapeFilter)
 			}
-
 		}
+	}
+
+
+
+	fun <T : Event> Node.waitForEvent(event : EventType<T>) : T? {
+		/* temporarily revoke permissions, so no actions are performed until we receive event [T]   */
+		paintera.baseView.allowedActionsProperty().suspendPermisssions()
+
+		val queue = LinkedBlockingQueue<T?>()
+
+		InvokeOnJavaFXApplicationThread {
+			lateinit var escapeFilter: EventHandler<KeyEvent>
+			lateinit var waitForEventFilter: EventHandler<T>
+
+			val resetFilterAndPermissions = { it : T? ->
+				removeEventFilter(event, waitForEventFilter)
+				removeEventFilter(KEY_PRESSED, escapeFilter)
+				paintera.baseView.allowedActionsProperty().restorePermisssions()
+				queue.offer(it)
+			}
+
+			waitForEventFilter = EventHandler<T> {
+				it.consume()
+				resetFilterAndPermissions(it)
+			}
+
+			/* In case ESC is pressed stop waiting  */
+			escapeFilter = EventHandler<KeyEvent> {
+				resetFilterAndPermissions(null)
+			}
+
+			addEventFilter(event, waitForEventFilter)
+			addEventFilter(KEY_PRESSED, escapeFilter)
+		}
+
+		return queue.take()
 	}
 
 	fun disableUnfocusedViewers() {
@@ -253,7 +278,7 @@ interface ToolMode : SourceMode {
 	}
 
 	companion object {
-		private val LOG = LoggerFactory.getLogger(ToolMode::class.java.simpleName)
+		private val LOG = KotlinLogging.logger { }
 	}
 }
 
@@ -262,9 +287,9 @@ abstract class AbstractSourceMode : SourceMode {
 	final override val activeViewerProperty = SimpleObjectProperty<ViewerAndTransforms?>()
 
 	private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?>
-        get() = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
+		get() = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
 	private val currentViewerObservable
-        get() = paintera.baseView.currentFocusHolder
+		get() = paintera.baseView.currentFocusHolder
 
 	private val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
 		it?.let { paintera.baseView.keyAndMouseBindings.getConfigFor(it).keyCombinations }
@@ -323,6 +348,10 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
 	final override var activeToolProperty: ObjectProperty<Tool?> = SimpleObjectProperty<Tool?>()
 	final override var activeTool by activeToolProperty.nullable()
+
+	override val modeActionsBar: ActionBar = ActionBar()
+	override val modeToolsBar: ActionBar = ActionBar()
+	override val toolActionsBar: ActionBar = ActionBar()
 
 	override val statusProperty: StringProperty = SimpleStringProperty().apply {
 		activeToolProperty.addListener { _, _, new ->

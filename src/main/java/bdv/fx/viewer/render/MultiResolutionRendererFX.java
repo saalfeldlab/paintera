@@ -37,8 +37,6 @@ import net.imglib2.img.array.ArrayImg;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.type.numeric.ARGBType;
 
-import java.util.concurrent.ExecutorService;
-
 /**
  * A renderer that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
  * the canvas resolution is rendered. Then, increasingly larger images are rendered, until the full canvas resolution is
@@ -108,7 +106,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Pi
 
 	public MultiResolutionRendererFX(
 			final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
-			final PainterThread painterThread,
+			final PainterThreadFx painterThread,
 			final double[] screenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,

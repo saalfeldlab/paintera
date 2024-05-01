@@ -1,12 +1,12 @@
 @import url(glyphs.css);
 
 .root {
-    -toolbar-tool-height: 1.5em;
-    -toolbar-tool-height-px: 24px;
+    -toolbar-tool-height: 1.75em;
+    -toolbar-tool-width: 1.75em;
 }
 
 .toolbar-button {
-    -fx-padding: 8 8 8 8;
+    -fx-padding: .5em .5em .5em .5em;
 }
 
 .toolbar-tool.glyph-icon {
@@ -14,7 +14,7 @@
     -glyph-size: -toolbar-tool-height-px;
 }
 
-.styleable-image-view.toolbar-tool {
-    -fit-width: -toolbar-tool-height-px;
-    -fit-height: -toolbar-tool-height-px;
+.scale-pane.toolbar-graphic {
+    -pref-width: -toolbar-tool-width;
+    -pref-height: -toolbar-tool-height;
 }

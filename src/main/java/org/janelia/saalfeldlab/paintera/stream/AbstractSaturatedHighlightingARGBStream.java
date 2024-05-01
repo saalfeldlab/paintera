@@ -67,7 +67,7 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 			}
 		}
 
-		if (Label.INVALID == fragmentId) {
+		if (Label.INVALID == fragmentId && !explicitlySpecifiedColors.contains(fragmentId)) {
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		} else if (lockedSegments.isLocked(segmentId) && hideLockedSegments) {
 			argb = argb & 0x00ffffff;

@@ -118,7 +118,7 @@ class PaintClickOrDragController(
 					with(paintIntoThis!!) {
 						viewerMask?.let { mask ->
 							val sourceInterval = extendAndTransformBoundingBox(maskInterval!!.asRealInterval, mask.initialMaskToSourceWithDepthTransform, .5)
-							val repaintInterval = mask.initialSourceToGlobalTransform.estimateBounds(sourceInterval)
+							val repaintInterval = mask.sourceToGlobalTransform.estimateBounds(sourceInterval)
 							applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
 							var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
 							refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
@@ -309,9 +309,9 @@ class PaintClickOrDragController(
 	@Synchronized
 	private fun paint(pos: Postion) = pos.run { paint(x, y) }
 
-	private var paintService : ExecutorService? = null
+	private var paintService: ExecutorService? = null
 		get() = if (field == null || field!!.isShutdown) {
-			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread",true))
+			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread", true))
 			field
 		} else field
 

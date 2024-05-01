@@ -35,6 +35,7 @@ import kotlin.system.exitProcess
 
 
 internal lateinit var paintera: PainteraMainWindow
+
 internal val properties
 	get() = paintera.properties
 
@@ -233,14 +234,14 @@ class Paintera : Application() {
 							""".trimIndent()
 						}
 
-					when (responseButton) {
-						ButtonType.OK -> Unit
-						ButtonType.NO -> state.skipCommit = true
-						ButtonType.CANCEL, ButtonType.CLOSE -> return
-						null -> Unit
+						when (responseButton) {
+							ButtonType.OK -> Unit
+							ButtonType.NO -> state.skipCommit = true
+							ButtonType.CANCEL, ButtonType.CLOSE -> return
+							null -> Unit
+						}
 					}
 				}
-			}
 		}
 
 
@@ -266,6 +267,9 @@ class Paintera : Application() {
 	}
 
 	companion object {
+
+		@JvmStatic
+		internal var debugMode = false
 
 		@JvmStatic
 		val n5Factory = N5FactoryWithCache().apply { cacheAttributes(true) }

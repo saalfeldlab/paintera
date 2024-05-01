@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
+import bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -139,7 +141,7 @@ public class PainteraBaseView {
 
 	private final SimpleObjectProperty<ControlMode> activeModeProperty = new SimpleObjectProperty<>();
 
-	public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.observableHashMap();
+	public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
 
 	/**
 	 * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
@@ -202,9 +204,8 @@ public class PainteraBaseView {
 
 		disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
 			isDisabledProperty.unbind();
-
 			final var isDisabledBinding = Bindings.createBooleanBinding(
-					() -> disabledPropertyBindings.values().stream()
+					() -> Arrays.stream(disabledPropertyBindings.values().toArray(ObservableBooleanValue[]::new))
 							.map(ObservableBooleanValue::get)
 							.reduce(Boolean::logicalOr)
 							.orElse(false),
@@ -555,7 +556,7 @@ public class PainteraBaseView {
 	 * @return {@link ExecutorService} for managing mesh generation tasks
 	 * <p>
 	 * TODO this should probably be removed by a management thread for every single mesh manager
-	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
+	 * TODO like the {@link PainterThreadFx} for rendering
 	 */
 	public ExecutorService getMeshManagerExecutorService() {
 

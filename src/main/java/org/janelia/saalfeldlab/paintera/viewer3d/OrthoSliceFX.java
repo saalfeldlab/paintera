@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.PixelBufferWritableImage;
-import bdv.fx.viewer.render.RenderUnit;
+import bdv.fx.viewer.render.ViewerRenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
@@ -164,13 +164,13 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 		}
 	}
 
-	private void updateTexture(final RenderUnit.RenderResult newv) {
+	private void updateTexture(final ViewerRenderUnit.RenderResult newv) {
 
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1 || textures == null)
 			return;
 
 		// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
-		// 	Screen scales are first initialized with the default setting (see RenderUnit),
+		// 	Screen scales are first initialized with the default setting (see ViewerRenderUnit),
 		// 	then the project metadata is loaded, and the screen scales are changed to the saved configuration.
 		// 	If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
 		if (newv.getScreenScaleIndex() >= textures.length)

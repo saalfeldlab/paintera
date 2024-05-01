@@ -9,7 +9,6 @@ import javafx.scene.control.ButtonType
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
-import javafx.scene.layout.GridPane
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -22,12 +21,11 @@ import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.StyleableImageView
+import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.ENTER_SHAPE_INTERPOLATION_MODE
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SEGMENT_ANYTHING
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION__TOGGLE_MODE
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
@@ -70,6 +68,7 @@ object PaintLabelMode : AbstractToolMode() {
 		listOf(
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
+			enterShapeInterpolationMode,
 			getSelectNextIdActions(),
 			getResetMaskAction(),
 		)
@@ -83,27 +82,6 @@ object PaintLabelMode : AbstractToolMode() {
 			old?.viewer()?.removeActionSet(actionSet)
 			new?.viewer()?.installActionSet(actionSet)
 		}
-	}
-
-	override fun createToolBar(): GridPane {
-		val toolBarGrid = super.createToolBar()
-		/* Add tool to switch to interpolation mode */
-		toolBarGrid.add(Button().also { siButton ->
-			siButton.styleClass += "toolbar-button"
-			siButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
-			siButton.graphic = StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "enter-shape-interpolation") }
-			siButton.onAction = EventHandler {
-				/* remove the current tool */
-				switchTool(null)
-				/* Indicate a viewer selection is required */
-				selectViewerBefore {
-					newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let { shapeInterpMode ->
-						paintera.baseView.changeMode(shapeInterpMode)
-					}
-				}
-			}
-		}, toolBarGrid.columnCount, 0)
-		return toolBarGrid
 	}
 
 	override fun enter() {
@@ -147,23 +125,33 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
-	private val enterShapeInterpolationMode = painteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
-		KEY_PRESSED(KeyCode.S) {
+	private val enterShapeInterpolationMode = painteraActionSet(SHAPE_INTERPOLATION__TOGGLE_MODE, PaintActionType.ShapeInterpolation) {
+		KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
+			graphic = { ScaleView().also { it.styleClass += "enter-shape-interpolation" } }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify {
 				@Suppress("UNCHECKED_CAST")
 				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
 			}
-			onAction {
-				newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let {
-					paintera.baseView.changeMode(it)
+			onAction { event ->
+				val switchModes = {
+					newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let {
+						paintera.baseView.changeMode(it)
+					}
+				}
+				when (event) {
+					null -> {
+						switchTool(null)
+						selectViewerBefore { switchModes() }
+					}
+					else -> switchModes()
 				}
 			}
 		}
 	}
 
-	private val activeSamTool = painteraActionSet(SEGMENT_ANYTHING, PaintActionType.Paint) {
-		KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+	private val activeSamTool = painteraActionSet(LabelSourceStateKeys.SEGMENT_ANYTHING__TOGGLE_MODE, PaintActionType.Paint) {
+		KEY_PRESSED(samTool.keyTrigger) {
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool !is SamTool }
 			verify {
@@ -174,14 +162,14 @@ object PaintLabelMode : AbstractToolMode() {
 				switchTool(samTool)
 			}
 		}
-		KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+		KEY_PRESSED(samTool.keyTrigger) {
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool is SamTool }
 			onAction {
 				switchTool(defaultTool)
 			}
 		}
-		KEY_PRESSED(KeyCode.ESCAPE) {
+		KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool is SamTool }
 			filter = true
@@ -198,13 +186,12 @@ object PaintLabelMode : AbstractToolMode() {
 		fill2DTool.createTriggers(this, PaintActionType.Fill, ignoreDisable = false),
 		toggleFill3D,
 		intersectTool.createTriggers(this, PaintActionType.Intersect),
-		enterShapeInterpolationMode,
 		activeSamTool
 
 	)
 
 	private fun getSelectNextIdActions() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
-		KEY_PRESSED(keyBindings!!, LabelSourceStateKeys.NEXT_ID) {
+		KEY_PRESSED(LabelSourceStateKeys.NEXT_ID) {
 			name = "create new segment"
 			verify { activeTool?.let { it !is PaintTool || !it.isPainting } ?: true }
 			onAction {

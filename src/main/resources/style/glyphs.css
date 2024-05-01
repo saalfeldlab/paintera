@@ -2,6 +2,7 @@
     -icons-color: black;
     -accept: green;
     -reject: red;
+    -refresh-blue: #2DA3FF;
 }
 
 .glyph-icon {
@@ -28,4 +29,9 @@
 .glyph-icon.add {
     -icons-color: -accept;
     -glyph-name: "PLUS";
+}
+
+.glyph-icon.refresh {
+    -icons-color: -refresh-blue;
+    -glyph-name: "REFRESH";
 }

@@ -57,52 +57,56 @@ public class OrthogonalViews<BR extends Node> {
 
 		private final AffineTransformWithListeners displayTransform;
 
-		private final AffineTransformWithListeners globalToViewerTransform;
+		/* transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation */
+		private final AffineTransformWithListeners viewerSpaceToViewerTransform;
 
-		private final TransformConcatenator concatenator;
+		private final TransformConcatenator globalToViewerTransformListener;
 
 		/**
 		 * @param viewer                  viewer
 		 * @param manager                 manages the transform from world coordinates to shared viewer space
 		 * @param displayTransform        accounts for scale after all other translations are applied
-		 * @param globalToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 * @param viewerSpaceToViewerTransform   transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
 		 *                                only, without scaling or rotation.
 		 */
 		public ViewerAndTransforms(
 				final ViewerPanelFX viewer,
 				final GlobalTransformManager manager,
 				final AffineTransformWithListeners displayTransform,
-				final AffineTransformWithListeners globalToViewerTransform) {
+				final AffineTransformWithListeners viewerSpaceToViewerTransform) {
 
 			super();
 			this.viewer = viewer;
 			this.manager = manager;
 			this.displayTransform = displayTransform;
-			this.globalToViewerTransform = globalToViewerTransform;
+			this.viewerSpaceToViewerTransform = viewerSpaceToViewerTransform;
 
-			this.concatenator = new TransformConcatenator(
+			this.globalToViewerTransformListener = new TransformConcatenator(
 					this.manager,
 					displayTransform,
-					globalToViewerTransform,
-					manager
+					viewerSpaceToViewerTransform
 			);
-			this.concatenator.setTransformListener(viewer);
+			this.globalToViewerTransformListener.addListener(viewer);
+		}
+
+		public AffineTransformWithListeners getGlobalToViewerTransform() {
+			return globalToViewerTransformListener;
 		}
 
 		/**
 		 * @return display transform ({@link #ViewerAndTransforms constructor} for details)
 		 */
-		public AffineTransformWithListeners displayTransform() {
+		public AffineTransformWithListeners getDisplayTransform() {
 
 			return this.displayTransform;
 		}
 
 		/**
-		 * @return global to viewer transform ({@link #ViewerAndTransforms constructor} for details)
+		 * @return shared viewer space to viewer transform ({@link #ViewerAndTransforms constructor} for details)
 		 */
-		public AffineTransformWithListeners globalToViewerTransform() {
+		public AffineTransformWithListeners getViewerSpaceToViewerTransform() {
 
-			return this.globalToViewerTransform;
+			return this.viewerSpaceToViewerTransform;
 		}
 
 		/**

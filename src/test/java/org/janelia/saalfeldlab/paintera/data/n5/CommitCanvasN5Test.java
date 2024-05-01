@@ -95,7 +95,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -108,7 +108,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -122,7 +122,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -135,7 +135,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -147,7 +147,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -159,7 +159,7 @@ public class CommitCanvasN5Test {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
-		final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final var container = new N5ContainerState(writer);
 		LOG.debug("Created temporary N5 container {}", writer);
 		/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
@@ -175,7 +175,7 @@ public class CommitCanvasN5Test {
 		final ReadOnlyCachedCellImgFactory factory = new ReadOnlyCachedCellImgFactory(ReadOnlyCachedCellImgOptions.options().cellDimensions(blockSize));
 		final CachedCellImg<UnsignedLongType, ?> canvas = factory.create(dims, new UnsignedLongType(), loader);
 		final Random rng = new Random(100);
-		canvas.forEach(px -> px.setInteger(rng.nextDouble() > 0.5 ? rng.nextInt(50) : Label.INVALID));
+		canvas.forEach(px -> px.setInteger(rng.nextBoolean() ? rng.nextInt(10) : Label.INVALID));
 		return canvas;
 	}
 
@@ -358,7 +358,7 @@ public class CommitCanvasN5Test {
 		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
 		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0Group);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
-		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();
+		final TLongObjectMap<TLongSet> labelToBlockMapping = new TLongObjectHashMap<>();
 		for (final Interval block : blocks) {
 			final TLongSet labels = new TLongHashSet();
 			final long[] blockMin = Intervals.minAsLongArray(block);
@@ -370,9 +370,8 @@ public class CommitCanvasN5Test {
 				final long pxVal = isInvalid(px) ? 0 : px.getIntegerLong();
 				labels.add(pxVal);
 				if (pxVal != 0) {
-					if (!labelToBLockMapping.containsKey(pxVal))
-						labelToBLockMapping.put(pxVal, new TLongHashSet());
-					labelToBLockMapping.get(pxVal).add(blockIndex);
+					labelToBlockMapping.putIfAbsent(pxVal, new TLongHashSet());
+					labelToBlockMapping.get(pxVal).add(blockIndex);
 				}
 			});
 
@@ -386,20 +385,20 @@ public class CommitCanvasN5Test {
 //		final long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false)))
 //				.mapToLong(Long::parseLong).toArray();
 		LOG.debug("Found ids for mapping: {}", idsForMapping);
-		Assert.assertEquals(labelToBLockMapping.keySet(), new TLongHashSet(idsForMapping));
+		Assert.assertEquals(labelToBlockMapping.keySet(), new TLongHashSet(idsForMapping));
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(mappingPattern.toString());
 
 		for (final long id : idsForMapping) {
 			final Interval[] lookupFor = lookup.read(new LabelBlockLookupKey(0, id));
 			LOG.trace("Found mapping {} for id {}", lookupFor, id);
-			Assert.assertEquals(labelToBLockMapping.get(id).size(), lookupFor.length);
+			Assert.assertEquals(labelToBlockMapping.get(id).size(), lookupFor.length);
 			final long[] blockIndices = Stream
 					.of(lookupFor)
 					.map(Intervals::minAsLongArray)
 					.mapToLong(m -> toBlockIndex(m, canvas.getCellGrid()))
 					.toArray();
 			LOG.trace("Block indices for id {}: {}", id, blockIndices);
-			Assert.assertEquals(labelToBLockMapping.get(id), new TLongHashSet(blockIndices));
+			Assert.assertEquals(labelToBlockMapping.get(id), new TLongHashSet(blockIndices));
 		}
 
 	}

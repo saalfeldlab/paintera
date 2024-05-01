@@ -433,7 +433,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		fun updateDisplayTransformOnResize(vat: ViewerAndTransforms, lock: Any): DisplayTransformUpdateOnResize {
 			val viewer = vat.viewer()
-			val displayTransform = vat.displayTransform()
+			val displayTransform = vat.displayTransform
 			val updater = DisplayTransformUpdateOnResize(
 				displayTransform,
 				viewer.widthProperty(),

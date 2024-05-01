@@ -22,7 +22,7 @@ import me.xdrop.fuzzywuzzy.Applicable;
 import me.xdrop.fuzzywuzzy.algorithms.WeightedRatio;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ui.MarkdownPane;
-import org.janelia.saalfeldlab.paintera.Constants;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class BookmarkSelectionDialog extends Alert {
+public class BookmarkSelectionDialog  {
 
 	private final List<BookmarkConfig.Bookmark> bookmarks;
 
@@ -43,9 +43,10 @@ public class BookmarkSelectionDialog extends Alert {
 
 	private final ObjectProperty<BookmarkConfig.Bookmark> selectedBookmark = new SimpleObjectProperty<>();
 
+	private final Alert dialog = PainteraAlerts.confirmation("_Ok", "_Cancel", true);
+
 	public BookmarkSelectionDialog(final Collection<? extends BookmarkConfig.Bookmark> bookmarks) {
 
-		super(AlertType.CONFIRMATION);
 		this.bookmarks = new ArrayList<>(bookmarks);
 		this.sortedBookmarks = FXCollections.observableArrayList();
 
@@ -79,11 +80,10 @@ public class BookmarkSelectionDialog extends Alert {
 		fuzzySearchField.setPromptText("Type to fuzzy search");
 		fuzzySearchField.textProperty().addListener((obs, oldv, newv) -> {
 			if (newv == null || newv.length() == 0) {
-				this.sortedBookmarks.setAll(this.bookmarks);
+				this.sortedBookmarks.setAll(bookmarks);
 			} else {
 				// TODO actually do the sorting
-				final List<BookmarkWithFuzzyScore> scoredBookmarks = this
-						.bookmarks
+				final List<BookmarkWithFuzzyScore> scoredBookmarks = bookmarks
 						.stream()
 						.map(bm -> new BookmarkWithFuzzyScore(bm, newv))
 						.sorted(Collections.reverseOrder())
@@ -95,38 +95,39 @@ public class BookmarkSelectionDialog extends Alert {
 			}
 		});
 
-		getDialogPane().setContent(new VBox(fuzzySearchField, selectionPane));
-		getDialogPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+		final VBox content = new VBox(fuzzySearchField, selectionPane);
+		content.minHeight(100.0);
+		content.maxHeight(Double.MAX_VALUE);
+		VBox.setVgrow(selectionPane, Priority.ALWAYS);
+		VBox.setVgrow(fuzzySearchField, Priority.NEVER);
+		content.maxHeight(Double.MAX_VALUE);
+		dialog.getDialogPane().setContent(content);
+		dialog.getDialogPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			if (new KeyCodeCombination(KeyCode.ENTER).match(e)) {
 				e.consume();
 				triggerOkWithBookmark(this.sortedBookmarks.isEmpty() ? null : this.sortedBookmarks.get(0));
 			}
 		});
 
-		setTitle(Constants.NAME);
-		setGraphic(null);
-		setHeaderText("Go to bookmark: " +
-				"Type into text field to sort by fuzzy score of bookmark notes. " +
-				"Click the button next to the description to select a bookmark. " +
-				"Alternatively, use Alt+<N> to select from the first ten matches. " +
+		dialog.setTitle("Go to Bookmark");
+		dialog.setGraphic(null);
+		dialog.setHeaderText(
+				"Type into text field to sort by fuzzy score of bookmark notes. \n" +
+				"Click the button next to the description to select a bookmark. \n" +
+				"Alternatively, use Alt+<N> to select from the first ten matches. \n" +
 				"Click \"Ok\" to apply the best match (bookmark 1) or \"Cancel\" to return to current state.");
-		setResizable(true);
-		((Button)getDialogPane().lookupButton(ButtonType.OK)).setText("_Ok");
-		((Button)getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
-
-		showingProperty().addListener((obs, oldv, newv) -> {
+		dialog.showingProperty().addListener((obs, oldv, newv) -> {
 			if (newv)
 				fuzzySearchField.requestFocus();
 		});
 
 		this.sortedBookmarks.setAll(this.bookmarks);
 		this.fuzzySearchField.setText("");
-
 	}
 
 	public Optional<BookmarkConfig.Bookmark> showAndWaitForBookmark() {
 
-		if (ButtonType.OK.equals(showAndWait().orElse(null))) {
+		if (ButtonType.OK.equals(dialog.showAndWait().orElse(null))) {
 			return Optional.ofNullable(selectedBookmark.get());
 		}
 		return Optional.empty();
@@ -140,7 +141,7 @@ public class BookmarkSelectionDialog extends Alert {
 
 	private void triggerOk() {
 
-		((Button)getDialogPane().lookupButton(ButtonType.OK)).fire();
+		((Button)dialog.getDialogPane().lookupButton(ButtonType.OK)).fire();
 	}
 
 	private static class BookmarkWithFuzzyScore implements Comparable<BookmarkWithFuzzyScore> {

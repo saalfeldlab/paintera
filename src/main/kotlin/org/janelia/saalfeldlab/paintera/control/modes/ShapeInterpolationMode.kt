@@ -1,205 +1,72 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import ai.onnxruntime.OnnxTensor
-import bdv.util.Affine3DHelpers
+import bdv.fx.viewer.render.RenderUnitState
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
-import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
-import javafx.scene.input.MouseButton
-import javafx.scene.input.MouseEvent
-import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
+import net.imglib2.algorithm.morphology.distance.DistanceTransform
+import net.imglib2.img.array.ArrayImgs
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.util.Intervals
+import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.view.IntervalView
+import net.imglib2.view.Views
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
-import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.extensions.*
-import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.CANCEL
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_APPLY_MASK
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_LAST_SELECTION
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_TOGGLE_PREVIEW
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState.Interpolate
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState.Moving
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
-import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
-import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
-import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
-import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
+import org.janelia.saalfeldlab.paintera.control.tools.paint.*
+import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationFillTool
+import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationPaintBrushTool
+import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationSAMTool
+import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationTool
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.util.extendValue
-import org.janelia.saalfeldlab.util.get
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
-import kotlin.collections.component1
-import kotlin.collections.component2
+import org.janelia.saalfeldlab.util.*
+import paintera.net.imglib2.view.BundleView
+import kotlin.collections.forEach
 import kotlin.collections.set
 
-class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, val previousMode: ControlMode) : AbstractToolMode() {
+class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
+
+	internal val samSliceCache = SamSliceCache()
+
+	private val paintBrushTool = ShapeInterpolationPaintBrushTool(activeSourceStateProperty, this)
+	private val fill2DTool = ShapeInterpolationFillTool(controller, activeSourceStateProperty, this)
+	private val samTool = ShapeInterpolationSAMTool(controller, activeSourceStateProperty, this@ShapeInterpolationMode)
+	private val shapeInterpolationTool = ShapeInterpolationTool(controller, previousMode, this@ShapeInterpolationMode, this@ShapeInterpolationMode.fill2DTool)
 
 	override val defaultTool: Tool? by lazy { shapeInterpolationTool }
-
-	private inner class ShapeIntepolationToolProperty : SimpleObjectProperty<ShapeInterpolationTool?>() {
-
-		private val keyAndMouseBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
-			it?.let {
-				paintera.baseView.keyAndMouseBindings.getConfigFor(it)
-			}
-		}
-
-		init {
-			bind(keyAndMouseBindingsProperty.createNullableValueBinding {
-				it?.let {
-					ShapeInterpolationTool(
-						controller,
-						it.keyCombinations,
-						previousMode,
-						this@ShapeInterpolationMode,
-						this@ShapeInterpolationMode.fill2DTool
-					)
-				}
-			})
-		}
-	}
-
-	private val shapeInterpolationToolProperty = ShapeIntepolationToolProperty()
-	private val shapeInterpolationTool by shapeInterpolationToolProperty.nullableVal()
-
-	private val paintBrushTool = object : PaintBrushTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
-
-		override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-			mutableListOf(
-				*getBrushActions(),
-				*getPaintActions(),
-				shapeInterpolationPaintBrushActions(),
-				*(midiBrushActions() ?: arrayOf()),
-				*getMidiNavigationActions().toTypedArray()
-			)
-		}
-
-		private fun getMidiNavigationActions(): List<MidiActionSet> {
-			val midiNavActions = listOfNotNull(
-				NavigationTool.midiPanActions(),
-				NavigationTool.midiSliceActions(),
-				NavigationTool.midiZoomActions()
-			)
-			midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting && activeTool != samTool } }
-			return midiNavActions
-		}
-
-		override fun activate() {
-			/* Don't allow painting with depth during shape interpolation */
-			brushProperties?.brushDepth = 1.0
-			super.activate()
-		}
-
-		override fun deactivate() {
-			paintClickOrDrag?.apply {
-				if (isPainting()) {
-					finishPaintStroke()
-				}
-				release()
-			}
-			super.deactivate()
-		}
-	}
-
-	private val fill2DTool = object : Fill2DTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
-
-
-		private val controllerPaintOnFill = ChangeListener<Interval?> { _, _, new ->
-			new?.let { controller.paint(it) }
-		}
-
-		override fun activate() {
-			super.activate()
-			/* Don't allow filling with depth during shape interpolation */
-			brushProperties?.brushDepth = 1.0
-			fillLabel = { controller.interpolationId }
-			fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
-		}
-
-		override fun deactivate() {
-			fill2D.maskIntervalProperty.removeListener(controllerPaintOnFill)
-			super.deactivate()
-		}
-
-		override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-			super.actionSets.also { it += additionalFloodFillActions(this) }
-		}
-
-	}
-
-	private val samTool: SamTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
-
-		private var lastEmbedding: OnnxTensor? = null
-		private var globalTransformAtEmbedding = AffineTransform3D()
-
-		init {
-			activeViewerProperty.unbind()
-			activeViewerProperty.bind(mode!!.activeViewerProperty)
-		}
-
-		override fun activate() {
-			maskedSource?.resetMasks(false)
-			viewerMask = controller.getMask()
-			providedEmbedding = if (Affine3DHelpers.equals(paintera.baseView.manager().transform, globalTransformAtEmbedding)) lastEmbedding else null
-			super.activate()
-		}
-
-		override fun deactivate() {
-			super.deactivate()
-			lastEmbedding = getImageEmbeddingTask.get()!!
-			globalTransformAtEmbedding.set(paintera.baseView.manager().transform)
-		}
-
-		override fun applyPrediction() {
-			lastPrediction?.let {
-				super.applyPrediction()
-				controller.paint(it.maskInterval)
-				switchTool(shapeInterpolationTool)
-			}
-		}
-
-		override fun setCurrentLabelToSelection() {
-			currentLabelToPaint = controller.interpolationId
-		}
-
-		override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-			super.actionSets.also { it += additionalSamActions(this) }
-		}
-	}
-
 	override val modeActions by lazy { modeActions() }
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
@@ -213,7 +80,26 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		old?.viewer()?.apply { modeActions.forEach { removeActionSet(it) } }
 	}
 
-	override val tools: ObservableList<Tool> by lazy { FXCollections.observableArrayList(shapeInterpolationTool, paintBrushTool, fill2DTool, samTool) }
+	private val samNavigationRequestListener = ChangeListener { _, _, curViewer ->
+		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
+		curViewer?.let {
+			SamEmbeddingLoaderCache.startNavigationBasedRequests(curViewer)
+		}
+	}
+
+	override val tools: ObservableList<Tool> by lazy {
+		FXCollections.observableArrayList(
+			shapeInterpolationTool,
+			paintBrushTool,
+			fill2DTool,
+			samTool
+		)
+	}
+
+	fun reset(reason: String? = null) {
+		reason?.let { LOG.error { it } }
+		paintera.baseView.changeMode(previousMode)
+	}
 
 	override fun enter() {
 		activeViewerProperty.addListener(toolTriggerListener)
@@ -222,26 +108,31 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		/* unbind the activeViewerProperty, since we disabled other viewers during ShapeInterpolation mode*/
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
-		activeViewerProperty.get()?.viewer()?.let {
-			disableUnfocusedViewers()
-			shapeInterpolationTool?.let { shapeInterpolationTool ->
-				controller.apply {
-					if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
-						modifyFragmentAlpha()
-						switchTool(shapeInterpolationTool)
-						enterShapeInterpolation(it)
-					}
+		val viewerAndTransforms = activeViewerProperty.get() ?: return reset("No Active Viewer")
+		SamEmbeddingLoaderCache.startNavigationBasedRequests(viewerAndTransforms)
+		controller.apply {
+			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
+				modifyFragmentAlpha()
+				switchTool(shapeInterpolationTool)
+				enterShapeInterpolation(viewerAndTransforms.viewer())
+				shapeInterpolationTool.apply {
+					requestEmbedding(currentDepth)
 				}
-			} ?: paintera.baseView.changeMode(previousMode)
-		} ?: paintera.baseView.changeMode(previousMode)
+			}
+		}
 	}
 
 	override fun exit() {
 		super.exit()
-		enableAllViewers()
+		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
 		controller.resetFragmentAlpha()
 		activeViewerProperty.removeListener(toolTriggerListener)
+		activeViewerProperty.removeListener(samNavigationRequestListener)
+		synchronized(samSliceCache) {
+			samSliceCache.clear()
+		}
+		enableAllViewers()
 	}
 
 	private fun ShapeInterpolationController<*>.modifyFragmentAlpha() {
@@ -262,40 +153,43 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private fun modeActions(): List<ActionSet> {
 		return mutableListOf(
-			painteraActionSet(EXIT_SHAPE_INTERPOLATION_MODE) {
+			painteraActionSet(CANCEL) {
 				with(controller) {
 					verifyAll(KEY_PRESSED, "Shape Interpolation Controller is Active ") { isControllerActive }
-					verifyAll(Event.ANY, "Shape Interpolation Tool is Active") { shapeInterpolationTool != null }
-					KEY_PRESSED {
-						graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "reject-shape-interpolation") } }
-						keyMatchesBinding(shapeInterpolationTool!!.keyCombinations, EXIT_SHAPE_INTERPOLATION_MODE)
-						onAction {
-							exitShapeInterpolation(false)
-							paintera.baseView.changeMode(previousMode)
-						}
+					verifyAll(Event.ANY, "Shape Interpolation Tool is Active") { activeTool is ShapeInterpolationTool }
+					val exitMode = { _ : Event? ->
+						exitShapeInterpolation(false)
+						paintera.baseView.changeMode(previousMode)
+					}
+					KEY_PRESSED(CANCEL) {
+						graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += listOf("reject", "reject-shape-interpolation") }) }
+						onAction(exitMode)
+					}
+					KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
+						onAction(exitMode)
 					}
 				}
 			},
 			painteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
-				KEY_PRESSED(*paintBrushTool.keyTrigger.toTypedArray()) {
+				KEY_PRESSED(paintBrushTool.keyTrigger) {
 					name = "switch to paint tool"
 					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
 					onAction { switchTool(paintBrushTool) }
 				}
 
-				KEY_RELEASED(*paintBrushTool.keyTrigger.toTypedArray()) {
+				KEY_RELEASED(paintBrushTool.keyTrigger) {
 					name = "switch back to shape interpolation tool from paint brush"
 					filter = true
 					verify { activeTool is PaintBrushTool }
 					onAction { switchTool(shapeInterpolationTool) }
 				}
 
-				KEY_PRESSED(*fill2DTool.keyTrigger.toTypedArray()) {
+				KEY_PRESSED(fill2DTool.keyTrigger) {
 					name = "switch to fill2d tool"
 					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
 					onAction { switchTool(fill2DTool) }
 				}
-				KEY_RELEASED(*fill2DTool.keyTrigger.toTypedArray()) {
+				KEY_RELEASED(fill2DTool.keyTrigger) {
 					name = "switch to shape interpolation tool from fill2d"
 					filter = true
 					verify { activeTool is Fill2DTool }
@@ -303,7 +197,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						switchTool(shapeInterpolationTool)
 					}
 				}
-				KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+				KEY_PRESSED(samTool.keyTrigger) {
 					name = "toggle SAM tool"
 					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
 					onAction {
@@ -313,10 +207,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			},
 			painteraActionSet("key slice navigation") {
-				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION, shapeInterpolationTool!!.keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION_EDIT_LAST_SELECTION, shapeInterpolationTool!!.keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, shapeInterpolationTool!!.keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, shapeInterpolationTool!!.keyCombinations)
+				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION__SELECT_FIRST_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
 			},
 			DeviceManager.xTouchMini?.let { device ->
 				activeViewerProperty.get()?.viewer()?.let { viewer ->
@@ -326,7 +220,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
 							toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
 						}
-						toggleToolActionMap[shapeInterpolationTool!!] = MidiToggleEvent.BUTTON_TOGGLE(0) {
+						toggleToolActionMap[shapeInterpolationTool] = MidiToggleEvent.BUTTON_TOGGLE(0) {
 							name = "midi switch back to shape interpolation tool"
 							filter = true
 							onAction {
@@ -411,169 +305,51 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		).filterNotNull()
 	}
 
-	private fun PaintBrushTool.finishPaintStroke() {
-		paintClickOrDrag?.let {
-			it.maskInterval?.let { interval ->
-				controller.paint(interval)
-			}
-		}
-	}
 
-	private fun ActionSet.switchAndApplyShapeInterpolation() {
-		KEY_PRESSED {
-			keyMatchesBinding(shapeInterpolationTool?.keyCombinations!!, SHAPE_INTERPOLATION_APPLY_MASK)
-			onAction {
-				switchTool(shapeInterpolationTool!!)
-				if (controller.applyMask()) {
+	fun switchAndApplyShapeInterpolationActions(toolActions: ActionSet) {
+		with(toolActions) {
+			KEY_PRESSED(CANCEL) {
+				name = "cancel_to_shape_interpolation_tool"
+				onAction {
+					switchTool(shapeInterpolationTool)
+					controller.setMaskOverlay(replaceExistingInterpolants = true)
+				}
+				handleException {
 					paintera.baseView.changeMode(previousMode)
 				}
 			}
-			handleException {
-				paintera.baseView.changeMode(previousMode)
+			KEY_PRESSED(SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION) {
+				onAction {
+					switchTool(shapeInterpolationTool)
+					if (controller.applyMask())
+						paintera.baseView.changeMode(previousMode)
+				}
+				handleException { paintera.baseView.changeMode(previousMode) }
 			}
 		}
 	}
 
-	/**
-	 *  Additional paint brush actions for Shape Interpolation.
-	 *
-	 * @receiver the tool to add the actions to
-	 * @return the additional action sets
-	 */
-	private fun PaintBrushTool.shapeInterpolationPaintBrushActions(): ActionSet {
-
-		return painteraActionSet("Shape Interpolation Paint Brush Actions", PaintActionType.ShapeInterpolation) {
-			MOUSE_PRESSED {
-				name = "provide shape interpolation mask to paint brush"
-				filter = true
-				consume = false
-				verify { activeTool == this@shapeInterpolationPaintBrushActions }
-				onAction {
-					/* On click, generate a new mask, */
-					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-						paintClickOrDrag!!.let { paintController ->
-							source.resetMasks(false)
-							paintController.provideMask(controller.getMask())
-						}
-					}
-				}
-			}
-
-			MOUSE_PRESSED(MouseButton.PRIMARY) {
-				name = "set mask value to label"
-				filter = true
-				consume = false
-				verify { activeTool == this@shapeInterpolationPaintBrushActions }
-				onAction {
-					paintClickOrDrag?.apply {
-						currentLabelToPaint = controller.interpolationId
-					}
-				}
-			}
-
-			MOUSE_PRESSED(MouseButton.SECONDARY) {
-				name = "set mask value to transparent label"
-				filter = true
-				consume = false
-				verify { activeTool == this@shapeInterpolationPaintBrushActions }
-				onAction {
-					paintClickOrDrag!!.apply {
-						currentLabelToPaint = Label.TRANSPARENT
-					}
-				}
-			}
-
-			MOUSE_RELEASED {
-				name = "set mask value to label from paint"
-				filter = true
-				consume = false
-				verify { activeTool == this@shapeInterpolationPaintBrushActions }
-				onAction { finishPaintStroke() }
-			}
-			switchAndApplyShapeInterpolation()
-		}
-	}
-
-	/**
-	 * Additional fill actions for Shape Interpolation
-	 *
-	 * @param floodFillTool
-	 * @return the additional ActionSet
-	 *
-	 * */
-	private fun additionalFloodFillActions(floodFillTool: Fill2DTool): ActionSet {
-		return painteraActionSet("Shape Interpolation Fill 2D Actions", PaintActionType.ShapeInterpolation) {
-			MOUSE_PRESSED {
-				name = "provide shape interpolation mask to fill 2d"
-				filter = true
-				consume = false
-				verify { activeTool == floodFillTool }
-				onAction {
-					/* On click, provide the mask, setup the task listener */
-					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-						source.resetMasks(false)
-						val mask = controller.getMask()
-						mask.pushNewImageLayer()
-						fill2DTool.run {
-							fillTaskProperty.addWithListener { obs, _, task ->
-								task?.let {
-									task.onCancelled(true) { _, _ ->
-										mask.popImageLayer()
-										mask.requestRepaint()
-									}
-									task.onEnd(true) { obs?.removeListener(this) }
-								} ?: obs?.removeListener(this)
-							}
-							fill2D.provideMask(mask)
-						}
-					}
-				}
-			}
-			switchAndApplyShapeInterpolation()
-		}
-	}
-
-
-	/**
-	 * Additional SAM actions for Shape Interpolation
-	 *
-	 * @param samTool
-	 * @return the additional ActionSet
-	 *
-	 * */
-	private fun additionalSamActions(samTool: SamTool): ActionSet {
-		return painteraActionSet("Shape Interpolation SAM Actions", PaintActionType.ShapeInterpolation) {
-			KEY_PRESSED(KeyCode.ESCAPE) {
-				name = "toggle off sam tool, back to shapeinterpolation "
-				filter = true
-				verify { activeTool == samTool }
-				onAction { switchTool(shapeInterpolationTool) }
-			}
-			switchAndApplyShapeInterpolation()
-		}
-	}
-
-	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, keyName: String, keyCombinations: NamedKeyCombination.CombinationMap) =
+	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, namedKey: NamedKeyBinding) =
 		with(controller) {
-			KEY_PRESSED(keyCombinations, keyName) {
+			KEY_PRESSED ( namedKey) {
 				graphic = when (choice) {
 					EditSelectionChoice.First -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
+						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-first-slice" }) }
 					}
 
 					EditSelectionChoice.Previous -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
+						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-previous-slice" }) }
 					}
 
 					EditSelectionChoice.Next -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
+						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-next-slice" }) }
 					}
 
 					EditSelectionChoice.Last -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
+						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-last-slice" }) }
 					}
 				}
-				verify { controllerState != Moving }
+				verify { controllerState != Moving && activeTool is ShapeInterpolationTool }
 				onAction { editSelection(choice) }
 				handleException {
 					exitShapeInterpolation(false)
@@ -581,246 +357,180 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			}
 		}
-}
 
+	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth): SamSliceInfo {
+		return samSliceCache[depth] ?: with(controller) {
+			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
+			val viewer = viewerAndTransforms.viewer()!!
+			val width = viewer.width
+			val height = viewer.height
 
-class ShapeInterpolationTool(
-	private val controller: ShapeInterpolationController<*>,
-	val keyCombinations: NamedKeyCombination.CombinationMap,
-	private val previousMode: ControlMode,
-	mode: ToolMode? = null,
-	private var fill2D: Fill2DTool
-) : ViewerTool(mode) {
-
-	override val actionSets: MutableList<ActionSet> = mutableListOf(
-		shapeInterpolationActions(keyCombinations),
-		cancelShapeInterpolationTask(keyCombinations)
-	)
-
-	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
-	override val name: String = "Shape Interpolation"
-	override val keyTrigger = listOf(KeyCode.S)
-	private var currentTask: UtilityTask<*>? = null
-
-	override fun activate() {
-
-		super.activate()
-		/* This action set allows us to translate through the unfocused viewers */
-		paintera.baseView.orthogonalViews().viewerAndTransforms()
-			.filter { !it.viewer().isFocusable }
-			.forEach { disabledViewerAndTransform ->
-				val translateWhileDisabled = disabledViewerTranslateOnlyMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerTranslateOnly)
-				disabledViewerAndTransform.viewer().installActionSet(translateWhileDisabled)
+			val globalToViewerTransform = if (translate) {
+				calculateGlobalToViewerTransformAtDepth(depth)
+			} else {
+				AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
-		/* Activate, but we want to bind it to our activeViewer bindings instead of the default. */
-		NavigationTool.activate()
-		NavigationTool.activeViewerProperty.unbind()
-		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
-		NavigationTool.installInto(activeViewer!!)
-	}
 
-	override fun deactivate() {
-		/* We intentionally unbound the activeViewer for this, to support the button toggle.
-		* We now need to explicitly remove the NavigationTool from the activeViewer we care about.
-		* Still deactive it first, to handle the rest of the cleanup */
-		NavigationTool.removeFrom(activeViewer!!)
-		NavigationTool.deactivate()
-		disabledViewerTranslateOnlyMap.forEach { (vat, actionSet) -> vat.viewer().removeActionSet(actionSet) }
-		disabledViewerTranslateOnlyMap.clear()
-		super.deactivate()
-	}
+			val (maxDistanceX, maxDistanceY) = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+				interpolantInViewer.getPositionAtMaxDistance()
+			} ?: doubleArrayOf(width / 2.0, height / 2.0, 0.0)
 
-	override val statusProperty = SimpleStringProperty().apply {
 
-		val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.sliceDepthProperty) {
-			controller.getStatusText()
-		}
-		bind(statusBinding)
-	}
+			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
+			val mask = source.createViewerMask(maskInfo, viewer, paintDepth = null, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
-	private fun ShapeInterpolationController<*>.getStatusText() =
-		when {
-			controllerState == Interpolate -> "Interpolating..."
-			numSlices == 0 -> "Select or Paint ..."
-			else -> {
-				val sliceIdx = sortedSliceDepths.indexOf(sliceDepthProperty.get())
-				"Slice: ${if (sliceIdx == -1) "N/A" else "${sliceIdx + 1}"} / ${numSlices}"
+			val activeSource = activeSourceStateProperty.value!!.sourceAndConverter!!.spimSource
+			val sources = mask.viewer.state.sources
+				.filter { it.spimSource !== activeSource }
+				.toList()
+
+			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
+			val predictionRequest = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(maxDistanceX, maxDistanceY, SamPredictor.SparseLabel.IN)))
+
+			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
+				SamEmbeddingLoaderCache.load(renderState)
+				samSliceCache[depth] = it
 			}
 		}
+	}
 
-	private val disabledViewerTranslateOnlyMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, DragActionSet>()
+	private fun ShapeInterpolationController<*>.calculateGlobalToViewerTransformAtDepth(depth: Double): AffineTransform3D {
+		return adjacentSlices(depth).let { (first, second) ->
+			when {
+				first != null && second != null -> {
+					val depthPercent = depth / (depthAt(first.globalTransform) + depthAt(second.globalTransform))
+					val firstMaskTransform = first.mask.initialGlobalToViewerTransform
+					val secondMaskTransform = second.mask.initialGlobalToViewerTransform
+					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).get(depthPercent)
+				}
 
-	private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
-		val translator = vat.run {
-			val globalTransformManager = paintera.baseView.manager()
-			TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
-		}
-		painteraDragActionSet("disabled translate xy", NavigationActionType.Pan) {
-			verify { it.isSecondaryButtonDown }
-			verify { controller.controllerState != Interpolate }
-			onDragDetected { translator.init() }
-			onDrag { translator.translate(it.x - startX, it.y - startY) }
+				first != null -> {
+					first.mask.initialGlobalToViewerTransform.let {
+						val prevDepth = depthAt(first.globalTransform)
+						it.copy().apply { translate(0.0, 0.0, prevDepth - depth) }
+					}
+				}
+
+				second != null -> {
+					second.mask.initialGlobalToViewerTransform.let {
+						val nextDepth = depthAt(second.globalTransform)
+						it.copy().apply { translate(0.0, 0.0, nextDepth - depth) }
+					}
+				}
+
+				else -> {
+					initialGlobalToViewerTransform!!.let {
+						it.copy().apply { translate(0.0, 0.0, -depth) }
+					}
+				}
+			}
 		}
 	}
 
-	private fun shapeInterpolationActions(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
-		return painteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
-			with(controller) {
-				verifyAll(KEY_PRESSED) { isControllerActive }
-				KEY_PRESSED {
-					keyMatchesBinding(keyCombinations, SHAPE_INTERPOLATION_APPLY_MASK)
-					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "accept", "accept-shape-interpolation") } }
-					onAction {
-						if (applyMask()) {
-							paintera.baseView.changeMode(previousMode)
+
+	/**
+	 * Align transform and view center. Translate [globalToViewerTransform] to center on the center of [view].
+	 * Return a new [IntervalView] translated by the same amount, so it is in the new [globalToViewerTransform] space
+	 * that result from the translation.
+	 *
+	 * @param T type of the [view]
+	 * @param view in initial [globalToViewerTransform] space
+	 * @param globalToViewerTransform the transform, modifier by translation
+	 * @param width of the Viewer that [globalToViewerTransform] refers to
+	 * @param height of the Viewer that [globalToViewerTransform] refers to
+	 * @return an IntervalView resulting from translating [view] by the same amount that [globalToViewerTransform] was translated.
+	 * */
+	private fun <T> alignTransformAndViewCenter(view: IntervalView<T>, globalToViewerTransform: AffineTransform3D, width: Double, height: Double): IntervalView<T> {
+		/* center on the interval */
+		val (centerX, centerY) = view.center()
+		val translation = longArrayOf(width.toLong() / 2 - centerX, height.toLong() / 2 - centerY, 0)
+		globalToViewerTransform.translate(*translation.map { it.toDouble() }.toDoubleArray())
+		return Views.translate(view, *translation)
+	}
+
+	internal fun addSelection(
+		selectionIntervalOverMask: Interval,
+		globalTransform: AffineTransform3D = paintera.baseView.manager().transform,
+		viewerMask: ViewerMask = controller.currentViewerMask!!
+	): SamSliceInfo? {
+		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
+		val sliceDepth = controller.depthAt(globalToViewerTransform)
+
+		/* IF slice exists at depth AND transform is different THEN delete until first non-pregenerated slices */
+		samSliceCache[sliceDepth]?.sliceInfo?.let {
+			if (it.mask.initialGlobalToViewerTransform.hashable() != viewerMask.initialGlobalToViewerTransform.hashable()) {
+				val depths = samSliceCache.keys.toList().sorted()
+				val depthIdx = depths.indexOf(sliceDepth.toFloat())
+				for (idx in depthIdx - 1 downTo 0) {
+					val depth = depths[idx]
+					if (samSliceCache[depth]?.preGenerated == true)
+						synchronized(samSliceCache) {
+							samSliceCache.remove(depth)
 						}
-					}
-					handleException {
-						it.printStackTrace()
-						paintera.baseView.changeMode(previousMode)
-					}
+					else break
 				}
 
-				KEY_PRESSED {
-					val iconClsBinding = controller.previewProperty.createNonNullValueBinding { if (it) "toggle-on" else "toggle-off" }
-					val iconCls by iconClsBinding.nonnullVal()
-					graphic = {
-						FontAwesomeIconView().also {
-							it.styleClass.addAll(iconCls, "toolbar-tool")
-							it.id = iconCls
-							iconClsBinding.addListener { _, old, new ->
-								it.styleClass.removeAll(old)
-								it.styleClass.add(new)
-
-							}
+				for (idx in depthIdx + 1 until depths.size) {
+					val depth = depths[idx]
+					if (samSliceCache[depth]?.preGenerated == true)
+						synchronized(samSliceCache) {
+							samSliceCache.remove(depth)
 						}
-					}
-					keyMatchesBinding(keyCombinations, SHAPE_INTERPOLATION_TOGGLE_PREVIEW)
-					onAction { controller.togglePreviewMode() }
-					handleException {
-						paintera.baseView.changeMode(previousMode)
-					}
-				}
-
-				listOf(KeyCode.DELETE, KeyCode.BACK_SPACE).forEach { key ->
-					KEY_PRESSED(key) {
-						name = "remove section"
-						filter = true
-						consume = false
-						verify {
-							sliceDepthProperty.get() in sortedSliceDepths
-						}
-						onAction { deleteCurrentSlice() }
-					}
-				}
-				MOUSE_CLICKED {
-					name = "select object in current slice"
-
-					verifyNoKeysDown()
-					verifyEventNotNull()
-					verify { !paintera.mouseTracker.isDragging }
-					verify { mode?.activeTool !is Fill2DTool }
-					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
-					verify { controllerState != Interpolate } // need to be in the select state
-					verify("Can't select BACKGROUND or higher MAX_ID ") { event ->
-
-						source.resetMasks(false)
-						val mask = getMask()
-
-						fill2D.fill2D.provideMask(mask)
-						val pointInMask = mask.displayPointToInitialMaskPoint(event!!.x, event.y)
-						val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
-						val info = mask.info
-						val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
-						return@verify sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
-
-					}
-					onAction { event ->
-						/* get value at position */
-						deleteCurrentSliceOrInterpolant()?.let { prevSliceGlobalInterval ->
-							source.resetMasks(true)
-							paintera.baseView.orthogonalViews().requestRepaint(Intervals.smallestContainingInterval(prevSliceGlobalInterval))
-						}
-						currentTask = fillObjectInSlice(event!!)
-					}
-				}
-				MOUSE_CLICKED {
-					name = "toggle object in current slice"
-					verify { !paintera.mouseTracker.isDragging }
-					verify { controllerState != Interpolate }
-					verifyEventNotNull()
-					verify {
-						val triggerByRightClick = (it?.button == MouseButton.SECONDARY) && keyTracker()!!.noKeysActive()
-						val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker()!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
-						triggerByRightClick || triggerByCtrlLeftClick
-					}
-					onAction { event ->
-						currentTask = fillObjectInSlice(event!!)
-					}
+					else break
 				}
 			}
 		}
-	}
 
-	private fun cancelShapeInterpolationTask(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
-		return painteraActionSet("cancel shape interpolation task", PaintActionType.ShapeInterpolation, ignoreDisable = true) {
-			with(controller) {
-				verifyAll(KEY_PRESSED, "Controller is not active") { isControllerActive }
-				KEY_PRESSED(keyCombinations, CANCEL) {
-					name = "cancel current shape interpolation tool task"
-					filter = true
-					verify("No task to  cancel") { currentTask != null }
-					onAction {
-						currentTask?.cancel()
-						currentTask = null
-					}
-				}
-			}
-		}
-	}
-
-	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<*>? {
-		with(controller) {
-			source.resetMasks(false)
-			val mask = getMask()
-
-			/* If a current slice exists, try to preserve it if cancelled */
-			currentSliceMaskInterval?.also {
-				mask.pushNewImageLayer()
-				fill2D.fillTaskProperty.addWithListener { obs, _, task ->
-					task?.let {
-						task.onCancelled(true) { _, _ ->
-							mask.popImageLayer()
-							mask.requestRepaint()
-						}
-						task.onEnd(true) { obs?.removeListener(this) }
-					} ?: obs?.removeListener(this)
-				}
-			}
-
-			fill2D.fill2D.provideMask(mask)
-			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
-			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
-			val info = mask.info
-			val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
-			if (sourceLabel == Label.BACKGROUND || sourceLabel.toULong() > Label.MAX_ID.toULong()) {
-				return null
-			}
-
-			val maskLabel = mask.rai.extendValue(Label.INVALID)[pointInMask].get()
-			fill2D.brushProperties?.brushDepth = 1.0
-			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
-			return fill2D.executeFill2DAction(event.x, event.y) {
-				paint(it)
-				currentTask = null
-				fill2D.fill2D.release()
-			}
+		val slice = controller.addSelection(selectionIntervalOverMask, globalTransform = globalTransform, viewerMask = viewerMask) ?: return null
+		return cacheLoadSamSliceInfo(sliceDepth).apply {
+			sliceInfo = slice
 		}
 	}
 
 	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger { }
 	}
 }
 
+internal fun RenderUnitState.getSamPoint(screenX: Double, screenY: Double, label: SamPredictor.SparseLabel): SamPredictor.SamPoint {
+	val screenScaleFactor = calculateTargetSamScreenScaleFactor()
+	return SamPredictor.SamPoint(screenX * screenScaleFactor, screenY * screenScaleFactor, label)
+}
 
+internal fun IntervalView<UnsignedLongType>.getPositionAtMaxDistance(): DoubleArray {
+	/* find the max point to initialize with */
+	val distances = ArrayImgs.doubles(*dimensionsAsLongArray())
+	val binaryImg = convert(BoolType()) { source, target -> target.set(!(source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
+	DistanceTransform.binaryTransform(binaryImg, distances, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
+	var maxDistance = -Double.MAX_VALUE
+	var maxPos = center()
+	BundleView(distances).interval(distances).forEach { access ->
+		val distance = access.get().get()
+		if (distance > maxDistance) {
+			maxDistance = distance
+			maxPos = access.positionAsLongArray()
+		}
+	}
+	return maxPos.mapIndexed { idx, value -> value.toDouble() + min(idx) }.toDoubleArray()
+}
+
+internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
+	operator fun set(key: Double, value: SamSliceInfo) = put(key.toFloat(), value)
+	operator fun get(key: Double) = get(key.toFloat())
+	operator fun minusAssign(key: Double) {
+		remove(key.toFloat())
+	}
+	operator fun minusAssign(key: Float) {
+		remove(key)
+	}
+}
+
+internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: ShapeInterpolationController.SliceInfo?, var locked: Boolean = false) {
+	val preGenerated get() = sliceInfo == null
+	val globalToViewerTransform get() = renderState.transform
+
+	fun updatePrediction(viewerX: Double, viewerY: Double, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
+		prediction = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(viewerX, viewerY, label)))
+	}
+}

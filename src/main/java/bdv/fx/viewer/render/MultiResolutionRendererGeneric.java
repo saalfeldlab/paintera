@@ -110,7 +110,7 @@ public class MultiResolutionRendererGeneric<T> {
 	/**
 	 * Thread that triggers repainting of the display. Requests for repainting are send there.
 	 */
-	private final PainterThread painterThread;
+	private final PainterThreadFx painterThread;
 
 	/**
 	 * Currently active projector, used to re-paint the display. It maps the source data to {@link #screenImages}.
@@ -251,6 +251,8 @@ public class MultiResolutionRendererGeneric<T> {
 
 	private final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
 
+	final AnimationTimer animation;
+
 	/**
 	 * @param display                    The canvas that will display the images we render.
 	 * @param painterThread              Thread that triggers repainting of the display. Requests for repainting are send there.
@@ -268,7 +270,7 @@ public class MultiResolutionRendererGeneric<T> {
 	 */
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
-			final PainterThread painterThread,
+			final PainterThreadFx painterThread,
 			final double[] screenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
@@ -303,7 +305,7 @@ public class MultiResolutionRendererGeneric<T> {
 		newFrameRequest = false;
 		previousTimepoint = -1;
 
-		new AnimationTimer() {
+		this.animation = new AnimationTimer() {
 
 			@Override
 			public void handle(long now) {
@@ -311,7 +313,8 @@ public class MultiResolutionRendererGeneric<T> {
 					painterThread.requestRepaint();
 				}
 			}
-		}.start();
+		};
+		this.animation.start();
 	}
 
 	/**
@@ -457,7 +460,7 @@ public class MultiResolutionRendererGeneric<T> {
 			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
 			newFrameRequest = false;
 
-			final List<SourceAndConverter<?>> sacs = sources;
+			final List<SourceAndConverter<?>> sacs = List.copyOf(sources);
 
 			if (createProjector) {
 				currentScreenScaleIndex = requestedScreenScaleIndex;
@@ -576,7 +579,7 @@ public class MultiResolutionRendererGeneric<T> {
 				}
 			} else {
 				// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
-				// Screen scales are first initialized with the default setting (see RenderUnit),
+				// Screen scales are first initialized with the default setting (see ViewerRenderUnit),
 				// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
 				// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
 				if (currentScreenScaleIndex >= pendingRepaintRequests.length)
