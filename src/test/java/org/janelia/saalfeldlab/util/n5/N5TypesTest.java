@@ -40,6 +40,7 @@ public class N5TypesTest {
 		testAndLogIsIntegerType(DataType.UINT32, true, wasTested);
 		testAndLogIsIntegerType(DataType.UINT64, true, wasTested);
 		testAndLogIsIntegerType(DataType.OBJECT, false, wasTested);
+		testAndLogIsIntegerType(DataType.STRING, false, wasTested);
 		Assert.assertEquals(toBeTested, wasTested);
 	}
 
@@ -90,6 +91,7 @@ public class N5TypesTest {
 		testAndLogMaxForType(DataType.FLOAT32, 1.0, wasTested);
 		testAndLogMaxForType(DataType.FLOAT64, 1.0, wasTested);
 		testAndLogMaxForType(DataType.OBJECT, 1.0, wasTested);
+		testAndLogMaxForType(DataType.STRING, 1.0, wasTested);
 		testAndLogMaxForType(DataType.INT8, Byte.MAX_VALUE, wasTested);
 		testAndLogMaxForType(DataType.INT16, Short.MAX_VALUE, wasTested);
 		testAndLogMaxForType(DataType.INT32, Integer.MAX_VALUE, wasTested);
@@ -127,6 +129,7 @@ public class N5TypesTest {
 		testAndLogNativeTypeForType(DataType.UINT32, UnsignedIntType.class, wasTested);
 		testAndLogNativeTypeForType(DataType.UINT64, UnsignedLongType.class, wasTested);
 		testAndLogNativeTypeForType(DataType.OBJECT, ByteType.class, wasTested);
+		testAndLogNativeTypeForType(DataType.STRING, ByteType.class, wasTested);
 		Assert.assertEquals(toBeTested, wasTested);
 	}
 

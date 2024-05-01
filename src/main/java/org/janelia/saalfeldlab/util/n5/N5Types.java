@@ -179,6 +179,7 @@ public class N5Types {
 
 		switch (dataType) {
 		case OBJECT:
+		case STRING:
 		case INT8:
 			return (T)new ByteType();
 		case UINT8:
