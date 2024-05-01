@@ -4,7 +4,7 @@ import com.pivovarit.function.ThrowingRunnable;
 import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.slf4j.Logger;
@@ -20,12 +20,12 @@ public class N5TestUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static N5FSWriter fileSystemWriterAtTmpDir() throws IOException {
+	public static N5Writer fileSystemWriterAtTmpDir() throws IOException {
 
 		return fileSystemWriterAtTmpDir(true);
 	}
 
-	public static N5FSWriter fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
+	public static N5Writer fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
 
 		final Path tmp = Files.createTempDirectory(null);
 
@@ -36,7 +36,7 @@ public class N5TestUtil {
 			dir.deleteOnExit();
 			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
 		}
-		return (N5FSWriter)new N5Factory().openWriter("file://" + tmp.toAbsolutePath());
+		return new N5Factory().openWriter("n5:file://" + tmp.toAbsolutePath());
 	}
 
 	static DatasetAttributes defaultAttributes() {
