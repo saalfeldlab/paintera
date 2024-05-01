@@ -308,7 +308,7 @@ Tutorial videos:
 | `Ctrl` + `Shift` + `D`   | Reset all view windows to default position (3 orthogonal views in one window, with a 3D view as well)                                                             |
 | `F2`                     | Toggle menu bar visibility                                                                                                                                        |
 | `Shift` + `F2`           | Toggle menu bar mode (overlay views, or above views)                                                                                                              |
-| `F3`                     | Toggle statuc bar visibility                                                                                                                                      |
+| `F3`                     | Toggle status bar visibility                                                                                                                                      |
 | `Shift` + `F3`           | Toggle status bar mode (overlay views, or below views)                                                                                                            | `P`                      | Toggle visibility of side panel menu on right hand side                                                                                                           |
 | `F11`                    | Toggle fullscreen                                                                                                                                                 |
 | **Project Controls**     |                                                                                                                                                                   |
@@ -399,14 +399,20 @@ Tutorial videos:
 
 | Action                       | Description                                                                                |
 |------------------------------|--------------------------------------------------------------------------------------------|
-| `S`                          | Enter shape interpolation mode                                                             |
-| `Esc`                        | Exit shape interpolation mode                                                              |
-| `1` / `0`                    | Move to first/last slice                                                                   |
+| `S`                          | Enter Shape Interpolation mode                                                             |
+| `Esc`                        | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
+| `Up Arrow` / `Down Arrow`    | Move to first/last slice                                                                   |
 | `Left Arrow` / `Right Arrow` | Move to the previous/next slice                                                            |
 | `Enter`                      | Commit interpolated shape into canvas                                                      |
 | `Ctrl` + `P`                 | Toggle interpolation preview                                                               |
 | Left Click                   | Exclusively select the label under the cursor, **removing** all other labels at this slice |
 | Right Click                  | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
+| `F`                          | Activate 2D Flood Fill Tool                                                                |
+| Hold `SPACE`                 | Activate PAINT Tool                                                                        |
+| `A`                          | Activate SAM Tool                                                                          |
+| `P`                          | Bisect all current slices with new SAM auto-segmentation slices                            |
+| `[`                          | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
+| `]`                          | Add a new SAM auto-segmentation slices to the end of the current slices                    |
 
 #### Automatic Labelling: Segment Anything
 - Integrates Segment Anything to predict automatic segmentations, based on the underlying image
@@ -417,17 +423,18 @@ Tutorial videos:
 - See [technical notes](#automatic-labelling-with-segment-anything) for more information
 See [Technical Notes](#)
 
-| Action               | Description                                                             |
-|----------------------|-------------------------------------------------------------------------|
-| `A`                  | Start automatic labelling mode                                          |
-| Left Click / `Enter` | Paint current automatic segmentation to the canvas                      |
-| `Ctrl` + Left Click  | Add point which should be **inside** of the automatic segmentation      |
-| `Ctrl` + Right Click | Add point which should be **outside** of the automatic segmentation     |
-| `Ctrl` + Scroll      | Increase or decreses the threshold to accept the automatic segmentation |
+| Action               | Description                                                           |
+|----------------------|-----------------------------------------------------------------------|
+| `A`                  | Start automatic labelling mode                                        |
+| Left Click / `Enter` | Paint current automatic segmentation to the canvas                    |
+| `Ctrl` + Left Click  | Add point which should be **inside** of the automatic segmentation    |
+| `Ctrl` + Right Click | Add point which should be **outside** of the automatic segmentation   |
+| Left Click Drag      | Create box prompt for automatic segmentation                          |
+| `Ctrl` + Scroll      | Increase or decrease the prediction threshold to use for segmentation |
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, HDF5, Zarr, AWS, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
+Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
@@ -441,7 +448,7 @@ paintera-convert to-paintera \
     -d volumes/labels/neuron_ids
 ```
 
-Here,
+In this example:
 
 - `--scale` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
 - `--revert-array-attributes` reverses array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
@@ -463,8 +470,8 @@ Through the N5 API, Paintera supports multiple data container types:
 - N5
 - HDF5
 - Zarr
-- N5 over AWS S3
-- N5 over Google Cloud
+- N5/Zarr over AWS S3
+- N5/Zarr over Google Cloud
 #### Metadata
 Paintera also can understand multiple metadata variants:
 - Paintera Metadata [#61](https://github.com/saalfeldlab/paintera/issues/61)
