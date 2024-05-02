@@ -37,8 +37,8 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 
-import java.io.IOException;
 import java.util.Optional;
 
 public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
@@ -146,12 +146,16 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
 			final var finalFragmentSegmentAssignmentGroup = fragmentSegmentAssignment;
 			final var finalLabelToBlockLookupGroup = labelToBlockLookupGroup;
 
-			return Optional.ofNullable(dataGroup).map(dg -> new N5PainteraLabelMultiScaleGroup(
-					node.getPath(),
-					dg,
-					finalUniqueLabelsGroup, finalFragmentSegmentAssignmentGroup, finalLabelToBlockLookupGroup,
-					maxId, dg.getChildrenMetadata()[0].isLabelMultiset()
-			));
+			return Optional.ofNullable(dataGroup).map(dg -> {
+				final N5SpatialDatasetMetadata firstChild = dg.getChildrenMetadata()[0];
+				final Boolean isLabelMultiset = firstChild instanceof N5SingleScaleMetadata && ((N5SingleScaleMetadata)firstChild).isLabelMultiset();
+				return new N5PainteraLabelMultiScaleGroup(
+						node.getPath(),
+						dg,
+						finalUniqueLabelsGroup, finalFragmentSegmentAssignmentGroup, finalLabelToBlockLookupGroup,
+						maxId, isLabelMultiset
+				);
+			});
 		}
 	}
 

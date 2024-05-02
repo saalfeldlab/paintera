@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NoInitialLutAvailable
@@ -50,7 +51,6 @@ import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.lang.invoke.MethodHandles
-import java.nio.file.Paths
 import java.util.*
 import java.util.List
 import java.util.concurrent.ExecutorService
@@ -88,6 +88,7 @@ object N5Helpers {
 	private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 	private val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
+		OmeNgffMetadataParser(),
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
 		PainteraDataMultiScaleParser(),

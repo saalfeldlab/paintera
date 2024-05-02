@@ -33,7 +33,7 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
@@ -624,7 +624,7 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) throws IOException {
 
-		SpatialMultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
+		SpatialMultiscaleMetadata<N5SpatialDatasetMetadata> metadata = metadataState.getMetadata();
 		final String[] ssPaths = metadata.getPaths();
 
 		LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());

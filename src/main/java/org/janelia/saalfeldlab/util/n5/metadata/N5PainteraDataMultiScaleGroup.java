@@ -3,11 +3,13 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public abstract class N5PainteraDataMultiScaleGroup extends N5MultiScaleMetadata {
+public abstract class N5PainteraDataMultiScaleGroup extends SpatialMultiscaleMetadata<N5SpatialDatasetMetadata> {
 
 	public static final Predicate<String> SCALE_LEVEL_PREDICATE = Pattern.compile("^s\\d+$").asPredicate();
 	protected final N5PainteraDataMultiScaleMetadata dataGroup;
