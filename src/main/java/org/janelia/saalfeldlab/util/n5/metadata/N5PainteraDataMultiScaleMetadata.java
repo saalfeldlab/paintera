@@ -1,18 +1,14 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
-import bdv.util.Affine3DHelpers;
-import com.sun.javafx.geom.transform.Affine3D;
-import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
-import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
-import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -21,14 +17,11 @@ import java.util.function.Function;
 /**
  * Metadata Parser for a Paintera Data Multiscale Dataset. Namely, transforms are dependant on group metadata
  */
-public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata {
+public class N5PainteraDataMultiScaleMetadata extends SpatialMultiscaleMetadata<N5SpatialDatasetMetadata> {
 
-	private AffineTransform3D groupTransform;
-
-	public N5PainteraDataMultiScaleMetadata(final String basePath, final N5SingleScaleMetadata[] childrenMetadata, final AffineTransform3D groupTransform) {
+	public N5PainteraDataMultiScaleMetadata(final String basePath, final N5SpatialDatasetMetadata[] childrenMetadata) {
 
 		super(basePath, childrenMetadata);
-		this.groupTransform = groupTransform;
 	}
 	@Override public String unit() {
 
@@ -46,7 +39,7 @@ public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata {
 			final Map<String, N5TreeNode> scaleLevelNodes = new HashMap<>();
 			for (final N5TreeNode childNode : node.childrenList()) {
 				if (N5PainteraDataMultiScaleGroup.SCALE_LEVEL_PREDICATE.test(childNode.getNodeName()) && childNode.isDataset()
-						&& childNode.getMetadata() instanceof N5SingleScaleMetadata) {
+						&& childNode.getMetadata() instanceof N5SpatialDatasetMetadata) {
 					scaleLevelNodes.put(childNode.getNodeName(), childNode);
 				}
 			}
@@ -113,7 +106,7 @@ public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata {
 				);
 			}
 
-			return Optional.of(new N5PainteraDataMultiScaleMetadata(node.getPath(), resolvedChildrenMetadata, transform));
+			return Optional.of(new N5PainteraDataMultiScaleMetadata(node.getPath(), resolvedChildrenMetadata));
 		}
 	}
 }

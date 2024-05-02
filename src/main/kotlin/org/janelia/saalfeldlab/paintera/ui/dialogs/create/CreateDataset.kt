@@ -266,7 +266,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						blockSize.asIntArray(),
 						resolution.asDoubleArray(),
 						offset.asDoubleArray(),
-						scaleLevels.stream().map { it.downsamplingFactors() }.toList().toTypedArray(),
+						scaleLevels.map { it.downsamplingFactors() }.toTypedArray(),
 						scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
 					)
 

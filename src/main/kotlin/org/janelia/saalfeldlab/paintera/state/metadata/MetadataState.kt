@@ -14,8 +14,12 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.isLabelMultiset
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -78,20 +82,20 @@ interface MetadataState {
 
 open class SingleScaleMetadataState(
 	final override var n5ContainerState: N5ContainerState,
-	final override val metadata: N5SingleScaleMetadata
-) :
-	MetadataState {
-	override var transform: AffineTransform3D = metadata.spatialTransform3d()
+	final override val metadata: N5SpatialDatasetMetadata
+) : MetadataState {
+
+	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
 	override var isLabelMultiset: Boolean = metadata.isLabelMultiset
 	override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || metadata.isLabelMultiset
 	override var datasetAttributes: DatasetAttributes = metadata.attributes
 	override var minIntensity = metadata.minIntensity()
 	override var maxIntensity = metadata.maxIntensity()
-	override var resolution = metadata.pixelResolution!!
-	override var translation = metadata.offset!!
-	override var unit = metadata.unit()!!
+	override var resolution = metadata.resolution
+	override var translation = metadata.offset
+	override var unit: String = metadata.unit()
 	override var reader = n5ContainerState.reader
-	override val writer :N5Writer?
+	override val writer: N5Writer?
 		get() = n5ContainerState.writer
 
 	override var group = metadata.path!!
@@ -129,11 +133,12 @@ open class SingleScaleMetadataState(
 
 open class MultiScaleMetadataState constructor(
 	override val n5ContainerState: N5ContainerState,
-	final override val metadata: SpatialMultiscaleMetadata<N5SingleScaleMetadata>
+	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
-	private val highestResMetadata: N5SingleScaleMetadata = metadata[0]
-	override var transform: AffineTransform3D = metadata.spatialTransform3d()
+	private val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
+	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
+	final override var isLabelMultiset: Boolean = metadata[0].isLabelMultiset
 	override var isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
 	override var resolution: DoubleArray = transform.run { doubleArrayOf(get(0, 0), get(1, 1), get(2, 2)) }
 	override var translation: DoubleArray = transform.translation
@@ -180,8 +185,7 @@ open class MultiScaleMetadataState constructor(
 class PainteraDataMultiscaleMetadataState constructor(
 	n5ContainerState: N5ContainerState,
 	var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup
-) :
-	MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
+) : MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
 
 	val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata)
 
@@ -207,13 +211,33 @@ operator fun <T> SpatialMultiscaleMetadata<T>.get(index: Int): T where T : N5Spa
 class MetadataUtils {
 
 	companion object {
+		val N5SpatialDatasetMetadata.isLabelMultiset
+			get() = when (this) {
+				is N5SingleScaleMetadata -> isLabelMultiset
+				else -> false
+			}
+
+		val N5SpatialDatasetMetadata.resolution: DoubleArray
+			get() = when (this) {
+				is N5SingleScaleMetadata -> pixelResolution!!
+				is NgffSingleScaleAxesMetadata -> scale
+				else -> DoubleArray(this.spatialTransform().numDimensions()) { 1.0 }
+			}
+
+		val N5SpatialDatasetMetadata.offset
+			get() = when (this) {
+				is N5SingleScaleMetadata -> offset!!
+				is NgffSingleScaleAxesMetadata -> translation!!
+				else -> DoubleArray(this.spatialTransform().numDimensions()) { 0.0 }
+			}
+
 		@JvmStatic
 		fun metadataIsValid(metadata: N5Metadata?): Boolean {
 			/* Valid if we are SpatialMultiscaleMetadata whose children are single scale, or we are SingleScale ourselves. */
 			return (metadata as? SpatialMultiscaleMetadata<*>)?.let {
-				it.childrenMetadata[0] is N5SingleScaleMetadata
+				it.childrenMetadata[0] is N5SpatialDatasetMetadata
 			} ?: run {
-				metadata is N5SingleScaleMetadata
+				metadata is N5SpatialDatasetMetadata
 			}
 		}
 
@@ -222,16 +246,16 @@ class MetadataUtils {
 			@Suppress("UNCHECKED_CAST")
 			return Optional.ofNullable(
 				(metadata as? N5PainteraDataMultiScaleGroup)?.let { PainteraDataMultiscaleMetadataState(n5ContainerState, it) }
-					?: (metadata as? SpatialMultiscaleMetadata<N5SingleScaleMetadata>)?.let { MultiScaleMetadataState(n5ContainerState, it) }
-					?: (metadata as? N5SingleScaleMetadata)?.let { SingleScaleMetadataState(n5ContainerState, it) }
+					?: (metadata as? SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>)?.let { MultiScaleMetadataState(n5ContainerState, it) }
+					?: (metadata as? N5SpatialDatasetMetadata)?.let { SingleScaleMetadataState(n5ContainerState, it) }
 			)
 		}
 
 		@JvmStatic
 		fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
 
-			val reader  = with(Paintera.n5Factory) {
-				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset)?: return Optional.empty()
+			val reader = with(Paintera.n5Factory) {
+				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset) ?: return Optional.empty()
 			}
 
 			val n5ContainerState = N5ContainerState(reader)
@@ -246,8 +270,8 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-			val reader  = with(Paintera.n5Factory) {
-				openWriterOrNull(n5container) ?: openReaderOrNull(n5container)?: return Optional.empty()
+			val reader = with(Paintera.n5Factory) {
+				openWriterOrNull(n5container) ?: openReaderOrNull(n5container) ?: return Optional.empty()
 			}
 
 			val n5ContainerState = N5ContainerState(reader)

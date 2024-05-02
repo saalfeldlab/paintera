@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import bdv.util.volatiles.SharedQueue;
 import com.pivovarit.function.ThrowingBiConsumer;
 import com.pivovarit.function.ThrowingBiFunction;
 import com.pivovarit.function.ThrowingConsumer;
@@ -29,6 +28,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative;
 import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -117,7 +117,7 @@ public class CommitCanvasN5Test {
 
 	}
 
-//	@Test
+	@Test
 	public void testPainteraLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
@@ -154,7 +154,7 @@ public class CommitCanvasN5Test {
 		testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
 	}
 
-//	@Test
+	@Test
 	public void testPainteraUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
@@ -353,7 +353,8 @@ public class CommitCanvasN5Test {
 
 		// test highest level block lookups
 		final String groupSeparator = container.getReader().getGroupSeparator();
-		final String uniqueBlock0Group = N5URI.normalizeGroupPath(String.join(groupSeparator, dataset, "unique-labels","s0"));
+		final String uniqueBlock0Group = N5URI.normalizeGroupPath(String.join(groupSeparator, dataset, "unique-labels", "s0"));
+		final String scaleMappingPattern = "label-to-block-mapping" + groupSeparator + "s%d";
 		final Path mappingPattern = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s%d", "%d");
 		final Path mapping0 = Paths.get(container.getUri().getPath(), dataset, "label-to-block-mapping", "s0");
 		final DatasetAttributes uniqueBlockAttributes = writer.getDatasetAttributes(uniqueBlock0Group);
@@ -379,17 +380,12 @@ public class CommitCanvasN5Test {
 			Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 		}
 
-		final long[] idsForMapping = Arrays.stream(mapping0.toFile().listFiles()).filter(file -> !file.isDirectory() && !file.getName().equals("attributes.json"))
-				.mapToLong(it -> Long.parseLong(it.getName())).toArray();
+		final var lookup = new LabelBlockLookupFromN5Relative(scaleMappingPattern);
+		lookup.setRelativeTo(writer, dataset);
 
-//		final long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false)))
-//				.mapToLong(Long::parseLong).toArray();
-		LOG.debug("Found ids for mapping: {}", idsForMapping);
-		Assert.assertEquals(labelToBlockMapping.keySet(), new TLongHashSet(idsForMapping));
-		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(mappingPattern.toString());
-
-		for (final long id : idsForMapping) {
-			final Interval[] lookupFor = lookup.read(new LabelBlockLookupKey(0, id));
+		labelToBlockMapping.forEachKey(id -> {
+			final LabelBlockLookupKey key = new LabelBlockLookupKey(0, id);
+			final Interval[] lookupFor = lookup.read(key);
 			LOG.trace("Found mapping {} for id {}", lookupFor, id);
 			Assert.assertEquals(labelToBlockMapping.get(id).size(), lookupFor.length);
 			final long[] blockIndices = Stream
@@ -399,7 +395,8 @@ public class CommitCanvasN5Test {
 					.toArray();
 			LOG.trace("Block indices for id {}: {}", id, blockIndices);
 			Assert.assertEquals(labelToBlockMapping.get(id), new TLongHashSet(blockIndices));
-		}
+			return true;
+		});
 
 	}
 
@@ -693,6 +690,7 @@ public class CommitCanvasN5Test {
 		@NotNull
 		@Override
 		public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(@NotNull bdv.cache.SharedQueue queue, int priority) {
+
 			return null;
 		}
 	}
