@@ -397,22 +397,22 @@ Tutorial videos:
   - Segment Anything [Automatic Labelling](#automatic-labelling-segment-anything)
   - Label Selection
 
-| Action                       | Description                                                                                |
-|------------------------------|--------------------------------------------------------------------------------------------|
-| `S`                          | Enter Shape Interpolation mode                                                             |
-| `Esc`                        | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
-| `Up Arrow` / `Down Arrow`    | Move to first/last slice                                                                   |
-| `Left Arrow` / `Right Arrow` | Move to the previous/next slice                                                            |
-| `Enter`                      | Commit interpolated shape into canvas                                                      |
-| `Ctrl` + `P`                 | Toggle interpolation preview                                                               |
-| Left Click                   | Exclusively select the label under the cursor, **removing** all other labels at this slice |
-| Right Click                  | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
-| `F`                          | Activate 2D Flood Fill Tool                                                                |
-| Hold `SPACE`                 | Activate PAINT Tool                                                                        |
-| `A`                          | Activate SAM Tool                                                                          |
-| `P`                          | Bisect all current slices with new SAM auto-segmentation slices                            |
-| `[`                          | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
-| `]`                          | Add a new SAM auto-segmentation slices to the end of the current slices                    |
+| Action                            | Description                                                                                |
+|-----------------------------------|--------------------------------------------------------------------------------------------|
+| `S`                               | Toggle Shape Interpolation mode                                                            |
+| `Esc`                             | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
+| `Shift` + `Up` / `Shift` + `Down` | Move to first/last slice                                                                   |
+| `Left` / `Right`                  | Move to the previous/next slice                                                            |
+| `Enter`                           | Commit interpolated shape into canvas                                                      |
+| `Ctrl` + `P`                      | Toggle interpolation preview                                                               |
+| Left Click                        | Exclusively select the label under the cursor, **removing** all other labels at this slice |
+| Right Click                       | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
+| `F`                               | Activate 2D Flood Fill Tool                                                                |
+| Hold `SPACE`                      | Activate PAINT Tool                                                                        |
+| `A`                               | Activate SAM Tool                                                                          |
+| `P`                               | Bisect all current slices with new SAM auto-segmentation slices                            |
+| `[`                               | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
+| `]`                               | Add a new SAM auto-segmentation slices to the end of the current slices                    |
 
 #### Automatic Labelling: Segment Anything
 - Integrates Segment Anything to predict automatic segmentations, based on the underlying image

@@ -199,7 +199,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.13.1</version>
+			<version>0.13.2</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>

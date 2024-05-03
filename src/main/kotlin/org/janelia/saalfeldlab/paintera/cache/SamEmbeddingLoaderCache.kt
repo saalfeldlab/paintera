@@ -172,7 +172,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		return min(highestScreenScale, SamPredictor.MAX_DIM_TARGET / maxEdge)
 	}
 
-	fun saveImage(state: RenderUnitState): PipedInputStream {
+	private fun saveImage(state: RenderUnitState): PipedInputStream {
 		val threadGroup = ThreadGroup(this.toString())
 		val sharedQueue = SharedQueue(PainteraBaseView.reasonableNumFetcherThreads(), 50)
 
@@ -187,7 +187,8 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			TaskExecutors.singleThreaded(),
 			skipOverlays = true,
 			screenScales = doubleArrayOf(state.calculateTargetSamScreenScaleFactor()),
-			dimensions = longArrayOf(state.width, state.height)
+			dimensions = longArrayOf(state.width, state.height),
+			useVolatileIfAvailable = false
 		)
 
 		val predictionImagePngInputStream = PipedInputStream()
