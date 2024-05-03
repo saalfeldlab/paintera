@@ -129,10 +129,10 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SHAPE_INTERPOLATION__SELECT_NEXT_SLICE            ( RIGHT ),
     SHAPE_INTERPOLATION__REMOVE_SLICE_1               ( DELETE, "delete current slice "),
     SHAPE_INTERPOLATION__REMOVE_SLICE_2               ( BACK_SPACE, "delete current slice  "),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT     ( OPEN_BRACKET, "auto SAM: new slice left" ),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT  ( QUOTE, "auto SAM: new bisect slices" ),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT    ( CLOSE_BRACKET, "auto SAM: new slice right"   ),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE     ( SHIFT_DOWN + A, "auto SAM: new slice at current location"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT     ( OPEN_BRACKET, "shape interpolation: auto SAM: new slice left" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT  ( QUOTE, "shape interpolation: auto SAM: new bisect slices" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT    ( CLOSE_BRACKET, "shape interpolation: auto SAM: new slice right"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE     ( SHIFT_DOWN + A, "shape interpolation: auto SAM: new slice at current location"   ),
     ;
 
 

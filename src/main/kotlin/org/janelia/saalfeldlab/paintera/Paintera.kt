@@ -269,7 +269,7 @@ class Paintera : Application() {
 	companion object {
 
 		@JvmStatic
-		internal var debugMode = false
+		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
 
 		@JvmStatic
 		val n5Factory = N5FactoryWithCache().apply {
