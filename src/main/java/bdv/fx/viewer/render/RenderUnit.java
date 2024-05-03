@@ -4,7 +4,6 @@ import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.render.AccumulateProjectorFactory;
-import bdv.viewer.render.PainterThread;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -40,6 +39,7 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	protected MultiResolutionRendererFX renderer;
 	protected TransformAwareBufferedImageOverlayRendererFX renderTarget;
 	protected PainterThreadFx painterThread;
+	protected boolean useVolatileIfAvailable = true;
 
 	public RenderUnit(final ThreadGroup threadGroup, final Function<Source<?>, Interpolation> interpolation, final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory, final CacheControl cacheControl, final long targetRenderNanos, final TaskExecutor renderingTaskExecutor) {
 
@@ -174,7 +174,7 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 				targetRenderNanos,
 				true,
 				renderingTaskExecutor,
-				true,
+				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl
 		);

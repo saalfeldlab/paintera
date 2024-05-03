@@ -47,7 +47,8 @@ open class BaseRenderUnit(
 	renderingTaskExecutor: TaskExecutor,
 	var skipOverlays: Boolean = false,
 	screenScales : DoubleArray? = null,
-	dimensions: LongArray? = null
+	dimensions: LongArray? = null,
+	useVolatileIfAvailable: Boolean = true
 ) : RenderUnit(
 	threadGroup,
 	interpolation,
@@ -58,6 +59,7 @@ open class BaseRenderUnit(
 ) {
 
 	init {
+		this.useVolatileIfAvailable = useVolatileIfAvailable
 		screenScales?.let { setScreenScales(it) }
 		dimensions?.let { setDimensions(it[0], it[1]) }
 	}

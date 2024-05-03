@@ -32,7 +32,8 @@ open class ViewerRenderUnit(
 	accumulateProjectorFactory,
 	cacheControl,
 	targetRenderNanos,
-	renderingTaskExecutor
+	renderingTaskExecutor,
+	useVolatileIfAvailable = true
 ) {
 	override fun paint() {
 		if (viewerStateSupplier.get()?.isVisible == true)

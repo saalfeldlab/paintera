@@ -774,7 +774,7 @@ public class MultiResolutionRendererGeneric<T> {
 						viewerTransform,
 						screenScaleTransform,
 						bestLevel,
-						null,
+						new CacheHints(LoadingStrategy.BLOCKING, 0, true),
 						interpolation
 				),
 				source.getConverter(),
