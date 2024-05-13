@@ -25,7 +25,7 @@ class ActionBar : HBox() {
 		var newGroup : ToggleGroup? = null
 		buttons.forEach { node ->
 			(node as? Toggle)?.apply {
-				toggleGroup = toggleGroup ?: ToggleGroup().also { newGroup = it }
+				toggleGroup = toggleGroup ?: newGroup ?: ToggleGroup().also { newGroup = it }
 			}
 		}
 		toggleGroup = newGroup
@@ -77,7 +77,7 @@ class ActionBar : HBox() {
 
 		fun List<ToolBarItem>.toolBarNodes() = map { item ->
 			item.toolBarButton.apply {
-				this.onAction ?: let {
+				onAction ?: let {
 					userData = item
 				}
 				isFocusTraversable = false

@@ -28,8 +28,7 @@ class LoggingConfig {
 		.apply { addTriggeredListener { _, _, level -> LogUtils.rootLoggerLevel = level } }
 	var rootLoggerLevel: Level by rootLoggerLevelProperty.nonnull()
 
-	val isLoggingEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_ENABLED)
-		.apply {
+	val isLoggingEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_ENABLED).apply {
 			addTriggeredListener { _, _, new ->
 				LogUtils.setLoggingEnabled(new)
 				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }
@@ -37,8 +36,7 @@ class LoggingConfig {
 		}
 	var isLoggingEnabled: Boolean by isLoggingEnabledProperty.nonnull()
 
-	val isLoggingToConsoleEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_CONSOLE_ENABLED)
-		.apply {
+	val isLoggingToConsoleEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_CONSOLE_ENABLED).apply {
 			addTriggeredListener { _, _, new ->
 				LogUtils.setLoggingToConsoleEnabled(new)
 				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }
@@ -46,8 +44,7 @@ class LoggingConfig {
 		}
 	var isLoggingToConsoleEnabled: Boolean by isLoggingEnabledProperty.nonnull()
 
-	val isLoggingToFileEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_FILE_ENABLED)
-		.apply {
+	val isLoggingToFileEnabledProperty = SimpleBooleanProperty(DEFAULT_IS_LOGGING_TO_FILE_ENABLED).apply {
 			addTriggeredListener { _, _, new ->
 				LogUtils.setLoggingToFileEnabled(new)
 				loggerLevels.forEach { (logger, level) -> LogUtils.setLogLevelFor(logger, level.get()) }

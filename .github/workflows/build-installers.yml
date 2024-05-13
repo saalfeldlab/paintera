@@ -1,15 +1,12 @@
 # This workflow will build a Java project with Maven
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
-name: Build All Installers
+name: Build Installers
 
 on:
-  push:
-    branches: [ master ]
+  workflow_call:
   pull_request:
-    branches: [ master ]
-  workflow_dispatch:
-    branches: [ master ]
+    branches: [master]
 
 env:
   DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
@@ -21,9 +18,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest, macos-14]
     runs-on: ${{ matrix.os }}
-    env:
-      RELEASE_INSTALLERS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set Version
+        shell: bash
+        run: |
+          short_version=`git rev-parse --short HEAD`
+          echo "VERSION=$short_version" >> $GITHUB_ENV
       - name: Download Wix
         uses: i3h/download-release-asset@v1
         if: matrix.os == 'windows-latest'
@@ -42,7 +44,7 @@ jobs:
         run: echo "$HOME/target/wix" >> $GITHUB_PATH
         if: matrix.os == 'windows-latest'
       - uses: actions/checkout@v2
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v2
         with:
           java-version: 18.0.2
@@ -58,14 +60,11 @@ jobs:
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-latest' || matrix.os == 'macos-14') }}
         run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
-      - name: Update Automatic Release
-        uses: marvinpinto/action-automatic-releases@latest
-        if: ${{ env.RELEASE_INSTALLERS }}
+
+      - name: Upload Installers
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN}}"
-          automatic_release_tag: ${{ matrix.os }}
-          prerelease: true
-          title: ${{ matrix.os }} Development Build
-          files: |
+          name: Paintera-${{ matrix.os }}-${{ env.VERSION }}
+          path: |
             ${{ env.DMG_PATH }}
             ./target/installer-${{ matrix.os }}/*

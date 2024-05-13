@@ -259,11 +259,11 @@ object NavigationTool : ViewerTool() {
 					painteraMidiActionSet("midi translate along normal", device, target, NavigationActionType.Slice) {
 						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(2) {
 							name = "midi_normal"
-							setDisplayType(DisplayType.TRIM)
+							displayType = DisplayType.TRIM
 							verifyEventNotNull()
 							onAction {
 								InvokeOnJavaFXApplicationThread {
-									translator.translate(0.0, 0.0, it!!.value.sign * FAST)
+									translator.translate(0.0, 0.0, it!!.value.toInt().sign * FAST)
 								}
 							}
 						}
@@ -294,7 +294,7 @@ object NavigationTool : ViewerTool() {
 				painteraMidiActionSet("midi translate xy", device, target, NavigationActionType.Pan) {
 					MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(0) {
 						name = "midi translate x"
-						setDisplayType(DisplayType.TRIM)
+						displayType = DisplayType.TRIM
 						verifyEventNotNull()
 						onAction {
 							InvokeOnJavaFXApplicationThread {
@@ -304,7 +304,7 @@ object NavigationTool : ViewerTool() {
 					}
 					MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(1) {
 						name = "midi translate y"
-						setDisplayType(DisplayType.TRIM)
+						displayType = DisplayType.TRIM
 						verifyEventNotNull()
 						onAction {
 							InvokeOnJavaFXApplicationThread {
@@ -371,7 +371,7 @@ object NavigationTool : ViewerTool() {
 			painteraMidiActionSet("zoom", device, target, NavigationActionType.Zoom) {
 				MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(3) {
 					name = "midi_zoom"
-					setDisplayType(DisplayType.TRIM)
+					displayType = DisplayType.TRIM
 					verifyEventNotNull()
 					onAction {
 						InvokeOnJavaFXApplicationThread {
@@ -412,7 +412,7 @@ object NavigationTool : ViewerTool() {
 			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
 		}
 
-		val mouseRotation = painteraDragActionSet("mousde-drag-rotate", NavigationActionType.Rotate) {
+		val mouseRotation = painteraDragActionSet("mouse-drag-rotate", NavigationActionType.Rotate) {
 			verify { it.isPrimaryButtonDown }
 			dragDetectedAction.verify { NavigationTool.allowRotationsProperty() }
 			onDragDetected {
@@ -455,7 +455,7 @@ object NavigationTool : ViewerTool() {
 			DeviceManager.xTouchMini?.let { device ->
 				targetPositionObservable?.let { targetPos ->
 					painteraMidiActionSet(NavigationKeys.REMOVE_ROTATION, device, target, NavigationActionType.Rotate) {
-						MidiButtonEvent.BUTTON_PRESED(18) {
+						MidiButtonEvent.BUTTON_PRESSED(18) {
 							name = "midi_remove_rotation"
 							verifyEventNotNull()
 							onAction { InvokeOnJavaFXApplicationThread { resetRotationController.removeRotationCenteredAt(targetPos.x, targetPos.y) } }
@@ -480,12 +480,12 @@ object NavigationTool : ViewerTool() {
 					painteraMidiActionSet("rotate", device, target, NavigationActionType.Rotate) {
 						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE ( handle) {
 							name = "midi_rotate_${axis.name.lowercase()}"
-							setDisplayType(DisplayType.TRIM)
+							displayType = DisplayType.TRIM
 							verifyEventNotNull()
 							verify { allowRotationsProperty() }
 							onAction {
 								InvokeOnJavaFXApplicationThread {
-									val direction = it!!.value.sign
+									val direction = it!!.value.toInt().sign
 									rotationController.setSpeed(direction * speed)
 									rotationController.rotateAroundAxis(targetPosition.x, targetPosition.y, axis)
 								}
@@ -498,14 +498,19 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	fun midiNavigationActions() = mutableListOf<MidiActionSet>().also {
-		midiPanActions()?.let { midiActions -> it.add(midiActions) }
-		midiSliceActions()?.let { midiActions -> it.add(midiActions) }
-		midiZoomActions()?.let { midiActions -> it.add(midiActions) }
-		midiRotationActions()?.let { midiActions -> it.addAll(midiActions) }
-		midiResetRotationAction()?.let { midiActions -> it.add(midiActions) }
+	fun midiNavigationActions(
+		pan: Boolean = true,
+		slice: Boolean = true,
+		zoom: Boolean = true,
+		rotation: Boolean = true,
+		resetRotation: Boolean = true
+	) = mutableListOf<MidiActionSet>().also {
+		if (pan) midiPanActions()?.let { midiActions -> it.add(midiActions) }
+		if (slice) midiSliceActions()?.let { midiActions -> it.add(midiActions) }
+		if (zoom) midiZoomActions()?.let { midiActions -> it.add(midiActions) }
+		if (rotation) midiRotationActions()?.let { midiActions -> it.addAll(midiActions) }
+		if (resetRotation) midiResetRotationAction()?.let { midiActions -> it.add(midiActions) }
 	}
-
 
 	private fun goToPositionAction(translateXYController: TranslationController) =
 		painteraActionSet("center on position", NavigationActionType.Pan) {

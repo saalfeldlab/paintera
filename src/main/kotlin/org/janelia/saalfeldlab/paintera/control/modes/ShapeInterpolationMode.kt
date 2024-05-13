@@ -61,10 +61,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	internal val samSliceCache = SamSliceCache()
 
-	private val paintBrushTool = ShapeInterpolationPaintBrushTool(activeSourceStateProperty, this)
-	private val fill2DTool = ShapeInterpolationFillTool(controller, activeSourceStateProperty, this)
-	private val samTool = ShapeInterpolationSAMTool(controller, activeSourceStateProperty, this@ShapeInterpolationMode)
-	private val shapeInterpolationTool = ShapeInterpolationTool(controller, previousMode, this@ShapeInterpolationMode, this@ShapeInterpolationMode.fill2DTool)
+	private val paintBrushTool by lazy { ShapeInterpolationPaintBrushTool(activeSourceStateProperty, this) }
+	private val fill2DTool by lazy { ShapeInterpolationFillTool(controller, activeSourceStateProperty, this) }
+	private val samTool by lazy { ShapeInterpolationSAMTool(controller, activeSourceStateProperty, this@ShapeInterpolationMode) }
+	private val shapeInterpolationTool by lazy { ShapeInterpolationTool(controller, previousMode, this@ShapeInterpolationMode, this@ShapeInterpolationMode.fill2DTool) }
 
 	override val defaultTool: Tool? by lazy { shapeInterpolationTool }
 	override val modeActions by lazy { modeActions() }
@@ -275,27 +275,31 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							}
 						}
 						with(controller) {
-							MidiButtonEvent.BUTTON_PRESED(9) {
+							MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
 								verify { controllerState != Moving }
+								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.First) }
 
 							}
-							MidiButtonEvent.BUTTON_PRESED(10) {
+							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
 								verify { controllerState != Moving }
+								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Previous) }
 
 							}
-							MidiButtonEvent.BUTTON_PRESED(11) {
+							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
 								verify { controllerState != Moving }
+								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Next) }
 
 							}
-							MidiButtonEvent.BUTTON_PRESED(12) {
+							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
 								verify { controllerState != Moving }
+								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Last) }
 							}
 						}

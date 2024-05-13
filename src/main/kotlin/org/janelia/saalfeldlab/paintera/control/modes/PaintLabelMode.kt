@@ -180,6 +180,15 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
+	override fun switchTool(tool: Tool?) {
+		super.switchTool(tool)
+		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
+		if (activeTool is SamTool)
+			activeViewerProperty.unbind()
+		else if (!activeViewerProperty.isBound)
+			activeViewerProperty.bind(paintera.baseView.currentFocusHolder)
+	}
+
 
 	private fun getToolTriggers() = listOf(
 		paintBrushTool.createTriggers(this, PaintActionType.Paint),

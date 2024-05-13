@@ -21,14 +21,20 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.addTriggeredListener
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ActionBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
-import org.janelia.saalfeldlab.paintera.control.tools.*
+import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
+import org.janelia.saalfeldlab.paintera.control.tools.Tool
+import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
+import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -87,7 +93,6 @@ interface ToolMode : SourceMode {
 		activeTool?.deactivate()
 
 		showToolBars()
-		modeToolsBar.toggleGroup?.toggles?.forEach { it.isSelected = false }
 
 		tool?.activate()
 		activeTool = tool
@@ -136,7 +141,6 @@ interface ToolMode : SourceMode {
 
 				/* when the active tool changes, update the toggle to reflect the active tool */
 				activeToolProperty.addTriggeredListener { _, old, new ->
-					old?.let { toolActionsBar.reset() }
 					new?.let { newTool ->
 						toggles
 							.firstOrNull { it.userData == newTool }
@@ -234,7 +238,7 @@ interface ToolMode : SourceMode {
 		/* temporarily revoke permissions, so no actions are performed until we receive event [T]   */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
 
-		val queue = LinkedBlockingQueue<T?>()
+		val queue = LinkedBlockingQueue<Any>()
 
 		InvokeOnJavaFXApplicationThread {
 			lateinit var escapeFilter: EventHandler<KeyEvent>
@@ -244,7 +248,7 @@ interface ToolMode : SourceMode {
 				removeEventFilter(event, waitForEventFilter)
 				removeEventFilter(KEY_PRESSED, escapeFilter)
 				paintera.baseView.allowedActionsProperty().restorePermisssions()
-				queue.offer(it)
+				queue.offer(it ?: Any())
 			}
 
 			waitForEventFilter = EventHandler<T> {
@@ -261,7 +265,7 @@ interface ToolMode : SourceMode {
 			addEventFilter(KEY_PRESSED, escapeFilter)
 		}
 
-		return queue.take()
+		return (queue.take() as? T)
 	}
 
 	fun disableUnfocusedViewers() {

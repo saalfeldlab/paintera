@@ -5,6 +5,7 @@ import javafx.scene.control.ButtonBase
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -55,9 +56,12 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 				it.prediction = predictionRequest
 				it.locked = true
 			}
-			shapeInterpolationMode.run {
-				switchTool(defaultTool)
-				modeToolsBar.toggleGroup?.selectToggle(null)
+			InvokeOnJavaFXApplicationThread {
+
+				shapeInterpolationMode.run {
+					switchTool(defaultTool)
+					modeToolsBar.toggleGroup?.selectToggle(null)
+				}
 			}
 		}
 	}
