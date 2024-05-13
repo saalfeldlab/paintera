@@ -281,15 +281,15 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 						}
 						min = 1
 						max = maxBinding.get()
-						stepToValueConverter = {
+						converter = {
 							max = maxBinding.get()
 							val onePixelRadiusCuttoff = (FaderAction.FADER_MAX * .33).toInt()
 							if (it <= onePixelRadiusCuttoff) {
 								it
 							} else {
-								val currentFraction = (it - min - onePixelRadiusCuttoff) / (FaderAction.FADER_MAX.toDouble() - onePixelRadiusCuttoff - min)
-								Interpolator.EASE_IN.interpolate(onePixelRadiusCuttoff, max, currentFraction)
-							}.toInt().coerceAtMost(max)
+								val currentFraction = (it - min.toInt() - onePixelRadiusCuttoff) / (FaderAction.FADER_MAX.toDouble() - onePixelRadiusCuttoff - min.toInt())
+								Interpolator.EASE_IN.interpolate(onePixelRadiusCuttoff, max.toInt(), currentFraction)
+							}.toInt().coerceAtMost(max.toInt())
 						}
 						onAction { paint2D.setBrushRadius(it!!.value.toDouble()) }
 					}

@@ -56,6 +56,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
@@ -187,11 +188,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			?.also { repaintInterval ->
 				if (preview) {
 					isBusy = true
-					requestRepaintInterval = repaintInterval union requestRepaintInterval
 					interpolateBetweenSlices(false)
-				} else {
-					requestRepaintAfterTasks(repaintInterval)
 				}
+				requestRepaintAfterTasks(repaintInterval)
 			}
 	}
 
@@ -364,6 +363,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		Last
 	}
 
+	//TODO Caleb: Controller should not move, let the tool/mode do that
 	fun editSelection(choice: EditSelectionChoice) {
 		val slices = slicesAndInterpolants.slices
 		when (choice) {
@@ -751,7 +751,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			val interpolatedMaskView = interpolant.dataInterpolant
 				.affine(viewerMask.currentGlobalToMaskTransform)
 				.interval(interpolantIntervalSliceInMaskSpace)
-			val fillMaskOverInterval = viewerMask.viewerImg.interval(interpolantIntervalSliceInMaskSpace)
+			val fillMaskOverInterval = viewerMask.viewerImg.apply {
+				extendValue(Label.INVALID)
+			}.interval(interpolantIntervalSliceInMaskSpace)
 
 			LoopBuilder.setImages(interpolatedMaskView, fillMaskOverInterval)
 				.multiThreaded()
@@ -1164,7 +1166,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			computeBoundingBoxInInitialMask()
 		}
 		val globalBoundingBox: RealInterval?
-			get() = maskBoundingBox?.let { mask.initialGlobalToMaskTransform.inverse().estimateBounds(it) }
+			get() = maskBoundingBox?.let { mask.initialMaskToGlobalWithDepthTransform.estimateBounds(it.extendBy(0.0, 0.0, .5)) }
 
 		private val selectionIntervals: MutableList<Interval> = mutableListOf()
 

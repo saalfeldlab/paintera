@@ -9,14 +9,15 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable
-import javafx.beans.property.*
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ChangeListener
 import javafx.scene.control.ButtonBase
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
-import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
@@ -47,15 +48,20 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.apache.commons.io.output.NullPrintStream
+import org.janelia.saalfeldlab.control.VPotControl
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
+import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraDragActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
-import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
+import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
+import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
+import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
+import org.janelia.saalfeldlab.fx.ui.CircleScaleView
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
@@ -67,8 +73,6 @@ import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.getSamRend
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.ortEnv
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.fx.ui.CircleScaleView
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode.waitForEvent
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -92,7 +96,34 @@ import paintera.net.imglib2.view.BundleView
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.collections.List
+import kotlin.collections.MutableList
+import kotlin.collections.addAll
+import kotlin.collections.all
+import kotlin.collections.any
+import kotlin.collections.asSequence
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.component3
+import kotlin.collections.contains
+import kotlin.collections.filter
+import kotlin.collections.filterIsInstance
+import kotlin.collections.filterNot
+import kotlin.collections.filterNotNull
+import kotlin.collections.find
+import kotlin.collections.firstOrNull
+import kotlin.collections.forEach
+import kotlin.collections.indexOfFirst
+import kotlin.collections.indexOfLast
+import kotlin.collections.listOf
+import kotlin.collections.max
+import kotlin.collections.minusAssign
+import kotlin.collections.mutableListOf
+import kotlin.collections.plusAssign
 import kotlin.collections.set
+import kotlin.collections.toList
+import kotlin.collections.toMutableList
+import kotlin.collections.toTypedArray
 import kotlin.math.*
 import kotlin.properties.Delegates
 
@@ -110,19 +141,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}
 		}
 
-
 	internal var currentLabelToPaint: Long = Label.INVALID
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
 
-	private val controlModeProperty = SimpleBooleanProperty(false)
-	private var controlMode by controlModeProperty.nonnull()
-
-	private val controlPointLabelProperty = SimpleObjectProperty(SamPredictor.SparseLabel.IN)
-	private var controlPointLabel: SamPredictor.SparseLabel by controlPointLabelProperty.nonnull()
+	private val primaryClickLabelProperty = SimpleObjectProperty<SamPredictor.SparseLabel?>(null)
+	private var primaryClickLabel: SamPredictor.SparseLabel? by primaryClickLabelProperty.nullable()
 
 	override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
-			*super.actionSets.toTypedArray(),
 			*getSamActions().filterNotNull().toTypedArray(),
 		)
 	}
@@ -190,6 +216,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	var temporaryPrompt = true
 
 	private var thresholdBounds = Bounds(-40.0, 30.0)
+	private val estimatedThresholdProperty = SimpleObjectProperty<Double?>(null)
+	private var estimatedThreshold by estimatedThresholdProperty.nullable()
 	private var threshold = 0.0
 		set(value) {
 			field = value.coerceIn(thresholdBounds.min, thresholdBounds.max)
@@ -231,13 +259,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		super.activate()
 		if (mode is PaintLabelMode) {
 			PaintLabelMode.disableUnfocusedViewers()
+			mode.activeViewerProperty.unbind()
 		}
-		controlMode = false
-		controlPointLabel = SamPredictor.SparseLabel.IN
+		primaryClickLabel = null
 		initializeSam()
 		/* Trigger initial prediction request when activating the tool */
 		setViewer?.let { viewer ->
-			if (maskProvided || !viewer.isMouseInside) return@let
 
 			Platform.runLater { statusProperty.set("Predicting...") }
 			val x = viewer.mouseXProperty.get().toLong()
@@ -258,7 +285,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	internal fun initializeSam(renderUnitState: RenderUnitState? = null) {
 		unwrapResult = true
-		controlMode = false
 		threshold = 0.0
 		setCurrentLabelToSelection()
 		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
@@ -289,8 +315,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		paintera.baseView.disabledPropertyBindings -= this
 		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
 		viewerMask = null
-		controlMode = false
-		controlPointLabel = SamPredictor.SparseLabel.IN
+		estimatedThreshold = null
+		primaryClickLabel = null
 		embeddingRequest = null
 	}
 
@@ -298,304 +324,335 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
 	}
 
-	private fun getSamActions() = arrayOf(
-		painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
-			/* Handle Painting */
-			MOUSE_CLICKED(MouseButton.PRIMARY) {
-				name = "apply last segmentation result to canvas"
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				verify("cannot be in control mode") { !controlMode }
-				verify(" label is not valid ") { isLabelValid }
-				onAction { applyPrediction() }
-			}
-			KEY_PRESSED(KeyCode.D) {
-				name = "view prediction"
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				verify { Paintera.debugMode }
-				verify("no current prediction ") { currentPrediction != null }
-				var toggle = true
-				onAction {
-					val highResPrediction = currentPrediction!!.image
-					val lowResPrediction = currentPrediction!!.lowResImage
 
-					val name: String
-					val maskRai = if (toggle) {
-						toggle = false
-						name = "high res"
-						highResPrediction
-					} else {
-						toggle = true
-						name = "low res"
-						lowResPrediction
-					}
+	private fun getSamActions(): Array<ActionSet?> {
+		lateinit var primaryClickToggleIncludeAction: Action<*>
+		lateinit var primaryClickToggleExcludeAction: Action<*>
+		lateinit var resetPromptAction: Action<*>
+		lateinit var applyPredictionAction: Action<*>
+		return arrayOf(
+			painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
+				/* Handle Painting */
+				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
+					name = "apply last segmentation result to canvas"
+					verifyEventNotNull()
+					verifyPainteraNotDisabled()
+					verify(" label is not valid ") { isLabelValid }
+					onAction { applyPrediction() }
+				}
+				KEY_PRESSED(KeyCode.D) {
+					name = "view prediction"
+					verifyEventNotNull()
+					verifyPainteraNotDisabled()
+					verify { Paintera.debugMode }
+					verify("no current prediction ") { currentPrediction != null }
+					var toggle = true
+					onAction {
+						val highResPrediction = currentPrediction!!.image
+						val lowResPrediction = currentPrediction!!.lowResImage
 
-					val (max, mean, std) = maskRai.let {
-						var sum = 0.0
-						var sumSquared = 0.0
-						var max = Float.MIN_VALUE
-						it.forEach { float ->
-							val floatVal = float.get()
-							sum += floatVal
-							sumSquared += floatVal.pow(2)
-							if (max < floatVal) max = floatVal
+						val name: String
+						val maskRai = if (toggle) {
+							toggle = false
+							name = "high res"
+							highResPrediction
+						} else {
+							toggle = true
+							name = "low res"
+							lowResPrediction
 						}
-						val area = Intervals.numElements(it)
-						val mean = sum / area
-						val stddev = sqrt(sumSquared / area - mean.pow(2))
-						doubleArrayOf(max.toDouble(), mean, stddev)
-					}
-					val min = (mean - std).toFloat()
-					val zeroMinValue = maskRai.convert(FloatType()) { input, output -> output.set(input.get() - min) }
-					val predictionSource = paintera.baseView.addConnectomicsRawSource<FloatType, VolatileFloatType>(
-						zeroMinValue.let {
-							val prediction3D = Views.addDimension(it)
-							val interval3D = Intervals.createMinMax(*it.minAsLongArray(), 0, *it.maxAsLongArray(), 0)
-							prediction3D.interval(interval3D)
-						},
-						doubleArrayOf(1.0, 1.0, 1.0),
-						doubleArrayOf(0.0, 0.0, 0.0),
-						0.0, max - min,
-						"$name prediction"
-					)
 
-					val transform = object : AffineTransform3D() {
-						override fun set(value: Double, row: Int, column: Int) {
-							super.set(value, row, column)
-							predictionSource.backend.updateTransform(this)
-							setViewer!!.requestRepaint()
+						val (max, mean, std) = maskRai.let {
+							var sum = 0.0
+							var sumSquared = 0.0
+							var max = Float.MIN_VALUE
+							it.forEach { float ->
+								val floatVal = float.get()
+								sum += floatVal
+								sumSquared += floatVal.pow(2)
+								if (max < floatVal) max = floatVal
+							}
+							val area = Intervals.numElements(it)
+							val mean = sum / area
+							val stddev = sqrt(sumSquared / area - mean.pow(2))
+							doubleArrayOf(max.toDouble(), mean, stddev)
 						}
-					}
-
-					viewerMask!!.getInitialGlobalViewerInterval(setViewer!!.width, setViewer!!.height).also {
-
-						val width = it.realMax(0) - it.realMin(0)
-						val height = it.realMax(1) - it.realMin(1)
-						val depth = it.realMax(2) - it.realMin(2)
-						transform.set(
-							*AffineTransform3D()
-								.concatenate(Translation3D(it.realMin(0), it.realMin(1), it.realMin(2)))
-								.concatenate(Scale3D(width / maskRai.shape()[0], height / maskRai.shape()[1], depth))
-								.concatenate(Translation3D(.5, .5, 0.0)) //half-pixel offset
-								.inverse()
-								.rowPackedCopy
+						val min = (mean - std).toFloat()
+						val zeroMinValue = maskRai.convert(FloatType()) { input, output -> output.set(input.get() - min) }
+						val predictionSource = paintera.baseView.addConnectomicsRawSource<FloatType, VolatileFloatType>(
+							zeroMinValue.let {
+								val prediction3D = Views.addDimension(it)
+								val interval3D = Intervals.createMinMax(*it.minAsLongArray(), 0, *it.maxAsLongArray(), 0)
+								prediction3D.interval(interval3D)
+							},
+							doubleArrayOf(1.0, 1.0, 1.0),
+							doubleArrayOf(0.0, 0.0, 0.0),
+							0.0, max - min,
+							"$name prediction"
 						)
-					}
-					predictionSource.backend.updateTransform(transform)
-					predictionSource.composite = ARGBCompositeAlphaAdd()
-					setViewer!!.requestRepaint()
-				}
-			}
 
-			val controlPointLabelToggleGroup = ToggleGroup().also {
-				it.selectedToggleProperty().addListener { _, _, selected ->
-					controlMode = selected != null
-				}
-			}
-			KEY_PRESSED(KeyCode.CONTROL) {
-				val iconClsBinding = controlModeProperty.createNonNullValueBinding { if (it) "toggle-on" else "toggle-off" }
-				val iconCls by iconClsBinding.nonnullVal()
-				graphic = {
-					val icon = FontAwesomeIconView().also {
-						it.styleClass.addAll(iconCls)
-						it.id = iconCls
-						"asdfasd f".stripLeading()
-						iconClsBinding.addListener { _, old, new ->
-							it.styleClass.removeAll(old)
-							it.styleClass.add(new)
-						}
-					}
-					GlyphScaleView(icon).apply {
-						styleClass += "ignore-disable"
-					}
-				}
-				onAction { event ->
-					if (event != null) {
-						/* If triggered by key down, always on when down*/
-						controlMode = true
-						controlPointLabelToggleGroup.selectedToggle?.isSelected = false
-						controlPointLabelToggleGroup.selectToggle(null)
-						controlPointLabel = SamPredictor.SparseLabel.IN
-					} else {
-						/* If triggered programmatically, negate the current state */
-						controlMode = !controlMode
-						if (!controlMode) {
-							controlPointLabel = SamPredictor.SparseLabel.IN
-							resetPromptAndPrediction()
-							controlPointLabelToggleGroup.selectedToggle?.isSelected = false
-							controlPointLabelToggleGroup.selectToggle(null)
-						}
-					}
-				}
-			}
-			KEY_RELEASED(KeyCode.CONTROL) {
-				onAction { controlMode = false }
-			}
-
-			SCROLL {
-				verify("scroll size at least 1 pixel") { max(it!!.deltaX.absoluteValue, it.deltaY.absoluteValue) > 1.0 }
-				verify { controlMode }
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				onAction { scroll ->
-					/* ScrollEvent deltas are internally multiplied to correspond to some estimate of pixels-per-unit-scroll.
-					* For example, on the platform I'm using now, it's `40` for both x and y. But our threshold is NOT
-					* in pixel units, so we divide by the multiplier, and specify our own.  */
-					val delta = with(scroll!!) {
-						when {
-							deltaY.absoluteValue > deltaX.absoluteValue -> deltaY / multiplierY
-							else -> deltaX / multiplierX
-						}
-					}
-					val increment = (thresholdBounds.max - thresholdBounds.min) / 100.0
-					threshold += delta * increment
-					(currentPredictionRequest?.first as? SparsePrediction)?.points?.let {
-						requestPrediction(it, false)
-					}
-				}
-			}
-
-			MOUSE_MOVED {
-				name = "prediction overlay"
-				verifyEventNotNull()
-				verifyPainteraNotDisabled()
-				verify("Must be a temporary prompt, or not in controlMode ") { temporaryPrompt || !controlMode }
-				verify("Label is not valid") { isLabelValid }
-				onAction {
-					clearPromptDrawings()
-					temporaryPrompt = true
-					requestPrediction(listOf(SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)))
-				}
-			}
-			/* Handle Include Points */
-			MOUSE_CLICKED(MouseButton.PRIMARY) {
-				name = "add include point"
-				graphic = {
-					val circle = Circle().apply {
-						styleClass += "sam-point-in"
-					}
-					CircleScaleView(circle).apply {
-						styleClass += listOf("sam-point", "ignore-disable")
-						properties["TOGGLE_GROUP"] = controlPointLabelToggleGroup
-					}
-				}
-				verifyPainteraNotDisabled()
-				verify { controlMode || it == null }
-				onAction {
-					CoroutineScope(Dispatchers.IO).launch {
-						/* If no event, triggered via button; enter control mode, set Label to IN */
-						it ?: let {
-							if ((controlPointLabelToggleGroup.selectedToggle as? ToggleButton)?.id == name) {
-								controlPointLabel = SamPredictor.SparseLabel.IN
-								controlMode = true
-							} else {
-								resetPromptAndPrediction()
-								return@launch
+						val transform = object : AffineTransform3D() {
+							override fun set(value: Double, row: Int, column: Int) {
+								super.set(value, row, column)
+								predictionSource.backend.updateTransform(this)
+								setViewer!!.requestRepaint()
 							}
 						}
 
-						/*If not in control mode, Label for this Action is always IN*/
-						if (!controlMode)
-							controlPointLabel = SamPredictor.SparseLabel.IN
+						viewerMask!!.getInitialGlobalViewerInterval(setViewer!!.width, setViewer!!.height).also {
 
-						/* If no event, triggered via button, wait for click before continuing */
-						(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
-							val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, controlPointLabel))
-							temporaryPrompt = false
-							requestPrediction(points)
+							val width = it.realMax(0) - it.realMin(0)
+							val height = it.realMax(1) - it.realMin(1)
+							val depth = it.realMax(2) - it.realMin(2)
+							transform.set(
+								*AffineTransform3D()
+									.concatenate(Translation3D(it.realMin(0), it.realMin(1), it.realMin(2)))
+									.concatenate(Scale3D(width / maskRai.shape()[0], height / maskRai.shape()[1], depth))
+									.concatenate(Translation3D(.5, .5, 0.0)) //half-pixel offset
+									.inverse()
+									.rowPackedCopy
+							)
+						}
+						predictionSource.backend.updateTransform(transform)
+						predictionSource.composite = ARGBCompositeAlphaAdd()
+						setViewer!!.requestRepaint()
+					}
+				}
+
+				SCROLL {
+					verify("scroll size at least 1 pixel") { max(it!!.deltaX.absoluteValue, it.deltaY.absoluteValue) > 1.0 }
+					verifyEventNotNull()
+					verifyPainteraNotDisabled()
+					onAction { scroll ->
+						/* ScrollEvent deltas are internally multiplied to correspond to some estimate of pixels-per-unit-scroll.
+						* For example, on the platform I'm using now, it's `40` for both x and y. But our threshold is NOT
+						* in pixel units, so we divide by the multiplier, and specify our own.  */
+						val delta = with(scroll!!) {
+							when {
+								deltaY.absoluteValue > deltaX.absoluteValue -> deltaY / multiplierY
+								else -> deltaX / multiplierX
+							}
+						}
+						val increment = (thresholdBounds.max - thresholdBounds.min) / 100.0
+						threshold += delta * increment
+						(currentPredictionRequest?.first as? SparsePrediction)?.points?.let {
+							requestPrediction(it, false)
 						}
 					}
 				}
-			}
 
-			MOUSE_CLICKED(MouseButton.SECONDARY) {
-				name = "add exclude point"
-				graphic = {
-					val circle = Circle().apply {
-						styleClass += "sam-point-out"
-					}
-					CircleScaleView(circle).apply {
-						styleClass += listOf("sam-point", "ignore-disable")
-						properties["TOGGLE_GROUP"] = controlPointLabelToggleGroup
+				MOUSE_MOVED {
+					name = "prediction overlay"
+					verifyEventNotNull()
+					verifyPainteraNotDisabled()
+					verify("Must be a temporary prompt") { temporaryPrompt }
+					verify("Label is not valid") { isLabelValid }
+					onAction {
+						clearPromptDrawings()
+						temporaryPrompt = true
+						requestPrediction(listOf(SamPoint(it!!.x * screenScale, it.y * screenScale, SamPredictor.SparseLabel.IN)))
 					}
 				}
-				verifyPainteraNotDisabled()
-				verify { controlMode || it == null }
-				onAction {
-					CoroutineScope(Dispatchers.IO).launch {
-						it ?: let {
-							if ((controlPointLabelToggleGroup.selectedToggle as? ToggleButton)?.id == name) {
-								controlPointLabel = SamPredictor.SparseLabel.OUT
-								controlMode = true
-							} else {
-								resetPromptAndPrediction()
-								return@launch
+
+				val primaryClickLabelToggleGroup = ToggleGroup()
+				primaryClickLabelProperty.addListener { _, _, new ->
+					val id = when (new) {
+						SamPredictor.SparseLabel.IN -> "add include point"
+						SamPredictor.SparseLabel.OUT -> "add exclude point"
+						else -> null
+					}
+					primaryClickLabelToggleGroup.toggles.forEach { toggle ->
+						toggle.isSelected = (toggle as? ToggleButton)?.let { it.id != null && it.id == id } ?: false
+					}
+				}
+				/* Handle Include Points */
+				MOUSE_CLICKED(MouseButton.PRIMARY) {
+					name = "add include point"
+					graphic = {
+						val circle = Circle().apply {
+							styleClass += "sam-point-in"
+						}
+						CircleScaleView(circle).apply {
+							styleClass += listOf("sam-point", "ignore-disable")
+							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
+						}
+					}
+					verifyPainteraNotDisabled()
+					onAction {
+						CoroutineScope(Dispatchers.IO).launch {
+							/* If no event, triggered via button; set Label to IN */
+							it ?: let {
+								/* If already IN, toggle off and return, otherwise toggle on */
+								if (primaryClickLabel == SamPredictor.SparseLabel.IN) {
+									primaryClickLabel = null
+									return@launch
+								} else {
+									primaryClickLabel = SamPredictor.SparseLabel.IN
+								}
+							}
+
+							/* If no event, triggered via button, wait for click before continuing */
+							(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
+								val label = primaryClickLabel ?: SamPredictor.SparseLabel.IN
+								val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, label))
+								temporaryPrompt = false
+								requestPrediction(points)
+							}
+						}
+					}
+				}.also { primaryClickToggleIncludeAction = it }
+
+				MOUSE_CLICKED(MouseButton.SECONDARY) {
+					name = "add exclude point"
+					graphic = {
+						val circle = Circle().apply {
+							styleClass += "sam-point-out"
+						}
+						CircleScaleView(circle).apply {
+							styleClass += listOf("sam-point", "ignore-disable")
+							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
+						}
+					}
+					verifyPainteraNotDisabled()
+					onAction {
+						CoroutineScope(Dispatchers.IO).launch {
+							it ?: let {
+								/* If already IN, toggle off and return, otherwise toggle on */
+								if (primaryClickLabel == SamPredictor.SparseLabel.OUT) {
+									primaryClickLabel = null
+									return@launch
+								} else {
+									primaryClickLabel = SamPredictor.SparseLabel.OUT
+								}
+							}
+
+							/* If no event, triggered via button, wait for click before continuing */
+							(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
+								val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, SamPredictor.SparseLabel.OUT))
+								temporaryPrompt = false
+								requestPrediction(points)
+							}
+						}
+					}
+				}.also { primaryClickToggleExcludeAction = it }
+
+				KEY_PRESSED(KeyCode.BACK_SPACE) {
+					name = "Reset Prompt"
+					graphic = { GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }) }
+					onAction {
+						resetPromptAndPrediction()
+						primaryClickLabel = null
+						primaryClickLabelToggleGroup.selectedToggle?.isSelected = false
+						temporaryPrompt = true
+					}
+				}.also { resetPromptAction = it }
+
+				KEY_PRESSED(KeyCode.ENTER) {
+					name = "apply last segmentation result to canvas"
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "accept" }) }
+					verifyPainteraNotDisabled()
+					verify(" label is not valid ") { isLabelValid }
+					onAction {
+						applyPrediction()
+						clearPromptDrawings()
+						currentPredictionRequest = null
+						primaryClickLabel = null
+						primaryClickLabelToggleGroup.selectedToggle?.isSelected = false
+						temporaryPrompt = true
+					}
+				}.also { applyPredictionAction = it }
+
+				KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+					name = "exit SAM tool"
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
+					onAction { mode?.switchTool(mode.defaultTool) }
+				}
+			},
+
+			DeviceManager.xTouchMini?.let { device ->
+				activeViewerProperty.get()?.viewer()?.let { viewer ->
+					painteraMidiActionSet("sam", device, viewer) {
+						MidiToggleEvent.BUTTON_TOGGLE(8) {
+							name = "PrimaryClickIn"
+							afterRegisterEvent = {
+								toggleDisplayProperty.bind(primaryClickLabelProperty.isEqualTo(SamPredictor.SparseLabel.IN))
+							}
+							onAction { primaryClickToggleIncludeAction(null) }
+						}
+						MidiToggleEvent.BUTTON_TOGGLE(9) {
+							name = "PrimaryClickOut"
+							afterRegisterEvent = {
+								toggleDisplayProperty.bind(primaryClickLabelProperty.isEqualTo(SamPredictor.SparseLabel.OUT))
+							}
+							onAction { primaryClickToggleExcludeAction(null) }
+						}
+
+						MidiButtonEvent.BUTTON_PRESSED(10) {
+							name = "ResetPrompt"
+							verifyEventNotNull()
+							onAction { resetPromptAction(null) }
+						}
+						MidiButtonEvent.BUTTON_PRESSED(11) {
+							name = "ApplyPrediction"
+							verifyEventNotNull()
+							onAction {
+								applyPredictionAction(null)
+								resetPromptAction(null)
 							}
 						}
 
-						/* If no event, triggered via button, wait for click before continuing */
-						(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
-							val points = currentPredictionRequest?.first.addPoints(SamPoint(event.x * screenScale, event.y * screenScale, SamPredictor.SparseLabel.OUT))
-							temporaryPrompt = false
-							requestPrediction(points)
+						MidiFaderEvent.FADER(0) {
+							estimatedThresholdProperty.addListener { _, _, est ->
+								min = (thresholdBounds.min).toInt()
+								max = (thresholdBounds.max).toInt()
+							}
+							onAction {
+								threshold = it!!.value.toDouble()
+								(currentPredictionRequest?.first as? SparsePrediction)?.points?.let {
+									requestPrediction(it, false)
+								}
+							}
+						}
+
+						MidiPotentiometerEvent.POTENTIOMETER_ABSOLUTE(7) {
+							displayType = VPotControl.DisplayType.FAN
+							asPercent = true
+							estimatedThresholdProperty.addListener { _, _, estimated ->
+								/*do nothing if estimated threshold is null */
+								estimated ?: return@addListener
+								val thresholdPercent = ((threshold - thresholdBounds.min) / (thresholdBounds.max - thresholdBounds.min)).absoluteValue.coerceIn(0.0, 1.0)
+								control.setValueSilently((127 * thresholdPercent).toInt())
+								control.display()
+							}
+							onAction {
+								threshold = thresholdBounds.min + (thresholdBounds.max - thresholdBounds.min) * it!!.value.toDouble()
+								(currentPredictionRequest?.first as? SparsePrediction)?.points?.let {
+									requestPrediction(it, false)
+								}
+							}
 						}
 					}
 				}
-			}
+			},
 
-			KEY_PRESSED(KeyCode.DELETE, KeyCode.BACK_SPACE) {
-				name = "Reset Prompt"
-				graphic = { GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }) }
-				onAction {
-					resetPromptAndPrediction()
+			painteraDragActionSet("box prediction request", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
+				onDrag { mouse ->
+
+					val xInBounds = mouse.x.coerceIn(0.0, activeViewer!!.width)
+					val yInBounds = mouse.y.coerceIn(0.0, activeViewer!!.height)
+
+					val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
+					val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
+
+					val topLeft = SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
+					val bottomRight = SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
+					val points = setBoxPrompt(topLeft, bottomRight)
+					temporaryPrompt = false
+					requestPrediction(points)
 				}
 			}
-
-			KEY_PRESSED(KeyCode.ENTER) {
-				name = "apply last segmentation result to canvas"
-				graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "accept" }) }
-				verifyPainteraNotDisabled()
-				verify(" label is not valid ") { isLabelValid }
-				onAction {
-					applyPrediction()
-					currentPredictionRequest = null
-				}
-			}
-
-			KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
-				name = "exit SAM tool"
-				graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply {styleClass += "ignore-disable"} }
-				onAction { mode?.switchTool(mode.defaultTool) }
-			}
-		},
-
-		DeviceManager.xTouchMini?.let { device ->
-			activeViewerProperty.get()?.viewer()?.let { viewer ->
-				painteraMidiActionSet("midi sam tool actions", device, viewer, PaintActionType.Paint) {
-					MidiButtonEvent.BUTTON_PRESED(8) {
-						onAction { controlMode = true }
-					}
-					MidiButtonEvent.BUTTON_RELEASED(8) {
-						onAction { controlMode = false }
-					}
-				}
-			}
-		},
-
-		painteraDragActionSet("box prediction request", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
-			onDrag { mouse ->
-				val (minX, maxX) = (if (startX < mouse.x) startX to mouse.x else mouse.x to startX)
-				val (minY, maxY) = (if (startY < mouse.y) startY to mouse.y else mouse.y to startY)
-
-				val topLeft = SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
-				val bottomRight = SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
-				val points = setBoxPrompt(topLeft, bottomRight)
-				temporaryPrompt = false
-				requestPrediction(points)
-			}
-		}
-	)
+		)
+	}
 
 	private fun resetPromptAndPrediction() {
 		clearPromptDrawings()
@@ -831,7 +888,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				var noneAccepted = true
 				val thresholdFilter = Converters.convert(
-					BundleView(predictedImage),
+					BundleView(predictedImage.extendValue(Float.NEGATIVE_INFINITY)),
 					{ predictionMaskRA, output ->
 						val predictionType = predictionMaskRA.get()
 						val predictionValue = predictionType.get()
@@ -1023,6 +1080,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		thresholdBounds = Bounds(minThreshold, maxThreshold)
 		threshold = binVar.get().toDouble()
+		estimatedThreshold = threshold
 	}
 
 	private fun intervalOfBox(points: List<SamPoint>, samPrediction: SamPredictor.SamPrediction, lowRes: Boolean = false): FinalInterval? {
