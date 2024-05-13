@@ -1,0 +1,50 @@
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: Publish Installers
+
+on:
+  push:
+    tags: "paintera-*.*.*"
+  workflow_dispatch:
+
+
+
+env:
+  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
+  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.Paintera # Unique to your app, often the launcher class
+
+jobs:
+  build_installers:
+    name: Build Installers
+    uses: ./.github/workflows/build-installers.yml
+
+  create_release:
+    needs: build_installers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+      - name: Set Version
+        run: |
+          tag_name=$(echo ${{ github.ref }} | grep -oE "[^/]+$")
+          echo "VERSION=$tag_name" >> $GITHUB_ENV
+      - name: Display structure of downloaded files
+        run: ls -R
+      - name: Rename Artifacts
+        run: |
+          mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
+          mv Paintera-ubuntu-latest-*/*.deb Paintera-${{ env.VERSION }}_x86_64.deb
+          mv Paintera-macos-latest-*/*.dmg Paintera-${{ env.VERSION }}-MacOS.dmg
+          mv Paintera-macos-14-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Paintera ${{ env.VERSION }}
+          tag_name: ${{ github.ref }}
+          prerelease: false
+          files: |
+            Paintera-${{ env.VERSION }}-Windows.msi
+            Paintera-${{ env.VERSION }}_x86_64.deb
+            Paintera-${{ env.VERSION }}-MacOS.dmg
+            Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
