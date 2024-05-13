@@ -152,6 +152,7 @@ class ViewerMask private constructor(
 	 */
 	val xScaleChange get() = (Affine3DHelpers.extractScale(initialGlobalToMaskTransform, 0) / Affine3DHelpers.extractScale(currentGlobalToMaskTransform, 0))
 
+	val initialMaskToGlobalWithDepthTransform: AffineTransform3D = initialGlobalToMaskTransform.inverse().copy().concatenate(depthScaleTransform)
 	val initialMaskToSourceWithDepthTransform: AffineTransform3D = initialMaskToSourceTransform.copy().concatenate(depthScaleTransform)
 	val currentMaskToSourceWithDepthTransform: AffineTransform3D = currentMaskToSourceTransform.copy().concatenate(depthScaleTransform)
 	private val maskSourceInterval
