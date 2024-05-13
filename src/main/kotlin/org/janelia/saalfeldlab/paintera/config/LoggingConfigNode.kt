@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.config
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.LoggerContext
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.InvalidationListener
 import javafx.beans.property.ObjectProperty
@@ -20,10 +21,12 @@ import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.MatchSelection
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
+import org.slf4j.LoggerFactory
 
 class LoggingConfigNode(private val config: LoggingConfig) {
 
@@ -122,12 +125,25 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 				}
 			}
 		}
+
+		val loggerList = FXCollections.observableArrayList<String>()
+		val updateLoggerList = {
+			(LoggerFactory.getILoggerFactory() as? LoggerContext)?.let {
+				loggerList.setAll(it.loggerList.map { logger -> logger.name }.toList())
+			}
+		}
 		val newLoggerField = TextField("")
-		val newLoggerChoiceBox = logLevelChoiceBox(null)
+		val matcherField = MatchSelection.fuzzyTop(loggerList, { name -> newLoggerField.text = name }, 5)
+		matcherField.emptyBehavior = MatchSelection.EmptyBehavior.MATCH_NONE
+		matcherField.promptText = "Search for Loggers..."
+		matcherField.focusedProperty().addListener { _, _, focused -> if (focused) updateLoggerList() }
+
+		val newLogLevelChoiceBox = logLevelChoiceBox(null)
 		val newLoggerButton = Buttons
-			.withTooltip(null) { config.setLogLevelFor(newLoggerField.text, newLoggerChoiceBox.value) }
+			.withTooltip(null) { config.setLogLevelFor(newLoggerField.text, newLogLevelChoiceBox.value) }
 			.also { it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
 		val listener = InvalidationListener {
+			updateLoggerList()
 			val name = newLoggerField.text
 			val isRootLoggerName = LogUtils.rootLogger.name == name
 			val isExistingLogger = name in keys
@@ -147,11 +163,13 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 			newLoggerField.textProperty().addListener(listener)
 			listener.invalidated(newLoggerField.textProperty())
 			add(newLoggerField, 0, row)
-			add(newLoggerChoiceBox, 1, row)
+			add(newLogLevelChoiceBox, 1, row)
 			add(newLoggerButton, 2, row)
+			add(matcherField, 0, row + 1, GridPane.REMAINING, GridPane.REMAINING)
+			GridPane.setHgrow(matcherField, Priority.ALWAYS)
+			GridPane.setVgrow(matcherField, Priority.ALWAYS)
+			matcherField.maxWidthProperty().bind(widthProperty())
 		}
-
-
 	}
 
 }
