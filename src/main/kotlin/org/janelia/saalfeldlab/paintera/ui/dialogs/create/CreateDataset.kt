@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 
 import bdv.viewer.Source
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
@@ -54,12 +55,9 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.slf4j.LoggerFactory
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import java.nio.file.Path
 import java.util.*
-import kotlin.streams.toList
 
 
 class CreateDataset(private val currentSource: Source<*>?, vararg allSources: SourceState<*, *>) {
@@ -67,7 +65,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 	private val mipmapLevels = FXCollections.observableArrayList<MipMapLevel>()
 	private val mipmapLevelsNode by lazy {
-		createMipMapLevelsNode(mipmapLevels, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
+		createMipMapLevelsNode(mipmapLevels, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray())
 	}
 
 	private val populateFromCurrentSource = MenuItem("_From Current Source").apply {
@@ -113,7 +111,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	}
 
 	private val n5Container: DirectoryField = DirectoryField(System.getProperty("user.home"), FIELD_WIDTH)
-	private val dataset = stringField("", *SubmitOn.values()).apply {
+	private val dataset = stringField("", *SubmitOn.entries.toTypedArray()).apply {
 		textField.textProperty().addListener { _, _, newv: String? ->
 			if (!nameField.manuallyNamed && newv != null) {
 				nameField.text = newv.split("/").toTypedArray().last()
@@ -122,10 +120,10 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	}
 
 
-	private val dimensions = SpatialField.longField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val blockSize = SpatialField.intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val resolution = SpatialField.doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.values())
-	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.values())
+	private val dimensions = SpatialField.longField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private val blockSize = SpatialField.intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private val resolution = SpatialField.doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
 	private val scaleLevels = TitledPane("Scale Levels", mipmapLevelsNode)
 	private val pane = VBox(
 		nameIt("Name", NAME_WIDTH, true, nameField),
@@ -158,7 +156,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			}
 		})
 		currentSource?.let { populateFrom(it) } ?: let {
-			val scale0 = MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
+			val scale0 = MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray())
 			provideAbsoluteValues(listOf(scale0), resolution, dimensions)
 			mipmapLevels += scale0
 		}
@@ -249,7 +247,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				val dataset = dataset.value
 				val name = nameField.text
 				try {
-					LOG.debug("Trying to create empty label dataset `{}' in container `{}'", dataset, container)
+					LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
 					if (dataset.isNullOrEmpty()) throw IOException("Dataset not specified!")
 					if (name.isNullOrEmpty()) throw IOException("Name not specified!")
 
@@ -276,7 +274,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }
 					}
 				} catch (ex: IOException) {
-					LOG.error("Unable to create empty dataset", ex)
+					LOG.error(ex) { "Unable to create empty dataset" }
 					e.consume()
 					exceptionAlert(Constants.NAME, "Unable to create new dataset: ${ex.message}", ex).show()
 				}
@@ -293,42 +291,45 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	}
 
 	private fun populateFrom(source: Source<*>?) {
-		source?.let {
-			val mdSource =
-				source as? N5DataSource<*, *>
-					?: (source as? MaskedSource<*, *>)?.let { it.underlyingSource() as? N5DataSource<*, *> }
-			mdSource?.let {
-				val blockdims = it.metadataState.datasetAttributes.blockSize
-				blockSize.x.value = blockdims[0]
-				blockSize.y.value = blockdims[1]
-				blockSize.z.value = blockdims[2]
-			}
-			val data = source.getSource(0, 0)
-			dimensions.x.value = data.dimension(0)
-			dimensions.y.value = data.dimension(1)
-			dimensions.z.value = data.dimension(2)
-			if (data is AbstractCellImg<*, *, *, *>) {
-				val grid = data.cellGrid
-				blockSize.x.value = grid.cellDimension(0)
-				blockSize.y.value = grid.cellDimension(1)
-				blockSize.z.value = grid.cellDimension(2)
-			}
-			val transform = AffineTransform3D()
-			source.getSourceTransform(0, 0, transform)
-			resolution.x.value = transform[0, 0]
-			resolution.y.value = transform[1, 1]
-			resolution.z.value = transform[2, 2]
-			offset.x.value = transform[0, 3]
-			offset.y.value = transform[1, 3]
-			offset.z.value = transform[2, 3]
-			setMipMapLevels(it)
+		val metadataSource = when (source ) {
+			null -> return
+			is N5DataSource<*,*> -> source
+			is MaskedSource<*, *> -> source.underlyingSource() as? N5DataSource<*, *>
+			else -> null
 		}
+
+		metadataSource?.let {
+			val blockDims = it.metadataState.datasetAttributes.blockSize
+			blockSize.x.value = blockDims[0]
+			blockSize.y.value = blockDims[1]
+			blockSize.z.value = blockDims[2]
+		}
+		val data = source.getSource(0, 0)
+		dimensions.x.value = data.dimension(0)
+		dimensions.y.value = data.dimension(1)
+		dimensions.z.value = data.dimension(2)
+		if (data is AbstractCellImg<*, *, *, *>) {
+			val grid = data.cellGrid
+			blockSize.x.value = grid.cellDimension(0)
+			blockSize.y.value = grid.cellDimension(1)
+			blockSize.z.value = grid.cellDimension(2)
+		}
+		val transform = AffineTransform3D()
+		source.getSourceTransform(0, 0, transform)
+		resolution.x.value = transform[0, 0]
+		resolution.y.value = transform[1, 1]
+		resolution.z.value = transform[2, 2]
+		offset.x.value = transform[0, 3]
+		offset.y.value = transform[1, 3]
+		offset.z.value = transform[2, 3]
+
+		setMipMapLevels(source)
 	}
 
 	private fun setMipMapLevels(source: Source<*>) {
 
 		/* s0 has relative factors of 1, since s0 is the base */
-		val levels = mutableListOf(MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values()))
+		val levels = mutableListOf(MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray()))
 		val firstTransform = AffineTransform3D()
 		source.getSourceTransform(0, 0, firstTransform)
 		var previousFactors = doubleArrayOf(firstTransform[0, 0], firstTransform[1, 1], firstTransform[2, 2])
@@ -336,7 +337,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			val transform = AffineTransform3D()
 			source.getSourceTransform(0, i, transform)
 			val downsamplingFactors = doubleArrayOf(transform[0, 0], transform[1, 1], transform[2, 2])
-			val level = MipMapLevel(2, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.values())
+			val level = MipMapLevel(2, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray())
 			val relativeXFactor = downsamplingFactors[0] / previousFactors[0]
 			val relativeYFactor = downsamplingFactors[1] / previousFactors[1]
 			val relativeZFactor = downsamplingFactors[2] / previousFactors[2]
@@ -351,7 +352,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 
 	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger {  }
 		private const val FIELD_WIDTH = 75.0
 		private const val NAME_WIDTH = 100.0
 		private const val ADD_BUTTON = "AddButton"
@@ -380,7 +381,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		}
 
 		private fun provideAbsoluteValues(mipmapLevels: List<MipMapLevel>, resolution: SpatialField<DoubleProperty>, baseDimensions: SpatialField<LongProperty>) {
-			val baseAbsoluteFactors = SpatialField.intField(1, { true }, FIELD_WIDTH, *SubmitOn.values()).also { it.editable = false }.also {
+			val baseAbsoluteFactors = SpatialField.intField(1, { true }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).also { it.editable = false }.also {
 				it.x.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.x.valueProperty())
 				it.y.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.y.valueProperty())
 				it.z.valueProperty().bind(mipmapLevels[0].relativeDownsamplingFactors.z.valueProperty())
