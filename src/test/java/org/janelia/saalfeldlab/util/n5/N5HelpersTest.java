@@ -102,14 +102,14 @@ public class N5HelpersTest {
 		Assert.assertEquals("group/s2", String.join("/", N5Helpers.getCoarsestLevelJoinWithGroup(writer, group)));
 	}
 
-	//  @Test FIXME meta
+  	@Test
 	public void testDiscoverDatasets() throws IOException {
 
 		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
-		final DatasetAttributes attrs = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
+		final DatasetAttributes attrs = new DatasetAttributes(new long[]{1, 1, 1}, new int[]{1, 1, 1}, DataType.UINT8, new RawCompression());
 		writer.createDataset(group + "/s0", attrs);
 		writer.createDataset(group + "/s1", attrs);
 		writer.createDataset(group + "/s2", attrs);
@@ -120,12 +120,12 @@ public class N5HelpersTest {
 
 		final var groups = metadataTree.stream()
 				.flatMap(N5TreeNode::flattenN5Tree)
-				.filter(node -> !node.childrenList().isEmpty())
+				.filter(node -> node.getMetadata() != null)
 				.map(N5TreeNode::getPath)
 				.sorted()
 				.collect(Collectors.toCollection(ArrayList::new));
 		LOG.debug("Got groups {}", groups);
-		Assert.assertEquals(Arrays.asList("/group", "/some_group/two"), groups);
+		Assert.assertEquals(Arrays.asList("/group", "/group/s0", "/group/s1", "/group/s2", "/some_group/two"), groups);
 
 	}
 
