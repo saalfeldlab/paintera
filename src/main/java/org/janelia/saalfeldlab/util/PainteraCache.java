@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util;
 
+import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,11 +17,9 @@ public class PainteraCache {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static String USER_HOME = System.getProperty("user.home");
-
 	public static Path getCacheFile(Class<?> clazz, final String filename) {
 
-		return Paths.get(USER_HOME, ".cache", "paintera", clazz.getName(), filename);
+		return Paths.get(PainteraDirectoriesConfig.DEFAULT_CACHE_DIR, clazz.getName(), filename);
 	}
 
 	public static List<String> readLines(Class<?> clazz, final String filename) {
