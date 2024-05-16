@@ -5,7 +5,6 @@ import javafx.application.Preloader
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.paintera.PainteraSplashScreen
-import org.janelia.saalfeldlab.paintera.SplashScreenShowPreloader
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNotification
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification
 import org.junit.Test
@@ -27,11 +26,15 @@ class SplashScreenTest : FxRobot() {
 	}
 }
 
+fun main(args: Array<String>) {
+	System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
+	Application.launch(SplashScreenApp::class.java, *args)
+}
+
 class SplashScreenApp : Application() {
 
 	override fun init() {
-		notifyPreloader(SplashScreenShowPreloader())
-		val task = Tasks.createTask<String> {
+		val task = Tasks.createTask {
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(10))
 			for (i in 0..10) {
 				Thread.sleep(250)

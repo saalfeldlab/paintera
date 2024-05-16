@@ -30,6 +30,7 @@ import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
+import java.lang.Runnable
 import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
@@ -61,8 +62,7 @@ class Paintera : Application() {
 			commandlineArguments = parameters.raw.toTypedArray()
 		}
 		painteraArgs = PainteraCommandLineArgs()
-		val parsedSuccessfully = parsePainteraCommandLine(*commandlineArguments)
-		if (!parsedSuccessfully) {
+		if (commandlineArguments.isNotEmpty() && !parsePainteraCommandLine(*commandlineArguments)) {
 			Platform.exit()
 			return
 		}
@@ -77,11 +77,9 @@ class Paintera : Application() {
 		}
 
 		projectPath?.let {
-			notifyPreloader(SplashScreenShowPreloader())
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
 			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
 		} ?: let {
-			notifyPreloader(SplashScreenShowPreloader())
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
 			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
 		}
@@ -163,36 +161,6 @@ class Paintera : Application() {
 
 		paintera.setupStage(primaryStage)
 		primaryStage.show()
-//NOTE: Uncomment for an FPS window. TODO: Probably should add some debug/developer menu
-
-//        val fpsWindow = Stage().apply {
-//            val averageFps = Label()
-//            val instantFps = Label()
-//			scene = Scene(VBox(averageFps, instantFps), 400.0, 60.0).apply {
-//                val tracker = PerformanceTracker.getSceneTracker(primaryStage.scene)
-//                val frameRateMeter: AnimationTimer = object : AnimationTimer() {
-//
-//					val nanosPerSecond = 10.0.pow(9.0)
-//					val averageWindow = 3 * nanosPerSecond
-//					var prevAvgTimeStamp = 0L
-//
-//                    override fun handle(now: Long) {
-//						val nanoDiff = now - prevAvgTimeStamp
-//						if (nanoDiff > averageWindow) {
-//							val secondDiff = nanoDiff / nanosPerSecond
-//							averageFps.text = "Average frame rate: ${tracker.averageFPS} fps"
-//							tracker.resetAverageFPS()
-//							prevAvgTimeStamp = now
-//						}
-//						instantFps.text = "Instantaneous frame rate: ${tracker.instantFPS} fps"
-//					}
-//                }
-//                frameRateMeter.start()
-//            }
-//            primaryStage.setOnCloseRequest { close() }
-//            show()
-//        }
-
 
 		paintera.properties.viewer3DConfig.bindViewerToConfig(paintera.baseView.viewer3D())
 

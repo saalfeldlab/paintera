@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.util.n5
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.BooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
@@ -85,7 +86,7 @@ object N5Helpers {
 	const val PAINTERA_DATA_DATASET = "data"
 	const val PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET = "fragment-segment-assignment"
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
-	private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+	private val LOG = KotlinLogging.logger {  }
 
 	private val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
 		OmeNgffMetadataParser(),
@@ -114,7 +115,7 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun isPainteraDataset(n5: N5Reader, group: String?): Boolean {
 		val isPainteraDataset = n5.exists(group) && n5.listAttributes(group)?.containsKey(PAINTERA_DATA_KEY) == true
-		LOG.debug("Is {}/{} Paintera dataset? {}", n5, group, isPainteraDataset)
+		LOG.debug { "Is $n5/$group Paintera dataset? $isPainteraDataset" }
 		return isPainteraDataset
 	}
 
@@ -143,12 +144,7 @@ object N5Helpers {
 			isMultiScale = subGroups.isNotEmpty() && areAllSubGroupsValid(n5, group, subGroups)
 
 			if (isMultiScale) {
-				LOG.debug(
-					"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in the future. Please add \"{}\":{} to attributes.json.",
-					MULTI_SCALE_KEY,
-					MULTI_SCALE_KEY,
-					true
-				)
+				LOG.debug { "Found multi-scale group without $MULTI_SCALE_KEY tag. Implicit multi-scale detection will be removed in the future. Please add \"$MULTI_SCALE_KEY\":true to attributes.json."}
 			}
 		}
 		return isMultiScale
@@ -176,7 +172,7 @@ object N5Helpers {
 			.filter { it.matches("^s\\d+$".toRegex()) }
 			.filter { scaleDir -> n5.datasetExists("$group/$scaleDir") }
 			.toTypedArray()
-		LOG.debug("Found these scale dirs: {}", scaleDirs.contentToString())
+		LOG.debug { "Found these scale dirs: ${scaleDirs.contentToString()}" }
 		return scaleDirs
 	}
 
@@ -194,7 +190,7 @@ object N5Helpers {
 	fun listAndSortScaleDatasets(n5: N5Reader, group: String): Array<String> {
 		val scaleDirs = listScaleDatasets(n5, group)
 		sortScaleDatasets(scaleDirs)
-		LOG.debug("Sorted scale dirs: {}", scaleDirs.contentToString())
+		LOG.debug { "Sorted scale dirs: ${scaleDirs.contentToString()}" }
 		return scaleDirs
 	}
 
@@ -207,7 +203,7 @@ object N5Helpers {
 	@JvmStatic
 	@Throws(IOException::class)
 	fun getDatasetAttributes(n5: N5Reader, group: String): DatasetAttributes? {
-		LOG.debug("Getting data type for group/dataset {}", group)
+		LOG.debug { "Getting data type for group/dataset $group" }
 		if (isPainteraDataset(n5, group)) {
 			return getDatasetAttributes(n5, "$group/$PAINTERA_DATA_DATASET")
 		}
@@ -229,15 +225,15 @@ object N5Helpers {
 	 * Find all datasets inside an n5 container
 	 * A dataset is any one of:
 	 * - N5 dataset
-	 * - multi-sclae group
+	 * - multi-scale group
 	 * - paintera dataset
 	 *
 	 * @param n5          container
-	 * @param discoverActive discover datasets while while `keepLooking.get() == true`
+	 * @param discoverActive discover datasets while `keepLooking.get() == true`
 	 * @return List of all contained datasets (paths wrt to the root of the container)
 	 */
 	@JvmStatic
-	fun parseMetadata(n5: N5Reader?, discoverActive: BooleanProperty?): Optional<N5TreeNode> {
+	fun parseMetadata(n5: N5Reader, discoverActive: BooleanProperty?): Optional<N5TreeNode> {
 		val threadFactory = NamedThreadFactory("dataset-discovery-%d", true)
 		val es = if (n5 is N5HDF5Reader) {
 			Executors.newFixedThreadPool(1, threadFactory)
@@ -247,7 +243,7 @@ object N5Helpers {
 		val stopDiscovery = ChangeListener<Boolean> { _, _, continueLooking -> if (!continueLooking) es.shutdown() }
 		discoverActive?.addListener(stopDiscovery)
 		val parsedN5Tree = parseMetadata(n5, es)
-		LOG.debug("Shutting down discovery ExecutorService.")
+		LOG.debug { "Shutting down discovery ExecutorService." }
 		/* we are done, remove our listener */
 		discoverActive?.removeListener(stopDiscovery)
 		es.shutdownNow()
@@ -270,7 +266,7 @@ object N5Helpers {
 	 * Find all datasets inside an n5 container
 	 * A dataset is any one of:
 	 * - N5 dataset
-	 * - multi-sclae group
+	 * - multi-scale group
 	 * - paintera dataset
 	 *
 	 * @param n5 container
@@ -287,8 +283,7 @@ object N5Helpers {
 			Optional.of(rootNode)
 		} catch (e: IOException) {
 			//FIXME give more info in error, remove stacktrace.
-			LOG.error("Unable to discover datasets")
-			e.printStackTrace()
+			LOG.error(e) { "Unable to discover datasets" }
 			Optional.empty()
 		}
 	}
@@ -341,7 +336,7 @@ object N5Helpers {
 				initialLut ,
 				N5FragmentSegmentAssignmentPersister(writer, dataset))
 		} catch (e: ReflectionException) {
-			LOG.debug("Unable to create initial lut supplier", e)
+			LOG.debug(e) { "Unable to create initial lut supplier" }
 			FragmentSegmentAssignmentOnlyLocal(
 				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 				N5FragmentSegmentAssignmentPersister(writer, dataset))
@@ -420,13 +415,10 @@ object N5Helpers {
 	@JvmStatic
 	@Throws(MaxIDNotSpecified::class, IOException::class)
 	fun idService(n5: N5Writer, dataset: String?): IdService {
-		LOG.debug("Requesting id service for {}:{}", n5, dataset)
+		LOG.debug { "Requesting id service for $n5:$dataset" }
 		val maxId = n5.getAttribute(dataset, "maxId", Long::class.java)
-		LOG.debug("Found maxId={}", maxId)
-		if (maxId == null) throw MaxIDNotSpecified(String.format(
-			"Required attribute `maxId' not specified for dataset `%s' in container `%s'.",
-			dataset,
-			n5))
+		LOG.debug { "Found maxId=$maxId" }
+		if (maxId == null) throw MaxIDNotSpecified("Required attribute `maxId' not specified for dataset `$dataset' in container `$n5'.")
 		return N5IdService(n5, dataset, maxId)
 	}
 
@@ -441,7 +433,7 @@ object N5Helpers {
 	fun getFinestLevel(
 		n5: N5Reader,
 		group: String): String {
-		LOG.debug("Getting finest level for dataset {}", group)
+		LOG.debug { "Getting finest level for dataset $group" }
 		val scaleDirs = listAndSortScaleDatasets(n5, group)
 		return scaleDirs[0]
 	}
@@ -558,7 +550,7 @@ object N5Helpers {
 		vararg fallBack: Double): DoubleArray {
 		if (reverse) {
 			val toReverse = getDoubleArrayAttribute(n5, group, key, false, *fallBack)
-			LOG.debug("Will reverse {}", toReverse)
+			LOG.debug { "Will reverse $toReverse" }
 			var i = 0
 			var k = toReverse.size - 1
 			while (i < toReverse.size / 2) {
@@ -568,7 +560,7 @@ object N5Helpers {
 				++i
 				--k
 			}
-			LOG.debug("Reversed {}", toReverse)
+			LOG.debug { "Reversed $toReverse" }
 			return toReverse
 		}
 		return if (isPainteraDataset(n5, group)) {
@@ -576,7 +568,7 @@ object N5Helpers {
 		} else try {
 			n5.getAttribute(group, key, DoubleArray::class.java) ?: fallBack
 		} catch (e: ClassCastException) {
-			LOG.debug("Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead.", e)
+			LOG.debug(e) { "Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead." }
 			n5.getAttribute(group, key, LongArray::class.java)?.map { it.toDouble() }?.toDoubleArray() ?: fallBack
 		}
 	}
@@ -713,12 +705,12 @@ object N5Helpers {
 	fun getLabelBlockLookup(metadataState: MetadataState): LabelBlockLookup {
 		val group = metadataState.group
 		val reader = metadataState.reader
-		LOG.debug("Getting label block lookup for {}", metadataState.metadata.getPath())
+		LOG.debug { "Getting label block lookup for ${metadataState.metadata.getPath()}" }
 		return if (isPainteraDataset(reader, group)) {
 			val gsonBuilder = GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
 			val gson = gsonBuilder.create()
 			val labelBlockLookupJson = reader.getAttribute(group, "labelBlockLookup", JsonElement::class.java)
-			LOG.debug("Got label block lookup json: {}", labelBlockLookupJson)
+			LOG.debug { "Got label block lookup json: $labelBlockLookupJson" }
 			val lookup = labelBlockLookupJson
 				?.takeIf { it.isJsonObject }
 				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
@@ -731,7 +723,7 @@ object N5Helpers {
 					labelBlockLookupMetadata.write(metadataState.writer!!)
 					relativeLookup
 				}  as LabelBlockLookup
-			LOG.debug("Got lookup type: {}", lookup.javaClass)
+			LOG.debug { "Got lookup type: ${lookup.javaClass}" }
 			lookup
 		} else throw NotAPainteraDataset(reader, group)
 	}

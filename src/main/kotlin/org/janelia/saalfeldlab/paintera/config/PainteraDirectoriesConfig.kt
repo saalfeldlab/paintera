@@ -39,10 +39,11 @@ class PainteraDirectoriesConfig {
 		get() = appCacheDir == APPLICATION_DIRECTORIES.cacheDir && tmpDir == TEMP_DIRECTORY
 
 	companion object {
-		@JvmStatic
+		@JvmField
 		internal val APPLICATION_DIRECTORIES = ProjectDirectories.from("org", "janelia", "Paintera")
-
-		@JvmStatic
+		@JvmField
+		internal val DEFAULT_CACHE_DIR = APPLICATION_DIRECTORIES.cacheDir
+		@JvmField
 		internal val TEMP_DIRECTORY = System.getProperty("java.io.tmpdir")
 	}
 }
