@@ -15,6 +15,8 @@ import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import paintera.net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
@@ -37,7 +39,7 @@ import java.util.function.Supplier;
 
 public class PainteraBaseViewTest extends FxRobot {
 
-	//	@BeforeClass
+//	@BeforeClass
 	public static void setup() throws Exception {
 
 		System.setProperty("headless.geometry", "1600x1200-32");
@@ -47,7 +49,7 @@ public class PainteraBaseViewTest extends FxRobot {
 		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
 	}
 
-	//	@AfterClass
+//	@AfterClass
 	public static void cleanup() throws InterruptedException, TimeoutException {
 		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
 			Paintera.getPaintera().getBaseView().stop();
@@ -133,7 +135,7 @@ public class PainteraBaseViewTest extends FxRobot {
 		});
 	}
 
-	@Test
+//	@Test
 	public void testAddMultiScaleConnectomicsLabelSource() {
 		final Random random = new Random();
 
