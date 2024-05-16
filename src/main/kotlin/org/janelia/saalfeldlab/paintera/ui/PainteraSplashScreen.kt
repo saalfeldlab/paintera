@@ -27,12 +27,11 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.math.roundToInt
 
 open class SplashScreenNotification : Preloader.PreloaderNotification
-class SplashScreenShowPreloader() : SplashScreenNotification()
-class SplashScreenFinishPreloader() : SplashScreenNotification()
+class SplashScreenFinishPreloader : SplashScreenNotification()
 class SplashScreenUpdateNumItemsNotification @JvmOverloads constructor(val numItems: Int, val increment: Boolean = false) : SplashScreenNotification()
 class SplashScreenUpdateNotification @JvmOverloads constructor(val text: String, val updateProgress: Boolean = true) : SplashScreenNotification()
 
-class PainteraSplashScreen() : Preloader() {
+class PainteraSplashScreen : Preloader() {
 	companion object {
 
 		private val SPLASH_SCREEN_RES = "/icon-256.png"
@@ -93,14 +92,9 @@ class PainteraSplashScreen() : Preloader() {
 
 
 	override fun handleApplicationNotification(info: PreloaderNotification) {
-		if (finished && info !is SplashScreenShowPreloader)
+		if (finished)
 			return
 		when (info) {
-			is SplashScreenShowPreloader -> {
-				finished = false
-				stage.show()
-			}
-
 			is SplashScreenUpdateNumItemsNotification -> {
 				if (info.increment) {
 					numItems += info.numItems
@@ -246,6 +240,7 @@ class PainteraSplashScreen() : Preloader() {
 		val scene = Scene(root, Color.TRANSPARENT)
 		stage.scene = scene
 		finalizeView()
+		stage.show()
 	}
 }
 
