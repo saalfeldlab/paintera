@@ -18,97 +18,34 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
     - [x] Mesh generation on-the-fly via marching cubes to incorporate painted labels and agglomerations in 3D visualization. Marching Cubes is parallelized over small blocks. Only relevant blocks are considered (huge speed-up for sparse label data).
     - [x] Adaptive mesh details, i.e. only show high-resolution meshes for blocks that are closer to camera.
 
-## Installation and Usage
-
-Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven.
+## Installation
 
 Development version of Paintera are released as standalone platform specific installers, see [development releases](#development-releases) for installation instructions.
-### Conda
 
-Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
 
-Paintera installation requires an isolated conda environmet:
-```sh
-conda create --name paintera
-conda activate paintera
-```
-Paintera is available for installation from the `conda-forge` channel:
-```sh
-conda install -c conda-forge paintera
-```
-For reasons that are not fully transparent to us at this time, conda may decide to install an outdated version of Paintera instead of the most recent one, you can fix this by updating Paintera:
-```sh
-conda update -c conda-forge paintera
-```
-Paintera can then be executed with the `paintera` command:
-```
-paintera [[JGO ARG... ][JVM ARG...] -- ][ARG...]
-```
-If you cannot see 3D rendering of objects or orthoslices, and Paintera floods the terminal with error messages like:
-```sh
-...
-Feb 05, 2021 1:21:53 PM javafx.scene.shape.Mesh <init>
-WARNING: System can't support ConditionalFeature.SCENE3D
-...
-```
-please try to start it with forced GPU rendering:
-```sh
-paintera [JGO ARG... ][JVM ARG... ]-Dprism.forceGPU=true -- [ARG...]
-```
+<details>
+<summary><b>Building Paintera</b></summary>
+
+## Building from source
 
 ### Dependencies
 
-##### *Note* This section is not required if installing via the [conda](#conda) `paintera` package.
+Paintera requires Java (JDK 21) and Maven to be installed. The following are a few ways to install them:
 
-OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](https://conda.io), respectively.
+<details>
+<summary><b>Conda</b></summary>
+
+OpenJDK 21 and Maven are available through `conda-forge` channel on [conda](https://conda.io), respectively.
 ```sh
 conda install -c conda-forge openjdk maven
 ```
+</details>
 
-Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for installation on many Linux distributions.
+<details>
+<summary><b>SdkMan</b></summary>
 
-On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
-### Pip
-#### Note: If installing via pip, it will be necessary to have Java 11 and Maven installed manually.
-
-Paintera is [available on the Python Package Index](https://pypi.org/project/paintera) and can be installed through pip ([`Python >= 3.6`](https://www.python.org) required):
-```sh
-pip install paintera
-```
-Generally, it is advisable to install packages into user space with pip, i.e.
-```sh
-pip install --user paintera
-```
-On Linux, the packages will be installed into `$HOME/.local` and Paintera will be located at
-```sh
-$HOME/.local/bin/paintera
-```
-You can add `$HOME/.local/bin` to the `PATH` to make the `paintera` accessible from different locations.
-Paintera can then be executed with the `paintera` command:
-```
-paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
-```
-
-We recommend setting these JVM options:
-
-| Option  | Description                                               |
-|---------|-----------------------------------------------------------|
-| -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
-
-## Running from source
-
-Clone the paintera git repository:
-```sh
-git clone https://github.com/saalfeldlab/paintera.git
-cd paintera
-```
-
-To run Paintera from source requires the dependencies listed in the above [dependencies](#Dependencies) section.
-
-### Source Dependencies via sdkman
-
-Alternatively, you can utilize [sdkman](https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
+[sdkman](https://sdkman.io/install) can be used to manage the appropriate java and maven versions. Install sdkman as follows:
 
 *Note*: If using windows, the following sdk commands must be run via either [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](https://www.cygwin.com/install.html) or [Git Bash For Windows](https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](https://sdkman.io/install) instructions.
 
@@ -119,11 +56,11 @@ source "$HOME/.sdkman/bin/sdkman-init.sh"
 
 Once sdkman is installed, you can install the appropriate java version with:
 ```shell
-sdk install java 11.0.10-open
+sdk install java 21.0.2-open
 ```
 `sdk` will then prompt whether to change to that version of java for your system default. If you say "No", then you will want to specify that you'd like to use Java 11 locally in your paintera directory. To do this, navigate to the `paintera` directory cloned in the above step, and execute:
 ```shell
-sdk use java 11.0.10-open
+sdk use java 21.0.2-open
 # verify active version
 sdk current java
 ```
@@ -133,32 +70,33 @@ Similarly, you can install maven via `sdkman` if you desire:
 sdk install maven
 ```
 
-### Running Paintera
+</details>
+
+<details>
+<summary><b>Manually</b></summary>
+
+Java 21 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for installation on many Linux distributions.
+
+On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/downloads/#java21) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
+</details>
+
+### Running from source
+
+Clone the paintera git repository:
+```sh
+git clone https://github.com/saalfeldlab/paintera.git
+cd paintera
+```
+
 To run paintera, execute the follow maven goal:
 ```sh
 mvn javafx:run
 ```
+</details>
 
-## Development Releases
-
-**NOTE** This is still an experimentally supported installation method, and should only be used to test Paintera features still in development.
-For supported releases, please install via [conda](#conda).
-
-Latest development releases that track against the current `master` branch are available as standalone installers for Windows, Ubuntu, and MacOS.
-
-Download the latest build from the [Paintera Releases](https://github.com/saalfeldlab/paintera/releases) page under the `Assets` section for the deired platform.
-
-Some known issues with these installers:
-- No icon on some platforms (at least Ubuntu)
-- Doesn't install as command line tool
-- Must be installed manually to update versions
-
-It's possible that this will replace the current release process, but for now, we have not committed to this.
-
-Some discussion around this can be found [in github issue #253](https://github.com/saalfeldlab/paintera/issues/253)
-
-## Display help message and command line parameters
-The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line.
+## Usage
+### Display help message and command line parameters
+The following assumes that the `paintera` command is available on the command line.
 ```shell
 $ paintera --help
 Usage: Paintera [--add-n5-container=<container>...
@@ -292,9 +230,7 @@ Usage: Paintera [--add-n5-container=<container>...
                                Default: -1
 ```
 
-# Usage
-
-Tutorial videos:
+## Tutorial videos:
 * [10 minute overview of Paintera](https://www.youtube.com/watch?v=rNJotgwUYqc)
 * [1 hour in-depth Paintera tutorial](https://www.youtube.com/watch?v=ZDcK0aCLoRc)
 
@@ -397,22 +333,23 @@ Tutorial videos:
   - Segment Anything [Automatic Labelling](#automatic-labelling-segment-anything)
   - Label Selection
 
-| Action                            | Description                                                                                |
-|-----------------------------------|--------------------------------------------------------------------------------------------|
-| `S`                               | Toggle Shape Interpolation mode                                                            |
-| `Esc`                             | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
-| `Shift` + `Up` / `Shift` + `Down` | Move to first/last slice                                                                   |
-| `Left` / `Right`                  | Move to the previous/next slice                                                            |
-| `Enter`                           | Commit interpolated shape into canvas                                                      |
-| `Ctrl` + `P`                      | Toggle interpolation preview                                                               |
-| Left Click                        | Exclusively select the label under the cursor, **removing** all other labels at this slice |
-| Right Click                       | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
-| `F`                               | Activate 2D Flood Fill Tool                                                                |
-| Hold `SPACE`                      | Activate PAINT Tool                                                                        |
-| `A`                               | Activate SAM Tool                                                                          |
-| `P`                               | Bisect all current slices with new SAM auto-segmentation slices                            |
-| `[`                               | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
-| `]`                               | Add a new SAM auto-segmentation slices to the end of the current slices                    |
+| Action                               | Description                                                                                |
+|--------------------------------------|--------------------------------------------------------------------------------------------|
+| `S`                                  | Toggle Shape Interpolation mode                                                            |
+| `Esc`                                | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
+| `Shift` + `Left` / `Shift` + `Right` | Move to first/last slice                                                                   |
+| `Left` / `Right`                     | Move to the previous/next slice                                                            |
+| `Enter`                              | Commit interpolated shape into canvas                                                      |
+| `Ctrl` + `P`                         | Toggle interpolation preview                                                               |
+| Left Click                           | Exclusively select the label under the cursor, **removing** all other labels at this slice |
+| Right Click                          | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
+| `F`                                  | Activate 2D Flood Fill Tool                                                                |
+| Hold `SPACE`                         | Activate PAINT Tool                                                                        |
+| `A`                                  | Activate SAM Tool                                                                          |
+| `'` (Single Quote)                   | Bisect nearest two slices with new SAM auto-segmentation slice                             |
+| `"` (Double Quote)                   | Bisect all slices with new SAM auto-segmentation slices                                    |
+| `[`                                  | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
+| `]`                                  | Add a new SAM auto-segmentation slices to the end of the current slices                    |
 
 #### Automatic Labelling: Segment Anything
 - Integrates Segment Anything to predict automatic segmentations, based on the underlying image
@@ -434,11 +371,12 @@ See [Technical Notes](#)
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
+Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
+that is automatically installed with Paintera from [conda](#conda) or [pip](#pip)
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
-  --revert-array-attributes \
+  --reverse-array-attributes \
   --output-container=example.n5 \
   --container=sample_A_padded_20160501.hdf \
     -d volumes/raw \
@@ -451,7 +389,7 @@ paintera-convert to-paintera \
 In this example:
 
 - `--scale` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
-- `--revert-array-attributes` reverses array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
+- `--reverse-array-attributes` reverses array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
 - `--output-container` specifies the path to the output n5 container
 - `--container` specifies the path to the input container
   - `-d` adds a input dataset for conversion
@@ -697,3 +635,78 @@ If you want to run the service locally, follow the instruction at [JaneliaSciCom
 
 Then, before launching Paintera, set the enviornmental variable `SAM_SERVICE_HOST` to the hostname or ip-address of the new service host.
 
+
+<details>
+<summary>Legacy (Deprecated)</summary>
+
+### Installing Paintera
+
+The following may or may not work with the current Paintera version. If using one of the following methods, verify the version of Paintera that is installed, as it likely is an old release.
+<details>
+<summary><b>Conda</b></summary>
+
+#### Conda
+
+Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
+
+Paintera installation requires an isolated conda environmet:
+```sh
+conda create --name paintera
+conda activate paintera
+```
+Paintera is available for installation from the `conda-forge` channel:
+```sh
+conda install -c conda-forge paintera
+```
+For reasons that are not fully transparent to us at this time, conda may decide to install an outdated version of Paintera instead of the most recent one, you can fix this by updating Paintera:
+```sh
+conda update -c conda-forge paintera
+```
+Paintera can then be executed with the `paintera` command:
+```
+paintera [[JGO ARG... ][JVM ARG...] -- ][ARG...]
+```
+If you cannot see 3D rendering of objects or orthoslices, and Paintera floods the terminal with error messages like:
+```sh
+...
+Feb 05, 2021 1:21:53 PM javafx.scene.shape.Mesh <init>
+WARNING: System can't support ConditionalFeature.SCENE3D
+...
+```
+please try to start it with forced GPU rendering:
+```sh
+paintera [JGO ARG... ][JVM ARG... ]-Dprism.forceGPU=true -- [ARG...]
+```
+</details>
+<details>
+<summary><b>Pip</b></summary>
+
+
+#### Pip
+#### Note: If installing via pip, it will be necessary to have Java and Maven installed manually.
+
+Paintera is [available on the Python Package Index](https://pypi.org/project/paintera) and can be installed through pip ([`Python >= 3.6`](https://www.python.org) required):
+```sh
+pip install paintera
+```
+Generally, it is advisable to install packages into user space with pip, i.e.
+```sh
+pip install --user paintera
+```
+On Linux, the packages will be installed into `$HOME/.local` and Paintera will be located at
+```sh
+$HOME/.local/bin/paintera
+```
+You can add `$HOME/.local/bin` to the `PATH` to make the `paintera` accessible from different locations.
+Paintera can then be executed with the `paintera` command:
+```
+paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
+```
+
+We recommend setting these JVM options:
+
+| Option  | Description                                               |
+|---------|-----------------------------------------------------------|
+| -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
+</details>
+</details>
