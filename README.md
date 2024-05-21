@@ -1,7 +1,11 @@
 
-# Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6581156.svg)](https://doi.org/10.5281/zenodo.6581156)
+# Paintera 
+[![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11187904.svg)](https://doi.org/10.5281/zenodo.11187904)
+[![GitHub Release](https://img.shields.io/github/v/release/saalfeldlab/paintera)](https://github.com/saalfeldlab/paintera/releases)
 
-![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png "Paintera")
+
+![Paintera example with meshes for multiple neurons and synapses](https://github.com/saalfeldlab/paintera/blob/6226b9cbdeaeaa22a5f4c5088c3d2cc83646b143/img/social-preview-1280.png "Paintera")
 
 Paintera is a general visualization tool for 3D volumetric data and proof-reading in segmentation/reconstruction with a primary focus on neuron reconstruction from [electron micrographs](http://www.rsc.org/publishing/journals/prospect/ontology.asp?id=CMO:0001800&MSID=B310802C) in [connectomics](https://en.wikipedia.org/wiki/Connectomics). It features/supports:
 - [x] Views of orthogonal 2D cross-sections of the data at arbitrary angles and zoom levels
@@ -20,7 +24,8 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation
 
-Development version of Paintera are released as standalone platform specific installers, see [development releases](#development-releases) for installation instructions.
+The current version release version can be installed from the [Github Releases](https://github.com/saalfeldlab/paintera/releases)
+
 
 
 <details>
@@ -371,8 +376,10 @@ See [Technical Notes](#)
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
-that is automatically installed with Paintera from [conda](#conda) or [pip](#pip)
+Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage.
+The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well.
+Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper).
+For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
