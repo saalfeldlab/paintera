@@ -8,7 +8,7 @@ import net.imglib2.type.BooleanType;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import paintera.net.imglib2.view.BundleView;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/

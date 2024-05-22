@@ -11,7 +11,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Modality
-import net.imglib2.converter.ARGBCompositeColorConverter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.fx.Menus
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions

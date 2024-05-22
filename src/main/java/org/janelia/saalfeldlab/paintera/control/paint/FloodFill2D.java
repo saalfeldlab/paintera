@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import javafx.animation.AnimationTimer;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -22,7 +22,7 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;

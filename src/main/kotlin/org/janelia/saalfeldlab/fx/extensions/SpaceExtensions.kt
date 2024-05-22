@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.fx.extensions
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 

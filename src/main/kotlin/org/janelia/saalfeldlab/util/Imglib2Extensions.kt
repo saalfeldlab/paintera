@@ -16,6 +16,7 @@ import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
 import kotlin.math.floor
 import kotlin.math.roundToLong
 

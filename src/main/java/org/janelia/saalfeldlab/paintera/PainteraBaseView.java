@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
-import bdv.fx.viewer.render.PainterThreadFx;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;

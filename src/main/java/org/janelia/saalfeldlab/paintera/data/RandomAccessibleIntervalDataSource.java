@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
-import javafx.scene.transform.Affine;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -10,7 +9,7 @@ import net.imglib2.cache.Invalidate;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
-import net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;

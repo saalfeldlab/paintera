@@ -8,7 +8,7 @@ import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;

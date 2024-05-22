@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.beans.property.ObjectProperty;

@@ -8,7 +8,7 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
-import paintera.net.imglib2.view.BundleView;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 

@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
+import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ColorPicker

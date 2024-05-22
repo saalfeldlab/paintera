@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.ObjectProperty
@@ -24,7 +24,7 @@ import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
-import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Translation3D
 import net.imglib2.type.BooleanType
@@ -59,9 +59,7 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import org.slf4j.LoggerFactory
-import paintera.net.imglib2.view.BundleView
-import java.lang.invoke.MethodHandles
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.concurrent.ExecutionException

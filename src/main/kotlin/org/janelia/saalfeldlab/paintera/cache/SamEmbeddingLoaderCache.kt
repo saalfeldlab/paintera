@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.cache
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import bdv.cache.SharedQueue
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.BaseRenderUnit
 import bdv.fx.viewer.render.RenderUnitState
 import bdv.viewer.Interpolation

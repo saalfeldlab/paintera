@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization.config;
 
-import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
+import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

@@ -16,6 +16,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
+import org.janelia.saalfeldlab.net.imglib2.converter.TypeVolatileConverter;
 
 import java.lang.invoke.MethodHandles;
 

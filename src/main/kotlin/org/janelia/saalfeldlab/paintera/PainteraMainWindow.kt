@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement

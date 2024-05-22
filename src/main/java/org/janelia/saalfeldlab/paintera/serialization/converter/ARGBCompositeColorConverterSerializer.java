@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBCompositeColorConverter;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;

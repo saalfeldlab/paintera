@@ -43,7 +43,7 @@ import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
-import net.imglib2.FinalRealRandomAccessibleRealInterval;
+import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -68,7 +68,7 @@ import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.loops.LoopBuilder;
-import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -82,15 +82,15 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
-import net.imglib2.util.AccessedBlocksRandomAccessible;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.UtilityTask;
-import paintera.net.imglib2.view.BundleView;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
-import net.imglib2.view.RealRandomAccessibleTriple;
+import org.janelia.saalfeldlab.net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -1400,7 +1400,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval interval) {
 
 		if (input instanceof AccessedBlocksRandomAccessible<?>) {
-			final var tracker = (net.imglib2.util.AccessedBlocksRandomAccessible<?>)input;
+			final var tracker = (AccessedBlocksRandomAccessible<?>)input;
 			if (grid.equals(tracker.getGrid())) {
 				final long[] blocks = tracker.listBlocks();
 				LOG.debug("Got these blocks from tracker: {}", blocks);

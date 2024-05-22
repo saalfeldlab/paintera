@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.hash.TLongHashSet;
@@ -26,7 +26,7 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.AccessBoxRandomAccessible;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;

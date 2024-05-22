@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
-import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
-import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import javafx.beans.InvalidationListener

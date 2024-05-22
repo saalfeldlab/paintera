@@ -53,7 +53,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.*
-import paintera.net.imglib2.view.BundleView
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import kotlin.collections.forEach
 import kotlin.collections.set
 
