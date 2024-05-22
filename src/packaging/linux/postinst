@@ -1,0 +1,1 @@
+ln -s /opt/paintera-convert/bin/paintera /usr/local/bin/paintera
