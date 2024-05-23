@@ -29,6 +29,8 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.project;
 
 import bdv.viewer.render.VolatileProjector;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
 import net.imglib2.FinalInterval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessible;
@@ -51,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -63,6 +66,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Tobias Pietzsch
  */
 public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero> implements VolatileProjector {
+
+	private static KLogger LOG = KotlinLogging.INSTANCE.logger(() -> null);
 
 	/**
 	 * A converter from the source pixel type to the target pixel type.
@@ -211,10 +216,12 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 
 		try {
 			LoopBuilder.setImages(mask).multiThreaded(taskExecutor).forEachPixel(val -> val.set(Byte.MAX_VALUE));
+		} catch (RejectedExecutionException e) {
+			LOG.trace(e, () -> "Clear Mask Rejected");
 		} catch (RuntimeException e) {
-			if (!e.getMessage().contains("Interrupted")) {
-				throw e;
-			}
+			if (e.getMessage() != null && e.getMessage().contains("Interrupted"))
+				LOG.trace(e, () -> "Clear Mask Interrupted");
+			else throw e;
 		}
 		numInvalidLevels = sources.size();
 	}
