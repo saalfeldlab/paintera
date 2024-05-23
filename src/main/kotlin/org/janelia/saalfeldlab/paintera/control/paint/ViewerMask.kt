@@ -219,7 +219,7 @@ class ViewerMask private constructor(
 	fun displayPointToInitialMaskPoint(displayX: Double, displayY: Double) = displayPointToInitialMaskPoint(RealPoint(displayX, displayY, 0.0))
 	fun displayPointToInitialMaskPoint(displayPoint: Point) = displayPointToInitialMaskPoint(displayPoint.positionAsRealPoint())
 	fun displayPointToInitialMaskPoint(displayPoint: RealPoint): Point {
-		val globalPoint = displayPoint.also { initialGlobalToViewerTransform.applyInverse(it, it) }
+		val globalPoint = displayPoint.also { currentGlobalToViewerTransform.applyInverse(it, it) }
 
 		val xyScaleOnly = depthScaleTransform.copy().also {
 			it.set(it.getScale(0), it.getScale(1), 1.0)
