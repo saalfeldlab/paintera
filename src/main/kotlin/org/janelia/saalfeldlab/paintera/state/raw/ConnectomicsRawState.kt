@@ -12,7 +12,7 @@ import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
-import net.imglib2.converter.ARGBColorConverter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType

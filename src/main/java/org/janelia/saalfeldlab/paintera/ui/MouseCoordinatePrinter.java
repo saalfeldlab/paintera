@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.TransformListener;
 import javafx.application.Platform;
 import javafx.event.EventHandler;

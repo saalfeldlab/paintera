@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;

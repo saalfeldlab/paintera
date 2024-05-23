@@ -12,7 +12,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import javafx.stage.Modality
-import net.imglib2.converter.ARGBColorConverter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField

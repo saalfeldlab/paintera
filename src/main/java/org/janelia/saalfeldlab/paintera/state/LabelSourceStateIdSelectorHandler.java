@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import javafx.concurrent.Task;
 import javafx.event.Event;
@@ -12,7 +12,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
-import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.Paintera;

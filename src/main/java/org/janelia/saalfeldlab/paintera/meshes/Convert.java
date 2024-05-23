@@ -5,8 +5,8 @@ import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 import javafx.geometry.Point3D;
-import net.imglib2.util.Triple;
-import net.imglib2.util.ValueTriple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.ValueTriple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

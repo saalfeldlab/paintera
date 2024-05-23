@@ -12,7 +12,7 @@ import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;

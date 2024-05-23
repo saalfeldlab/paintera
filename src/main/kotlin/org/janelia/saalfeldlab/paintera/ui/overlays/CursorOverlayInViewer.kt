@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.overlays
 
-import bdv.fx.viewer.ViewerPanelFX
-import bdv.fx.viewer.render.OverlayRendererGeneric
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.OverlayRendererGeneric
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableValue
 import javafx.event.EventHandler

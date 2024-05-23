@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty

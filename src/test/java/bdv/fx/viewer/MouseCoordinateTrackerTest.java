@@ -5,6 +5,7 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
+import org.janelia.saalfeldlab.bdv.fx.viewer.MouseCoordinateTracker;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.junit.Assert;
 import org.junit.Test;

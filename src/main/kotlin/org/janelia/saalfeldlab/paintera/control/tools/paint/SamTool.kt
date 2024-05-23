@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtException
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnitState
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
@@ -92,7 +92,7 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.algorithms.otsuThresholdPrediction
 import org.janelia.saalfeldlab.util.*
-import paintera.net.imglib2.view.BundleView
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.LinkedBlockingQueue

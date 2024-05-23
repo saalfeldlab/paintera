@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -16,7 +16,6 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
-import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;

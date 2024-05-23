@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.state;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.converter.ARGBColorConverter;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.real.DoubleType;

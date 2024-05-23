@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;

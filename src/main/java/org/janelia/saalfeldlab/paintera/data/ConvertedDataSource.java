@@ -9,8 +9,8 @@ import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.view.Views;
-import tmp.net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
-import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import org.janelia.saalfeldlab.net.imglib2.converter.read.read.ConvertedRandomAccessibleInterval;
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 
 import java.util.function.Function;
 import java.util.function.Predicate;

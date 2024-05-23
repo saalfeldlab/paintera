@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.hash.TIntHashSet;
-import net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

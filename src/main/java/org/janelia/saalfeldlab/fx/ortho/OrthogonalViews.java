@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;

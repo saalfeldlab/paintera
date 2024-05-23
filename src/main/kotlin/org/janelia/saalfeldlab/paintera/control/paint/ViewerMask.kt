@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
@@ -17,7 +17,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.util.LinAlgHelpers
-import paintera.net.imglib2.view.BundleView
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
@@ -219,7 +219,7 @@ class ViewerMask private constructor(
 	fun displayPointToInitialMaskPoint(displayX: Double, displayY: Double) = displayPointToInitialMaskPoint(RealPoint(displayX, displayY, 0.0))
 	fun displayPointToInitialMaskPoint(displayPoint: Point) = displayPointToInitialMaskPoint(displayPoint.positionAsRealPoint())
 	fun displayPointToInitialMaskPoint(displayPoint: RealPoint): Point {
-		val globalPoint = displayPoint.also { initialGlobalToViewerTransform.applyInverse(it, it) }
+		val globalPoint = displayPoint.also { currentGlobalToViewerTransform.applyInverse(it, it) }
 
 		val xyScaleOnly = depthScaleTransform.copy().also {
 			it.set(it.getScale(0), it.getScale(1), 1.0)

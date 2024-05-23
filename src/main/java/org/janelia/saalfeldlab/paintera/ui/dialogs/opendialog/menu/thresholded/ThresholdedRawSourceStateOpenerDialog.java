@@ -18,7 +18,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
-import net.imglib2.converter.ARGBColorConverter;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NumberField;

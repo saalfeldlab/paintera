@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+chown root:wheel "INSTALL_LOCATION"
+chmod a+rX "INSTALL_LOCATION"
+chmod +r "APP_LOCATION/"*.jar
+
+ln -s "$(realpath 'APP_LOCATION/../MacOS/paintera')" /usr/local/bin/paintera
+
+exit 0

@@ -5,7 +5,7 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.AbstractConvertedRealRandomAccess;
 import net.imglib2.converter.AbstractConvertedRealRandomAccessible;
-import net.imglib2.util.Triple;
+import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 
 import java.util.function.Function;
 

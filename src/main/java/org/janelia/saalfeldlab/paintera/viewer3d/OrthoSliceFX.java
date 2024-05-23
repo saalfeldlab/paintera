@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.render.PixelBufferWritableImage;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.PixelBufferWritableImage;
 import bdv.fx.viewer.render.ViewerRenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;

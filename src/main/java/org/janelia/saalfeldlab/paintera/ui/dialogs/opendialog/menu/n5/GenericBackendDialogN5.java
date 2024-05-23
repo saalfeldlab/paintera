@@ -26,7 +26,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBColorConverter;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;

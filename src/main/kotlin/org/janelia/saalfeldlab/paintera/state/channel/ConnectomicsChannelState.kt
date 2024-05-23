@@ -13,7 +13,7 @@ import javafx.beans.property.SimpleStringProperty
 import javafx.scene.Node
 import javafx.scene.layout.VBox
 import net.imglib2.Volatile
-import net.imglib2.converter.ARGBCompositeColorConverter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType

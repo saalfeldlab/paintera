@@ -5,7 +5,9 @@ name: Publish Installers
 
 on:
   push:
-    tags: "paintera-*.*.*"
+    tags:
+      - "paintera-*.*.*"
+      - "prerelease-*"
   workflow_dispatch:
 
 
@@ -29,6 +31,11 @@ jobs:
         run: |
           tag_name=$(echo ${{ github.ref }} | grep -oE "[^/]+$")
           echo "VERSION=$tag_name" >> $GITHUB_ENV
+          if [[ $tag_name == paintera-* ]]; then
+            echo "PRERELEASE=false" >> $GITHUB_ENV
+          else
+            echo "PRERELEASE=true" >> $GITHUB_ENV
+          fi
       - name: Display structure of downloaded files
         run: ls -R
       - name: Rename Artifacts
@@ -42,7 +49,7 @@ jobs:
         with:
           name: Paintera ${{ env.VERSION }}
           tag_name: ${{ github.ref }}
-          prerelease: false
+          prerelease: ${{ env.PRERELEASE }}
           files: |
             Paintera-${{ env.VERSION }}-Windows.msi
             Paintera-${{ env.VERSION }}_x86_64.deb

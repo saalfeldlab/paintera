@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.TransformListener;

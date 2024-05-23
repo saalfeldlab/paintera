@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.ObservableList

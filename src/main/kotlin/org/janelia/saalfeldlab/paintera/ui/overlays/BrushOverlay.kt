@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.overlays
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.Cursor

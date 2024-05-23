@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;

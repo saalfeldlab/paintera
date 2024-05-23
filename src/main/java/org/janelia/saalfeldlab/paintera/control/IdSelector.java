@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;

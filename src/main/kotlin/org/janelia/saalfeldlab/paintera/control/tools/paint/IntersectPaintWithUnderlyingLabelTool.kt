@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.input.MouseButton
