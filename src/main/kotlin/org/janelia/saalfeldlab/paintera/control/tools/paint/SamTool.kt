@@ -597,7 +597,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							verifyEventNotNull()
 							onAction {
 								applyPredictionAction(null)
-								resetPromptAction(null)
+								Platform.runLater {
+									resetPromptAction(null)
+								}
 							}
 						}
 

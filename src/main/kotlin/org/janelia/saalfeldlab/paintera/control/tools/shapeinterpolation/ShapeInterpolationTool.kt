@@ -311,7 +311,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 
-					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
+					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
