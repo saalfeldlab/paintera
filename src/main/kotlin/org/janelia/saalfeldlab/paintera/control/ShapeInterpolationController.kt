@@ -3,13 +3,14 @@ package org.janelia.saalfeldlab.paintera.control
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.application.Platform
+import javafx.beans.InvalidationListener
+import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
-import javafx.collections.FXCollections
-import javafx.collections.ObservableList
 import javafx.concurrent.Task
 import javafx.concurrent.Worker
 import javafx.scene.paint.Color
@@ -40,6 +41,7 @@ import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
+import org.checkerframework.common.reflection.qual.Invoke
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -62,6 +64,7 @@ import org.janelia.saalfeldlab.util.*
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.Collections
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Supplier
@@ -88,9 +91,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private val slicesAndInterpolants = SlicesAndInterpolants()
 
-	val sliceDepthProperty = SimpleDoubleProperty(0.0)
-	private var sliceDepth: Double by sliceDepthProperty.nonnull()
-
 	val isBusyProperty = SimpleBooleanProperty(false, "Shape Interpolation Controller is Busy")
 	private var isBusy: Boolean by isBusyProperty.nonnull()
 
@@ -99,8 +99,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	val isControllerActive: Boolean
 		get() = controllerState != ControllerState.Off
 
-	private val sliceAtCurrentDepthBinding = sliceDepthProperty.createNonNullValueBinding(slicesAndInterpolants) { slicesAndInterpolants.getSliceAtDepth(it.toDouble()) }
-	private val sliceAtCurrentDepth by sliceAtCurrentDepthBinding.nullableVal()
+	internal val currentDepthProperty = SimpleDoubleProperty()
+	internal val currentDepth: Double by currentDepthProperty.nonnullVal()
+
+	internal val sliceAtCurrentDepthProperty = slicesAndInterpolants.createObservableBinding(currentDepthProperty) { it.getSliceAtDepth(currentDepth) }
+	private val sliceAtCurrentDepth by sliceAtCurrentDepthProperty.nullableVal()
 
 	val currentSliceMaskInterval get() = sliceAtCurrentDepth?.maskBoundingBox
 
@@ -133,9 +136,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			return viewerState.getBestMipMapLevel(screenScaleTransform, source)
 		}
 
-
-	internal val currentDepth: Double by LazyForeignValue(this::globalToViewerTransform) { depthAt(it) }
-
 	private var selector: Task<Unit>? = null
 	private var interpolator: Task<Unit>? = null
 	private val onTaskFinished = {
@@ -152,10 +152,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	private var globalCompositeFillAndInterpolationImgs: Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>>? = null
 
 	private val viewerTransformDepthUpdater = TransformListener<AffineTransform3D> {
-		updateDepth()
-		sliceAtCurrentDepth?.mask.let {
-			currentViewerMask = it
-		}
+		currentDepthProperty.set(depthAt(it))
 	}
 
 	internal fun depthAt(globalTransform: AffineTransform3D): Double {
@@ -240,17 +237,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		selectNewInterpolationId()
 		initialGlobalToViewerTransform = globalToViewerTransform
 		activeViewer!!.addTransformListener(viewerTransformDepthUpdater)
-		updateDepth()
 		controllerState = ControllerState.Select
 
-		sliceAtCurrentDepthBinding.addListener { _, old, new ->
+		sliceAtCurrentDepthProperty.addListener { _, old, new ->
 			old?.mask?.setMaskOnUpdate = false
-			new?.mask?.setMaskOnUpdate = false
+			new?.mask?.also {
+				currentViewerMask = it
+				it.setMaskOnUpdate = false
+			}
 		}
-	}
-
-	private fun updateDepth() {
-		sliceDepth = currentDepth
 	}
 
 	fun exitShapeInterpolation(completed: Boolean) {
@@ -274,7 +269,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		selectedIds.activateAlso(lastSelectedId)
 		controllerState = ControllerState.Off
 		slicesAndInterpolants.clear()
-		sliceDepth = 0.0
 		currentViewerMask = null
 		interpolator = null
 		globalCompositeFillAndInterpolationImgs = null
@@ -381,7 +375,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			paintera().manager().apply {
 				setTransform(globalTransform, Duration(300.0)) {
 					transform = globalTransform
-					updateDepth()
 					controllerState = ControllerState.Select
 				}
 			}
@@ -989,7 +982,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private class SlicesAndInterpolants : ObservableList<SliceOrInterpolant> by FXCollections.synchronizedObservableList(FXCollections.observableArrayList()) {
+	private class SlicesAndInterpolants : MutableList<SliceOrInterpolant> by Collections.synchronizedList(mutableListOf()), Observable {
 		fun removeSlice(slice: SliceInfo): Boolean {
 			synchronized(this) {
 				for (idx in indices) {
@@ -998,6 +991,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						LOG.trace { "Removing Slice: $idx" }
 						removeAt(idx).getSlice()
 						removeIfInterpolant(idx - 1)
+
+						notifyListeners()
+
 						return true
 					}
 				}
@@ -1017,7 +1013,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			synchronized(this) {
 				return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant) {
 					LOG.trace { "Removing Interpolant: $idx" }
-					removeAt(idx).getInterpolant()
+					val interp = removeAt(idx).getInterpolant()
+
+					notifyListeners()
+
+					interp
 				} else null
 			}
 
@@ -1043,6 +1043,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				}
 				LOG.trace { "Adding Slice: ${this.size}" }
 				add(sliceOrInterpolant)
+
+				InvokeOnJavaFXApplicationThread {
+					listeners.forEach { it.invalidated(this) }
+				}
 			}
 		}
 
@@ -1144,6 +1148,20 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				}
 				return false
 			}
+		}
+
+		private val listeners = mutableListOf<InvalidationListener>()
+
+		override fun addListener(p0: InvalidationListener) {
+			listeners += p0
+		}
+
+		override fun removeListener(p0: InvalidationListener) {
+			listeners -= p0
+		}
+
+		private fun notifyListeners() = Platform.runLater {
+			listeners.forEach { it.invalidated(this) }
 		}
 	}
 
