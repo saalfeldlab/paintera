@@ -12,7 +12,6 @@ import javafx.util.Duration
 import kotlinx.coroutines.*
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
-import org.checkerframework.checker.units.qual.Current
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -92,7 +91,7 @@ internal class ShapeInterpolationTool(
 
 	override val statusProperty = SimpleStringProperty().apply {
 
-		val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.sliceDepthProperty) {
+		val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.currentDepthProperty, controller.sliceAtCurrentDepthProperty) {
 			controller.getStatusText()
 		}
 		bind(statusBinding)
@@ -103,7 +102,7 @@ internal class ShapeInterpolationTool(
 			controllerState == ShapeInterpolationController.ControllerState.Interpolate -> "Interpolating..."
 			numSlices == 0 -> "Select or Paint ..."
 			else -> {
-				val sliceIdx = sortedSliceDepths.indexOf(sliceDepthProperty.get())
+				val sliceIdx = sortedSliceDepths.indexOf(currentDepth)
 				"Slice: ${if (sliceIdx == -1) "N/A" else "${sliceIdx + 1}"} / ${numSlices}"
 			}
 		}
@@ -312,7 +311,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 
-					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
+					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
@@ -382,7 +381,7 @@ internal class ShapeInterpolationTool(
 							val mask = getMask()
 
 							fill2D.fill2D.provideMask(mask)
-							val pointInMask = mask.displayPointToInitialMaskPoint(event!!.x, event.y)
+							val pointInMask = mask.displayPointToMask(event!!.x, event.y, pointInCurrentDisplay = true)
 							val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
 							val info = mask.info
 							val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
@@ -491,7 +490,7 @@ internal class ShapeInterpolationTool(
 			}
 
 			fill2D.fill2D.provideMask(mask)
-			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
+			val pointInMask = mask.displayPointToMask(event.x, event.y, pointInCurrentDisplay = true)
 			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
 			val info = mask.info
 			val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong

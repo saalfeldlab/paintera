@@ -137,7 +137,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		} else {
 			mask = viewerMask;
 		}
-		final var maskPos = mask.displayPointToInitialMaskPoint(viewerSeedX, viewerSeedY);
+		final var maskPos = mask.displayPointToMask(viewerSeedX, viewerSeedY, true);
 		final var filter = getBackgorundLabelMaskForAssignment(maskPos, mask, assignment, fill);
 		if (filter == null)
 			return null;
@@ -179,7 +179,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		} else {
 			mask = viewerMask;
 		}
-		final var maskPos = mask.displayPointToInitialMaskPoint(viewerSeedX, viewerSeedY);
+		final var maskPos = mask.displayPointToMask(viewerSeedX, viewerSeedY, true);
 		final UtilityTask<?> floodFillTask = fillMaskAt(maskPos, mask, fill, filter);
 		if (this.viewerMask == null) {
 			floodFillTask.onCancelled(true, (state, task) -> {

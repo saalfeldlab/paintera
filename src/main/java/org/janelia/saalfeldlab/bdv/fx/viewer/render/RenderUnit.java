@@ -158,6 +158,8 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	protected synchronized void update() {
 
 		LOG.debug("Updating render unit");
+		if (renderer != null)
+			renderer.animation.stop();
 
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
 		renderTarget.setCanvasSize((int)dimensions[0], (int)dimensions[1]);

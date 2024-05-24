@@ -457,7 +457,7 @@ public class MultiResolutionRendererGeneric<T> {
 			clearQueue = newFrameRequest;
 			if (clearQueue)
 				cacheControl.prepareNextFrame();
-			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
+			createProjector = projector == null || newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
 			newFrameRequest = false;
 
 			final List<SourceAndConverter<?>> sacs = List.copyOf(sources);
@@ -624,8 +624,10 @@ public class MultiResolutionRendererGeneric<T> {
 		if (Intervals.isEmpty(interval))
 			return;
 
-		if (renderingMayBeCancelled && projector != null)
+		if (renderingMayBeCancelled && projector != null) {
 			projector.cancel();
+			projector = null;
+		}
 
 		int newRequestedScaleIdx;
 		if (screenScaleIndex > maxScreenScaleIndex) {

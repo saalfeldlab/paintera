@@ -188,8 +188,14 @@ public class ViewerPanelFX
 		startRenderAnimator();
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
-		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
-		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long) getWidth(), (long) getHeight()));
+		widthProperty().subscribe(width -> renderUnit.setDimensions(width.longValue(), (long)getHeight()));
+		heightProperty().subscribe(height -> renderUnit.setDimensions((long)getWidth(), height.longValue()));
+
+		visibleProperty().subscribe(visible -> {
+			if (!visible)
+				renderUnit.stopRendering();
+		});
+
 
 		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 

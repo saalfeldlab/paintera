@@ -5,12 +5,15 @@ import javafx.event.Event
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.MOUSE_PRESSED
 import javafx.scene.input.MouseEvent.MOUSE_RELEASED
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.labels.Label
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
@@ -59,11 +62,12 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 	fun finishPaintStroke() {
 		paintClickOrDrag?.let {
 			it.maskInterval?.let { interval ->
-				shapeInterpolationMode.addSelection(interval)?.also { slice -> slice.locked = true }
+				CoroutineScope(Dispatchers.Default + Job()).launch {
+					shapeInterpolationMode.addSelection(interval)?.also { slice -> slice.locked = true }
+				}
 			}
 		}
 	}
-
 
 
 	/**
@@ -85,7 +89,10 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						paintClickOrDrag!!.let { paintController ->
 							source.resetMasks(false)
-							paintController.provideMask(controller.getMask())
+							val mask = controller.getMask()
+							mask.pushNewImageLayer()
+							paintController.provideMask(mask)
+
 						}
 					}
 				}
