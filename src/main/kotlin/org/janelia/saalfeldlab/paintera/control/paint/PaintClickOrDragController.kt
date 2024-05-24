@@ -326,7 +326,7 @@ class PaintClickOrDragController(
 
 		viewerMask?.run {
 			Tasks.createTask {
-				val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
+				val viewerPointToMaskPoint = this.displayPointToMask(viewerX.toInt(), viewerY.toInt(), pointInCurrentDisplay = true)
 				val paintIntervalInMask = Paint2D.paintIntoViewer(
 					viewerImg.writableSource!!.extendValue(Label.INVALID),
 					paintId(),

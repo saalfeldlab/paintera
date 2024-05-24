@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
@@ -17,11 +16,12 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.util.LinAlgHelpers
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
@@ -215,18 +215,23 @@ class ViewerMask private constructor(
 		return WrappedRandomAccessibleInterval(cachedCellImg) to WrappedRandomAccessibleInterval(volatileRaiWithInvalidate.rai)
 	}
 
-	fun displayPointToInitialMaskPoint(displayX: Int, displayY: Int) = displayPointToInitialMaskPoint(Point(displayX, displayY, 0))
-	fun displayPointToInitialMaskPoint(displayX: Double, displayY: Double) = displayPointToInitialMaskPoint(RealPoint(displayX, displayY, 0.0))
-	fun displayPointToInitialMaskPoint(displayPoint: Point) = displayPointToInitialMaskPoint(displayPoint.positionAsRealPoint())
-	fun displayPointToInitialMaskPoint(displayPoint: RealPoint): Point {
-		val globalPoint = displayPoint.also { currentGlobalToViewerTransform.applyInverse(it, it) }
+	@JvmOverloads
+	fun displayPointToMask(displayX: Int, displayY: Int, pointInCurrentDisplay: Boolean = false) = displayPointToMask(Point(displayX, displayY, 0), pointInCurrentDisplay)
+	@JvmOverloads
+	fun displayPointToMask(displayX: Double, displayY: Double, pointInCurrentDisplay: Boolean = false) = displayPointToMask(RealPoint(displayX, displayY, 0.0), pointInCurrentDisplay)
+	@JvmOverloads
+	fun displayPointToMask(displayPoint: Point, pointInCurrentDisplay: Boolean = false) = displayPointToMask(displayPoint.positionAsRealPoint(), pointInCurrentDisplay)
+	@JvmOverloads
+	fun displayPointToMask(displayPoint: RealPoint, pointInCurrentDisplay: Boolean = false): Point {
+		val globalToMask = if (pointInCurrentDisplay) currentGlobalToViewerTransform else initialGlobalToViewerTransform
+		val globalPoint = displayPoint.also { globalToMask.applyInverse(it, it) }
 
 		val xyScaleOnly = depthScaleTransform.copy().also {
 			it.set(it.getScale(0), it.getScale(1), 1.0)
 		}
 
-		val pointInInitialMask = RealPoint(globalPoint).also { initialGlobalToMaskTransform.copy().concatenate(xyScaleOnly.inverse()).apply(globalPoint, it) }
-		return pointInInitialMask.toPoint()
+		val pointInMask = RealPoint(globalPoint).also { initialGlobalToMaskTransform.copy().concatenate(xyScaleOnly.inverse()).apply(globalPoint, it) }
+		return pointInMask.toPoint()
 	}
 
 
@@ -502,19 +507,23 @@ class ViewerMask private constructor(
 
 	/**
 	 * Returns the screen interval in the ViewerMask space, based on the given width and height.
+	 * if [currentScreenInterval] then will be based on the location of (0,0) in the
+	 * [currentGlobalToMaskTransform], otherwise it will use [initialGlobalToMaskTransform].
+	 *
+	 * Results may differ, depending on e.g. zoom since Mask creation ( in SI for example).
 	 *
 	 * @param width The width of the interval. Defaults to the width of the viewer.
 	 * @param height The height of the interval. Defaults to the height of the viewer.
+	 * @param currentScreenInterval whether the screen interval should map to the current screen,
+	 *  or the in initial screen when the mask was created.
 	 *
-	 * @return The screen interval.
+	 * @return The screen interval in ViewerMask space.
 	 */
 	@JvmOverloads
-	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong()): Interval {
-		val (x: Long, y: Long) = displayPointToInitialMaskPoint(0, 0)
+	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong(), currentScreenInterval : Boolean = false): Interval {
+		val (x: Long, y: Long) = displayPointToMask(0, 0, currentScreenInterval)
 		return Intervals.createMinSize(x, y, 0, width, height, 1)
 	}
-
-	fun maskOverScreenInterval(): RandomAccessibleInterval<UnsignedLongType> = viewerImg.interval(getScreenInterval())
 
 	fun getInitialGlobalViewerInterval(width: Double, height: Double): RealInterval {
 		val zeroGlobal = doubleArrayOf(0.0, 0.0, 0.0).also { initialGlobalToViewerTransform.applyInverse(it, it) }

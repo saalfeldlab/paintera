@@ -974,7 +974,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				val (width, height) = predictedImage.dimensionsAsLongArray()
 				val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
 				val halfPixelOffset = Translation2D(.5, .5)
-				val translationToViewer = Translation2D(*paintMask.displayPointToInitialMaskPoint(0, 0).positionAsDoubleArray())
+				val translationToViewer = Translation2D(*paintMask.displayPointToMask(0, 0).positionAsDoubleArray())
 				val predictionToViewerTransform = AffineTransform2D().concatenate(translationToViewer).concatenate(predictionToViewerScale).concatenate(halfPixelOffset)
 				val maskAlignedSelectedComponents = selectedComponents
 					.extendValue(0.0)
