@@ -153,7 +153,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private fun modeActions(): List<ActionSet> {
 		return mutableListOf(
-			painteraActionSet(CANCEL) {
+			painteraActionSet(CANCEL, ignoreDisable = true) {
 				with(controller) {
 					verifyAll(KEY_PRESSED, "Shape Interpolation Controller is Active ") { isControllerActive }
 					verifyAll(Event.ANY, "Shape Interpolation Tool is Active") { activeTool is ShapeInterpolationTool }
@@ -170,36 +170,36 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					}
 				}
 			},
-			painteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
-				KEY_PRESSED(paintBrushTool.keyTrigger) {
-					name = "switch to paint tool"
-					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-					onAction { switchTool(paintBrushTool) }
-				}
-
+			painteraActionSet("paint return tool triggers", PaintActionType.Paint, ignoreDisable = true) {
 				KEY_RELEASED(paintBrushTool.keyTrigger) {
 					name = "switch back to shape interpolation tool from paint brush"
 					filter = true
-					verify { activeTool is PaintBrushTool }
+					verify("PaintBrushTool is active") { activeTool is PaintBrushTool }
 					onAction { switchTool(shapeInterpolationTool) }
-				}
-
-				KEY_PRESSED(fill2DTool.keyTrigger) {
-					name = "switch to fill2d tool"
-					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-					onAction { switchTool(fill2DTool) }
 				}
 				KEY_RELEASED(fill2DTool.keyTrigger) {
 					name = "switch to shape interpolation tool from fill2d"
 					filter = true
-					verify { activeTool is Fill2DTool }
+					verify("Fill2DTool is active") { activeTool is Fill2DTool }
 					onAction {
 						switchTool(shapeInterpolationTool)
 					}
 				}
+			},
+			painteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
+				KEY_PRESSED(paintBrushTool.keyTrigger) {
+					name = "switch to paint tool"
+					verify("Active source is MaskedSource") { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					onAction { switchTool(paintBrushTool) }
+				}
+				KEY_PRESSED(fill2DTool.keyTrigger) {
+					name = "switch to fill2d tool"
+					verify("Active source is MaskedSource")  { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					onAction { switchTool(fill2DTool) }
+				}
 				KEY_PRESSED(samTool.keyTrigger) {
 					name = "toggle SAM tool"
-					verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					verify("Active source is MaskedSource") { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
 					onAction {
 						val nextTool = if (activeTool != samTool) samTool else shapeInterpolationTool
 						switchTool(nextTool)
