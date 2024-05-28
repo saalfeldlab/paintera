@@ -48,20 +48,6 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>
 ) {
 
-	private val bindService = Executors.newSingleThreadExecutor(
-		NamedThreadFactory(
-			"adaptive-resolution-meshmanager-bind-%d",
-			true
-		)
-	)
-
-	private val unbindService = Executors.newSingleThreadExecutor(
-		NamedThreadFactory(
-			"adaptive-resolution-meshmanager-unbind-%d",
-			true
-		)
-	)
-
 	// Avoid flooding the FX application thread with thousands of calls to cancelAndUpdate() and freezing the
 	// UI for tens of seconds. Really only the latest cancelAndUpdate() call matters and it does not have to
 	// happen at high frequency so we can add a long delay of 100 milliseconds.
@@ -130,15 +116,13 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	@Synchronized
 	fun removeMeshFor(key: ObjectKey, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>): MeshGenerator.State? {
 		return meshes.remove(key)?.let { generator ->
-			unbindService.submit {
-				generator.interrupt()
-				generator.unbindFromThis()
-				generator.root.visibleProperty().unbind()
-				releaseState.accept(key, generator.state)
-				Platform.runLater {
-					generator.root.isVisible = false
-					meshesGroup.children -= generator.root
-				}
+			generator.interrupt()
+			generator.unbindFromThis()
+			generator.root.visibleProperty().unbind()
+			releaseState.accept(key, generator.state)
+			Platform.runLater {
+				generator.root.isVisible = false
+				meshesGroup.children -= generator.root
 			}
 			generator.state
 		}
@@ -149,22 +133,20 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	@Synchronized
 	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>) {
 		val keysAndGenerators = synchronized(this) { keys.map { it to meshes.remove(it) } }
-		unbindService.submit {
-			val roots = keysAndGenerators.mapNotNull { (key, generator) ->
-				generator?.run {
-					interrupt()
-					unbindFromThis()
-					root?.visibleProperty()?.unbind()
-					let { releaseState.accept(key, state) }
-					root
-				}
+		val roots = keysAndGenerators.mapNotNull { (key, generator) ->
+			generator?.run {
+				interrupt()
+				unbindFromThis()
+				root?.visibleProperty()?.unbind()
+				let { releaseState.accept(key, state) }
+				root
 			}
-			Platform.runLater {
-				// The roots list has to be converted to array first and then passed as vararg
-				// to use the implementation in ObservableList instead of the Kotlin extension
-				// function.
-				meshesGroup.children.removeAll(*roots.toTypedArray())
-			}
+		}
+		Platform.runLater {
+			// The roots list has to be converted to array first and then passed as vararg
+			// to use the implementation in ObservableList instead of the Kotlin extension
+			// function.
+			meshesGroup.children.removeAll(*roots.toTypedArray())
 		}
 	}
 
@@ -189,6 +171,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		if (state === null) return false
 		val meshGenerator = synchronized(this) {
 			if (key in meshes) return false
+			stateSetup.accept(state)
 			MeshGenerator(
 				source.numMipmapLevels,
 				key,
@@ -201,21 +184,18 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				state
 			).also { meshes[key] = it }
 		}
+		meshGenerator.bindToThis()
 
 		// If the viewer or the manager are disabled, interrupt the generator right away because
 		// it should not add any meshes to the scene. Once viewer and manager are enabled again,
 		// interrupted generators will be replaced appropriately.
 		if (!isMeshesAndViewerEnabled)
 			meshGenerator.interrupt()
-		bindService.submit {
-			meshGenerator.bindToThis()
-			stateSetup.accept(state)
-			Platform.runLater {
-				meshesGroup.children += meshGenerator.root
-				// TODO is this cancelAndUpdate necessary?
-				if (cancelAndUpdate)
-					cancelAndUpdate()
-			}
+		Platform.runLater {
+			meshesGroup.children += meshGenerator.root
+			// TODO is this cancelAndUpdate necessary?
+			if (cancelAndUpdate)
+				cancelAndUpdate()
 		}
 		return true
 	}
