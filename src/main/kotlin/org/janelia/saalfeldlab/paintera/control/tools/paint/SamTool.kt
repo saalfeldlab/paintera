@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtException
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnitState
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
@@ -48,6 +47,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.apache.commons.io.output.NullPrintStream
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
@@ -64,8 +64,9 @@ import org.janelia.saalfeldlab.fx.ui.CircleScaleView
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.createOrtSessionTask
@@ -92,7 +93,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.algorithms.otsuThresholdPrediction
 import org.janelia.saalfeldlab.util.*
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.LinkedBlockingQueue
@@ -132,7 +132,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "sam-select" }) }
 	override val name = "Segment Anything"
-	override val keyTrigger = LabelSourceStateKeys.SEGMENT_ANYTHING__TOGGLE_MODE
+	override val keyTrigger = SEGMENT_ANYTHING__TOGGLE_MODE
 
 	override val toolBarButton: ButtonBase
 		get() {
@@ -536,8 +536,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}.also { primaryClickToggleExcludeAction = it }
 
-				KEY_PRESSED(KeyCode.BACK_SPACE) {
-					name = "Reset Prompt"
+				KEY_PRESSED(SEGMENT_ANYTHING__RESET_PROMPT) {
 					graphic = { GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }) }
 					onAction {
 						resetPromptAndPrediction()
@@ -547,7 +546,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}.also { resetPromptAction = it }
 
-				KEY_PRESSED(KeyCode.ENTER) {
+				KEY_PRESSED(SEGMENT_ANYTHING__ACCEPT_SEGMENTATION) {
 					name = "apply last segmentation result to canvas"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "accept" }) }
 					verifyPainteraNotDisabled()
@@ -562,7 +561,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}.also { applyPredictionAction = it }
 
-				KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
 					onAction { mode?.switchTool(mode.defaultTool) }
