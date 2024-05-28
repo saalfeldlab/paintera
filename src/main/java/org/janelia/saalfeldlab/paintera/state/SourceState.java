@@ -72,7 +72,7 @@ public interface SourceState<D, T> {
 		LOG.debug("Running default onAdd");
 	}
 
-	default void onRemoval(SourceInfo paintera) {
+	default void onRemoval(SourceInfo sourceInfo) {
 
 		LOG.debug("Running default onRemoval");
 	}
