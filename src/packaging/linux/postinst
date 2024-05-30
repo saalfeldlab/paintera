@@ -23,7 +23,7 @@ LAUNCHER_AS_SERVICE_SCRIPTS
 case "$1" in
     configure)
 DESKTOP_COMMANDS_INSTALL
-ln -s /opt/paintera-convert/bin/paintera /usr/local/bin/paintera
+ln -s /opt/paintera/bin/paintera /usr/local/bin/paintera
 LAUNCHER_AS_SERVICE_COMMANDS_INSTALL
     ;;
 
