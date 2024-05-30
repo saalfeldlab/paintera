@@ -1,5 +1,6 @@
 --type msi
 --name ${app.name}
+--app-version ${app.version}
 --win-menu
 --win-menu-group ${windows.vendor}
 --vendor ${windows.vendor}
