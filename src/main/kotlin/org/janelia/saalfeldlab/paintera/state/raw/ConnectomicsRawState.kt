@@ -24,6 +24,8 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -77,6 +79,10 @@ open class ConnectomicsRawState<D, T>(
 	override fun getDataSource(): DataSource<D, T> = source
 
 	override fun converter(): ARGBColorConverter<T> = converter
+
+	override fun getDefaultMode(): ControlMode {
+		return RawSourceMode
+	}
 
 	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(CompositeCopy())
 	var composite: ARGBComposite
