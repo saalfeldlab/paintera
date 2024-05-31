@@ -1,4 +1,5 @@
 --name ${app.name}
+--app-version ${app.version}
 --icon "${project.basedir}/img/icons/icon-draft.icns"
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
