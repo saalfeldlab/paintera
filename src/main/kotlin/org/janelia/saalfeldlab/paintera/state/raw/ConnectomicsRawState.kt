@@ -121,7 +121,7 @@ open class ConnectomicsRawState<D, T>(
 	override fun preferencePaneNode(): Node {
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
-		box.children.add(RawSourceStateConverterNode(converter).converterNode)
+		box.children.add(RawSourceStateConverterNode(converter, this).converterNode)
 
 		val backendMeta = backend.createMetaDataNode()
 		val metaDataContents = VBox(backendMeta)

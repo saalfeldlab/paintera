@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -12,6 +11,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.RealType
 import net.imglib2.util.Intervals
 import net.imglib2.util.Util
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -24,7 +24,6 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.util.*
 
-private val LOG = KotlinLogging.logger {}
 
 object RawSourceMode : AbstractToolMode() {
 
@@ -35,47 +34,68 @@ object RawSourceMode : AbstractToolMode() {
 	override val allowedActions = AllowedActions.NAVIGATION
 
 	private val minMaxIntensityThreshold = painteraActionSet("Min/Max Intensity Threshold") {
-		KEY_PRESSED(KeyCode.Y) {
-			graphic = { ScaleView().also { it.styleClass += "enter-shape-interpolation" } }
-			verify("Source State is Raw Source State ") { activeSourceStateProperty.get() is ConnectomicsRawState<*, *> }
+		verifyAll(KEY_PRESSED, "Source State is Raw Source State ") { activeSourceStateProperty.get() is ConnectomicsRawState<*, *> }
+		KEY_PRESSED(KeyCode.SHIFT, KeyCode.Y) {
+			graphic = { ScaleView().apply { styleClass += "intensity-reset-min-max" } }
 			onAction {
-				val viewer = paintera.activeViewer.value!!
-				val globalToViewerTransform = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
-				val viewerInterval = Intervals.createMinSize(0, 0, 0, viewer.width.toLong(), viewer.height.toLong(), 1L)
-
 				val rawSource = activeSourceStateProperty.get() as ConnectomicsRawState<*, *>
-				val scaleLevel = viewer.state.bestMipMapLevel
-				val sourceToGlobalTransform = rawSource.getDataSource().getSourceTransformCopy(0, scaleLevel)
-
-				val dataSource = rawSource.getDataSource().getDataSource(0, scaleLevel) as RandomAccessibleInterval<RealType<*>>
-
-				val extension = Util.getTypeFromInterval(dataSource).createVariable()
-				try {
-					extension.setReal(Double.NaN)
-				} catch( e : Exception) {
-					extension.setZero()
-				}
-
-				val screenSource = dataSource
-					.extendValue(extension)
-					.interpolateNearestNeighbor()
-					.affineReal(globalToViewerTransform.concatenate(sourceToGlobalTransform))
-					.raster()
-					.interval(viewerInterval)
-
-				var min = Double.NaN
-				var max = Double.NaN
-				LoopBuilder.setImages(screenSource).forEachPixel {
-					val value = it.realDouble
-					if (!value.isNaN()) {
-						if (value < min || min.isNaN()) min = value
-						if (value > max || max.isNaN()) max = value
-					}
-				}
-				if (!min.isNaN()) rawSource.converter().minProperty().set(min)
-				if (!max.isNaN()) rawSource.converter().maxProperty().set(max)
+				resetIntensityMinMax(rawSource)
 			}
 		}
+		KEY_PRESSED(KeyCode.Y) {
+			lateinit var viewer: ViewerPanelFX
+			graphic = { ScaleView().apply { styleClass += "intensity-estimate-min-max" } }
+			verify("Last focused viewer found") { paintera.baseView.lastFocusHolder.value?.viewer()?.also { viewer = it } != null }
+			onAction {
+				val rawSource = activeSourceStateProperty.get() as ConnectomicsRawState<*, *>
+				estimateIntensityMinMax(rawSource, viewer)
+			}
+		}
+	}
+
+	fun estimateIntensityMinMax(rawSource: ConnectomicsRawState<*, *>, viewer: ViewerPanelFX) {
+		val globalToViewerTransform = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
+		val viewerInterval = Intervals.createMinSize(0, 0, 0, viewer.width.toLong(), viewer.height.toLong(), 1L)
+
+		val scaleLevel = viewer.state.bestMipMapLevel
+		val dataSource = rawSource.getDataSource().getDataSource(0, scaleLevel) as RandomAccessibleInterval<RealType<*>>
+
+		val sourceToGlobalTransform = rawSource.getDataSource().getSourceTransformCopy(0, scaleLevel)
+
+
+		val extension = Util.getTypeFromInterval(dataSource).createVariable()
+		try {
+			extension.setReal(Double.NaN)
+		} catch (e: Exception) {
+			extension.setZero()
+		}
+
+		val screenSource = dataSource
+			.extendValue(extension)
+			.interpolateNearestNeighbor()
+			.affineReal(globalToViewerTransform.concatenate(sourceToGlobalTransform))
+			.raster()
+			.interval(viewerInterval)
+
+		var min = Double.NaN
+		var max = Double.NaN
+		LoopBuilder.setImages(screenSource).forEachPixel {
+			val value = it.realDouble
+			if (!value.isNaN()) {
+				if (value < min || min.isNaN()) min = value
+				if (value > max || max.isNaN()) max = value
+			}
+		}
+		if (!min.isNaN()) rawSource.converter().minProperty().set(min)
+		if (!max.isNaN()) rawSource.converter().maxProperty().set(max)
+	}
+
+	fun resetIntensityMinMax(rawSource: ConnectomicsRawState<*, *>) {
+		val dataSource = rawSource.getDataSource().getDataSource(0, 0) as RandomAccessibleInterval<RealType<*>>
+		val extension = Util.getTypeFromInterval(dataSource).createVariable()
+
+		rawSource.converter().minProperty().set(extension.minValue)
+		rawSource.converter().maxProperty().set(extension.maxValue)
 	}
 
 	override val modeActions: List<ActionSet> = listOf(minMaxIntensityThreshold)

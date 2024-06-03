@@ -12,17 +12,21 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import javafx.stage.Modality
+import net.imglib2.type.numeric.RealType
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
+import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
+import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 
-class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) {
+class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, private val state: ConnectomicsRawState<out RealType<*>, *>) {
 
 	private val colorProperty = SimpleObjectProperty(Color.WHITE)
 
@@ -51,6 +55,23 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
 			val colorPickerBox = HBox(picker)
 			HBox.setHgrow(picker, Priority.ALWAYS)
 			tilePane.children.add(colorPickerBox)
+			val resetMinMax = Button("Reset Min / Max")
+			val estimateMinMax = Button("Estimate Min / Max")
+
+			listOf(resetMinMax, estimateMinMax).forEach {
+				HBox.setHgrow(it, Priority.ALWAYS)
+				it.maxWidth = Double.MAX_VALUE
+			}
+
+			resetMinMax.onAction = EventHandler { RawSourceMode.resetIntensityMinMax(state) }
+			estimateMinMax.onAction = EventHandler {
+				paintera.baseView.lastFocusHolder.value?.viewer()?.let { viewer ->
+					RawSourceMode.estimateIntensityMinMax(state, viewer)
+				}
+			}
+			val thresholdHBox = HBox(resetMinMax, estimateMinMax)
+
+			tilePane.children.add(thresholdHBox)
 
 			val min = this.min.asString()
 			val max = this.max.asString()
