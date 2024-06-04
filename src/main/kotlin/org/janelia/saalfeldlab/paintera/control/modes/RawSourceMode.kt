@@ -6,11 +6,20 @@ import javafx.collections.ObservableList
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.loops.LoopBuilder
+import net.imglib2.histogram.Histogram1d
+import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.label.LabelMultisetType
+import net.imglib2.type.label.VolatileLabelMultisetType
+import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
+import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.util.Intervals
 import net.imglib2.util.Util
+import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -18,9 +27,11 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.util.*
 
@@ -44,16 +55,16 @@ object RawSourceMode : AbstractToolMode() {
 		}
 		KEY_PRESSED(KeyCode.Y) {
 			lateinit var viewer: ViewerPanelFX
-			graphic = { ScaleView().apply { styleClass += "intensity-estimate-min-max" } }
+			graphic = { ScaleView().apply { styleClass += "intensity-auto-min-max" } }
 			verify("Last focused viewer found") { paintera.baseView.lastFocusHolder.value?.viewer()?.also { viewer = it } != null }
 			onAction {
 				val rawSource = activeSourceStateProperty.get() as ConnectomicsRawState<*, *>
-				estimateIntensityMinMax(rawSource, viewer)
+				autoIntensityMinMax(rawSource, viewer)
 			}
 		}
 	}
 
-	fun estimateIntensityMinMax(rawSource: ConnectomicsRawState<*, *>, viewer: ViewerPanelFX) {
+	fun autoIntensityMinMax(rawSource: ConnectomicsRawState<*, *>, viewer: ViewerPanelFX) {
 		val globalToViewerTransform = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
 		val viewerInterval = Intervals.createMinSize(0, 0, 0, viewer.width.toLong(), viewer.height.toLong(), 1L)
 
@@ -63,12 +74,13 @@ object RawSourceMode : AbstractToolMode() {
 		val sourceToGlobalTransform = rawSource.getDataSource().getSourceTransformCopy(0, scaleLevel)
 
 
-		val extension = Util.getTypeFromInterval(dataSource).createVariable()
-		try {
-			extension.setReal(Double.NaN)
-		} catch (e: Exception) {
-			extension.setZero()
+		val extension = Util.getTypeFromInterval(dataSource).createVariable().let {
+			when (it) {
+				is VolatileLabelMultisetType, is LabelMultisetType -> UnsignedLongType(0)
+				else -> it
+			}
 		}
+
 
 		val screenSource = dataSource
 			.extendValue(extension)
@@ -77,22 +89,63 @@ object RawSourceMode : AbstractToolMode() {
 			.raster()
 			.interval(viewerInterval)
 
-		var min = Double.NaN
-		var max = Double.NaN
-		LoopBuilder.setImages(screenSource).forEachPixel {
-			val value = it.realDouble
-			if (!value.isNaN()) {
-				if (value < min || min.isNaN()) min = value
-				if (value > max || max.isNaN()) max = value
+		val converter = rawSource.converter()
+		val curMin  = converter.minProperty().get()
+		val curMax  = converter.maxProperty().get()
+
+		if ( curMin == curMax) {
+			resetIntensityMinMax(rawSource)
+			return
+		}
+
+		if (extension is IntegerType<*>)
+			estimateWithHistogram(IntType(), screenSource, rawSource, converter)
+		else
+			estimateWithHistogram(DoubleType(), screenSource, rawSource, converter)
+	}
+
+	private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: ConnectomicsRawState<*, *>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
+		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, 4, false)
+		val histogram = Histogram1d(binMapper)
+		val img = screenSource.convert(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
+		histogram.countData(img)
+
+		val numPixels = screenSource.dimensionsAsLongArray().sum()
+
+
+		val minBinIdx = histogram.indexOfFirst { i -> i.get() > (numPixels / 5000) }
+		val maxBinIdx = histogram.indexOfLast { i -> i.get() > (numPixels / 5000) }
+
+
+		when {
+			minBinIdx == -1 && maxBinIdx == -1 -> resetIntensityMinMax(rawSource)
+			minBinIdx == maxBinIdx -> {
+				converter.minProperty().value = histogram.getLowerBound(minBinIdx.toLong(), type).let { type.realDouble }
+				converter.maxProperty().value = histogram.getUpperBound(maxBinIdx.toLong(), type).let { type.realDouble }
+			}
+
+			else -> {
+				converter.minProperty().value = histogram.getCenterValue(minBinIdx.toLong(),type).let { type.realDouble }
+				converter.maxProperty().value = histogram.getCenterValue(maxBinIdx.toLong(),type).let { type.realDouble }
 			}
 		}
-		if (!min.isNaN()) rawSource.converter().minProperty().set(min)
-		if (!max.isNaN()) rawSource.converter().maxProperty().set(max)
 	}
 
 	fun resetIntensityMinMax(rawSource: ConnectomicsRawState<*, *>) {
+
+		(rawSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+			rawSource.converter().min = it.minIntensity
+			rawSource.converter().max = it.maxIntensity
+			return
+		}
+
 		val dataSource = rawSource.getDataSource().getDataSource(0, 0) as RandomAccessibleInterval<RealType<*>>
-		val extension = Util.getTypeFromInterval(dataSource).createVariable()
+		val extension = Util.getTypeFromInterval(dataSource).createVariable().let {
+			when (it) {
+				is VolatileLabelMultisetType, is LabelMultisetType -> UnsignedLongType(0)
+				else -> it
+			}
+		}
 
 		rawSource.converter().minProperty().set(extension.minValue)
 		rawSource.converter().maxProperty().set(extension.maxValue)

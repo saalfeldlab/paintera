@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
 import java.util.Optional
 
 interface MetadataState {
@@ -182,11 +183,12 @@ open class MultiScaleMetadataState constructor(
 	}
 }
 
-class PainteraDataMultiscaleMetadataState constructor(
+class PainteraDataMultiscaleMetadataState (
 	n5ContainerState: N5ContainerState,
 	var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup
 ) : MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
 
+	override var maxIntensity: Double = (painteraDataMultiscaleMetadata as? N5PainteraLabelMultiScaleGroup)?.maxId?.toDouble() ?: super.maxIntensity
 	val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata)
 
 	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {

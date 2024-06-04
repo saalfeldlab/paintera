@@ -56,20 +56,20 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 			HBox.setHgrow(picker, Priority.ALWAYS)
 			tilePane.children.add(colorPickerBox)
 			val resetMinMax = Button("Reset Min / Max")
-			val estimateMinMax = Button("Estimate Min / Max")
+			val autoMinMax = Button("Auto Min / Max")
 
-			listOf(resetMinMax, estimateMinMax).forEach {
+			listOf(resetMinMax, autoMinMax).forEach {
 				HBox.setHgrow(it, Priority.ALWAYS)
 				it.maxWidth = Double.MAX_VALUE
 			}
 
 			resetMinMax.onAction = EventHandler { RawSourceMode.resetIntensityMinMax(state) }
-			estimateMinMax.onAction = EventHandler {
+			autoMinMax.onAction = EventHandler {
 				paintera.baseView.lastFocusHolder.value?.viewer()?.let { viewer ->
-					RawSourceMode.estimateIntensityMinMax(state, viewer)
+					RawSourceMode.autoIntensityMinMax(state, viewer)
 				}
 			}
-			val thresholdHBox = HBox(resetMinMax, estimateMinMax)
+			val thresholdHBox = HBox(resetMinMax, autoMinMax)
 
 			tilePane.children.add(thresholdHBox)
 

@@ -33,10 +33,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
-import org.janelia.saalfeldlab.paintera.state.ARGBComposite
-import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
-import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
@@ -72,7 +69,12 @@ open class ConnectomicsRawState<D, T>(
 ) : SourceStateWithBackend<D, T>
 	where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 
-	private val converter = ARGBColorConverter.InvertingImp0<T>()
+	private val converter = ARGBColorConverter.InvertingImp0<T>().apply {
+		(backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+			min = it.minIntensity
+			max = it.maxIntensity
+		}
+	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
 
