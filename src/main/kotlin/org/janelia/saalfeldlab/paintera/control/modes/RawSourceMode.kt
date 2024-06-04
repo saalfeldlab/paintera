@@ -97,11 +97,28 @@ object RawSourceMode : AbstractToolMode() {
 			resetIntensityMinMax(rawSource)
 			return
 		}
+		if (converterAtDefault(rawSource)) {
+			estimateWithRange(screenSource, converter)
+		}
 
 		if (extension is IntegerType<*>)
 			estimateWithHistogram(IntType(), screenSource, rawSource, converter)
 		else
 			estimateWithHistogram(DoubleType(), screenSource, rawSource, converter)
+	}
+
+	private fun estimateWithRange(screenSource: IntervalView<RealType<*>>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
+		var min = screenSource.cursor().get().realDouble
+		var max = min
+		screenSource.forEach {
+			val value = it.realDouble
+			if (value < min)
+				min = value
+			if (value > max)
+				max = value
+		}
+		converter.min = min
+		converter.max = max
 	}
 
 	private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: ConnectomicsRawState<*, *>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
@@ -116,19 +133,48 @@ object RawSourceMode : AbstractToolMode() {
 		val minBinIdx = histogram.indexOfFirst { i -> i.get() > (numPixels / 5000) }
 		val maxBinIdx = histogram.indexOfLast { i -> i.get() > (numPixels / 5000) }
 
+		val updateOrResetConverter = { min : Double, max : Double ->
+			if (converter.minProperty().value == min && converter.maxProperty().value == max)
+				resetIntensityMinMax(rawSource)
+			else {
+				converter.min = min
+				converter.max = max
+			}
+		}
 
 		when {
 			minBinIdx == -1 && maxBinIdx == -1 -> resetIntensityMinMax(rawSource)
 			minBinIdx == maxBinIdx -> {
-				converter.minProperty().value = histogram.getLowerBound(minBinIdx.toLong(), type).let { type.realDouble }
-				converter.maxProperty().value = histogram.getUpperBound(maxBinIdx.toLong(), type).let { type.realDouble }
+				updateOrResetConverter(
+					histogram.getLowerBound(minBinIdx.toLong(), type).let { type.realDouble },
+					histogram.getUpperBound(maxBinIdx.toLong(), type).let { type.realDouble }
+				)
 			}
 
 			else -> {
-				converter.minProperty().value = histogram.getCenterValue(minBinIdx.toLong(),type).let { type.realDouble }
-				converter.maxProperty().value = histogram.getCenterValue(maxBinIdx.toLong(),type).let { type.realDouble }
+				updateOrResetConverter(
+					histogram.getCenterValue(minBinIdx.toLong(), type).let { type.realDouble },
+					histogram.getCenterValue(maxBinIdx.toLong(), type).let { type.realDouble }
+				)
 			}
 		}
+	}
+
+	private fun converterAtDefault(rawSource: ConnectomicsRawState<*, *>) : Boolean {
+		val converter = rawSource.converter()
+		(rawSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+			return converter.min == it.minIntensity &&  converter.max == it.maxIntensity
+		}
+
+		val dataSource = rawSource.getDataSource().getDataSource(0, 0) as RandomAccessibleInterval<RealType<*>>
+		val extension = Util.getTypeFromInterval(dataSource).createVariable().let {
+			when (it) {
+				is VolatileLabelMultisetType, is LabelMultisetType -> UnsignedLongType(0)
+				else -> it
+			}
+		}
+
+		return converter.minProperty().get() == extension.minValue && converter.maxProperty().get() == extension.maxValue
 	}
 
 	fun resetIntensityMinMax(rawSource: ConnectomicsRawState<*, *>) {
