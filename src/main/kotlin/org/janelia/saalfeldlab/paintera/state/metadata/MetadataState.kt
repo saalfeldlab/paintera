@@ -132,7 +132,7 @@ open class SingleScaleMetadataState(
 }
 
 
-open class MultiScaleMetadataState constructor(
+open class MultiScaleMetadataState (
 	override val n5ContainerState: N5ContainerState,
 	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
@@ -140,7 +140,10 @@ open class MultiScaleMetadataState constructor(
 	private val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
 	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
 	final override var isLabelMultiset: Boolean = metadata[0].isLabelMultiset
-	override var isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
+	override var isLabel: Boolean = when {
+		metadata is N5PainteraLabelMultiScaleGroup -> metadata.isLabel
+		else -> isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
+	}
 	override var resolution: DoubleArray = transform.run { doubleArrayOf(get(0, 0), get(1, 1), get(2, 2)) }
 	override var translation: DoubleArray = transform.translation
 	override var group: String = metadata.path
