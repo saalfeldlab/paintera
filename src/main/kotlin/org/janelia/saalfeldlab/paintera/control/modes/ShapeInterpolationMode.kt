@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import bdv.fx.viewer.render.RenderUnitState
+import bdv.util.BdvFunctions
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.value.ChangeListener
@@ -10,12 +11,17 @@ import javafx.event.Event
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import net.imglib2.Interval
+import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.img.array.ArrayImgs
+import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.type.volatiles.VolatileUnsignedIntType
+import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
@@ -375,10 +381,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
 
-			val (maxDistanceX, maxDistanceY) = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+			val maxDistancePositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
 				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				interpolantInViewer.getPositionAtMaxDistance()
-			} ?: doubleArrayOf(width / 2.0, height / 2.0, 0.0)
+				interpolantInViewer.getComponentMaxDistancePosition()
+			} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
@@ -390,7 +396,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(maxDistanceX, maxDistanceY, SamPredictor.SparseLabel.IN)))
+			val predictionRequest = SamPredictor.SparsePrediction(maxDistancePositions.map { (x,y) -> renderState.getSamPoint(x,y, SamPredictor.SparseLabel.IN) })
 
 			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
 				SamEmbeddingLoaderCache.load(renderState)
@@ -502,21 +508,48 @@ internal fun RenderUnitState.getSamPoint(screenX: Double, screenY: Double, label
 	return SamPredictor.SamPoint(screenX * screenScaleFactor, screenY * screenScaleFactor, label)
 }
 
-internal fun IntervalView<UnsignedLongType>.getPositionAtMaxDistance(): DoubleArray {
+internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): List<DoubleArray> {
 	/* find the max point to initialize with */
-	val distances = ArrayImgs.doubles(*dimensionsAsLongArray())
-	val binaryImg = convert(BoolType()) { source, target -> target.set(!(source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
-	DistanceTransform.binaryTransform(binaryImg, distances, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
-	var maxDistance = -Double.MAX_VALUE
-	var maxPos = center()
-	BundleView(distances).interval(distances).forEach { access ->
-		val distance = access.get().get()
-		if (distance > maxDistance) {
-			maxDistance = distance
-			maxPos = access.positionAsLongArray()
+	val invalidBorderRai = extendValue(Label.INVALID).interval(Intervals.expand(this, 1, 1, 0))
+	val distances = ArrayImgs.doubles(*invalidBorderRai.dimensionsAsLongArray())
+	val binaryImg = invalidBorderRai.convert(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
+	val invertedBinaryImg = binaryImg.convert(BoolType()) { source, target -> target.set(!source.get()) }
+
+	val connectedComponents = ArrayImgs.unsignedInts(*binaryImg.dimensionsAsLongArray())
+	ConnectedComponents.labelAllConnectedComponents(
+		binaryImg,
+		connectedComponents,
+		ConnectedComponents.StructuringElement.FOUR_CONNECTED
+	)
+
+	DistanceTransform.binaryTransform(invertedBinaryImg, distances, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
+
+	val distancePerComponent  = mutableMapOf<Int, Pair<Double, LongArray>>()
+
+	var backgroundId = -1;
+
+	LoopBuilder.setImages(BundleView(distances).interval(distances), connectedComponents).forEachPixel { distanceRA, componentType ->
+		val thisDist = distanceRA.get().get()
+		val componentId = componentType.integer
+
+		val curDist = distancePerComponent[componentId]?.first
+
+		if (curDist != null) {
+			if (thisDist > curDist)
+				distancePerComponent[componentId] = thisDist to distanceRA.positionAsLongArray()
+		} else {
+			if (backgroundId == -1 && !binaryImg.getAt(distanceRA).get()) {
+				backgroundId = componentId
+			} else if (componentId != backgroundId)
+				distancePerComponent[componentId] = thisDist to distanceRA.positionAsLongArray()
 		}
 	}
-	return maxPos.mapIndexed { idx, value -> value.toDouble() + min(idx) }.toDoubleArray()
+
+	return distancePerComponent.values.map {
+		it.second.mapIndexed { idx, value ->
+			(value + min(idx)).toDouble()
+		}.toDoubleArray()
+	}.toList()
 }
 
 internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
@@ -536,5 +569,9 @@ internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: Vie
 
 	fun updatePrediction(viewerX: Double, viewerY: Double, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
 		prediction = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(viewerX, viewerY, label)))
+	}
+
+	fun updatePrediction(viewerPositions : List<DoubleArray>, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
+		prediction = SamPredictor.SparsePrediction(viewerPositions.map { (x,y) -> renderState.getSamPoint(x,y, label) })
 	}
 }

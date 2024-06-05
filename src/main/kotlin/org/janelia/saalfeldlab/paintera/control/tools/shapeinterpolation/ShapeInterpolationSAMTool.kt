@@ -36,15 +36,13 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		shapeInterpolationMode.samSliceCache[controller.currentDepth] ?: let { SamEmbeddingLoaderCache.cancelPendingRequests() }
 
 		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(controller.currentDepth)
-		if (!info.preGenerated)
-			temporaryPrompt = false
-		else
-			controller.deleteSliceAt(controller.currentDepth)
+		if (info.preGenerated) controller.deleteSliceAt(controller.currentDepth)
 
 		maskedSource?.resetMasks(false)
 		viewerMask = controller.getMask()
 		super.activate()
 
+		if (!info.preGenerated) temporaryPrompt = false
 		requestPrediction(info.prediction)
 	}
 

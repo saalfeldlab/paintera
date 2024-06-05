@@ -159,8 +159,8 @@ internal class ShapeInterpolationTool(
 		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
 
 		if (!newPrediction && refresh) {
-			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getPositionAtMaxDistance()?.let { (x, y) ->
-				samSliceInfo.updatePrediction(x, y)
+			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getComponentMaxDistancePosition()?.let { positions ->
+				samSliceInfo.updatePrediction(positions)
 			}
 		}
 
