@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement
@@ -16,6 +15,7 @@ import javafx.scene.image.Image
 import javafx.stage.Stage
 import net.imglib2.realtransform.AffineTransform3D
 import org.controlsfx.control.Notifications
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
@@ -239,7 +239,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		.toFile()
 
 	private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
-		initProperties(gson.get<Properties>(json) ?: Properties())
+		/* Clear any errant null values from the properties. It shouldn't happen, but also is recoverable in case is does (did). */
+		json?.entrySet()
+			?.filter { (_, value) -> value == null || value.isJsonNull }?.toList()
+			?.forEach { (key, _) -> json.remove(key) }
+
+		val properties = gson.get<Properties>(json) ?: Properties()
+		initProperties(properties)
 		json?.get<JsonObject>(SOURCES_KEY)?.let { sourcesJson ->
 			SourceInfoSerializer.populate(
 				{ baseView.addState(it) },
@@ -273,7 +279,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		stage.onHiding = EventHandler { if (!doSaveAndQuit()) it.consume() }
 	}
 
-	internal fun askSaveAndQuit() : Boolean {
+	internal fun askSaveAndQuit(): Boolean {
 		return when {
 			wasQuit -> false
 			!isSaveNecessary() -> true
@@ -337,6 +343,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	class Serializer : PainteraSerialization.PainteraSerializer<PainteraMainWindow> {
 		override fun serialize(mainWindow: PainteraMainWindow, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
 			val map = context[mainWindow.properties].asJsonObject
+			map.entrySet().filter { (_, value) -> value == null || value.isJsonNull }.toList().forEach { (key, _) -> map.remove(key) }
 			map.add(SOURCES_KEY, context[mainWindow.baseView.sourceInfo()])
 			map.addProperty(VERSION_KEY, VERSION_STRING)
 			map.add(GLOBAL_TRANSFORM_KEY, context[AffineTransform3D().also { mainWindow.baseView.manager().getTransform(it) }])
