@@ -46,6 +46,11 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		requestPrediction(info.prediction)
 	}
 
+	override fun cancelAction() {
+		shapeInterpolationMode.switchTool(shapeInterpolationMode.defaultTool)
+		controller.setMaskOverlay()
+	}
+
 	override fun applyPrediction() {
 		lastPrediction?.apply {
 			/* cache the prediction. lock the cached slice, since this was applied manually */

@@ -564,7 +564,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
-					onAction { mode?.switchTool(mode.defaultTool) }
+					onAction { cancelAction() }
 				}
 			},
 
@@ -653,6 +653,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 			}
 		)
+	}
+
+	protected open fun cancelAction() {
+		mode?.switchTool(mode.defaultTool)
 	}
 
 	private fun resetPromptAndPrediction() {
