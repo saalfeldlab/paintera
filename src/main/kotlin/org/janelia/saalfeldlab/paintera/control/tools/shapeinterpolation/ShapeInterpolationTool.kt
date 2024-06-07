@@ -288,7 +288,8 @@ internal class ShapeInterpolationTool(
 							val remainingRequest = SimpleIntegerProperty().apply {
 								addListener { _, _, remaining ->
 									if (remaining == 0) {
-										depths.forEach { requestSamPrediction(it, refresh = true) }
+										controller.freezeInterpolation = false
+										controller.setMaskOverlay()
 
 										depths.sort()
 										/* eagerly request the next embeddings */
@@ -303,6 +304,7 @@ internal class ShapeInterpolationTool(
 							/* Do the prediction */
 							sortedSliceDepths.zipWithNext { before, after -> (before + after) / 2.0 }.forEach {
 								depths += it
+								controller.freezeInterpolation = true
 								remainingRequest.value++
 								requestSamPrediction(it) {
 									remainingRequest.value--

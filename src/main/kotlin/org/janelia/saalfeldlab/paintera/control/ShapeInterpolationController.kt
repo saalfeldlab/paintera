@@ -276,6 +276,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	fun togglePreviewMode() {
+		freezeInterpolation = false
 		preview = !preview
 		if (preview) interpolateBetweenSlices(false)
 		else updateSliceAndInterpolantsCompositeMask()
@@ -298,6 +299,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	@Synchronized
 	fun interpolateBetweenSlices(replaceExistingInterpolants: Boolean) {
+		if (freezeInterpolation) return
 		if (slicesAndInterpolants.slices.size < 2) {
 			updateSliceAndInterpolantsCompositeMask()
 			isBusy = false
@@ -468,9 +470,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		refreshMeshes()
 	}
 
+	private val freezeInterpolationProperty = SimpleBooleanProperty(false)
+	var freezeInterpolation: Boolean by freezeInterpolationProperty.nonnull()
+
 
 	@Throws(MaskInUse::class)
 	private fun setCompositeMask(includeInterpolant: Boolean = preview) {
+		if (freezeInterpolation) return
 		synchronized(source) {
 			source.resetMasks(false)
 			/* If preview is on, hide all except the first and last fill mask */
