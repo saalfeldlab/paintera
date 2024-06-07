@@ -41,7 +41,6 @@ import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
-import org.checkerframework.common.reflection.qual.Invoke
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -732,11 +731,14 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		/* get union of adjacent slices bounding boxes */
 		val unionInterval = let {
+
+			val sourceIntervalInMaskSpace = viewerMask.run { currentMaskToSourceTransform.inverse().estimateBounds(source.getSource(0, info.level)) }
 			val interpolantIntervalInMaskSpace = viewerMask.currentGlobalToMaskTransform.estimateBounds(interpolantInterval)
 
 			val minZSlice = interpolantIntervalInMaskSpace.minAsDoubleArray().also { it[2] = 0.0 }
 			val maxZSlice = interpolantIntervalInMaskSpace.maxAsDoubleArray().also { it[2] = 0.0 }
-			val interpolantIntervalSliceInMaskSpace = FinalRealInterval(minZSlice, maxZSlice)
+			val interpolantIntervalSliceInMaskSpace = FinalRealInterval(minZSlice, maxZSlice) intersect sourceIntervalInMaskSpace
+
 
 
 			val interpolatedMaskView = interpolant.dataInterpolant
@@ -1215,8 +1217,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			}
 
+			val sourceInMaskInterval = mask.initialMaskToSourceTransform.inverse().estimateBounds(mask.source.getSource(0,  mask.info.level))
 			selectionIntervals
-				.map { BundleView(mask.viewerImg).interval(it) }
+				.map { BundleView(mask.viewerImg).interval(it intersect sourceInMaskInterval) }
 				.map {
 					val shrinkingInterval = ShrinkingInterval(it.numDimensions())
 					LoopBuilder.setImages(it).forEachPixel { access ->
