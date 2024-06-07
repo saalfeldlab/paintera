@@ -3,6 +3,7 @@
 --app-version ${app.version}
 --win-menu
 --win-menu-group ${windows.vendor}
+--win-shortcut
 --vendor ${windows.vendor}
 --icon "${project.basedir}/img/icons/icon-draft.ico"
 --dest "${project.build.directory}/installer-${matrix.os}"
