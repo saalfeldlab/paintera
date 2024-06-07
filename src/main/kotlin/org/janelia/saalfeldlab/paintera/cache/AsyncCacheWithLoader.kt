@@ -45,12 +45,16 @@ open class AsyncCacheWithLoader<K : Any, V>(
 		cache.get(key) {
 			if (clear) cancelUnsubmittedLoadRequests()
 			async(loaderContext) {  loader(key) }
-		}
+		}.also { if (it.isCancelled) cache.invalidate(key) }
 	}
 
 	open fun load(key: K) : Job {
-		/* If it's already in the cache, deferred or not, just return a completed job and skipp the loader queue */
-		if (cache.getIfPresent(key) != null) return Job().apply { complete() }
+		/* If it's already in the cache, deferred or not, just return a completed job and skip the loader queue */
+		cache.getIfPresent(key)?.let {
+			if (it.isCancelled)
+				cache.invalidate(key)
+			else return Job().apply { complete() }
+		}
 
 		return runBlocking {
 			async(loaderQueueContext) {
