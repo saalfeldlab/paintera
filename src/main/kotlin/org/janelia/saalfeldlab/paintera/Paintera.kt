@@ -326,6 +326,7 @@ class Paintera : Application() {
 			styleable.stylesheets.add("style/interpolation.css")
 			styleable.stylesheets.add("style/sam.css")
 			styleable.stylesheets.add("style/paint.css")
+			styleable.stylesheets.add("style/raw-source.css")
 		}
 
 		private fun registerPainteraStylesheets(styleable: Parent) {
@@ -335,6 +336,7 @@ class Paintera : Application() {
 			styleable.stylesheets.add("style/interpolation.css")
 			styleable.stylesheets.add("style/sam.css")
 			styleable.stylesheets.add("style/paint.css")
+			styleable.stylesheets.add("style/raw-source.css")
 		}
 	}
 

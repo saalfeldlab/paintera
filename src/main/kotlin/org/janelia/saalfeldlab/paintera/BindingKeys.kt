@@ -115,6 +115,8 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     CANCEL                                               ( ESCAPE, "cancel tool / exit mode"),
     TOGGLE_NON_SELECTED_LABELS_VISIBILITY                ( V + SHIFT_DOWN, "toggle non-selected labels visibility"),
     SEGMENT_ANYTHING__TOGGLE_MODE                        ( A),
+    SEGMENT_ANYTHING__RESET_PROMPT                       ( BACK_SPACE),
+    SEGMENT_ANYTHING__ACCEPT_SEGMENTATION                ( ENTER),
     PAINT_BRUSH                                          ( SPACE),
     FILL_2D                                              ( F),
     FILL_3D                                              ( SHIFT_DOWN + F),

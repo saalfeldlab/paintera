@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import com.google.common.collect.HashBiMap
 import gnu.trove.set.hash.TLongHashSet
-import javafx.beans.InvalidationListener
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
@@ -79,13 +78,11 @@ class MeshManagerWithAssignmentForSegments(
 
 
 	private class RelevantBindingsAndProperties(private val key: Long, private val stream: AbstractHighlightingARGBStream) {
-		private val color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-		private val colorUpdateListener =
-			InvalidationListener { color.value = Colors.toColor(stream.argb(key) or 0xFF000000.toInt()) }
-				.also { stream.addListener(it) }
+		val colorProperty = SimpleObjectProperty(calculateColor())
+		private val colorUpdater = stream.subscribe { colorProperty.value = calculateColor() }
 
-		fun release() = stream.removeListener(colorUpdateListener)
-		fun colorProperty() = color
+		private fun calculateColor(): Color = Colors.toColor(stream.argb(key) or 0xFF000000.toInt())
+		fun release() = colorUpdater.unsubscribe()
 	}
 
 	private val updateExecutors = Executors.newSingleThreadExecutor(
@@ -199,7 +196,7 @@ class MeshManagerWithAssignmentForSegments(
 		val relevantBindingsAndProperties = relevantBindingsAndPropertiesMap.computeIfAbsent(key) {
 			RelevantBindingsAndProperties(key, argbStream)
 		}
-		state.colorProperty().bind(relevantBindingsAndProperties.colorProperty())
+		state.colorProperty().bind(relevantBindingsAndProperties.colorProperty)
 		super.setupMeshState(key, state)
 
 	}

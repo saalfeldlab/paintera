@@ -231,6 +231,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			meshes.refreshMeshes();
 	}
 
+	@Override public void onRemoval(SourceInfo sourceInfo) {
+
+		getMeshManager().removeAllMeshes();
+	}
+
 	@Override
 	public void onAdd(final PainteraBaseView paintera) {
 

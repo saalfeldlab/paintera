@@ -24,6 +24,8 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -31,10 +33,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
-import org.janelia.saalfeldlab.paintera.state.ARGBComposite
-import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
-import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
@@ -70,13 +69,22 @@ open class ConnectomicsRawState<D, T>(
 ) : SourceStateWithBackend<D, T>
 	where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 
-	private val converter = ARGBColorConverter.InvertingImp0<T>()
+	private val converter = ARGBColorConverter.InvertingImp0<T>().apply {
+		(backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+			min = it.minIntensity
+			max = it.maxIntensity
+		}
+	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
 
 	override fun getDataSource(): DataSource<D, T> = source
 
 	override fun converter(): ARGBColorConverter<T> = converter
+
+	override fun getDefaultMode(): ControlMode {
+		return RawSourceMode
+	}
 
 	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(CompositeCopy())
 	var composite: ARGBComposite
@@ -115,7 +123,7 @@ open class ConnectomicsRawState<D, T>(
 	override fun preferencePaneNode(): Node {
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
-		box.children.add(RawSourceStateConverterNode(converter).converterNode)
+		box.children.add(RawSourceStateConverterNode(converter, this).converterNode)
 
 		val backendMeta = backend.createMetaDataNode()
 		val metaDataContents = VBox(backendMeta)

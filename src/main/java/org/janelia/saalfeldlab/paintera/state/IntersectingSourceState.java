@@ -331,7 +331,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	}
 
 	@Override
-	public void onRemoval(SourceInfo paintera) {
+	public void onRemoval(SourceInfo sourceInfo) {
 
 		LOG.info("Removed IntersectingSourceState {}", nameProperty().get());
 		meshManager.removeAllMeshes();

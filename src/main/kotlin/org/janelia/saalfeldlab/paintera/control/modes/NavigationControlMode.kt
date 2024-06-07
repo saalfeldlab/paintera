@@ -26,9 +26,9 @@ import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
@@ -61,7 +61,9 @@ object NavigationControlMode : AbstractToolMode() {
 	 * Intentianally empty. [NavigationControlMode] has only one tool, which contains all the Navigation actions.
 	 * It will always be active when [NavigationControlMode] is the active mode.
 	 */
-	override val modeActions = listOf<ActionSet>()
+	override val modeActions = listOf<ActionSet>(
+
+	)
 
 	override val allowedActions = AllowedActions.NAVIGATION
 
@@ -378,7 +380,7 @@ object NavigationTool : ViewerTool() {
 							val delta = speed / 100
 							val potVal = it!!.value.toDouble()
 							val scale = 1 - delta * potVal
-							val (x,y) = targetPositionObservable!!.let { it.x to it.y }
+							val (x, y) = targetPositionObservable!!.let { it.x to it.y }
 							zoomController.zoomCenteredAt(scale, x, y)
 						}
 					}
@@ -478,7 +480,7 @@ object NavigationTool : ViewerTool() {
 					MidiRotationStruct(7, Axis.Z),
 				).map { (handle, axis) ->
 					painteraMidiActionSet("rotate", device, target, NavigationActionType.Rotate) {
-						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE ( handle) {
+						MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(handle) {
 							name = "midi_rotate_${axis.name.lowercase()}"
 							displayType = DisplayType.TRIM
 							verifyEventNotNull()
