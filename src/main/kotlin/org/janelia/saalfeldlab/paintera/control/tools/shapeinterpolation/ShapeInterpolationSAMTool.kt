@@ -29,6 +29,8 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 			}
 		}
 
+	private var replaceExistingSlice = false
+
 	override fun activate() {
 		/* If we are requesting a new embedding that isn't already pre-cached,
 		 *  then likely the existing requests are no longer needed.
@@ -36,13 +38,16 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		shapeInterpolationMode.samSliceCache[controller.currentDepth] ?: let { SamEmbeddingLoaderCache.cancelPendingRequests() }
 
 		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(controller.currentDepth)
-		if (info.preGenerated) controller.deleteSliceAt(controller.currentDepth)
-
 		maskedSource?.resetMasks(false)
-		viewerMask = controller.getMask()
+		replaceExistingSlice = !info.locked
+		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
 		super.activate()
 
-		if (!info.preGenerated) temporaryPrompt = false
+		temporaryPrompt = when {
+			!info.locked -> true
+			!info.preGenerated -> false
+			else -> temporaryPrompt
+		}
 		requestPrediction(info.prediction)
 	}
 
@@ -55,7 +60,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		lastPrediction?.apply {
 			/* cache the prediction. lock the cached slice, since this was applied manually */
 			super.applyPrediction()
-			shapeInterpolationMode.addSelection(maskInterval)?.also {
+			shapeInterpolationMode.addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
 				it.prediction = predictionRequest
 				it.locked = true
 			}

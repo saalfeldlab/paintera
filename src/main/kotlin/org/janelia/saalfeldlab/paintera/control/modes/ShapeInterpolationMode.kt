@@ -462,7 +462,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	internal fun addSelection(
 		selectionIntervalOverMask: Interval,
 		globalTransform: AffineTransform3D = paintera.baseView.manager().transform,
-		viewerMask: ViewerMask = controller.currentViewerMask!!
+		viewerMask: ViewerMask = controller.currentViewerMask!!,
+		replaceExistingSlice : Boolean = false
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
 		val sliceDepth = controller.depthAt(globalToViewerTransform)
@@ -492,7 +493,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 		}
 
-		val slice = controller.addSelection(selectionIntervalOverMask, globalTransform = globalTransform, viewerMask = viewerMask) ?: return null
+		val slice = controller.addSelection(selectionIntervalOverMask, replaceExistingSlice, globalTransform, viewerMask) ?: return null
 		return cacheLoadSamSliceInfo(sliceDepth).apply {
 			sliceInfo = slice
 		}
