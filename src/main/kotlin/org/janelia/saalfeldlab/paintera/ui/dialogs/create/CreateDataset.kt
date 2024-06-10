@@ -63,7 +63,15 @@ import java.util.*
 class CreateDataset(private val currentSource: Source<*>?, vararg allSources: SourceState<*, *>) {
 
 
-	private val mipmapLevels = FXCollections.observableArrayList<MipMapLevel>()
+	private val mipmapLevels = FXCollections.observableArrayList<MipMapLevel>().also {
+		it.addListener( ListChangeListener {  change ->
+			if (change.next()) {
+				change.addedSubList.forEach { level ->
+					level.isLabelMultisetProperty.bind(labelMultiset.selectedProperty())
+				}
+			}
+		})
+	}
 	private val mipmapLevelsNode by lazy {
 		createMipMapLevelsNode(mipmapLevels, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray())
 	}
@@ -124,7 +132,9 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	private val blockSize = SpatialField.intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
 	private val resolution = SpatialField.doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
 	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private val labelMultiset = CheckBox().also { it.isSelected = true }
 	private val scaleLevels = TitledPane("Scale Levels", mipmapLevelsNode)
+	//TODO Caleb: Use a proper grid layout instead of this...
 	private val pane = VBox(
 		nameIt("Name", NAME_WIDTH, true, nameField),
 		nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
@@ -133,6 +143,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		nameIt("Block Size", NAME_WIDTH, false, bufferNode(), blockSize.node),
 		nameIt("Resolution", NAME_WIDTH, false, bufferNode(), resolution.node),
 		nameIt("Offset", NAME_WIDTH, false, bufferNode(), offset.node),
+		nameIt("", NAME_WIDTH, false, bufferNode(), HBox(Label("Label Multiset Type  "), labelMultiset)),
 		setFromCurrentBox,
 		scaleLevels
 	)
@@ -265,7 +276,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						resolution.asDoubleArray(),
 						offset.asDoubleArray(),
 						scaleLevels.map { it.downsamplingFactors() }.toTypedArray(),
-						scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
+						if (labelMultiset.isSelected) scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray() else null,
+						labelMultiset.isSelected
 					)
 
 					val writer = n5Factory.openWriter(container)

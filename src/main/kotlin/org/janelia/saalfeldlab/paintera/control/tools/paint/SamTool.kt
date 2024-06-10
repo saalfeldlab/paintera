@@ -564,7 +564,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
-					onAction { mode?.switchTool(mode.defaultTool) }
+					onAction { cancelAction() }
 				}
 			},
 
@@ -653,6 +653,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 			}
 		)
+	}
+
+	protected open fun cancelAction() {
+		mode?.switchTool(mode.defaultTool)
 	}
 
 	private fun resetPromptAndPrediction() {
@@ -797,14 +801,16 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				maskedSource.applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
 				viewerMask = null
 			} else {
+				val predictionMaxInterval = originalWritableBackingImage!!.intersect( maskInterval)
 				LoopBuilder
-					.setImages(originalWritableBackingImage!!.interval(maskInterval), currentMask.viewerImg.wrappedSource.interval(maskInterval))
+					.setImages(originalWritableBackingImage!!.interval(predictionMaxInterval), currentMask.viewerImg.wrappedSource.interval(predictionMaxInterval))
 					.multiThreaded()
 					.forEachPixel { originalImage, currentImage ->
 						originalImage.set(currentImage.get())
 					}
+				val volatilePredictionMaxInterval = originalWritableVolatileBackingImage!!.intersect(maskInterval)
 				LoopBuilder
-					.setImages(originalWritableVolatileBackingImage!!.interval(maskInterval), currentMask.volatileViewerImg.wrappedSource.interval(maskInterval))
+					.setImages(originalWritableVolatileBackingImage!!.interval(volatilePredictionMaxInterval), currentMask.volatileViewerImg.wrappedSource.interval(volatilePredictionMaxInterval))
 					.multiThreaded()
 					.forEachPixel { originalImage, currentImage ->
 						originalImage.isValid = currentImage.isValid

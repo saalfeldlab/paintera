@@ -50,6 +50,7 @@ import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -749,9 +750,10 @@ public class N5Data {
 			final double[] resolution,
 			final double[] offset,
 			final double[][] relativeScaleFactors,
-			final int[] maxNumEntries) throws IOException {
+			@Nullable final int[] maxNumEntries,
+			final boolean labelMultiset) throws IOException {
 
-		createEmptyLabelDataset(container, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, maxNumEntries, false);
+		createEmptyLabelDataset(container, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, maxNumEntries, labelMultiset, false);
 	}
 
 	/**
@@ -776,7 +778,8 @@ public class N5Data {
 			final double[] resolution,
 			final double[] offset,
 			final double[][] relativeScaleFactors,
-			final int[] maxNumEntries,
+			@Nullable final int[] maxNumEntries,
+			final boolean labelMultisetType,
 			final boolean ignoreExisiting) throws IOException {
 
 		final Map<String, String> pd = new HashMap<>();
@@ -806,7 +809,7 @@ public class N5Data {
 		n5.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
 		n5.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
 		n5.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
-		n5.setAttribute(dataGroup, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+		n5.setAttribute(dataGroup, N5Helpers.IS_LABEL_MULTISET_KEY, labelMultisetType);
 
 		n5.createGroup(uniqueLabelsGroup);
 		n5.setAttribute(uniqueLabelsGroup, N5Helpers.MULTI_SCALE_KEY, true);
@@ -825,12 +828,14 @@ public class N5Data {
 
 			final String dataset = String.format(scaleDatasetPattern, scaleLevel);
 			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
-			final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
 			n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
 			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
-			n5.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
-			n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+			if (labelMultisetType) {
+				final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
+				n5.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
+				n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+			}
 
 			if (scaleLevel != 0) {
 				n5.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);

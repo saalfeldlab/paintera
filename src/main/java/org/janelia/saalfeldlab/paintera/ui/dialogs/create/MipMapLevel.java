@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField;
 
 public class MipMapLevel {
 
+	final public SimpleBooleanProperty isLabelMultisetProperty = new SimpleBooleanProperty(true);
 
 	final SpatialField<LongProperty> baseDimensions;
 	final SpatialField<IntegerProperty> relativeDownsamplingFactors;
@@ -80,7 +81,14 @@ public class MipMapLevel {
 			mipMapRow.getChildren().add(new VBox(resolutionHeader, resolution.getNode()));
 			mipMapRow.getChildren().add(new VBox(dimensionHeader, dimensions.getNode()));
 		}
-		mipMapRow.getChildren().add(new VBox(maxEntriesHeader, maxNumberOfEntriesPerSet.getTextField()));
+		final VBox numEntriesRow = new VBox(maxEntriesHeader, maxNumberOfEntriesPerSet.getTextField());
+
+		isLabelMultisetProperty.subscribe(isLabelMultiset -> {
+			if (isLabelMultiset)
+				mipMapRow.getChildren().add(numEntriesRow);
+			else
+				mipMapRow.getChildren().remove(numEntriesRow);
+		});
 
 		mipMapRow.setPadding(new Insets(0, 10.0, 0, 10.0));
 		mipMapRow.spacingProperty().setValue(10.0);

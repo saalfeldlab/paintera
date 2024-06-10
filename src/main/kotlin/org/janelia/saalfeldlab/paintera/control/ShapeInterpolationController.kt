@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
@@ -25,7 +24,6 @@ import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
-import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Translation3D
 import net.imglib2.type.BooleanType
@@ -41,10 +39,12 @@ import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
-import org.checkerframework.common.reflection.qual.Invoke
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
@@ -61,7 +61,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
@@ -192,19 +191,16 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	@JvmOverloads
 	fun addSelection(
 		maskIntervalOverSelection: Interval,
-		keepInterpolation: Boolean = true,
+		replaceExistingSlice: Boolean = false,
 		globalTransform: AffineTransform3D,
 		viewerMask: ViewerMask
 	): SliceInfo? {
 		if (controllerState == ControllerState.Off) return null
 		isBusy = true
 		val selectionDepth = depthAt(globalTransform)
-		if (!keepInterpolation && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null) {
+		if (replaceExistingSlice && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null)
 			slicesAndInterpolants.removeSliceAtDepth(selectionDepth)
-			updateSliceAndInterpolantsCompositeMask()
-			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
-			slicesAndInterpolants.add(selectionDepth, slice)
-		}
+
 		if (slicesAndInterpolants.getSliceAtDepth(selectionDepth) == null) {
 			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
 			slicesAndInterpolants.add(selectionDepth, slice)
@@ -280,6 +276,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	fun togglePreviewMode() {
+		freezeInterpolation = false
 		preview = !preview
 		if (preview) interpolateBetweenSlices(false)
 		else updateSliceAndInterpolantsCompositeMask()
@@ -302,6 +299,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	@Synchronized
 	fun interpolateBetweenSlices(replaceExistingInterpolants: Boolean) {
+		if (freezeInterpolation) return
 		if (slicesAndInterpolants.slices.size < 2) {
 			updateSliceAndInterpolantsCompositeMask()
 			isBusy = false
@@ -336,7 +334,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						.reduceOrNull(Intervals::union)
 				}
 				updateSliceAndInterpolantsCompositeMask()
- 				requestRepaintAfterTasks(updateInterval)
+				requestRepaintAfterTasks(updateInterval)
 			}
 		}
 			.onCancelled { _, _ -> LOG.debug { "Interpolation Cancelled" } }
@@ -472,9 +470,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		refreshMeshes()
 	}
 
+	private val freezeInterpolationProperty = SimpleBooleanProperty(false)
+	var freezeInterpolation: Boolean by freezeInterpolationProperty.nonnull()
+
 
 	@Throws(MaskInUse::class)
 	private fun setCompositeMask(includeInterpolant: Boolean = preview) {
+		if (freezeInterpolation) return
 		synchronized(source) {
 			source.resetMasks(false)
 			/* If preview is on, hide all except the first and last fill mask */
@@ -620,10 +622,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			activeViewer!!.state.getViewerTransform(it)
 		}
 
-	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel): ViewerMask {
+	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
 
 		/* If we have a mask, get it; else create a new one */
-		currentViewerMask = sliceAtCurrentDepth?.let { oldSlice ->
+		currentViewerMask = (if (ignoreExisting) null else sliceAtCurrentDepth)?.let { oldSlice ->
 			val oldSliceBoundingBox = oldSlice.maskBoundingBox ?: let {
 				deleteSliceAt()
 				return@let null
@@ -732,11 +734,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		/* get union of adjacent slices bounding boxes */
 		val unionInterval = let {
+
+			val sourceIntervalInMaskSpace = viewerMask.run { currentMaskToSourceTransform.inverse().estimateBounds(source.getSource(0, info.level)) }
 			val interpolantIntervalInMaskSpace = viewerMask.currentGlobalToMaskTransform.estimateBounds(interpolantInterval)
 
 			val minZSlice = interpolantIntervalInMaskSpace.minAsDoubleArray().also { it[2] = 0.0 }
 			val maxZSlice = interpolantIntervalInMaskSpace.maxAsDoubleArray().also { it[2] = 0.0 }
-			val interpolantIntervalSliceInMaskSpace = FinalRealInterval(minZSlice, maxZSlice)
+			val interpolantIntervalSliceInMaskSpace = FinalRealInterval(minZSlice, maxZSlice) intersect sourceIntervalInMaskSpace
 
 
 			val interpolatedMaskView = interpolant.dataInterpolant
@@ -773,7 +777,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	companion object {
-		private val LOG = KotlinLogging.logger {  }
+		private val LOG = KotlinLogging.logger { }
 		private fun paintera(): PainteraBaseView = Paintera.getPaintera().baseView
 
 		private val Long.isInterpolationLabel
@@ -1215,8 +1219,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			}
 
+			val sourceInMaskInterval = mask.initialMaskToSourceTransform.inverse().estimateBounds(mask.source.getSource(0, mask.info.level))
 			selectionIntervals
-				.map { BundleView(mask.viewerImg).interval(it) }
+				.map { BundleView(mask.viewerImg).interval(it intersect sourceInMaskInterval) }
 				.map {
 					val shrinkingInterval = ShrinkingInterval(it.numDimensions())
 					LoopBuilder.setImages(it).forEachPixel { access ->
