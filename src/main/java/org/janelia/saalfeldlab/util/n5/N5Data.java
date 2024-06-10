@@ -828,15 +828,16 @@ public class N5Data {
 
 			final String dataset = String.format(scaleDatasetPattern, scaleLevel);
 			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
-			n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
-			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
 			if (labelMultisetType) {
+				n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
 				final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
 				n5.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
 				n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
-			}
+			} else
+				n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
+			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 			if (scaleLevel != 0) {
 				n5.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
 				n5.setAttribute(uniqeLabelsDataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
