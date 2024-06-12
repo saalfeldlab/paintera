@@ -800,7 +800,7 @@ public class N5Data {
 			throw new IOException(String.format("Unique labels group `%s' exists in container `%s' -- conflict likely.", uniqueLabelsGroup, container));
 
 		n5.setAttribute(group, N5Helpers.PAINTERA_DATA_KEY, pd);
-		n5.setAttribute(group, N5Helpers.MAX_ID_KEY, 1L);
+		n5.setAttribute(group, N5Helpers.MAX_ID_KEY, 0L);
 
 		final String dataGroup = String.format("%s/data", group);
 		n5.createGroup(dataGroup);
