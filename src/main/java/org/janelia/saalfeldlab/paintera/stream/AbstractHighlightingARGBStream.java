@@ -74,7 +74,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 			Constants.DEFAULT_CAPACITY,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.INVALID,
-			0
+			-1
 	);
 
 	public AbstractHighlightingARGBStream(
@@ -295,8 +295,10 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public void specifyColorExplicitly(final long segmentId, final int color, final boolean overrideAlpha) {
 
 		this.explicitlySpecifiedColors.put(segmentId, color);
-		if (overrideAlpha)
-			this.overrideAlpha.put(segmentId, 1);
+		if (overrideAlpha) {
+			var alpha = color >>> 24;
+			this.overrideAlpha.put(segmentId, alpha);
+		}
 		clearCache();
 	}
 
