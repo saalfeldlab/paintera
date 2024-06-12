@@ -170,10 +170,11 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 			val backgroundIdVisible = CheckBox("Background ID (0) Visible ")
 			backgroundIdVisible.tooltip = Tooltip( "Make the background ID visible" )
-			backgroundIdVisible.selectedProperty().subscribe { visible ->
-				if (visible) {
+			val backgroundIsVisible = converter.getStream().overrideAlpha.get(BACKGROUND) != 0
+			backgroundIdVisible.selectedProperty().set(backgroundIsVisible)
+			backgroundIdVisible.selectedProperty().addListener { obs, oldv, visible ->
+				if (visible)
 					converter.getStream().overrideAlpha.remove(BACKGROUND)
-				}
 				else
 					converter.getStream().overrideAlpha.put(BACKGROUND, 0)
 				converter.getStream().clearCache()

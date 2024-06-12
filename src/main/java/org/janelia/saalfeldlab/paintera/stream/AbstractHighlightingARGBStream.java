@@ -70,7 +70,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
 	protected final TLongIntHashMap explicitlySpecifiedColors = new TLongIntHashMap();
-	protected final TLongIntHashMap overrideAlpha = new TLongIntHashMap(
+	public final TLongIntHashMap overrideAlpha = new TLongIntHashMap(
 			Constants.DEFAULT_CAPACITY,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.INVALID,
