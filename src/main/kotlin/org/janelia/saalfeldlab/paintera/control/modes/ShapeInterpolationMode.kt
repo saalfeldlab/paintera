@@ -131,6 +131,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	override fun exit() {
 		super.exit()
 		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
+		SamEmbeddingLoaderCache.invalidateAll()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
 		controller.resetFragmentAlpha()
 		activeViewerProperty.removeListener(toolTriggerListener)
