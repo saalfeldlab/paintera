@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
@@ -140,7 +141,7 @@ class MeshManagerWithAssignmentForSegments(
 		val inconsistentIds = Segments()
 
 		selectedSegments.forEach { segment ->
-			if (segment !in presentSegments)
+			if (segment !in presentSegments && !IdService.isTemporary(segment))
 				segmentsToAdd.add(segment)
 			true
 		}
@@ -160,13 +161,16 @@ class MeshManagerWithAssignmentForSegments(
 		segmentsToAdd.addAll(inconsistentIds)
 
 		// remove meshes that are present but not in selection
-		removeMeshes(segmentsToRemove.toArray().toList())
+		if (!segmentsToRemove.isEmpty)
+			removeMeshes(segmentsToRemove.toArray().toList())
 		// add meshes for all selected ids that are not present yet
 		// removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createMeshFor
 		// another option would be to synchronize on a lock object but that is not necessary
-		createMeshes(segmentsToAdd)
+		if (!segmentsToAdd.isEmpty)
+			createMeshes(segmentsToAdd)
 
-		manager.requestCancelAndUpdate()
+		if (!(segmentsToAdd.isEmpty && segmentsToAdd.isEmpty))
+			manager.requestCancelAndUpdate()
 
 		this._meshUpdateObservable.meshUpdateCompleted()
 	}
