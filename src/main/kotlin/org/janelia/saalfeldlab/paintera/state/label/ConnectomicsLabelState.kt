@@ -81,18 +81,8 @@ import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
 import java.util.function.*
-import kotlin.collections.List
-import kotlin.collections.Map
-import kotlin.collections.any
-import kotlin.collections.asSequence
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.forEach
-import kotlin.collections.isEmpty
-import kotlin.collections.isNotEmpty
-import kotlin.collections.listOf
-import kotlin.collections.map
-import kotlin.collections.toTypedArray
 
 class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
@@ -156,8 +146,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
-	private val idSelectorHandler =
-		LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments, meshManager::refreshMeshes)
+	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments, meshManager::refreshMeshes).also {
+		it.activateCurrentOrNext()
+	}
 
 	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
 
@@ -570,6 +561,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val CONVERTER                       = "converter"
         const val CONVERTER_SEED                  = "seed"
 		const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
+		const val BACKGROUND_ID_VISIBLE          = "backgroundIdVisible"
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
@@ -592,8 +584,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.add(MANAGED_MESH_SETTINGS, context[state.meshManager.managedSettings])
 				map.add(COMPOSITE, context.withClassInfo(state.composite))
 				JsonObject().let { m ->
-					m.addProperty(CONVERTER_SEED, state.converter.seedProperty().get())
-					state.converter.userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
+					state.converter.apply {
+						m.addProperty(CONVERTER_SEED, seedProperty().get())
+						if (stream.overrideAlpha.get(Label.BACKGROUND) != stream.overrideAlpha.noEntryValue) m.addProperty(BACKGROUND_ID_VISIBLE, false)
+
+						userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
+
+					}
 					map.add(CONVERTER, m)
 				}
 				map.add(INTERPOLATION, context[state.interpolation])
@@ -666,6 +663,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 								converter.apply {
 									get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
 									get<Long>(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
+									if (get<Boolean>(BACKGROUND_ID_VISIBLE) == false) stream.overrideAlpha.put(Label.BACKGROUND, 0)
 								}
 							}
 

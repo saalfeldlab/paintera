@@ -49,8 +49,6 @@ import net.imglib2.view.Views
 import org.apache.commons.io.output.NullPrintStream
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
-import org.janelia.saalfeldlab.fx.Tasks
-import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
@@ -94,7 +92,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.paintera.util.algorithms.otsuThresholdPrediction
 import org.janelia.saalfeldlab.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.collections.List
 import kotlin.collections.MutableList
@@ -207,7 +204,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
 		}
 
-	private var predictionTask: UtilityTask<Unit>? = null
+	private var predictionJob : Job = Job().apply { complete() }
 
 	internal val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
 	var lastPrediction by lastPredictionProperty.nullable()
@@ -299,8 +296,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	internal fun cleanup() {
 		clearPromptDrawings()
 		currentLabelToPaint = Label.INVALID
-		predictionTask?.cancel()
-		predictionTask = null
+		predictionJob.cancel()
 		if (unwrapResult) {
 			if (!maskProvided) {
 				maskedSource?.resetMasks()
@@ -833,8 +829,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 	open fun requestPrediction(promptPoints: List<SamPoint>, estimateThreshold: Boolean = true) {
-		if (predictionTask == null || predictionTask?.isCancelled == true) {
-			startPredictionTask()
+		if (!predictionJob.isActive) {
+			startPredictionJob()
 		}
 		currentPredictionRequest = SamPredictor.points(promptPoints.toList()) to estimateThreshold
 	}
@@ -849,9 +845,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private var embeddingRequest: Deferred<OnnxTensor>? = null
 
 	private var currentPrediction: SamPredictor.SamPrediction? = null
-	private fun startPredictionTask() {
+	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
-		val task = Tasks.createTask { task ->
+		predictionJob = SAM_TASK_SCOPE.launch {
 			val session = createOrtSessionTask.get()
 			val imageEmbedding = try {
 				runBlocking {
@@ -859,15 +855,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					embeddingRequest!!.await()
 				}
 			} catch (e: InterruptedException) {
-				if (!task.isCancelled) throw e
-				return@createTask
+				if (coroutineContext.isActive) throw e
+				return@launch
 			} catch (e: CancellationException) {
-				return@createTask
+				return@launch
 			} finally {
 				isBusy = false
 			}
 			val predictor = SamPredictor(ortEnv, session, imageEmbedding, imgWidth to imgHeight)
-			while (!task.isCancelled) {
+			while (coroutineContext.isActive) {
 				val predictionPair = predictionQueue.take()
 				val (predictionRequest, estimateThreshold) = predictionPair
 				val points = (predictionRequest as SparsePrediction).points
@@ -933,7 +929,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				} catch (e: InterruptedException) {
 					System.setErr(stdErr)
 					LOG.debug(e) { "Connected Components Interrupted During SAM" }
-					task.cancel()
+					cancel("Connected Components Interrupted During SAM" )
 					continue
 				} finally {
 					System.setErr(stdErr)
@@ -1048,8 +1044,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				lastPrediction = SamTaskInfo(maskSource, predictionIntervalInViewerSpace, imageEmbedding, predictionRequest)
 			}
 		}
-		predictionTask = task
-		task.submit(SAM_TASK_SERVICE)
 	}
 
 	private fun setBestEstimatedThreshold(interval: Interval? = null) {
@@ -1140,15 +1134,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private val LOG = KotlinLogging.logger { }
 
-		internal val SAM_TASK_SERVICE = ForkJoinPool.ForkJoinWorkerThreadFactory { pool: ForkJoinPool ->
-			val worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool)
-			worker.isDaemon = true
-			worker.priority = 4
-			worker.name = "sam-task-" + worker.poolIndex
-			worker
-		}.let { factory ->
-			ForkJoinPool(max(4.0, 4 * (Runtime.getRuntime().availableProcessors()).toDouble()).toInt(), factory, null, false)
-		}
+		internal val SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
 
 
 		private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {

@@ -72,16 +72,18 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 		} else if (lockedSegments.isLocked(segmentId) && hideLockedSegments) {
 			argb = argb & 0x00ffffff;
 		} else {
-			if (overrideAlpha.get(assigned) != 1) {
-				var a = alpha;
+			int alphaOverride = overrideAlpha.get(assigned);
+			int actualAlpha = alpha;
+			if (alphaOverride == overrideAlpha.getNoEntryValue()) {
 				if (isActiveSegment) {
 					if (isActiveFragment(fragmentId))
-						a = activeFragmentAlpha;
+						actualAlpha = activeFragmentAlpha;
 					else
-						a = activeSegmentAlpha;
+						actualAlpha = activeSegmentAlpha;
 				}
-				argb = argb & 0x00ffffff | a;
-			}
+			} else
+				actualAlpha = alphaOverride << 24;
+			argb = argb & 0x00ffffff | actualAlpha;
 		}
 
 		return argb;

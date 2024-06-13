@@ -70,11 +70,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
 	protected final TLongIntHashMap explicitlySpecifiedColors = new TLongIntHashMap();
-	protected final TLongIntHashMap overrideAlpha = new TLongIntHashMap(
+	public final TLongIntHashMap overrideAlpha = new TLongIntHashMap(
 			Constants.DEFAULT_CAPACITY,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.INVALID,
-			0
+			-1
 	);
 
 	public AbstractHighlightingARGBStream(
@@ -295,8 +295,10 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public void specifyColorExplicitly(final long segmentId, final int color, final boolean overrideAlpha) {
 
 		this.explicitlySpecifiedColors.put(segmentId, color);
-		if (overrideAlpha)
-			this.overrideAlpha.put(segmentId, 1);
+		if (overrideAlpha) {
+			var alpha = color >>> 24;
+			this.overrideAlpha.put(segmentId, alpha);
+		}
 		clearCache();
 	}
 

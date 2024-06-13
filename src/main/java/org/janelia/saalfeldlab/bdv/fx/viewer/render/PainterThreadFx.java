@@ -45,27 +45,28 @@ public final class PainterThreadFx extends Thread {
 		while (this.isRunning) {
 			boolean paint;
 			synchronized (this) {
-				paint = this.pleaseRepaint;
-				this.pleaseRepaint = false;
+				paint = pleaseRepaint;
+				pleaseRepaint = false;
 			}
 
 			if (paint) {
 				try {
-					this.paintable.paint();
+					paintable.paint();
 				} catch (RejectedExecutionException var5) {
 				}
 			}
 
 			synchronized (this) {
 				try {
-					if (this.isRunning && !this.pleaseRepaint) {
-						this.wait();
+					if (isRunning && !pleaseRepaint) {
+						wait();
 					}
-					continue;
+					if (isRunning)
+						continue;
 				} catch (InterruptedException var7) {
+					System.out.println(Thread.currentThread().getName() + " interrupted");
 				}
 			}
-
 			return;
 		}
 	}
@@ -73,8 +74,8 @@ public final class PainterThreadFx extends Thread {
 	public void requestRepaint() {
 
 		synchronized (this) {
-			this.pleaseRepaint = true;
-			this.notify();
+			pleaseRepaint = true;
+			notify();
 		}
 	}
 
@@ -85,12 +86,10 @@ public final class PainterThreadFx extends Thread {
 
 	public void stopRendering() {
 
-		synchronized (this) {
-			LOG.debug("Stop rendering now!");
-			this.isRunning = false;
-			this.notify();
-			LOG.debug("Notified on this ({})", this);
-		}
+		LOG.debug("Stop rendering now!");
+		isRunning = false;
+		interrupt();
+		LOG.debug("Notified on this ({})", this);
 	}
 
 }

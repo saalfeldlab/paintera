@@ -105,6 +105,11 @@ public interface IdService {
 		return randomTemps.findFirst().getAsLong();
 	}
 
+	static boolean isTemporary(final long id) {
+
+		return id > FIRST_TEMPORARY_ID && id < LAST_TEMPORARY_ID;
+	}
+
 	class IdServiceNotProvided implements IdService {
 
 		@Override

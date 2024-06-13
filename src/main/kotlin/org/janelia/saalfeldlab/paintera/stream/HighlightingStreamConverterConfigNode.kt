@@ -14,6 +14,7 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import javafx.util.converter.NumberStringConverter
+import net.imglib2.type.label.Label.*
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
@@ -117,7 +118,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				event.consume()
 				try {
 					val id = parseLong(addIdField.text)
-					converter.setColor(id, addColorPicker.value, true)
+					converter.setColor(id, addColorPicker.value)
 					addIdField.text = ""
 				} catch (e: NumberFormatException) {
 					LOG.error("Not a valid long/integer format: {}", addIdField.text)
@@ -129,13 +130,10 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			hideLockedSegments.selectedProperty().bindBidirectional(converter.hideLockedSegmentsProperty())
 			contents.children.add(hideLockedSegments)
 
-			val colorFromSegmentId = CheckBox("Color From segment Id.")
-			colorFromSegmentId.tooltip = Tooltip(
-				"Generate fragment color from segment id (on) or fragment id (off)"
-			)
+			val colorFromSegmentId = CheckBox("Color From segment ID.")
+			colorFromSegmentId.tooltip = Tooltip( "Generate fragment color from segment ID (on) or fragment ID (off)" )
 			colorFromSegmentId.selectedProperty().bindBidirectional(colorFromSegment)
 			contents.children.add(colorFromSegmentId)
-
 
 			val colorContents = GridPane()
 			colorContents.hgap = 5.0
@@ -168,6 +166,22 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			}
 			colorsMap.addListener(colorsChanged)
 			colorsChanged.onChanged(null)
+
+
+			val backgroundIdVisible = CheckBox("Background ID (0) Visible ")
+			backgroundIdVisible.tooltip = Tooltip( "Make the background ID visible" )
+			val backgroundIsVisible = converter.getStream().overrideAlpha.get(BACKGROUND) != 0
+			backgroundIdVisible.selectedProperty().set(backgroundIsVisible)
+			backgroundIdVisible.selectedProperty().addListener { obs, oldv, visible ->
+				if (visible)
+					converter.getStream().overrideAlpha.remove(BACKGROUND)
+				else
+					converter.getStream().overrideAlpha.put(BACKGROUND, 0)
+				converter.getStream().clearCache()
+			}
+			contents.children.add(backgroundIdVisible)
+
+
 			contents.children.add(colorPane)
 
 

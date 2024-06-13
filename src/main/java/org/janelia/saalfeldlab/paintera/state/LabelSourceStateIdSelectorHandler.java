@@ -185,6 +185,12 @@ public class LabelSourceStateIdSelectorHandler {
 		};
 	}
 
+	public long activateCurrentOrNext() {
+		if (selectedIds.isLastSelectionValid())
+			return selectedIds.getLastSelection();
+		else return nextId(true);
+	}
+
 	public long nextId() {
 
 		return nextId(true);
