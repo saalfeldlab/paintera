@@ -529,7 +529,7 @@ public class MultiResolutionRendererGeneric<T> {
 			// if rendering was not cancelled...
 			if (success) {
 				if (createProjector) {
-					if (currentScreenScaleIndex >= screenImages.size())
+					if (currentScreenScaleIndex >= screenImages.size() || reuseBufferScreenScale >= screenImages.size())
 						return -1;
 					final ArrayDeque<T> buffers = screenImages.get(currentScreenScaleIndex);
 					final T renderTarget = doubleBuffered ? buffers.pop() : buffers.peek();

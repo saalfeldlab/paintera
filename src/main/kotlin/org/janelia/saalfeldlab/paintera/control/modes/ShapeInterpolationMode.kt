@@ -130,6 +130,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	override fun exit() {
 		super.exit()
+
 		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
 		SamEmbeddingLoaderCache.invalidateAll()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
@@ -560,8 +561,35 @@ internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
 	operator fun minusAssign(key: Double) {
 		remove(key.toFloat())
 	}
+
 	operator fun minusAssign(key: Float) {
 		remove(key)
+	}
+
+	override fun clear() {
+		values.forEach {
+			it.mask.shutdown?.run()
+		}
+		super.clear()
+	}
+
+	override fun remove(key: Float): SamSliceInfo? {
+		return super.remove(key)?.also {
+			it.mask.shutdown?.run()
+		}
+	}
+
+	override fun remove(key: Float, value: SamSliceInfo): Boolean {
+		return if (super.remove(key, value)) {
+			value.mask.shutdown?.run()
+			true
+		} else false
+	}
+
+	override fun put(key: Float, value: SamSliceInfo): SamSliceInfo? {
+		return super.put(key, value)?.also {
+			it.mask.shutdown?.run()
+		}
 	}
 }
 

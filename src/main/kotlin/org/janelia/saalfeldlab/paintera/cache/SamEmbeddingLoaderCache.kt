@@ -198,6 +198,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			result.image?.let { img ->
 				ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
 				predictionImagePngOutputStream.close()
+				sharedQueue.shutdown()
 				imageRenderer.stopRendering()
 			}
 		}

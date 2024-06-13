@@ -666,6 +666,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			/* Replace old slice info */
 			slicesAndInterpolants.removeSlice(oldSlice)
+			oldSlice.mask.shutdown?.run()
 
 			val newSlice = SliceInfo(
 				newMask,

@@ -779,6 +779,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			if (!canResetMask)
 				throw new MaskInUse("Cannot reset the mask.");
 
+			var mask = getCurrentMask();
+			if (mask != null && mask.shutdown != null) mask.shutdown.run();
 			setCurrentMask(null);
 			this.isBusy.set(true);
 		}
