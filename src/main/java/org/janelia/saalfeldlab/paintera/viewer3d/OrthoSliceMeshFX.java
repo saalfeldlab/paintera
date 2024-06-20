@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
@@ -10,6 +11,7 @@ import net.imglib2.Point;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import org.janelia.saalfeldlab.paintera.meshes.Meshes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +57,9 @@ public class OrthoSliceMeshFX {
 	final float[] buf3D = new float[3];
 
 	public OrthoSliceMeshFX(final long[] dimensions, final Affine viewerTransformFX) {
+
+		material.setSpecularColor(Color.TRANSPARENT);
+		material.setSpecularPower(0.0);
 
 		final Point min = new Point(2), max = new Point(dimensions);
 
