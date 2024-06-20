@@ -156,6 +156,29 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     }
 }
 
+enum class RawSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombination) : NamedKeyBinding by lateInitNamedKeyCombo {
+    RESET_MIN_MAX_INTENSITY_THRESHOLD                 ( SHIFT_DOWN + Y, "Reset Min / Max Intensity Threshold"),
+    AUTO_MIN_MAX_INTENSITY_THRESHOLD                  ( Y, "Auto Min / Max Intensity Threshold"),
+    ;
+
+
+    private val formattedName = name.lowercase()
+        .replace("__", ": ")
+        .replace("_", " ")
+
+    constructor(keys : KeyCombination, name : String? = null) : this(LateInitNamedKeyCombination(keys, name))
+    constructor(key : KeyCode, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+    constructor(key : Modifier, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+
+    init {
+        lateInitNamedKeyCombo.setName(formattedName)
+    }
+
+    companion object {
+        fun namedCombinationsCopy() = NamedKeyCombination.CombinationMap(*entries.map { it.deepCopy }.toTypedArray())
+    }
+}
+
 object NavigationKeys {
     const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD       = "translate along normal forward"
     const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST  = "translate along normal forward fast"
