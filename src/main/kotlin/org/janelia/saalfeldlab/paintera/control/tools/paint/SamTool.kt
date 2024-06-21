@@ -204,7 +204,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
 		}
 
-	private var predictionJob : Job = Job().apply { complete() }
+	private var predictionJob: Job = Job().apply { complete() }
 
 	internal val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
 	var lastPrediction by lastPredictionProperty.nullable()
@@ -797,7 +797,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				maskedSource.applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
 				viewerMask = null
 			} else {
-				val predictionMaxInterval = originalWritableBackingImage!!.intersect( maskInterval)
+				val predictionMaxInterval = originalWritableBackingImage!!.intersect(maskInterval)
 				LoopBuilder
 					.setImages(originalWritableBackingImage!!.interval(predictionMaxInterval), currentMask.viewerImg.wrappedSource.interval(predictionMaxInterval))
 					.multiThreaded()
@@ -845,9 +845,22 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private var embeddingRequest: Deferred<OnnxTensor>? = null
 
 	private var currentPrediction: SamPredictor.SamPrediction? = null
+
+	private val resetSAMTaskOnException = CoroutineExceptionHandler { _, exception ->
+		LOG.error(exception) { "Error during SAM Prediction " }
+		isBusy = false
+		deactivate()
+		mode?.apply {
+			InvokeOnJavaFXApplicationThread {
+				switchTool(defaultTool)
+			}
+		}
+		SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
+	}
+
 	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
-		predictionJob = SAM_TASK_SCOPE.launch {
+		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
 			val session = createOrtSessionTask.get()
 			val imageEmbedding = try {
 				runBlocking {
@@ -929,7 +942,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				} catch (e: InterruptedException) {
 					System.setErr(stdErr)
 					LOG.debug(e) { "Connected Components Interrupted During SAM" }
-					cancel("Connected Components Interrupted During SAM" )
+					cancel("Connected Components Interrupted During SAM")
 					continue
 				} finally {
 					System.setErr(stdErr)
@@ -1134,7 +1147,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private val LOG = KotlinLogging.logger { }
 
-		internal val SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
+		private var SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
 
 
 		private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {
