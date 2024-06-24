@@ -31,6 +31,8 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 	private var replaceExistingSlice = false
 
+	override var currentDisplay: Boolean = true
+
 	override fun activate() {
 		/* If we are requesting a new embedding that isn't already pre-cached,
 		 *  then likely the existing requests are no longer needed.
@@ -41,18 +43,17 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		maskedSource?.resetMasks(false)
 		replaceExistingSlice = !info.locked
 		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
+
 		super.activate()
 
-		temporaryPrompt = when {
-			!info.locked -> true
-			!info.preGenerated -> false
-			else -> temporaryPrompt
+		if (!info.locked && !info.preGenerated) {
+			temporaryPrompt = false
+			requestPrediction(info.prediction)
 		}
-		requestPrediction(info.prediction)
 	}
 
-	override fun cancelAction() {
-		shapeInterpolationMode.switchTool(shapeInterpolationMode.defaultTool)
+	override fun deactivate() {
+		super.deactivate()
 		controller.setMaskOverlay()
 	}
 

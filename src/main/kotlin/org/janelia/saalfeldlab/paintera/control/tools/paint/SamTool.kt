@@ -26,6 +26,7 @@ import javafx.scene.layout.Pane
 import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
@@ -92,7 +93,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.paintera.util.algorithms.otsuThresholdPrediction
 import org.janelia.saalfeldlab.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.LinkedBlockingQueue
 import kotlin.collections.List
 import kotlin.collections.MutableList
 import kotlin.collections.addAll
@@ -232,13 +232,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var screenScale by Delegates.notNull<Double>()
 
-	private val predictionQueue = LinkedBlockingQueue<Pair<SamPredictor.PredictionRequest, Boolean>>(1)
+	private val predictionChannel = Channel<Pair<SamPredictor.PredictionRequest, Boolean>>(1)
 
 	private var currentPredictionRequest: Pair<SamPredictor.PredictionRequest, Boolean>? = null
-		set(value) = synchronized(predictionQueue) {
-			predictionQueue.clear()
+		set(value) = runBlocking {
+			predictionChannel.tryReceive() /* capacity 1, so this will always either do nothing, or empty the channel */
 			value?.let { (request, _) ->
-				predictionQueue.put(value)
+				predictionChannel.send(value)
 				if (!temporaryPrompt)
 					request.drawPrompt()
 			}
@@ -297,6 +297,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		clearPromptDrawings()
 		currentLabelToPaint = Label.INVALID
 		predictionJob.cancel()
+		predictionChannel.tryReceive() /*clear the channel if not empty */
 		if (unwrapResult) {
 			if (!maskProvided) {
 				maskedSource?.resetMasks()
@@ -560,7 +561,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
-					onAction { cancelAction() }
+					onAction { mode?.switchTool(mode.defaultTool) }
 				}
 			},
 
@@ -649,10 +650,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}
 			}
 		)
-	}
-
-	protected open fun cancelAction() {
-		mode?.switchTool(mode.defaultTool)
 	}
 
 	private fun resetPromptAndPrediction() {
@@ -829,6 +826,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 	open fun requestPrediction(promptPoints: List<SamPoint>, estimateThreshold: Boolean = true) {
+		if (promptPoints.isEmpty())
+			temporaryPrompt = true
+
 		if (!predictionJob.isActive) {
 			startPredictionJob()
 		}
@@ -858,6 +858,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
 	}
 
+	protected open var currentDisplay = false
+
 	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
 		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
@@ -876,9 +878,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				isBusy = false
 			}
 			val predictor = SamPredictor(ortEnv, session, imageEmbedding, imgWidth to imgHeight)
-			while (coroutineContext.isActive) {
-				val predictionPair = predictionQueue.take()
-				val (predictionRequest, estimateThreshold) = predictionPair
+			while (predictionJob.isActive) {
+				val (predictionRequest, estimateThreshold) =  predictionChannel.receive()
 				val points = (predictionRequest as SparsePrediction).points
 
 				val newPredictionRequest = estimateThreshold || currentPrediction == null
