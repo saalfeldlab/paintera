@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import bdv.fx.viewer.render.RenderUnitState
-import bdv.util.BdvFunctions
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.value.ChangeListener
@@ -18,16 +17,18 @@ import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.volatiles.VolatileUnsignedIntType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
-import org.janelia.saalfeldlab.fx.actions.*
+import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
+import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
+import org.janelia.saalfeldlab.fx.extensions.addTriggeredWithListener
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -35,9 +36,12 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
+import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState.Moving
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
@@ -45,12 +49,13 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
-import org.janelia.saalfeldlab.paintera.control.tools.paint.*
+import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
+import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationFillTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationPaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationSAMTool
@@ -59,8 +64,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.*
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
-import kotlin.collections.forEach
 import kotlin.collections.set
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
@@ -165,7 +168,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				with(controller) {
 					verifyAll(KEY_PRESSED, "Shape Interpolation Controller is Active ") { isControllerActive }
 					verifyAll(Event.ANY, "Shape Interpolation Tool is Active") { activeTool is ShapeInterpolationTool }
-					val exitMode = { _ : Event? ->
+					val exitMode = { _: Event? ->
 						exitShapeInterpolation(false)
 						paintera.baseView.changeMode(previousMode)
 					}
@@ -190,7 +193,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify("Fill2DTool is active") { activeTool is Fill2DTool }
 					onAction {
-						switchTool(shapeInterpolationTool)
+						fill2DTool.fillIsRunningProperty.addTriggeredWithListener { obs, _, isRunning ->
+							if (!isRunning) {
+								switchTool(shapeInterpolationTool)
+								obs?.removeListener(this)
+							}
+						}
 					}
 				}
 			},
@@ -202,7 +210,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 				KEY_PRESSED(fill2DTool.keyTrigger) {
 					name = "switch to fill2d tool"
-					verify("Active source is MaskedSource")  { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+					verify("Active source is MaskedSource") { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
 					onAction { switchTool(fill2DTool) }
 				}
 				KEY_PRESSED(samTool.keyTrigger) {
@@ -343,7 +351,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, namedKey: NamedKeyBinding) =
 		with(controller) {
-			KEY_PRESSED ( namedKey) {
+			KEY_PRESSED(namedKey) {
 				graphic = when (choice) {
 					EditSelectionChoice.First -> {
 						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-first-slice" }) }
@@ -398,7 +406,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(maxDistancePositions.map { (x,y) -> renderState.getSamPoint(x,y, SamPredictor.SparseLabel.IN) })
+			val predictionRequest = SamPredictor.SparsePrediction(maxDistancePositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
 
 			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
 				SamEmbeddingLoaderCache.load(renderState)
@@ -465,7 +473,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		selectionIntervalOverMask: Interval,
 		globalTransform: AffineTransform3D = paintera.baseView.manager().transform,
 		viewerMask: ViewerMask = controller.currentViewerMask!!,
-		replaceExistingSlice : Boolean = false
+		replaceExistingSlice: Boolean = false
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
 		val sliceDepth = controller.depthAt(globalToViewerTransform)
@@ -527,7 +535,7 @@ internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): L
 
 	DistanceTransform.binaryTransform(invertedBinaryImg, distances, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
 
-	val distancePerComponent  = mutableMapOf<Int, Pair<Double, LongArray>>()
+	val distancePerComponent = mutableMapOf<Int, Pair<Double, LongArray>>()
 
 	var backgroundId = -1;
 
@@ -601,7 +609,7 @@ internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: Vie
 		prediction = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(viewerX, viewerY, label)))
 	}
 
-	fun updatePrediction(viewerPositions : List<DoubleArray>, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
-		prediction = SamPredictor.SparsePrediction(viewerPositions.map { (x,y) -> renderState.getSamPoint(x,y, label) })
+	fun updatePrediction(viewerPositions: List<DoubleArray>, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
+		prediction = SamPredictor.SparsePrediction(viewerPositions.map { (x, y) -> renderState.getSamPoint(x, y, label) })
 	}
 }

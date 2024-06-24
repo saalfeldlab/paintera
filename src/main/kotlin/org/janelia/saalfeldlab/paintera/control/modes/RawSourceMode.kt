@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
+import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.paintera
@@ -46,14 +47,14 @@ object RawSourceMode : AbstractToolMode() {
 
 	private val minMaxIntensityThreshold = painteraActionSet("Min/Max Intensity Threshold") {
 		verifyAll(KEY_PRESSED, "Source State is Raw Source State ") { activeSourceStateProperty.get() is ConnectomicsRawState<*, *> }
-		KEY_PRESSED(KeyCode.SHIFT, KeyCode.Y) {
+		KEY_PRESSED(RawSourceStateKeys.RESET_MIN_MAX_INTENSITY_THRESHOLD) {
 			graphic = { ScaleView().apply { styleClass += "intensity-reset-min-max" } }
 			onAction {
 				val rawSource = activeSourceStateProperty.get() as ConnectomicsRawState<*, *>
 				resetIntensityMinMax(rawSource)
 			}
 		}
-		KEY_PRESSED(KeyCode.Y) {
+		KEY_PRESSED(RawSourceStateKeys.AUTO_MIN_MAX_INTENSITY_THRESHOLD) {
 			lateinit var viewer: ViewerPanelFX
 			graphic = { ScaleView().apply { styleClass += "intensity-auto-min-max" } }
 			verify("Last focused viewer found") { paintera.baseView.lastFocusHolder.value?.viewer()?.also { viewer = it } != null }

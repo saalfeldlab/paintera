@@ -8,6 +8,7 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.Cursor
 import javafx.scene.input.*
+import javafx.util.Subscription
 import net.imglib2.Interval
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.UtilityTask
@@ -110,14 +111,16 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
 					filter = true
 					onAction {
-						fillTask?.run { if (!isCancelled) cancel() } ?: mode?.switchTool(mode.defaultTool)
+						cancelFloodFill() ?: mode?.switchTool(mode.defaultTool)
 					}
 				}
 			}
 		)
 	}
 
-	private val fillIsRunningProperty = SimpleBooleanProperty(false, "Fill2D is Running")
+	fun cancelFloodFill() = fillTask?.run { if (!isCancelled) cancel() }
+
+	val fillIsRunningProperty = SimpleBooleanProperty(false, "Fill2D is Running")
 
 	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): UtilityTask<*>? {
 

@@ -22,8 +22,10 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -77,6 +79,10 @@ open class ConnectomicsRawState<D, T>(
 	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
+
+	override fun createKeyAndMouseBindings(): KeyAndMouseBindings {
+		return KeyAndMouseBindings(RawSourceStateKeys.namedCombinationsCopy())
+	}
 
 	override fun getDataSource(): DataSource<D, T> = source
 
