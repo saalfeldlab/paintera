@@ -319,17 +319,6 @@
 			<artifactId>commons-io</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>io.reactivex.rxjava2</groupId>
-			<artifactId>rxjavafx</artifactId>
-			<version>2.2.2</version>
-		</dependency>
-		<dependency>
-			<groupId>io.reactivex.rxjava2</groupId>
-			<artifactId>rxjava</artifactId>
-			<version>2.1.6</version>
-		</dependency>
-
 		<!--		scripting-->
 		<dependency>
 			<groupId>org.scijava</groupId>

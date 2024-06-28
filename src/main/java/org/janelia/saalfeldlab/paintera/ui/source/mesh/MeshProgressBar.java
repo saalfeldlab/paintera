@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import io.reactivex.disposables.Disposable;
-import io.reactivex.rxjavafx.observables.JavaFxObservable;
-import io.reactivex.rxjavafx.schedulers.JavaFxScheduler;
+import javafx.animation.AnimationTimer;
+import javafx.css.PseudoClass;
 import javafx.scene.control.Tooltip;
+import javafx.util.Subscription;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.paintera.meshes.ObservableMeshProgress;
 
-import java.util.concurrent.TimeUnit;
 
 public class MeshProgressBar extends StatusBar {
 
@@ -19,7 +18,7 @@ public class MeshProgressBar extends StatusBar {
 
 	private ObservableMeshProgress meshProgress;
 
-	private Disposable disposable;
+	private AnimationTimer progressBarUpdater;
 
 	public MeshProgressBar() {
 
@@ -29,64 +28,80 @@ public class MeshProgressBar extends StatusBar {
 	public MeshProgressBar(final long updateIntervalMsec) {
 
 		this.updateIntervalMsec = updateIntervalMsec;
-		setStyle("-fx-accent: green; ");
 		setTooltip(statusToolTip);
+
+		setCssProperties();
+	}
+
+	private void setCssProperties() {
+
+		getStyleClass().add("mesh-status-bar");
+		final PseudoClass complete = PseudoClass.getPseudoClass("complete");
+		progressProperty().subscribe(progress -> pseudoClassStateChanged(complete, !(progress.doubleValue() < 1.0)));
 	}
 
 	public void bindTo(final ObservableMeshProgress meshProgress) {
 
 		unbind();
 		this.meshProgress = meshProgress;
-		if (this.meshProgress != null) {
-			this.disposable = JavaFxObservable
-					.invalidationsOf(this.meshProgress)
-					.throttleLast(updateIntervalMsec, TimeUnit.MILLISECONDS)
-					.observeOn(JavaFxScheduler.platform())
-					.subscribe(val -> {
-						final int numTasks = meshProgress.getNumTasks();
-						final int numCompletedTasks = meshProgress.getNumCompletedTasks();
+		if (this.meshProgress == null) return;
 
-						if (numTasks == 0)
-							setProgress(0.0); // hide progress bar when there is nothing to do
-						else if (numCompletedTasks <= 0)
-							setProgress(1e-7); // displays an empty progress bar
-						else if (numCompletedTasks >= numTasks) {
-							setStyle(ProgressStyle.FINISHED);
-							setProgress(1.0);
-						} else {
-							setStyle(ProgressStyle.IN_PROGRESS);
-							setProgress((double)numCompletedTasks / numTasks);
-						}
+		progressBarUpdater = createAnimationTimer(meshProgress);
+		progressBarUpdater.start();
 
-						statusToolTip.setText(numCompletedTasks + "/" + numTasks);
-					});
-		}
+	}
+
+	private AnimationTimer createAnimationTimer(ObservableMeshProgress meshProgress) {
+
+		return new AnimationTimer() {
+
+			private Subscription subscription;
+			long lastUpdate = -1L;
+			boolean handleUpdate = false;
+
+			@Override public void start() {
+
+				super.start();
+				this.subscription = meshProgress.subscribe(() -> handleUpdate = true);
+			}
+
+			@Override public void stop() {
+
+				super.stop();
+				if (subscription!= null)
+					subscription.unsubscribe();
+			}
+
+			@Override public void handle(long now) {
+				if (handleUpdate && now - lastUpdate > updateIntervalMsec) {
+					lastUpdate = now;
+					final int numTasks = meshProgress.getNumTasks();
+					final int numCompletedTasks = meshProgress.getNumCompletedTasks();
+
+					if (numTasks == 0)
+						setProgress(0.0); // hide progress bar when there is nothing to do
+					else if (numCompletedTasks <= 0)
+						setProgress(1e-7); // displays an empty progress bar
+					else if (numCompletedTasks >= numTasks) {
+						setProgress(1.0);
+					} else {
+						setProgress((double)numCompletedTasks / numTasks);
+					}
+
+					statusToolTip.setText(numCompletedTasks + "/" + numTasks);
+				}
+			}
+		};
 	}
 
 	public void unbind() {
 
-		if (this.meshProgress != null) {
-			this.disposable.dispose();
-			this.disposable = null;
-			this.meshProgress = null;
-		}
+		if (progressBarUpdater != null)
+			progressBarUpdater.stop();
+
+		if (meshProgress != null)
+			meshProgress = null;
+
+		setProgress(1e-7);
 	}
-
-	private static class ProgressStyle {
-
-		// color combination inspired by
-		// https://www.designwizard.com/blog/design-trends/colour-combination
-		// pacific coast (finished) and living coral
-		private static final String COLOR_FINISHED = "#5B84B1FF";
-		private static final String COLOR_IN_PROGRESS = "#FC766AFF";
-
-		private static String getStyle(final String color) {
-
-			return String.format("-fx-accent: %s; ", color);
-		}
-
-		public static final String IN_PROGRESS = getStyle(COLOR_IN_PROGRESS);
-		public static final String FINISHED = getStyle(COLOR_FINISHED);
-	}
-
 }
