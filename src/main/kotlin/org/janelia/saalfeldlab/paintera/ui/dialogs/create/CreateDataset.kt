@@ -55,7 +55,6 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import java.io.IOException
 import java.nio.file.Path
 import java.util.*
 
@@ -257,17 +256,24 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				val container = n5Container.directoryProperty().value!!.absolutePath
 				val dataset = dataset.value
 				val name = nameField.text
-				try {
-					LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
-					if (dataset.isNullOrEmpty()) throw IOException("Dataset not specified!")
-					if (name.isNullOrEmpty()) throw IOException("Name not specified!")
+				LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
+				var invalidCause : String? = null
+				if (dataset.isNullOrEmpty()) invalidCause = "Dataset not specified"
+				if (name.isNullOrEmpty()) invalidCause = invalidCause?.let { "$it, Name not specified" } ?: "Name not specified"
+				invalidCause?.let {
+					alertIfInvalidInput(it)
+					e.consume()
+					return@addEventFilter
+				}
 
-					/* Remove Scales where downsampling factors are 1 */
-					val scaleLevels = mutableListOf<MipMapLevel>()
-					mipmapLevels.forEach { level ->
-						if (level.relativeDownsamplingFactors.asDoubleArray().reduce { l, r -> l * r } != 1.0)
-							scaleLevels.add(level)
-					}
+				/* Remove Scales where downsampling factors are 1 */
+				val scaleLevels = mutableListOf<MipMapLevel>()
+				mipmapLevels.forEach { level ->
+					if (level.relativeDownsamplingFactors.asDoubleArray().reduce { l, r -> l * r } != 1.0)
+						scaleLevels.add(level)
+				}
+
+				try {
 					N5Data.createEmptyLabelDataset(
 						container,
 						dataset,
@@ -285,10 +291,10 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						val containerState = N5ContainerState(writer)
 						createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }
 					}
-				} catch (ex: IOException) {
-					LOG.error(ex) { "Unable to create empty dataset" }
+				} catch (ex : Exception) {
+					alertIfError(ex)
 					e.consume()
-					exceptionAlert(Constants.NAME, "Unable to create new dataset: ${ex.message}", ex).show()
+					return@addEventFilter
 				}
 			}
 			mipmapLevels.addListener { change: ListChangeListener.Change<out MipMapLevel> ->
@@ -300,6 +306,19 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		}.showAndWait()
 		val name = nameField.text
 		return Optional.ofNullable(metadataStateProp.get()).map { metadataState: MetadataState -> Pair(metadataState, name) }
+	}
+
+	private fun alertIfError(ex: Exception) {
+		LOG.error(ex) { "Unable to create new label dataset" }
+		exceptionAlert(Constants.NAME, "Unable to create new label dataset: ${ex.message}", ex).show()
+	}
+
+	private fun alertIfInvalidInput(reason: String) {
+		LOG.warn { reason }
+		PainteraAlerts.alert(Alert.AlertType.ERROR).apply {
+			headerText = "Unable to create new dataset"
+			contentText = reason
+		}.showAndWait()
 	}
 
 	private fun populateFrom(source: Source<*>?) {

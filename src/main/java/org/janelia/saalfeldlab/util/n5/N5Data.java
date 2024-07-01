@@ -794,10 +794,10 @@ public class N5Data {
 			n5.createGroup(group);
 
 		if (!ignoreExisiting && n5.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class) != null)
-			throw new IOException(String.format("Group `%s' exists in container `%s' and is Paintera data set", group, container));
+			throw new IOException(String.format("Group '%s' already exists in container '%s' and is a Paintera dataset", group, container));
 
 		if (!ignoreExisiting && n5.exists(uniqueLabelsGroup))
-			throw new IOException(String.format("Unique labels group `%s' exists in container `%s' -- conflict likely.", uniqueLabelsGroup, container));
+			throw new IOException(String.format("Unique labels group '%s' already exists in container '%s' -- conflict likely.", uniqueLabelsGroup, container));
 
 		n5.setAttribute(group, N5Helpers.PAINTERA_DATA_KEY, pd);
 		n5.setAttribute(group, N5Helpers.MAX_ID_KEY, 0L);
