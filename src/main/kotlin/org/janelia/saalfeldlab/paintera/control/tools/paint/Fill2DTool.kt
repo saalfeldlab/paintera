@@ -117,7 +117,8 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
 					filter = true
 					onAction {
-						cancelFloodFill() ?: mode?.switchTool(mode.defaultTool)
+						cancelFloodFill()
+						mode?.switchTool(mode.defaultTool)
 					}
 				}
 			}
@@ -133,7 +134,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		fillIsRunningProperty.set(true)
 		val applyIfMaskNotProvided = fill2D.viewerMask == null
 		if (applyIfMaskNotProvided) {
-			statePaintContext!!.dataSource.resetMasks(true);
+			statePaintContext!!.dataSource.resetMasks(true)
 		}
 
 		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
@@ -146,7 +147,15 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 				cause?.let {
 					if (it is CancellationException) LOG.trace(it) {}
 					else LOG.error(it) {"Flood Fill 2D Failed"}
+					if (applyIfMaskNotProvided) {
+						/* Then apply when done */
+						val source = statePaintContext!!.dataSource
+						val mask = source.currentMask as ViewerMask
+						source.resetMasks(true)
+						mask.requestRepaint()
+					}
 					cleanup()
+
 					return@invokeOnCompletion
 				}
 

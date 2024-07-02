@@ -121,12 +121,13 @@ class FloodFill2D<T : IntegerType<T>>(
 
 	private fun launchRepaintRequestUpdater(fillContext: CoroutineContext, triggerRefresh: AtomicBoolean, mask: ViewerMask, interval: () -> Interval) {
 		CoroutineScope(Dispatchers.JavaFx).launch {
+			delay(250)
 			while (fillContext.isActive) {
 				if (triggerRefresh.get()) {
 					mask.requestRepaint(interval())
 					triggerRefresh.set(false)
 				}
-				awaitPulse()
+				delay(100)
 			}
 			mask.requestRepaint(interval())
 		}
