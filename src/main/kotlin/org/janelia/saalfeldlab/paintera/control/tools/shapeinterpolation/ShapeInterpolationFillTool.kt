@@ -6,8 +6,7 @@ import javafx.scene.input.MouseEvent.MOUSE_PRESSED
 import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.addWithListener
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
@@ -27,11 +26,11 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 		/* Don't allow filling with depth during shape interpolation */
 		brushProperties?.brushDepth = 1.0
 		fillLabel = { controller.interpolationId }
-		fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
+		fill2D.readOnlyMaskInterval.addListener(controllerPaintOnFill)
 	}
 
 	override fun deactivate() {
-		fill2D.maskIntervalProperty.removeListener(controllerPaintOnFill)
+		fill2D.readOnlyMaskInterval.removeListener(controllerPaintOnFill)
 		super.deactivate()
 	}
 
@@ -60,16 +59,15 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 						source.resetMasks(false)
 						val mask = controller.getMask()
 						mask.pushNewImageLayer()
-						fillTaskProperty.addWithListener { obs, _, task ->
-							task?.let {
-								task.onCancelled(true) { _, _ ->
+						fillJobProperty.onceWhen(fillJobProperty.isNotNull).subscribe { _, job ->
+							job?.invokeOnCompletion { cause ->
+								cause?.let {
 									mask.popImageLayer()
 									mask.requestRepaint()
 								}
-								task.onEnd(true) { obs?.removeListener(this) }
-							} ?: obs?.removeListener(this)
+							}
 						}
-						fill2D.provideMask(mask)
+						fill2D.viewerMask = mask
 					}
 				}
 			}

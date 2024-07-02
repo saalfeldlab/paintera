@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.scene.input.KeyCode
@@ -12,14 +13,13 @@ import javafx.util.Duration
 import kotlinx.coroutines.*
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
-import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.extensions.addWithListener
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.onceWhen
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -59,7 +59,7 @@ internal class ShapeInterpolationTool(
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("navigation-tool") }) }
 	override val name: String = "Shape Interpolation"
 	override val keyTrigger = SHAPE_INTERPOLATION__TOGGLE_MODE
-	private var currentTask: UtilityTask<*>? = null
+	private var currentTask: Job? = null
 
 	override fun activate() {
 
@@ -116,7 +116,7 @@ internal class ShapeInterpolationTool(
 		}
 		arrayOf(
 			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {
-				relative = true;
+				relative = true
 				verify { it.isSecondaryButtonDown }
 				verify { controller.controllerState != ShapeInterpolationController.ControllerState.Interpolate }
 				onDrag { translator.translate(it.x - startX, it.y - startY) }
@@ -382,7 +382,7 @@ internal class ShapeInterpolationTool(
 							source.resetMasks(false)
 							val mask = getMask()
 
-							fill2D.fill2D.provideMask(mask)
+							fill2D.fill2D.viewerMask = mask
 							val pointInMask = mask.displayPointToMask(event!!.x, event.y, pointInCurrentDisplay = true)
 							val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
 							val info = mask.info
@@ -472,7 +472,7 @@ internal class ShapeInterpolationTool(
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent): UtilityTask<*>? {
+	private fun fillObjectInSlice(event: MouseEvent): Job? {
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()
@@ -480,18 +480,18 @@ internal class ShapeInterpolationTool(
 			/* If a current slice exists, try to preserve it if cancelled */
 			currentSliceMaskInterval?.also {
 				mask.pushNewImageLayer()
-				fill2D.fillTaskProperty.addWithListener { obs, _, task ->
-					task?.let {
-						task.onCancelled(true) { _, _ ->
+
+				fill2D.fillJobProperty.onceWhen(fill2D.fillJobProperty.isNotNull).subscribe { job ->
+					job?.invokeOnCompletion { cause ->
+						cause?.let {
 							mask.popImageLayer()
 							mask.requestRepaint()
 						}
-						task.onEnd(true) { obs?.removeListener(this) }
-					} ?: obs?.removeListener(this)
+					}
 				}
 			}
 
-			fill2D.fill2D.provideMask(mask)
+			fill2D.fill2D.viewerMask = mask
 			val pointInMask = mask.displayPointToMask(event.x, event.y, pointInCurrentDisplay = true)
 			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
 			val info = mask.info
