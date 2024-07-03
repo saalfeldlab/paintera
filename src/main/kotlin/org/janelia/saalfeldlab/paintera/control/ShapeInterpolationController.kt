@@ -103,7 +103,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	internal val currentDepthProperty = SimpleDoubleProperty()
 	internal val currentDepth: Double by currentDepthProperty.nonnullVal()
 
-	internal val sliceAtCurrentDepthProperty = slicesAndInterpolants.createObservableBinding(currentDepthProperty) { it.getSliceAtDepth(currentDepth) }
+	internal val sliceAtCurrentDepthProperty = slicesAndInterpolants.createObservableBinding(slicesAndInterpolants, currentDepthProperty) { it.getSliceAtDepth(currentDepth) }
 	private val sliceAtCurrentDepth by sliceAtCurrentDepthProperty.nullableVal()
 
 	val currentSliceMaskInterval get() = sliceAtCurrentDepth?.maskBoundingBox
@@ -168,13 +168,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return repaintInterval
 	}
 
-	fun deleteSliceAt(depth: Double = currentDepth): RealInterval? {
+	fun deleteSliceAt(depth: Double = currentDepth, reinterpolate : Boolean = true): RealInterval? {
 		return sliceAt(depth)
 			?.let { deleteSliceOrInterpolant(depth) }
 			?.also { repaintInterval ->
-				isBusy = true
-				setMaskOverlay()
-				requestRepaint(repaintInterval)
+				if (reinterpolate) {
+					isBusy = true
+					setMaskOverlay()
+					requestRepaint(repaintInterval)
+				}
 			}
 	}
 
@@ -189,9 +191,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		isBusy = true
 		val selectionDepth = depthAt(globalTransform)
 		if (replaceExistingSlice && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null)
-			slicesAndInterpolants.removeSliceAtDepth(selectionDepth)?.globalBoundingBox?.let {
-				requestRepaint(it)
-			}
+			deleteSliceAt(selectionDepth)
 
 		if (slicesAndInterpolants.getSliceAtDepth(selectionDepth) == null) {
 			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
@@ -1170,7 +1170,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			listeners -= p0
 		}
 
-		private fun notifyListeners() = Platform.runLater {
+		private fun notifyListeners() = InvokeOnJavaFXApplicationThread {
 			listeners.forEach { it.invalidated(this) }
 		}
 	}

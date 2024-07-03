@@ -21,8 +21,8 @@ import org.janelia.saalfeldlab.fx.extensions.onceWhen
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
+import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
@@ -389,8 +389,20 @@ internal class ShapeInterpolationTool(
 
 						}
 						onAction { event ->
+							val prevSlice = controller.sliceAt(currentDepth)?.also {
+								deleteSliceAt(currentDepth, reinterpolate = false)
+							}
 							/* get value at position */
-							currentJob = fillObjectInSlice(event!!, true)
+							currentJob = fillObjectInSlice(event!!, true)?.apply {
+								invokeOnCompletion { cause ->
+									prevSlice?.maskBoundingBox?.let { interval ->
+
+										cause?.let {
+											addSelection(interval, true, prevSlice.globalTransform, prevSlice.mask)
+										} ?: requestRepaint(prevSlice.globalBoundingBox)
+									}
+								}
+							}
 						}
 					}
 					MOUSE_CLICKED {
@@ -466,7 +478,7 @@ internal class ShapeInterpolationTool(
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent, replaceExistingSLice : Boolean = false): Job? {
+	private fun fillObjectInSlice(event: MouseEvent, replaceExistingSlice: Boolean = false): Job? {
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()
@@ -498,7 +510,7 @@ internal class ShapeInterpolationTool(
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
 			return fill2D.executeFill2DAction(event.x, event.y) { fillInterval ->
-				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSLice)?.also { it.locked = true }
+				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSlice)?.also { it.locked = true }
 				currentJob = null
 				fill2D.fill2D.release()
 			}
