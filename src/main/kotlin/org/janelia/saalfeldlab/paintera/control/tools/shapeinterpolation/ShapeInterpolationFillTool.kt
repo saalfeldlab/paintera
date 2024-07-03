@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.value.ChangeListener
 import javafx.scene.input.MouseEvent.MOUSE_PRESSED
 import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -17,8 +16,13 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 internal class ShapeInterpolationFillTool(private val controller : ShapeInterpolationController<*>, activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, val shapeInterpolationMode: ShapeInterpolationMode<*>) : Fill2DTool(activeSourceStateProperty, shapeInterpolationMode) {
 
 
-	private val controllerPaintOnFill = ChangeListener<Interval?> { _, _, new ->
-		new?.let { interval -> shapeInterpolationMode.addSelection(interval)?.also { it.locked = true } }
+	override val afterFill = ::addSelectionOverFillInterval
+
+	private fun addSelectionOverFillInterval(interval: Interval?) {
+		interval?.also {
+			val slice = shapeInterpolationMode.addSelection(it)
+			slice?.locked = true
+		}
 	}
 
 	override fun activate() {
@@ -26,12 +30,6 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 		/* Don't allow filling with depth during shape interpolation */
 		brushProperties?.brushDepth = 1.0
 		fillLabel = { controller.interpolationId }
-		fill2D.readOnlyMaskInterval.addListener(controllerPaintOnFill)
-	}
-
-	override fun deactivate() {
-		fill2D.readOnlyMaskInterval.removeListener(controllerPaintOnFill)
-		super.deactivate()
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
@@ -63,7 +61,7 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 							job?.invokeOnCompletion { cause ->
 								cause?.let {
 									mask.popImageLayer()
-									mask.requestRepaint()
+									controller.setMaskOverlay()
 								}
 							}
 						}

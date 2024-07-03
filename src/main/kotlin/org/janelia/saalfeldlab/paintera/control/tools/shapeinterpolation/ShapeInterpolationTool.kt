@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.scene.input.KeyCode
@@ -12,7 +11,6 @@ import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
 import kotlinx.coroutines.*
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -59,7 +57,7 @@ internal class ShapeInterpolationTool(
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("navigation-tool") }) }
 	override val name: String = "Shape Interpolation"
 	override val keyTrigger = SHAPE_INTERPOLATION__TOGGLE_MODE
-	private var currentTask: Job? = null
+	private var currentJob: Job? = null
 
 	override fun activate() {
 
@@ -185,7 +183,7 @@ internal class ShapeInterpolationTool(
 
 		samTool.lastPredictionProperty.addListener { _, _, prediction ->
 			prediction ?: return@addListener
-			shapeInterpolationMode.addSelection(prediction.maskInterval, globalTransform, viewerMask) ?: return@addListener
+			shapeInterpolationMode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: return@addListener
 
 			afterPrediction(globalTransform)
 
@@ -392,11 +390,7 @@ internal class ShapeInterpolationTool(
 						}
 						onAction { event ->
 							/* get value at position */
-							deleteSliceOrInterpolant()?.let { prevSliceGlobalInterval ->
-								source.resetMasks(true)
-								paintera.baseView.orthogonalViews().requestRepaint(Intervals.smallestContainingInterval(prevSliceGlobalInterval))
-							}
-							currentTask = fillObjectInSlice(event!!)
+							currentJob = fillObjectInSlice(event!!, true)
 						}
 					}
 					MOUSE_CLICKED {
@@ -410,7 +404,7 @@ internal class ShapeInterpolationTool(
 							triggerByRightClick || triggerByCtrlLeftClick
 						}
 						onAction { event ->
-							currentTask = fillObjectInSlice(event!!)
+							currentJob = fillObjectInSlice(event!!)
 						}
 					}
 				},
@@ -462,17 +456,17 @@ internal class ShapeInterpolationTool(
 				KEY_PRESSED(CANCEL) {
 					name = "cancel current shape interpolation tool task"
 					filter = true
-					verify("No task to  cancel") { currentTask != null }
+					verify("No task to  cancel") { currentJob != null }
 					onAction {
-						currentTask?.cancel()
-						currentTask = null
+						currentJob?.cancel()
+						currentJob = null
 					}
 				}
 			}
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent): Job? {
+	private fun fillObjectInSlice(event: MouseEvent, replaceExistingSLice : Boolean = false): Job? {
 		with(controller) {
 			source.resetMasks(false)
 			val mask = getMask()
@@ -485,7 +479,7 @@ internal class ShapeInterpolationTool(
 					job?.invokeOnCompletion { cause ->
 						cause?.let {
 							mask.popImageLayer()
-							mask.requestRepaint()
+							controller.setMaskOverlay()
 						}
 					}
 				}
@@ -504,8 +498,8 @@ internal class ShapeInterpolationTool(
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
 			return fill2D.executeFill2DAction(event.x, event.y) { fillInterval ->
-				shapeInterpolationMode.addSelection(fillInterval)?.also { it.locked = true }
-				currentTask = null
+				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSLice)?.also { it.locked = true }
+				currentJob = null
 				fill2D.fill2D.release()
 			}
 		}

@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.ReadOnlyObjectProperty
 import javafx.beans.property.ReadOnlyObjectWrapper
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.ObservableValue
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.JavaFx
-import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.Interval
 import net.imglib2.Point
 import net.imglib2.RandomAccessible
@@ -45,7 +45,7 @@ class FloodFill2D<T : IntegerType<T>>(
 	internal var viewerMask: ViewerMask? = null
 
 	private val maskIntervalProperty = ReadOnlyObjectWrapper<Interval?>(null)
-	val readOnlyMaskInterval = maskIntervalProperty.readOnlyProperty
+	val readOnlyMaskInterval: ReadOnlyObjectProperty<Interval?> = maskIntervalProperty.readOnlyProperty
 	val maskInterval by readOnlyMaskInterval.nullableVal()
 
 	fun release() {

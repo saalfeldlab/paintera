@@ -60,6 +60,9 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 	val fillJobProperty: SimpleObjectProperty<Job> = SimpleObjectProperty(null)
 	private var fillJob by fillJobProperty.nullable()
 
+	open protected val afterFill : (Interval) -> Unit = {}
+
+
 	private val overlay by lazy {
 		Fill2DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
 			brushPropertiesBinding.addListener { _, old, new ->
@@ -69,7 +72,6 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			brushDepthProperty.bindBidirectional(brushProperties!!.brushDepthProperty)
 		}
 	}
-
 
 	override fun activate() {
 		super.activate()
@@ -107,7 +109,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					keysExclusive = false
 					verifyEventNotNull()
 					onAction {
-						executeFill2DAction(it!!.x, it.y)
+						executeFill2DAction(it!!.x, it.y, afterFill = afterFill)
 					}
 				}
 			},
