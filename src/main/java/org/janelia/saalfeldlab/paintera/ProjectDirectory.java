@@ -88,8 +88,12 @@ public class ProjectDirectory implements Closeable {
 	private File inferActualDirectory(final File directory) throws IOException {
 
 		return directory == null
-				? Files.createTempDirectory("paintera-project-").toFile()
+				? temporaryN5PainteraProjectDirectory()
 				: directory;
+	}
+
+	private File temporaryN5PainteraProjectDirectory() throws IOException {
+		return new File(Files.createTempDirectory("paintera-project-").toString() + ".n5");
 	}
 
 	private void stateChanged() {
