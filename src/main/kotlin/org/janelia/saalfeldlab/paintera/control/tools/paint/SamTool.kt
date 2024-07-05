@@ -863,7 +863,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
 		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
-			val session = createOrtSessionTask.get()
+			val session = createOrtSessionTask.await()
 			val imageEmbedding = try {
 				runBlocking {
 					isBusy = true

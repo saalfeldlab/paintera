@@ -42,7 +42,6 @@ import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
@@ -136,7 +135,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			return viewerState.getBestMipMapLevel(screenScaleTransform, source)
 		}
 
-	private var interpolator: Task<Unit>? = null
+	private var interpolator: Job? = null
 
 	private var requestRepaintUpdaterJob: Job = Job().apply { complete() }
 
@@ -313,11 +312,12 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		isBusy = true
-		interpolator = Tasks.createTask { task ->
+		val controlStateMainScope = CoroutineScope(Dispatchers.JavaFx)
+		interpolator = CoroutineScope(Dispatchers.Default).launch {
 			synchronized(this) {
 				var updateInterval: RealInterval? = null
 				for ((firstSlice, secondSlice) in slicesAndInterpolants.zipWithNext().reversed()) {
-					if (task.isCancelled) return@createTask
+					if (!coroutineContext.isActive) return@launch
 					if (!(firstSlice.isSlice && secondSlice.isSlice)) continue
 
 					val slice1 = firstSlice.getSlice()
@@ -329,16 +329,29 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						.reduceOrNull(Intervals::union)
 				}
 				updateSliceAndInterpolantsCompositeMask()
-				requestRepaint(updateInterval)
+				updateInterval?.let {
+					requestRepaint(updateInterval)
+				} ?: let {
+					/* a bit of a band-aid. It shouldn't be triggered often, but occasionally when an interpolation is triggered
+					* and there is no interpolation to be done (i.e. interpolation is already done, no new slices) then the refresh
+					* interval can desync, and show an empty interpolation result. This isn't a great fix, doesn't solve the underlying
+					* cause, but should stop it from happening as frequently. */
+					paintera().orthogonalViews().requestRepaint()
+				}
 			}
-		}
-			.onCancelled { _, _ -> LOG.debug { "Interpolation Cancelled" } }
-			.onSuccess { _, _ -> controllerState = ControllerState.Preview }
-			.onEnd {
+		}.also { job ->
+			job.invokeOnCompletion { cause ->
+				cause?.let {
+					LOG.debug(cause) { "Interpolation job cancelled" }
+				} ?: controlStateMainScope.launch {
+					controllerState = ControllerState.Preview
+				}
+
 				interpolator = null
 				isBusy = false
+
 			}
-			.submit()
+		}
 	}
 
 	enum class EditSelectionChoice {
@@ -389,7 +402,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 		if (controllerState == ControllerState.Interpolate) {
 			// wait until the interpolation is done
-			interpolator!!.get()
+			runBlocking { interpolator!!.join() }
 		}
 		assert(controllerState == ControllerState.Preview)
 
@@ -557,7 +570,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		while (isActive) {
 			/* Don't trigger repaints while interpolating*/
-			if (interpolator?.isDone == false) {
+			if (interpolator?.isActive == true) {
 				awaitPulse()
 				continue
 			}
@@ -587,17 +600,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	private fun interruptInterpolation() {
-		if (interpolator != null) {
-			if (interpolator!!.isRunning) {
-				interpolator!!.cancel()
-			}
-			try {
-				interpolator?.get()
-			} catch (e: InterruptedException) {
-				e.printStackTrace()
-			} catch (e: ExecutionException) {
-				e.printStackTrace()
-			}
+		interpolator?.let {
+			it.cancel()
+			/* Ensure it's done */
+			runBlocking {  it.join() }
 		}
 	}
 
