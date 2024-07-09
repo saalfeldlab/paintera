@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -11,23 +10,22 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
-import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.UtilityTask
+import kotlinx.coroutines.Job
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
@@ -40,8 +38,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 	override val keyTrigger = LabelSourceStateKeys.FILL_3D
 
 
-	private val floodFillTaskProperty = SimpleObjectProperty<UtilityTask<*>?>()
-	private var floodFillTask: UtilityTask<*>? by floodFillTaskProperty.nullable()
+	private val floodFillTaskProperty = SimpleObjectProperty<Job?>()
+	private var floodFillTask: Job? by floodFillTaskProperty.nullable()
 
 	val fill by LazyForeignValue({ statePaintContext }) {
 		with(it!!) {
@@ -49,13 +47,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 				activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
 				dataSource,
 				assignment,
-				{ interval ->
-					val sourceToGlobal = AffineTransform3D().also { transform ->
-						dataSource.getSourceTransform(dataSource.currentMask.info, transform)
-					}
-					paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobal.estimateBounds(interval))
-				},
-				{ MeshSettings.Defaults.Values.isVisible }
+				{ interval -> paintera.baseView.orthogonalViews().requestRepaint(interval) },
+				{ activeSourceStateProperty.value?.isVisibleProperty?.get() ?: false }
 			)
 		}
 	}
@@ -113,20 +106,11 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 							paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 
-							if (task.isDone) {
-								/* If its already done, do this now*/
+							task?.invokeOnCompletion { cause ->
 								fillIsRunningProperty.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
 								statePaintContext?.refreshMeshes?.invoke()
 								floodFillTask = null
-							} else {
-								/* Otherwise, do it when it's done */
-								task.onEnd(append = true) {
-									floodFillTask = null
-									fillIsRunningProperty.set(false)
-									paintera.baseView.disabledPropertyBindings -= this
-									statePaintContext?.refreshMeshes?.invoke()
-								}
 							}
 						}
 					}
@@ -135,7 +119,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
 					name = "cancel Fill 3D"
-					graphic = { GlyphScaleView(FontAwesomeIconView().apply{ styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
 					filter = true
 					verify { floodFillTask != null }
 					onAction {

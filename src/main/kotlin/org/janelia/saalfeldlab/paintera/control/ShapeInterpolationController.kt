@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
@@ -10,11 +9,9 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
-import javafx.concurrent.Task
 import javafx.scene.paint.Color
 import javafx.util.Duration
 import kotlinx.coroutines.*
-import kotlinx.coroutines.javafx.JavaFx
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
@@ -65,7 +62,6 @@ import org.janelia.saalfeldlab.util.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 import java.util.stream.Collectors
@@ -167,7 +163,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return repaintInterval
 	}
 
-	fun deleteSliceAt(depth: Double = currentDepth, reinterpolate : Boolean = true): RealInterval? {
+	fun deleteSliceAt(depth: Double = currentDepth, reinterpolate: Boolean = true): RealInterval? {
 		return sliceAt(depth)
 			?.let { deleteSliceOrInterpolant(depth) }
 			?.also { repaintInterval ->
@@ -312,7 +308,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		isBusy = true
-		val controlStateMainScope = CoroutineScope(Dispatchers.JavaFx)
 		interpolator = CoroutineScope(Dispatchers.Default).launch {
 			synchronized(this) {
 				var updateInterval: RealInterval? = null
@@ -343,7 +338,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			job.invokeOnCompletion { cause ->
 				cause?.let {
 					LOG.debug(cause) { "Interpolation job cancelled" }
-				} ?: controlStateMainScope.launch {
+				} ?: InvokeOnJavaFXApplicationThread {
 					controllerState = ControllerState.Preview
 				}
 
@@ -566,7 +561,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private fun newRepaintRequestUpdater() = CoroutineScope(Dispatchers.JavaFx).launch {
+	private fun newRepaintRequestUpdater() = InvokeOnJavaFXApplicationThread {
 
 		while (isActive) {
 			/* Don't trigger repaints while interpolating*/
@@ -592,7 +587,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		if (!requestRepaintUpdaterJob.isActive)
 			requestRepaintUpdaterJob = newRepaintRequestUpdater()
 
-  		if (force) {
+		if (force) {
 			val union = requestRepaintInterval.getAndSet(null)?.union(interval) ?: interval ?: return
 			processRepaintRequest(union)
 		} else
@@ -603,7 +598,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		interpolator?.let {
 			it.cancel()
 			/* Ensure it's done */
-			runBlocking {  it.join() }
+			runBlocking { it.join() }
 		}
 	}
 
@@ -1061,7 +1056,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				add(sliceOrInterpolant)
 
 				InvokeOnJavaFXApplicationThread {
-					listeners.forEach { it.invalidated(this) }
+					listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
 				}
 			}
 		}
@@ -1177,7 +1172,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		private fun notifyListeners() = InvokeOnJavaFXApplicationThread {
-			listeners.forEach { it.invalidated(this) }
+			listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
 		}
 	}
 

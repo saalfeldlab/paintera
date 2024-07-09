@@ -9,10 +9,6 @@ import javafx.collections.ObservableList
 import javafx.event.Event
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.javafx.JavaFx
-import kotlinx.coroutines.launch
 import net.imglib2.Interval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
@@ -197,7 +193,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					onAction {
 						val fillNotRunning = fill2DTool.fillIsRunningProperty.not()
 						fillNotRunning.onceWhen(fillNotRunning).subscribe { _ ->
-							CoroutineScope(Dispatchers.JavaFx).launch { switchTool(shapeInterpolationTool) }
+							InvokeOnJavaFXApplicationThread { switchTool(shapeInterpolationTool) }
 						}
 					}
 				}

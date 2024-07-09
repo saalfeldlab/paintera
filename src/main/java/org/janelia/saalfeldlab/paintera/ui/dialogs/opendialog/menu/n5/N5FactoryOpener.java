@@ -197,27 +197,26 @@ public class N5FactoryOpener {
 			return;
 		}
 
-		Tasks.createTask(
-						task -> {
-							invoke(() -> this.isOpeningContainer.set(true));
-							final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
+		Tasks.createTask(() -> {
+					invoke(() -> this.isOpeningContainer.set(true));
+					final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
 
-								var container = Paintera.getN5Factory().openReaderOrNull(newSelection);
-								if (container == null) return null;
-								if (container instanceof N5HDF5Reader) {
-									container.close();
-									container = Paintera.getN5Factory().openWriterElseOpenReader(newSelection);
-								}
-								return new N5ContainerState(container);
-							});
-							if (newContainerState == null)
-								return false;
+						var container = Paintera.getN5Factory().openReaderOrNull(newSelection);
+						if (container == null)
+							return null;
+						if (container instanceof N5HDF5Reader) {
+							container.close();
+							container = Paintera.getN5Factory().openWriterElseOpenReader(newSelection);
+						}
+						return new N5ContainerState(container);
+					});
+					if (newContainerState == null)
+						return false;
 
-							invoke(() -> containerState.set(newContainerState));
-							n5ContainerStateCache.put(newSelection, newContainerState);
-							return true;
-						})
-				.onEnd(task -> invoke(() -> this.isOpeningContainer.set(false)))
-				.submit();
+					invoke(() -> containerState.set(newContainerState));
+					n5ContainerStateCache.put(newSelection, newContainerState);
+					return true;
+				})
+				.onEnd((result, error) -> invoke(() -> this.isOpeningContainer.set(false)));
 	}
 }

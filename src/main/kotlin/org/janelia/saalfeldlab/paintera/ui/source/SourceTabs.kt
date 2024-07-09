@@ -40,7 +40,7 @@ class SourceTabs(private val info: SourceInfo) {
 
 	private val statePanes = FXCollections.observableArrayList<StatePane>().also { p ->
 		p.addListener(ListChangeListener {
-			OnJFXAppThread { this.contents.children.setAll(p.map { it.pane }) }
+			OnJFXAppThread { this@SourceTabs.contents.children.setAll(p.map { it.pane }) }
 		})
 	}
 	private val activeSourceToggleGroup = ToggleGroup()

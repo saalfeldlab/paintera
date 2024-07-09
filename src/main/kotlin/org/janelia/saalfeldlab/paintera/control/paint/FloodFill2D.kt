@@ -5,8 +5,10 @@ import javafx.beans.property.ReadOnlyObjectProperty
 import javafx.beans.property.ReadOnlyObjectWrapper
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.ObservableValue
-import kotlinx.coroutines.*
-import kotlinx.coroutines.javafx.JavaFx
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.Interval
 import net.imglib2.Point
 import net.imglib2.RandomAccessible
@@ -23,6 +25,7 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessibleOnGet
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
@@ -120,14 +123,15 @@ class FloodFill2D<T : IntegerType<T>>(
 	}
 
 	private fun launchRepaintRequestUpdater(fillContext: CoroutineContext, triggerRefresh: AtomicBoolean, mask: ViewerMask, interval: () -> Interval) {
-		CoroutineScope(Dispatchers.JavaFx).launch {
-			delay(250)
+		InvokeOnJavaFXApplicationThread {
+			delay(1000)
 			while (fillContext.isActive) {
+				awaitPulse()
 				if (triggerRefresh.get()) {
 					mask.requestRepaint(interval())
 					triggerRefresh.set(false)
 				}
-				delay(100)
+				delay(250)
 			}
 			mask.requestRepaint(interval())
 		}
