@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.scalebar;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.viewer.TransformListener;
 import javafx.geometry.Bounds;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.text.Text;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.OverlayRendererGeneric;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +24,6 @@ public class ScaleBarOverlayRenderer implements OverlayRendererGeneric<GraphicsC
 	private static final List<Unit<Length>> UNITS = ScaleBarOverlayConfig.units();
 
 	private final ScaleBarOverlayConfig config;
-
-	//	private final DecimalFormat format = new DecimalFormat("0.####");
 
 	/**
 	 * For finding the value to display on the scalebar: into how many parts is
