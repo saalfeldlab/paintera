@@ -34,17 +34,16 @@ fun main(args: Array<String>) {
 class SplashScreenApp : Application() {
 
 	override fun init() {
-		val task = Tasks.createTask {
+		Tasks.createTask {
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(10))
 			for (i in 0..10) {
 				Thread.sleep(250)
 				notifyPreloader(SplashScreenUpdateNotification("$i / 10"))
 			}
 			"Done!"
-		}.onEnd {
+		}.onEnd { _, _ ->
 			notifyPreloader(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_START))
-		}.submit()
-		task.get()
+		}.get()
 	}
 
 	override fun start(primaryStage: Stage) {

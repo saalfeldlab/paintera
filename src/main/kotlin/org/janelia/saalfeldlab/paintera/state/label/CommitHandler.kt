@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.BiFunction
+import kotlin.jvm.optionals.getOrNull
 
 class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fragmentProvider: () -> FragmentSegmentAssignmentState) {
 
@@ -82,7 +83,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 					}
 				}
 			}
-			return buttonType?.get()
+			return buttonType?.getOrNull()
 		}
 
 	}

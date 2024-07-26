@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.cache
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import bdv.cache.SharedQueue
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.BaseRenderUnit
 import bdv.fx.viewer.render.RenderUnitState
 import bdv.viewer.Interpolation
@@ -25,7 +24,7 @@ import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
-import org.janelia.saalfeldlab.fx.Tasks
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -44,6 +43,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -130,8 +130,10 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	private val currentSessions = HashSet<String>()
 
+	@OptIn(ExperimentalCoroutinesApi::class)
 	val createOrtSessionTask by LazyForeignValue({ properties.segmentAnythingConfig.modelLocation }) { modelLocation ->
-		Tasks.createTask {
+
+		CoroutineScope(Dispatchers.IO).async {
 			if (!SamEmbeddingLoaderCache::ortEnv.isInitialized)
 				ortEnv = OrtEnvironment.getEnvironment()
 			val modelArray = try {
@@ -141,13 +143,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			}
 			val session = ortEnv.createSession(modelArray)
 			session
-		}.submit()
-	}.beforeValueChange {
-		it?.let { prevTask ->
-			if (prevTask.isDone)
-				prevTask.get().close()
-			prevTask.cancel()
 		}
+	}.beforeValueChange { job ->
+		job?.invokeOnCompletion {
+			job.getCompleted().close()
+		}
+		job?.cancel(CancellationException("Ort Model Location Changed"))
 	}
 
 	internal fun RenderUnitState.calculateTargetSamScreenScaleFactor(): Double {
@@ -328,8 +329,11 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			directBuffer.position(0)
 			val floatBuffEmbedding = directBuffer.asFloatBuffer()
 			floatBuffEmbedding.position(0)
-			/* need the ortEnv to be initialized, which is done during session initialization; So block and wait here. */
-			createOrtSessionTask.get() /* But we don't actually need the session here. */
+			runBlocking {
+				/* need the ortEnv to be initialized, which is done during session initialization; So block and wait here. */
+				/* But we don't actually need the session here. */
+				createOrtSessionTask.await()
+			}
 			return OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
 		}
 	}

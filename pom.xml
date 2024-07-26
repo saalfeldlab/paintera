@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>37.0.0</version>
+		<version>38.0.1</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -29,7 +29,6 @@
 	<properties>
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
 		<paintera.commandline.args />
-		<scijava.jvm.version>21</scijava.jvm.version>
 
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
@@ -41,6 +40,8 @@
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
+		<!-- java -->
+		<scijava.jvm.version>21</scijava.jvm.version>
 		<!-- kotlin -->
 		<kotlin.version>1.9.24</kotlin.version>
 		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
@@ -51,14 +52,13 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-
 		<janino.version>3.0.7</janino.version>
 		<logback.version>1.4.12</logback.version>
 		<slf4j.version>2.0.0</slf4j.version>
 
 		<!-- JavaFx Version-->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>1.4.2</saalfx.version>
+		<saalfx.version>2.0.0-SNAPSHOT</saalfx.version>
 		<testfx.version>4.0.16-alpha</testfx.version>
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
@@ -74,14 +74,12 @@
 		<macos.sign />
 		<macos.sign.identity />
 
-		<!--N5 versions. Should match with versions pinned by n5-universe -->
-		<n5.version>3.2.0</n5.version>
-		<n5-hdf5.version>2.2.0</n5-hdf5.version>
-		<n5-google-cloud.version>4.1.0</n5-google-cloud.version>
-		<n5-aws-s3.version>4.2.0</n5-aws-s3.version>
-		<n5-zarr.version>1.3.4</n5-zarr.version>
-		<n5-imglib2.version>7.0.0</n5-imglib2.version>
-		<n5-universe.version>1.6.0</n5-universe.version>
+		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
+		<n5.version>3.3.0</n5.version>
+		<n5-aws-s3.version>4.2.1</n5-aws-s3.version>
+		<n5-google-cloud>4.1.1</n5-google-cloud>
+		<n5-zarr.version>1.3.5</n5-zarr.version>
+
 		<imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -319,17 +317,6 @@
 			<artifactId>commons-io</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>io.reactivex.rxjava2</groupId>
-			<artifactId>rxjavafx</artifactId>
-			<version>2.2.2</version>
-		</dependency>
-		<dependency>
-			<groupId>io.reactivex.rxjava2</groupId>
-			<artifactId>rxjava</artifactId>
-			<version>2.1.6</version>
-		</dependency>
-
 		<!--		scripting-->
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -351,7 +338,7 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.codehaus.groovy</groupId>
+			<groupId>org.apache.groovy</groupId>
 			<artifactId>groovy</artifactId>
 			<version>${groovy.version}</version>
 		</dependency>
@@ -568,7 +555,7 @@
 			<email>hanslovskyp@janelia.hhmi.org</email>
 			<url />
 			<organization>HHMI Janelia</organization>
-			<organizationUrl>http://janelia.org/</organizationUrl>
+			<organizationUrl>https://janelia.org/</organizationUrl>
 			<roles>
 				<role>founder</role>
 				<role>lead</role>

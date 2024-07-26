@@ -1,17 +1,20 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
 import javafx.scene.input.MouseEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import net.imglib2.Interval
 import net.imglib2.RealInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.LinAlgHelpers
-import org.janelia.saalfeldlab.fx.Tasks
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
@@ -316,6 +319,7 @@ class PaintClickOrDragController(
 		} else field
 
 	@Synchronized
+	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun paint(viewerX: Double, viewerY: Double) {
 		LOG.trace("At {} {}", viewerX, viewerY)
 		when {
@@ -324,21 +328,27 @@ class PaintClickOrDragController(
 		}
 
 
-		viewerMask?.run {
-			Tasks.createTask {
-				val viewerPointToMaskPoint = this.displayPointToMask(viewerX.toInt(), viewerY.toInt(), pointInCurrentDisplay = true)
+		viewerMask?.also { mask ->
+			CoroutineScope(Dispatchers.Default).async {
+				val viewerPointToMaskPoint = mask.displayPointToMask(viewerX.toInt(), viewerY.toInt(), pointInCurrentDisplay = true)
 				val paintIntervalInMask = Paint2D.paintIntoViewer(
-					viewerImg.writableSource!!.extendValue(Label.INVALID),
+					mask.viewerImg.writableSource!!.extendValue(Label.INVALID),
 					paintId(),
 					viewerPointToMaskPoint,
-					brushRadius() * xScaleChange
+					brushRadius() * mask.xScaleChange
 				)
 				paintIntervalInMask
-			}.onSuccess { _, task ->
-				val paintIntervalInMask = task.get()
-				maskInterval = paintIntervalInMask union maskInterval
-				requestRepaint(paintIntervalInMask)
-			}.submit(paintService!!)
+			}.also { job ->
+				job.invokeOnCompletion { cause ->
+					cause ?: let {
+						job.getCompleted()?.let { paintedInterval ->
+							maskInterval = paintedInterval union maskInterval
+							mask.requestRepaint(paintedInterval)
+						}
+
+					}
+				}
+			}
 		}
 
 

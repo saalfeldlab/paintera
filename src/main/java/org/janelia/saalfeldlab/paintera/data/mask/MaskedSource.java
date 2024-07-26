@@ -43,7 +43,6 @@ import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
-import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -68,7 +67,6 @@ import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.loops.LoopBuilder;
-import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -82,18 +80,20 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
-import org.janelia.saalfeldlab.net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.fx.UtilityTask;
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
-import org.janelia.saalfeldlab.net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.Tasks;
+import org.janelia.saalfeldlab.fx.UtilityTask;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval;
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessedBlocksRandomAccessible;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
+import org.janelia.saalfeldlab.net.imglib2.view.RealRandomAccessibleTriple;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
@@ -780,7 +780,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				throw new MaskInUse("Cannot reset the mask.");
 
 			var mask = getCurrentMask();
-			if (mask != null && mask.shutdown != null) mask.shutdown.run();
+			if (mask != null && mask.shutdown != null)
+				mask.shutdown.run();
 			setCurrentMask(null);
 			this.isBusy.set(true);
 		}
@@ -828,7 +829,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final ObservableList<String> states = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 		final Consumer<String> nextState = (text) -> InvokeOnJavaFXApplicationThread.invoke(() -> states.add(text));
 		final Consumer<String> updateState = (update) -> InvokeOnJavaFXApplicationThread.invoke(() -> states.set(states.size() - 1, update));
-		persistCanvasTask(clearCanvas, progressBar.progressProperty(), nextState, updateState).submit();
+		persistCanvasTask(clearCanvas, progressBar.progressProperty(), nextState, updateState);
 
 		final BooleanBinding stillPersisting = Bindings.createBooleanBinding(
 				() -> this.isPersisting() || progressBar.progressProperty().get() < 1.0,
@@ -902,7 +903,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			InvokeOnJavaFXApplicationThread.invoke(timeline::play);
 		};
 		ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) -> animateProgressBar.accept(newv.doubleValue());
-		return Tasks.createTask(task -> {
+		return Tasks.createTask(() -> {
 			try {
 				nextState.accept("Persisting painted labels...");
 				InvokeOnJavaFXApplicationThread.invoke(() ->
@@ -934,19 +935,18 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			} catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e) {
 				throw new RuntimeException(e);
 			}
-			return null;
-		}).onSuccess((e, t) -> {
+		}).onSuccess(result -> {
 			synchronized (this) {
 				nextState.accept("Successfully finished committing canvas.");
 			}
-		}).onEnd(t -> {
+		}).onEnd((result, cause) -> {
 			animateProgressBar.accept(1.0);
 			this.isPersistingProperty.set(false);
 			this.isBusy.set(false);
-		}).onFailed((e, t) -> {
+		}).onFailed(cause -> {
 			synchronized (this) {
-				LOG.error("Unable to commit canvas", t.getException());
-				nextState.accept("Unable to commit canvas: " + t.getException().getMessage());
+				LOG.error("Unable to commit canvas", cause);
+				nextState.accept("Unable to commit canvas: " + cause.getMessage());
 			}
 		});
 	}

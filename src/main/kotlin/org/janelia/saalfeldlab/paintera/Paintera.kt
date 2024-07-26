@@ -319,24 +319,23 @@ class Paintera : Application() {
 			SaalFxStyle.registerStylesheets(styleable)
 		}
 
+		private val stylesheets : List<String> = listOf(
+			"style/glyphs.css",
+			"style/toolbar.css",
+			"style/navigation.css",
+			"style/interpolation.css",
+			"style/sam.css",
+			"style/paint.css",
+			"style/raw-source.css",
+			"style/mesh-status-bar.css"
+		)
+
 		private fun registerPainteraStylesheets(styleable: Scene) {
-			styleable.stylesheets.add("style/glyphs.css")
-			styleable.stylesheets.add("style/toolbar.css")
-			styleable.stylesheets.add("style/navigation.css")
-			styleable.stylesheets.add("style/interpolation.css")
-			styleable.stylesheets.add("style/sam.css")
-			styleable.stylesheets.add("style/paint.css")
-			styleable.stylesheets.add("style/raw-source.css")
+			styleable.stylesheets.addAll(stylesheets)
 		}
 
 		private fun registerPainteraStylesheets(styleable: Parent) {
-			styleable.stylesheets.add("style/glyphs.css")
-			styleable.stylesheets.add("style/toolbar.css")
-			styleable.stylesheets.add("style/navigation.css")
-			styleable.stylesheets.add("style/interpolation.css")
-			styleable.stylesheets.add("style/sam.css")
-			styleable.stylesheets.add("style/paint.css")
-			styleable.stylesheets.add("style/raw-source.css")
+			styleable.stylesheets.addAll(stylesheets)
 		}
 	}
 

@@ -26,7 +26,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import net.imglib2.Volatile;
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
@@ -41,6 +40,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -78,6 +78,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -279,6 +280,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	}
 
 	private <T extends Map<String, N5TreeNode>> T mapRootToContainerName(T choices) {
+
 		if (choices.containsKey("/")) {
 			var node = choices.remove("/");
 			choices.put(getContainerName(), node);
@@ -295,37 +297,33 @@ public class GenericBackendDialogN5 implements Closeable {
 				discoveryIsActive.set(true);
 				invoke(this::resetDatasetChoices); // clean up whatever is currently shown
 			});
-			Tasks.<ObservableMap<String, N5TreeNode>>createTask(
-							thisTask -> {
-								/* Parse the container's metadata*/
-								final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(
-										FXCollections.observableHashMap());
-								final N5TreeNode metadataTree;
-								try {
-									metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
-								} catch (Exception e) {
-									if (!discoveryIsActive.get()) {
-										/* if discovery was cancelled ,this is expected*/
-										LOG.debug("Metadata Parsing was Canceled");
-										thisTask.cancel();
-										return null;
-									}
-									throw e;
-								}
-								Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
-								invoke(() -> validDatasetChoices.putAll(validGroups));
+			Tasks.createTask(() -> {
+						/* Parse the container's metadata*/
+						final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(
+								FXCollections.observableHashMap());
+						final N5TreeNode metadataTree;
+						try {
+							metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+						} catch (Exception e) {
+							if (!discoveryIsActive.get()) {
+								/* if discovery was cancelled ,this is expected*/
+								final String message = "Metadata Parsing was Canceled";
+								LOG.debug(message);
+								throw new CancellationException(message);
+							}
+							throw e;
+						}
+						Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
+						invoke(() -> validDatasetChoices.putAll(validGroups));
 
-								if (metadataTree == null || metadataTree.getMetadata() == null) {
-									invoke(() -> this.activeN5Node.set(null));
-								}
-								return validDatasetChoices;
-							})
-					.onSuccess((event, task) -> {
-						datasetChoices.set(mapRootToContainerName(task.getValue()));
+						if (metadataTree == null || metadataTree.getMetadata() == null) {
+							invoke(() -> this.activeN5Node.set(null));
+						}
+						return validDatasetChoices;
+					}).onSuccess(result -> {
+						datasetChoices.set(mapRootToContainerName(result));
 						previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices.getValue()));
-					}) /* set and cache the choices on success*/
-					.onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
-					.submit();
+					}).onEnd((result, error) -> invoke(() -> discoveryIsActive.set(false)));
 		}
 	}
 
@@ -521,6 +519,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	}
 
 	private String getContainerName() {
+
 		var pathParts = URI.create(containerState.get().getUri().getPath()).getPath().split("/");
 		return pathParts[pathParts.length - 1];
 	}

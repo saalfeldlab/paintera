@@ -46,10 +46,8 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 		super.activate()
 
-		if (!info.locked && !info.preGenerated) {
-			temporaryPrompt = false
-			requestPrediction(info.prediction)
-		}
+		temporaryPrompt = !info.locked
+		requestPrediction(info.prediction)
 	}
 
 	override fun deactivate() {
@@ -66,7 +64,6 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 				it.locked = true
 			}
 			InvokeOnJavaFXApplicationThread {
-
 				shapeInterpolationMode.run {
 					switchTool(defaultTool)
 					modeToolsBar.toggleGroup?.selectToggle(null)

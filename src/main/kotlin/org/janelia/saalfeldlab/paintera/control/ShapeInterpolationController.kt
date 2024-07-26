@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
@@ -10,10 +9,10 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
-import javafx.concurrent.Task
-import javafx.concurrent.Worker
 import javafx.scene.paint.Color
 import javafx.util.Duration
+import kotlinx.coroutines.*
+import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.converter.BiConverter
@@ -40,7 +39,6 @@ import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
@@ -64,8 +62,7 @@ import org.janelia.saalfeldlab.util.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 import java.util.stream.Collectors
 import kotlin.Pair
@@ -101,7 +98,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	internal val currentDepthProperty = SimpleDoubleProperty()
 	internal val currentDepth: Double by currentDepthProperty.nonnullVal()
 
-	internal val sliceAtCurrentDepthProperty = slicesAndInterpolants.createObservableBinding(currentDepthProperty) { it.getSliceAtDepth(currentDepth) }
+	internal val sliceAtCurrentDepthProperty = slicesAndInterpolants.createObservableBinding(slicesAndInterpolants, currentDepthProperty) { it.getSliceAtDepth(currentDepth) }
 	private val sliceAtCurrentDepth by sliceAtCurrentDepthProperty.nullableVal()
 
 	val currentSliceMaskInterval get() = sliceAtCurrentDepth?.maskBoundingBox
@@ -117,8 +114,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private val doneApplyingMaskListener = ChangeListener<Boolean> { _, _, newv -> if (!newv!!) InvokeOnJavaFXApplicationThread { doneApplyingMask() } }
 
-	private var requestRepaintInterval: RealInterval? = null
-	private val requestRepaintAfterTask = AtomicBoolean(false)
+	private var requestRepaintInterval: AtomicReference<RealInterval?> = AtomicReference(null)
 
 	val sortedSliceDepths: List<Double>
 		get() = slicesAndInterpolants
@@ -135,18 +131,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			return viewerState.getBestMipMapLevel(screenScaleTransform, source)
 		}
 
-	private var selector: Task<Unit>? = null
-	private var interpolator: Task<Unit>? = null
-	private val onTaskFinished = {
-		controllerState = ControllerState.Preview
-		synchronized(requestRepaintAfterTask) {
-			InvokeOnJavaFXApplicationThread {
-				if (requestRepaintAfterTask.getAndSet(false)) {
-					requestRepaintAfterTasks(force = true)
-				}
-			}
-		}
-	}
+	private var interpolator: Job? = null
+
+	private var requestRepaintUpdaterJob: Job = Job().apply { complete() }
 
 	private var globalCompositeFillAndInterpolationImgs: Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>>? = null
 
@@ -176,15 +163,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return repaintInterval
 	}
 
-	fun deleteSliceAt(depth: Double = currentDepth): RealInterval? {
+	fun deleteSliceAt(depth: Double = currentDepth, reinterpolate: Boolean = true): RealInterval? {
 		return sliceAt(depth)
 			?.let { deleteSliceOrInterpolant(depth) }
 			?.also { repaintInterval ->
-				if (preview) {
+				if (reinterpolate) {
 					isBusy = true
-					interpolateBetweenSlices(false)
+					setMaskOverlay()
+					requestRepaint(repaintInterval)
 				}
-				requestRepaintAfterTasks(repaintInterval)
 			}
 	}
 
@@ -199,7 +186,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		isBusy = true
 		val selectionDepth = depthAt(globalTransform)
 		if (replaceExistingSlice && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null)
-			slicesAndInterpolants.removeSliceAtDepth(selectionDepth)
+			deleteSliceAt(selectionDepth)
 
 		if (slicesAndInterpolants.getSliceAtDepth(selectionDepth) == null) {
 			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
@@ -245,6 +232,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	fun exitShapeInterpolation(completed: Boolean) {
+		requestRepaintUpdaterJob.cancel()
+
 		if (!isControllerActive) {
 			LOG.debug { "Not in shape interpolation" }
 			return
@@ -282,7 +271,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		else updateSliceAndInterpolantsCompositeMask()
 		if (slicesAndInterpolants.size > 0) {
 			val globalUnion = slicesAndInterpolants.slices.mapNotNull { it.globalBoundingBox }.reduceOrNull(Intervals::union)
-			requestRepaintAfterTasks(unionWith = globalUnion)
+			requestRepaint(interval = globalUnion)
 		} else isBusy = false
 	}
 
@@ -291,7 +280,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		else {
 			updateSliceAndInterpolantsCompositeMask()
 			val globalUnion = slicesAndInterpolants.slices.map { it.globalBoundingBox }.filterNotNull().reduceOrNull(Intervals::union)
-			requestRepaintAfterTasks(unionWith = globalUnion)
+			isBusy = false
+			requestRepaint(interval = globalUnion)
 		}
 		if (slicesAndInterpolants.isEmpty())
 			isBusy = false
@@ -318,11 +308,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		isBusy = true
-		interpolator = Tasks.createTask { task ->
+		interpolator = CoroutineScope(Dispatchers.Default).launch {
 			synchronized(this) {
 				var updateInterval: RealInterval? = null
 				for ((firstSlice, secondSlice) in slicesAndInterpolants.zipWithNext().reversed()) {
-					if (task.isCancelled) return@createTask
+					if (!coroutineContext.isActive) return@launch
 					if (!(firstSlice.isSlice && secondSlice.isSlice)) continue
 
 					val slice1 = firstSlice.getSlice()
@@ -334,16 +324,29 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						.reduceOrNull(Intervals::union)
 				}
 				updateSliceAndInterpolantsCompositeMask()
-				requestRepaintAfterTasks(updateInterval)
+				updateInterval?.let {
+					requestRepaint(updateInterval)
+				} ?: let {
+					/* a bit of a band-aid. It shouldn't be triggered often, but occasionally when an interpolation is triggered
+					* and there is no interpolation to be done (i.e. interpolation is already done, no new slices) then the refresh
+					* interval can desync, and show an empty interpolation result. This isn't a great fix, doesn't solve the underlying
+					* cause, but should stop it from happening as frequently. */
+					paintera().orthogonalViews().requestRepaint()
+				}
 			}
-		}
-			.onCancelled { _, _ -> LOG.debug { "Interpolation Cancelled" } }
-			.onSuccess { _, _ -> onTaskFinished() }
-			.onEnd {
+		}.also { job ->
+			job.invokeOnCompletion { cause ->
+				cause?.let {
+					LOG.debug(cause) { "Interpolation job cancelled" }
+				} ?: InvokeOnJavaFXApplicationThread {
+					controllerState = ControllerState.Preview
+				}
+
 				interpolator = null
 				isBusy = false
+
 			}
-			.submit()
+		}
 	}
 
 	enum class EditSelectionChoice {
@@ -394,7 +397,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 		if (controllerState == ControllerState.Interpolate) {
 			// wait until the interpolation is done
-			interpolator!!.get()
+			runBlocking { interpolator!!.join() }
 		}
 		assert(controllerState == ControllerState.Preview)
 
@@ -558,41 +561,44 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private fun requestRepaintAfterTasks(unionWith: RealInterval? = null, force: Boolean = false) {
-		fun Task<*>?.notCompleted() = this?.state?.let { it in listOf(Worker.State.READY, Worker.State.SCHEDULED, Worker.State.RUNNING) }
-			?: false
-		InvokeOnJavaFXApplicationThread {
-			synchronized(requestRepaintAfterTask) {
-				if (!force && interpolator.notCompleted() && selector.notCompleted()) {
-					requestRepaintInterval = requestRepaintInterval?.let { it union unionWith } ?: unionWith
-					requestRepaintAfterTask.set(true)
-					return@InvokeOnJavaFXApplicationThread
-				}
+	private fun newRepaintRequestUpdater() = InvokeOnJavaFXApplicationThread {
+
+		while (isActive) {
+			/* Don't trigger repaints while interpolating*/
+			if (interpolator?.isActive == true) {
+				awaitPulse()
+				continue
 			}
-			requestRepaintInterval = requestRepaintInterval?.let { it union unionWith } ?: unionWith
-			requestRepaintInterval?.let {
-				val sourceToGlobal = sourceToGlobalTransform
-				val extendedSourceInterval = IntervalHelpers.extendAndTransformBoundingBox(it.smallestContainingInterval, sourceToGlobal.inverse(), 1.0)
-				val extendedGlobalInterval = sourceToGlobal.estimateBounds(extendedSourceInterval).smallestContainingInterval
-				paintera().orthogonalViews().requestRepaint(extendedGlobalInterval)
+			requestRepaintInterval.getAndSet(null)?.let {
+				processRepaintRequest(it)
 			}
-			requestRepaintInterval = null
-			isBusy = false
+			awaitPulse()
 		}
 	}
 
+	private fun processRepaintRequest(interval: RealInterval) {
+		val sourceToGlobal = sourceToGlobalTransform
+		val extendedSourceInterval = IntervalHelpers.extendAndTransformBoundingBox(interval.smallestContainingInterval, sourceToGlobal.inverse(), 1.0)
+		val extendedGlobalInterval = sourceToGlobal.estimateBounds(extendedSourceInterval).smallestContainingInterval
+		paintera().orthogonalViews().requestRepaint(extendedGlobalInterval)
+	}
+
+	fun requestRepaint(interval: RealInterval? = null, force: Boolean = false) {
+		if (!requestRepaintUpdaterJob.isActive)
+			requestRepaintUpdaterJob = newRepaintRequestUpdater()
+
+		if (force) {
+			val union = requestRepaintInterval.getAndSet(null)?.union(interval) ?: interval ?: return
+			processRepaintRequest(union)
+		} else
+			requestRepaintInterval.getAndAccumulate(interval) { l, r -> l?.union(r) ?: r }
+	}
+
 	private fun interruptInterpolation() {
-		if (interpolator != null) {
-			if (interpolator!!.isRunning) {
-				interpolator!!.cancel()
-			}
-			try {
-				interpolator?.get()
-			} catch (e: InterruptedException) {
-				e.printStackTrace()
-			} catch (e: ExecutionException) {
-				e.printStackTrace()
-			}
+		interpolator?.let {
+			it.cancel()
+			/* Ensure it's done */
+			runBlocking { it.join() }
 		}
 	}
 
@@ -1050,7 +1056,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				add(sliceOrInterpolant)
 
 				InvokeOnJavaFXApplicationThread {
-					listeners.forEach { it.invalidated(this) }
+					listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
 				}
 			}
 		}
@@ -1165,8 +1171,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			listeners -= p0
 		}
 
-		private fun notifyListeners() = Platform.runLater {
-			listeners.forEach { it.invalidated(this) }
+		private fun notifyListeners() = InvokeOnJavaFXApplicationThread {
+			listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
 		}
 	}
 
@@ -1217,7 +1223,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						minPos.zip(maxPos)
 							.map { (min, max) -> min != Long.MAX_VALUE && max != Long.MIN_VALUE }
 							.reduce { a, b -> a && b }
-
 			}
 
 			val sourceInMaskInterval = mask.initialMaskToSourceTransform.inverse().estimateBounds(mask.source.getSource(0, mask.info.level))

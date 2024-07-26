@@ -1,35 +1,41 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
-import javafx.scene.Cursor
-import javafx.scene.input.*
-import javafx.util.Subscription
+import javafx.scene.input.KeyEvent
+import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
+import javafx.scene.input.ScrollEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import net.imglib2.Interval
-import net.imglib2.util.Intervals
-import org.janelia.saalfeldlab.fx.UtilityTask
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ScaleView
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import kotlin.collections.set
+import kotlin.coroutines.cancellation.CancellationException
+
+private val LOG = KotlinLogging.logger { }
 
 open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
@@ -45,14 +51,17 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			val floodFill2D = FloodFill2D(
 				activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
 				dataSource,
-			) { MeshSettings.Defaults.Values.isVisible }
-			floodFill2D.fillDepthProperty().bindBidirectional(brushProperties.brushDepthProperty)
+			) { activeSourceStateProperty.value?.isVisibleProperty?.get() ?: false }
+			floodFill2D.fillDepthProperty.bindBidirectional(brushProperties.brushDepthProperty)
 			floodFill2D
 		}
 	}
 
-	val fillTaskProperty: SimpleObjectProperty<UtilityTask<*>?> = SimpleObjectProperty(null)
-	private var fillTask by fillTaskProperty.nullable()
+	val fillJobProperty: SimpleObjectProperty<Job> = SimpleObjectProperty(null)
+	private var fillJob by fillJobProperty.nullable()
+
+	open protected val afterFill : (Interval) -> Unit = {}
+
 
 	private val overlay by lazy {
 		Fill2DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
@@ -64,7 +73,6 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		}
 	}
 
-
 	override fun activate() {
 		super.activate()
 		activeViewer?.apply { overlay.setPosition(mouseXProperty.get(), mouseYProperty.get()) }
@@ -73,11 +81,11 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 	override fun deactivate() {
 
-		fillIsRunningProperty.addTriggeredWithListener { obs, _, isRunning ->
-			if (!isRunning) {
+		val fillNotRunning = fillIsRunningProperty.not()
+		fillNotRunning.onceWhen(fillNotRunning).subscribe { notRunning ->
+			if (notRunning) {
 				overlay.visible = false
 				fill2D.release()
-				obs?.removeListener(this)
 				super.deactivate()
 			}
 		}
@@ -101,92 +109,78 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					keysExclusive = false
 					verifyEventNotNull()
 					onAction {
-						executeFill2DAction(it!!.x, it.y)
+						executeFill2DAction(it!!.x, it.y, afterFill = afterFill)
 					}
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
 					name = "Cancel Fill 2D"
-					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable"} }
+					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
 					filter = true
 					onAction {
-						cancelFloodFill() ?: mode?.switchTool(mode.defaultTool)
+						cancelFloodFill()
+						mode?.switchTool(mode.defaultTool)
 					}
 				}
 			}
 		)
 	}
 
-	fun cancelFloodFill() = fillTask?.run { if (!isCancelled) cancel() }
+	fun cancelFloodFill() = fillJob?.cancel(CancellationException("Fill task cancelled by user", null))
 
 	val fillIsRunningProperty = SimpleBooleanProperty(false, "Fill2D is Running")
 
-	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): UtilityTask<*>? {
+	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): Job? {
 
 		fillIsRunningProperty.set(true)
-		val applyIfMaskNotProvided = fill2D.mask == null
+		val applyIfMaskNotProvided = fill2D.viewerMask == null
 		if (applyIfMaskNotProvided) {
-			statePaintContext!!.dataSource.resetMasks(true);
-		}
-		fillTask = fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
-		if (fillTask == null) {
-			fillIsRunningProperty.set(false)
+			statePaintContext!!.dataSource.resetMasks(true)
 		}
 
-		return fillTask?.also { task ->
-			if (task.isDone) {
-				/* If it's already done, do this now*/
-				if (!task.isCancelled) {
-					val maskFillInterval = fill2D.maskIntervalProperty.value
-					afterFill(maskFillInterval)
+		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
+
+		fillJob = CoroutineScope(Dispatchers.Default).launch {
+			fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
+		}.also { job ->
+			job.invokeOnCompletion { cause ->
+
+				cause?.let {
+					if (it is CancellationException) LOG.trace(it) {}
+					else LOG.error(it) {"Flood Fill 2D Failed"}
 					if (applyIfMaskNotProvided) {
 						/* Then apply when done */
 						val source = statePaintContext!!.dataSource
 						val mask = source.currentMask as ViewerMask
-						val affectedSourceInterval = Intervals.smallestContainingInterval(
-							mask.currentMaskToSourceWithDepthTransform.estimateBounds(maskFillInterval))
-						source.applyMask(mask, affectedSourceInterval, net.imglib2.type.label.Label::isForeground)
+						source.resetMasks(true)
+						mask.requestRepaint()
 					}
+					cleanup()
 
-				}
-			} else {
-				paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
-				paintera.baseView.isDisabledProperty.addTriggeredWithListener { obs, _, isBusy ->
-					if (isBusy) {
-						overlay.cursor = Cursor.WAIT
-					} else {
-						overlay.cursor = Cursor.CROSSHAIR
-						if (!paintera.keyTracker.areKeysDown(*keyTrigger.keyCodes.toTypedArray()) && !enteredWithoutKeyTrigger) {
-							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
-						}
-						obs?.removeListener(this)
-					}
+					return@invokeOnCompletion
 				}
 
-				/* Otherwise, do it when it's done */
 
-				task.onEnd(append = true) {
-					fillIsRunningProperty.set(false)
-					paintera.baseView.disabledPropertyBindings -= this
-					fillTask = null
+				val maskFillInterval = fill2D.maskInterval!!
+				afterFill(maskFillInterval)
+				if (applyIfMaskNotProvided) {
+					/* Then apply when done */
+					val source = statePaintContext!!.dataSource
+					val mask = source.currentMask as ViewerMask
+					val affectedSourceInterval = mask.currentMaskToSourceWithDepthTransform.estimateBounds(maskFillInterval).smallestContainingInterval
+					source.applyMask(mask, affectedSourceInterval, net.imglib2.type.label.Label::isForeground)
 				}
-
-				task.onSuccess(append = true) { _, _ ->
-					val maskFillInterval = fill2D.maskIntervalProperty.value
-					afterFill(maskFillInterval)
-					if (applyIfMaskNotProvided) {
-						/* Then apply when done */
-						val source = statePaintContext!!.dataSource
-						val mask = source.currentMask as ViewerMask
-						val affectedSourceInterval = Intervals.smallestContainingInterval(
-							mask.currentMaskToSourceWithDepthTransform.estimateBounds(maskFillInterval))
-						source.applyMask(mask, affectedSourceInterval, net.imglib2.type.label.Label::isForeground)
-					}
-				}
-
+				cleanup()
 			}
 		}
+		return fillJob
+	}
+
+	private fun cleanup() {
+		fillIsRunningProperty.set(false)
+		paintera.baseView.disabledPropertyBindings -= this
+		fillJob = null
 	}
 
 	private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {

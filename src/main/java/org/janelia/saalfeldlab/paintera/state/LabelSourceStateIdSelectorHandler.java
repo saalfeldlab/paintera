@@ -1,15 +1,15 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import javafx.concurrent.Task;
 import javafx.event.Event;
 import javafx.scene.Cursor;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import kotlin.jvm.functions.Function1;
+import kotlinx.coroutines.Job;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -32,7 +32,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.function.LongPredicate;
 import java.util.function.Supplier;
 
@@ -61,9 +60,7 @@ public class LabelSourceStateIdSelectorHandler {
 
 	private final Runnable refreshMeshes;
 
-	private Task<?> selectAllTask;
-
-	private Future<?> selectAllFuture;
+	private Job selectAllTask;
 
 	/**
 	 * @param source         that contains the labels to select
@@ -123,16 +120,13 @@ public class LabelSourceStateIdSelectorHandler {
 				keyAction.keyMatchesBinding(LabelSourceStateKeys.SELECT_ALL);
 				keyAction.verify(event -> selectAllTask == null);
 				keyAction.onAction(keyEvent -> {
-					final var selectTask = Tasks.createTask(task -> {
-								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
-								selectAllTask = task;
-								selector.selectAll();
-							})
-							.onEnd(task -> {
-								selectAllTask = null;
-								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
-							});
-					selectAllFuture = selectorService.submit(selectTask);
+					selectAllTask = Tasks.createTask(() -> {
+						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+						selector.selectAll();
+					}).onEnd((result, error) -> {
+						selectAllTask = null;
+						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+					});
 				});
 			});
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
@@ -142,16 +136,13 @@ public class LabelSourceStateIdSelectorHandler {
 				keyAction.verify(event -> selectAllTask == null);
 				keyAction.verify(event -> getActiveViewer.get() != null);
 				keyAction.onAction(keyEvent -> {
-					final var selectTask = Tasks.createTask(task -> {
-								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
-								selectAllTask = task;
-								selector.selectAllInCurrentView(getActiveViewer.get());
-							})
-							.onEnd(objectUtilityTask -> {
-								selectAllTask = null;
-								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
-							});
-					selectAllFuture = selectorService.submit(selectTask);
+					selectAllTask = Tasks.createTask(() -> {
+						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+						selector.selectAllInCurrentView(getActiveViewer.get());
+					}).onEnd((result, error) -> {
+						selectAllTask = null;
+						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+					});
 				});
 			});
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
@@ -160,8 +151,7 @@ public class LabelSourceStateIdSelectorHandler {
 				keyAction.keysDown(KeyCode.ESCAPE);
 				keyAction.verify(keyEvent -> selectAllTask != null);
 				keyAction.onAction(keyEvent -> {
-					selectAllTask.cancel();
-					selectAllFuture.cancel(true);
+					selectAllTask.cancel(null);
 					refreshMeshes.run();
 					selectedIds.deactivateAll();
 				});
@@ -186,9 +176,11 @@ public class LabelSourceStateIdSelectorHandler {
 	}
 
 	public long activateCurrentOrNext() {
+
 		if (selectedIds.isLastSelectionValid())
 			return selectedIds.getLastSelection();
-		else return nextId(true);
+		else
+			return nextId(true);
 	}
 
 	public long nextId() {

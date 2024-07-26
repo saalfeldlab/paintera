@@ -28,7 +28,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
-import org.janelia.saalfeldlab.fx.extensions.addTriggeredWithListener
+import org.janelia.saalfeldlab.fx.extensions.onceWhen
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -157,9 +157,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private fun ShapeInterpolationController<*>.resetFragmentAlpha() {
 		/* Add the activeFragmentAlpha back when we are done */
-		apply {
-			converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
-		}
+		converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
 	}
 
 	private fun modeActions(): List<ActionSet> {
@@ -193,11 +191,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify("Fill2DTool is active") { activeTool is Fill2DTool }
 					onAction {
-						fill2DTool.fillIsRunningProperty.addTriggeredWithListener { obs, _, isRunning ->
-							if (!isRunning) {
-								switchTool(shapeInterpolationTool)
-								obs?.removeListener(this)
-							}
+						val fillNotRunning = fill2DTool.fillIsRunningProperty.not()
+						fillNotRunning.onceWhen(fillNotRunning).subscribe { _ ->
+							InvokeOnJavaFXApplicationThread { switchTool(shapeInterpolationTool) }
 						}
 					}
 				}
@@ -471,8 +467,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	internal fun addSelection(
 		selectionIntervalOverMask: Interval,
-		globalTransform: AffineTransform3D = paintera.baseView.manager().transform,
 		viewerMask: ViewerMask = controller.currentViewerMask!!,
+		globalTransform: AffineTransform3D = viewerMask.currentGlobalTransform,
 		replaceExistingSlice: Boolean = false
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform

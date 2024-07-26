@@ -32,7 +32,7 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
 	constructor(bookmarkConfig: BookmarkConfig, applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : this(applyBookmark) {
 		Paintera.whenPaintable {
 			InvokeOnJavaFXApplicationThread {
-				this.bookmarkConfig.set(bookmarkConfig)
+				this@BookmarkConfigNode.bookmarkConfig.set(bookmarkConfig)
 			}
 		}
 	}

@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.addTriggeredListener
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
@@ -140,8 +139,8 @@ interface ToolMode : SourceMode {
 				}
 
 				/* when the active tool changes, update the toggle to reflect the active tool */
-				activeToolProperty.addTriggeredListener { _, old, new ->
-					new?.let { newTool ->
+				activeToolProperty.subscribe { tool ->
+					tool?.let { newTool ->
 						toggles
 							.firstOrNull { it.userData == newTool }
 							?.also { toggleForTool -> selectToggle(toggleForTool) }
@@ -149,9 +148,6 @@ interface ToolMode : SourceMode {
 					}
 				}
 			}
-
-
-
 		}
 
 	}

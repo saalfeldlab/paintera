@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -90,9 +91,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 				it,
 				dataset,
 				Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })
-		} ?: let {
-			IdService.IdServiceNotProvided()
-		}
+		} ?: LocalIdService(metadataState.reader.getAttribute(dataset, "maxId", Long::class.java) ?: 0L)
 	}
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!

@@ -1,18 +1,19 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.TransformListener;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
-import javafx.concurrent.Task;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
+import kotlinx.coroutines.Deferred;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.view.composite.Composite;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -95,7 +96,7 @@ public class ValueDisplayListener
 		return access.get();
 	}
 
-	private final Map<DataSource<?, ?>, Task<?>> taskMap = new HashMap<>();
+	private final Map<DataSource<?, ?>, Deferred<?>> taskMap = new HashMap<>();
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("value-display-listener", true, 2));
 
@@ -103,9 +104,9 @@ public class ValueDisplayListener
 
 		final Optional<Source<?>> optionalSource = Optional.ofNullable(currentSource.getValue());
 		if (optionalSource.isPresent() && optionalSource.get() instanceof DataSource<?, ?>) {
-			final DataSource<D, ?> source = (DataSource<D, ?>) optionalSource.get();
+			final DataSource<D, ?> source = (DataSource<D, ?>)optionalSource.get();
 
-			final var taskObj = Tasks.<String>createTask(t -> {
+			final var job = Tasks.createTask(() -> {
 				final ViewerState state = viewer.getState();
 				final Interpolation interpolation = this.interpolation.apply(source);
 				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
@@ -123,16 +124,17 @@ public class ValueDisplayListener
 				).realRandomAccess();
 				final var val = getVal(x, y, access, viewer);
 				return stringConverterFromSource(source).apply(val);
-			}).onSuccess((event, t) -> {
-				/* submit the value if the task is completed; remove from the map*/
-				submitValue.accept(t.getValue());
+			}).onSuccess(result -> {
+				Platform.runLater(() -> submitValue.accept(result));
 				taskMap.remove(source);
 			});
 
-			/* If we are creating a task for a source which has a running task, cancel the old task after removing. */
-			Optional.ofNullable(taskMap.put(source, taskObj)).ifPresent(Task::cancel);
 
-			taskObj.submit(executor);
+
+			/* If we are creating a task for a source which has a running task, cancel the old task after removing. */
+			Optional.ofNullable(taskMap.put(source, job)).ifPresent(it -> it.cancel(null));
+
+			job.start();
 
 		}
 	}
@@ -140,11 +142,11 @@ public class ValueDisplayListener
 	private static <D> Function<D, String> stringConverterFromSource(final DataSource<D, ?> source) {
 
 		if (source instanceof ChannelDataSource<?, ?>) {
-			final long numChannels = ((ChannelDataSource<?, ?>) source).numChannels();
+			final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
 
 			// Cast not actually redundant
 			//noinspection unchecked,RedundantCast
-			return (Function<D, String>) (Function<? extends Composite<?>, String>) comp -> {
+			return (Function<D, String>)(Function<? extends Composite<?>, String>)comp -> {
 				StringBuilder sb = new StringBuilder("(");
 				if (numChannels > 0)
 					sb.append(comp.get(0).toString());
