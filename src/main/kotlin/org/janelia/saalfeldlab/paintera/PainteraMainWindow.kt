@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache.Companion.n5OrZarrURI
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -117,8 +118,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			{ projectDirectory.actualDirectory.absolutePath },
 			{ indexToState[it] })
 		val gson = builder.create()
-		val json = projectDirectory.actualDirectory
-			?.let { Paintera.n5Factory.openReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+		val json = projectDirectory.actualDirectory?.n5OrZarrURI()
+			?.let { Paintera.n5Factory.openReader(it).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
 			?.takeIf { it.isJsonObject }
 			?.asJsonObject
 		Paintera.n5Factory.gsonBuilder(builder)
@@ -156,7 +157,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun save(notify: Boolean = true) {
 
-		/* Not allowd to save if any source is RAI */
+		/* Not allowed to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 			alert.title = "Cannot Serialize All Sources"
@@ -174,7 +175,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
 		Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
-		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.absolutePath).use {
+		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.n5OrZarrURI()).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
@@ -331,11 +332,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 		private const val TILDE = "~"
 
-		private fun replaceUserHomeWithTilde(path: String) = if (path.startsWith(USER_HOME)) path.replaceFirst(USER_HOME, TILDE) else path
+		internal fun String.homeToTilde() = if (startsWith(USER_HOME)) replaceFirst(USER_HOME, TILDE) else this
 
-		internal fun String.homeToTilde() = replaceUserHomeWithTilde(this)
-
-		internal fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
+		internal fun String.tildeToHome() = if (startsWith(TILDE)) replaceFirst(TILDE, USER_HOME) else this
 
 	}
 

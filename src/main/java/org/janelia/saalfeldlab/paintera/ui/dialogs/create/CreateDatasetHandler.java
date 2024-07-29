@@ -53,13 +53,13 @@ public class CreateDatasetHandler {
 
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
-			final Supplier<String> projecDirectory,
+			final Supplier<String> projectDirectory,
 			final Consumer<Exception> exceptionHandler,
 			final Source<?> currentSource,
 			final Source<?>... allSources) {
 
 		try {
-			createAndAddNewLabelDataset(pbv, projecDirectory, currentSource, allSources);
+			createAndAddNewLabelDataset(pbv, projectDirectory, currentSource, allSources);
 		} catch (final Exception e) {
 			exceptionHandler.accept(e);
 		}

@@ -7,17 +7,37 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.lang.invoke.MethodHandles
 
 class N5FactoryWithCache : N5Factory() {
 
 	companion object {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		private const val ZGROUP = ".zgroup"
+		private const val ZARRAY = ".zarray"
+		private const val ZATTRS = ".zattrs"
+		private const val N5_ATTRIBUTES = "attributes.json"
+		private const val ZARR_URI_SCHEME = "zarr"
+		private const val N5_URI_SCHEME = "n5"
+		private const val FORMAT_SCHEME_MATCHER = "(?i)(zarr|h5|hdf5|n5)"
+
+		/** If unambiguous, resulting string should match [File.getAbsolutePath].
+		 * If ambiguous, prefer specifying as N5 with uri scheme n5:
+		 **/
+		internal fun File.n5OrZarrURI() : String = when {
+			resolve(N5_ATTRIBUTES).exists() -> "$N5_URI_SCHEME:$absolutePath"
+			listOf(ZGROUP, ZARRAY, ZATTRS).any { resolve(it).exists() } -> "$ZARR_URI_SCHEME:$absolutePath"
+			extension.matches(FORMAT_SCHEME_MATCHER.toRegex()) -> absolutePath
+			else -> "$N5_URI_SCHEME:$absolutePath"
+		}
 	}
 
 	private val writerCache = HashMap<String, N5Writer>()
 	private val readerCache = HashMap<String, N5Reader>()
-	override fun  openReader(uri: String): N5Reader {
+
+	override fun openReader(uri: String): N5Reader {
 		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: super.openReader(uri).let {
 			if (containerIsReadable(it)) {
 				readerCache[uri] = it
