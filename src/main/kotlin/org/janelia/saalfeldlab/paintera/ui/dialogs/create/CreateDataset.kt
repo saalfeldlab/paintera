@@ -57,7 +57,6 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache.Companion.n5OrZarrURI
 import java.nio.file.Path
 import java.util.*
 
@@ -277,7 +276,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				}
 
 				try {
-					val writer = n5Factory.newWriter(container.n5OrZarrURI())
+					val writer = n5Factory.newWriter(container.absolutePath)
 
 					if (labelMultiset.isSelected && writer !is N5KeyValueWriter)
 						throw UnsupportedOperationException("LabelMultisetType Label dataset only supported for N5 datasets")

@@ -9,6 +9,10 @@ import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
+import java.net.URI
+import java.nio.file.Path
+import java.nio.file.Paths
+import kotlin.io.path.toPath
 
 class N5FactoryWithCache : N5Factory() {
 
@@ -19,26 +23,40 @@ class N5FactoryWithCache : N5Factory() {
 		private const val ZARRAY = ".zarray"
 		private const val ZATTRS = ".zattrs"
 		private const val N5_ATTRIBUTES = "attributes.json"
-		private const val ZARR_URI_SCHEME = "zarr"
-		private const val N5_URI_SCHEME = "n5"
-		private const val FORMAT_SCHEME_MATCHER = "(?i)(zarr|h5|hdf5|n5)"
 
-		/** If unambiguous, resulting string should match [File.getAbsolutePath].
-		 * If ambiguous, prefer specifying as N5 with uri scheme n5:
+		/** Check for existing of N5 and zarr specific files to indicate the format
 		 **/
-		internal fun File.n5OrZarrURI() : String = when {
-			resolve(N5_ATTRIBUTES).exists() -> "$N5_URI_SCHEME:$absolutePath"
-			listOf(ZGROUP, ZARRAY, ZATTRS).any { resolve(it).exists() } -> "$ZARR_URI_SCHEME:$absolutePath"
-			extension.matches(FORMAT_SCHEME_MATCHER.toRegex()) -> absolutePath
-			else -> "$N5_URI_SCHEME:$absolutePath"
+		internal fun File.guessStorageFromFormatSpecificFiles() : StorageFormat? = when {
+			resolve(N5_ATTRIBUTES).exists() -> StorageFormat.N5
+			listOf(ZGROUP, ZARRAY, ZATTRS).any { resolve(it).exists() } -> StorageFormat.ZARR
+			else -> null
 		}
 	}
 
 	private val writerCache = HashMap<String, N5Writer>()
 	private val readerCache = HashMap<String, N5Reader>()
 
+	private fun parseUriWithN5Default(uri: String) : Pair<StorageFormat, URI> {
+		return StorageFormat.parseUri(uri).run {
+			val fileBasedFormatCheck = if (a == null && (b.scheme == null || b.scheme == "file")) {
+				File(b.path).guessStorageFromFormatSpecificFiles()
+			} else null
+			(a ?: fileBasedFormatCheck ?: StorageFormat.N5) to b
+		}
+	}
+
+	private fun openWriterDefaultN5(uri: String) : N5Writer {
+		val (format, asUri) = parseUriWithN5Default(uri)
+		return super.openWriter(format, asUri)
+	}
+
+	private fun openReaderDefaultN5(uri: String) : N5Reader {
+		val (format, asUri) = parseUriWithN5Default(uri)
+		return super.openReader(format, asUri)
+	}
+
 	override fun openReader(uri: String): N5Reader {
-		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: super.openReader(uri).let {
+		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: openReaderDefaultN5(uri).let {
 			if (containerIsReadable(it)) {
 				readerCache[uri] = it
 				it
@@ -150,7 +168,7 @@ class N5FactoryWithCache : N5Factory() {
 	}
 
 	private fun createAndCacheN5Writer(uri: String): N5Writer {
-		val n5Writer = super.openWriter(uri)
+		val n5Writer = openWriterDefaultN5(uri)
 		/* See if we have write permissions before we declare success */
 		n5Writer.setAttribute("/", N5Reader.VERSION_KEY, n5Writer.version.toString())
 		if (readerCache[uri] == null) {

@@ -35,7 +35,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache.Companion.n5OrZarrURI
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -118,8 +117,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			{ projectDirectory.actualDirectory.absolutePath },
 			{ indexToState[it] })
 		val gson = builder.create()
-		val json = projectDirectory.actualDirectory?.n5OrZarrURI()
-			?.let { Paintera.n5Factory.openReader(it).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+		val json = projectDirectory.actualDirectory.absolutePath
+			.let { Paintera.n5Factory.openReader(it).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
 			?.takeIf { it.isJsonObject }
 			?.asJsonObject
 		Paintera.n5Factory.gsonBuilder(builder)
@@ -175,7 +174,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
 		Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
-		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.n5OrZarrURI()).use {
+		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.absolutePath).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
@@ -185,7 +184,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			}
 		}
 
-		/* Change back to the currect mode. */
+		/* Change back to the correct mode. */
 		baseView.changeMode(curMode)
 	}
 
