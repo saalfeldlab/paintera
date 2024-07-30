@@ -117,8 +117,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			{ projectDirectory.actualDirectory.absolutePath },
 			{ indexToState[it] })
 		val gson = builder.create()
-		val json = projectDirectory.actualDirectory
-			?.let { Paintera.n5Factory.openReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+		val json = projectDirectory.actualDirectory.absolutePath
+			.let { Paintera.n5Factory.openReader(it).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
 			?.takeIf { it.isJsonObject }
 			?.asJsonObject
 		Paintera.n5Factory.gsonBuilder(builder)
@@ -156,7 +156,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun save(notify: Boolean = true) {
 
-		/* Not allowd to save if any source is RAI */
+		/* Not allowed to save if any source is RAI */
 		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 			alert.title = "Cannot Serialize All Sources"
@@ -184,7 +184,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			}
 		}
 
-		/* Change back to the currect mode. */
+		/* Change back to the correct mode. */
 		baseView.changeMode(curMode)
 	}
 
@@ -331,11 +331,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 		private const val TILDE = "~"
 
-		private fun replaceUserHomeWithTilde(path: String) = if (path.startsWith(USER_HOME)) path.replaceFirst(USER_HOME, TILDE) else path
+		internal fun String.homeToTilde() = if (startsWith(USER_HOME)) replaceFirst(USER_HOME, TILDE) else this
 
-		internal fun String.homeToTilde() = replaceUserHomeWithTilde(this)
-
-		internal fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
+		internal fun String.tildeToHome() = if (startsWith(TILDE)) replaceFirst(TILDE, USER_HOME) else this
 
 	}
 

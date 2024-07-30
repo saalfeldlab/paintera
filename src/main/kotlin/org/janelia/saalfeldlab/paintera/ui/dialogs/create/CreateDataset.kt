@@ -40,6 +40,7 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
@@ -47,6 +48,7 @@ import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.Style.REMOVE_GLYPH
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
@@ -117,7 +119,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		}
 	}
 
-	private val n5Container: DirectoryField = DirectoryField(System.getProperty("user.home"), FIELD_WIDTH)
+	private val n5Container: DirectoryField = DirectoryField(paintera.projectDirectory.actualDirectory, FIELD_WIDTH)
 	private val dataset = stringField("", *SubmitOn.entries.toTypedArray()).apply {
 		textField.textProperty().addListener { _, _, newv: String? ->
 			if (!nameField.manuallyNamed && newv != null) {
@@ -253,7 +255,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			headerText = "Create new Label dataset"
 			dialogPane.content = pane
 			dialogPane.lookupButton(ButtonType.OK).addEventFilter(ActionEvent.ACTION) { e: ActionEvent ->
-				val container = n5Container.directoryProperty().value!!.absolutePath
+				val container = n5Container.directoryProperty().value!!
 				val dataset = dataset.value
 				val name = nameField.text
 				LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
@@ -274,8 +276,13 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				}
 
 				try {
+					val writer = n5Factory.newWriter(container.absolutePath)
+
+					if (labelMultiset.isSelected && writer !is N5KeyValueWriter)
+						throw UnsupportedOperationException("LabelMultisetType Label dataset only supported for N5 datasets")
+
 					N5Data.createEmptyLabelDataset(
-						container,
+						writer,
 						dataset,
 						dimensions.asLongArray(),
 						blockSize.asIntArray(),
@@ -286,7 +293,6 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						labelMultiset.isSelected
 					)
 
-					val writer = n5Factory.openWriter(container)
 					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
 						val containerState = N5ContainerState(writer)
 						createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }

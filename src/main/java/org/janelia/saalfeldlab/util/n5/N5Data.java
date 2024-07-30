@@ -35,7 +35,6 @@ import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
-import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -69,7 +68,7 @@ public class N5Data {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	/**
-	 * @param reader   container
+	 * @param reader   N5Reader
 	 * @param dataset  dataset
 	 * @param priority in fetching queue
 	 * @param <T>      data type
@@ -95,7 +94,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -131,7 +130,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -163,7 +162,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader            container
+	 * @param reader            N5Reader
 	 * @param dataset           dataset
 	 * @param transform         transforms voxel data into real world coordinates
 	 * @param priority          in fetching queue
@@ -197,7 +196,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -256,7 +255,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -287,7 +286,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader   container
+	 * @param reader   N5Reader
 	 * @param dataset  dataset
 	 * @param priority in fetching queue
 	 * @param <T>      data type
@@ -314,7 +313,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader     container
+	 * @param reader     N5Reader
 	 * @param dataset    dataset
 	 * @param resolution voxel resolution
 	 * @param offset     offset in real world coordinates
@@ -419,7 +418,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -481,7 +480,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader   container
+	 * @param reader   N5Reader
 	 * @param dataset  dataset
 	 * @param priority in fetching queue
 	 * @return image data with cache invalidation
@@ -504,7 +503,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader     container
+	 * @param reader     N5Reader
 	 * @param dataset    dataset
 	 * @param resolution voxel size
 	 * @param offset     in world coordinates
@@ -560,7 +559,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader   container
+	 * @param reader   N5Reader
 	 * @param dataset  dataset
 	 * @param priority in fetching queue
 	 * @return multi-scale image data with cache invalidation
@@ -583,7 +582,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader     container
+	 * @param reader     N5Reader
 	 * @param dataset    dataset
 	 * @param resolution voxel size
 	 * @param offset     in world coordinates
@@ -652,7 +651,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform from voxel space to world coordinates
 	 * @param priority  in fetching queue
@@ -705,7 +704,7 @@ public class N5Data {
 	}
 
 	/**
-	 * @param reader    container
+	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
 	 * @param priority  in fetching queue
@@ -716,8 +715,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unchecked")
-	public static <D extends NativeType<D>, T extends NativeType<T>> DataSource<D, T>
-	openAsLabelSource(
+	public static <D extends NativeType<D>, T extends NativeType<T>> DataSource<D, T> openAsLabelSource(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -731,8 +729,8 @@ public class N5Data {
 	}
 
 	/**
-	 * @param container            container
-	 * @param group                target group in {@code container}
+	 * @param writer               N5Writer
+	 * @param group                target group in {@code writer}
 	 * @param dimensions           size
 	 * @param blockSize            chunk size
 	 * @param resolution           voxel size
@@ -743,7 +741,7 @@ public class N5Data {
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
 	public static void createEmptyLabelDataset(
-			final String container,
+			final N5Writer writer,
 			final String group,
 			final long[] dimensions,
 			final int[] blockSize,
@@ -753,12 +751,12 @@ public class N5Data {
 			@Nullable final int[] maxNumEntries,
 			final boolean labelMultiset) throws IOException {
 
-		createEmptyLabelDataset(container, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, maxNumEntries, labelMultiset, false);
+		createEmptyLabelDataset(writer, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, maxNumEntries, labelMultiset, false);
 	}
 
 	/**
-	 * @param container            container
-	 * @param group                target group in {@code container}
+	 * @param writer               N5Writer
+	 * @param group                target group in {@code writer}
 	 * @param dimensions           size
 	 * @param blockSize            chunk size
 	 * @param resolution           voxel size
@@ -771,7 +769,7 @@ public class N5Data {
 	 *                     already exists and {@code ignorExisting} is {@code false}
 	 */
 	public static void createEmptyLabelDataset(
-			final String container,
+			final N5Writer writer,
 			final String group,
 			final long[] dimensions,
 			final int[] blockSize,
@@ -784,35 +782,35 @@ public class N5Data {
 
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
-		final N5Writer n5 = Paintera.getN5Factory().newWriter(container);
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
-		if (!ignoreExisiting && n5.datasetExists(group))
-			throw new IOException(String.format("Dataset `%s' already exists in container `%s'", group, container));
+		var n5Uri = writer.getURI();
+		if (!ignoreExisiting && writer.datasetExists(group))
+			throw new IOException(String.format("Dataset `%s' already exists in container `%s'", group, n5Uri));
 
-		if (!n5.exists(group))
-			n5.createGroup(group);
+		if (!writer.exists(group))
+			writer.createGroup(group);
 
-		if (!ignoreExisiting && n5.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class) != null)
-			throw new IOException(String.format("Group '%s' already exists in container '%s' and is a Paintera dataset", group, container));
+		if (!ignoreExisiting && writer.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class) != null)
+			throw new IOException(String.format("Group '%s' already exists in container '%s' and is a Paintera dataset", group, n5Uri));
 
-		if (!ignoreExisiting && n5.exists(uniqueLabelsGroup))
-			throw new IOException(String.format("Unique labels group '%s' already exists in container '%s' -- conflict likely.", uniqueLabelsGroup, container));
+		if (!ignoreExisiting && writer.exists(uniqueLabelsGroup))
+			throw new IOException(String.format("Unique labels group '%s' already exists in container '%s' -- conflict likely.", uniqueLabelsGroup, n5Uri));
 
-		n5.setAttribute(group, N5Helpers.PAINTERA_DATA_KEY, pd);
-		n5.setAttribute(group, N5Helpers.MAX_ID_KEY, 0L);
+		writer.setAttribute(group, N5Helpers.PAINTERA_DATA_KEY, pd);
+		writer.setAttribute(group, N5Helpers.MAX_ID_KEY, 0L);
 
 		final String dataGroup = String.format("%s/data", group);
-		n5.createGroup(dataGroup);
+		writer.createGroup(dataGroup);
 
 
-		n5.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
-		n5.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
-		n5.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
-		n5.setAttribute(dataGroup, N5Helpers.IS_LABEL_MULTISET_KEY, labelMultisetType);
+		writer.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
+		writer.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
+		writer.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
+		writer.setAttribute(dataGroup, N5Helpers.IS_LABEL_MULTISET_KEY, labelMultisetType);
 
-		n5.createGroup(uniqueLabelsGroup);
-		n5.setAttribute(uniqueLabelsGroup, N5Helpers.MULTI_SCALE_KEY, true);
+		writer.createGroup(uniqueLabelsGroup);
+		writer.setAttribute(uniqueLabelsGroup, N5Helpers.MULTI_SCALE_KEY, true);
 
 		final String scaleDatasetPattern = String.format("%s/s%%d", dataGroup);
 		final String scaleUniqueLabelsPattern = String.format("%s/s%%d", uniqueLabelsGroup);
@@ -830,17 +828,17 @@ public class N5Data {
 			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
 
 			if (labelMultisetType) {
-				n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
+				writer.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
 				final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
-				n5.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
-				n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+				writer.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
+				writer.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 			} else
-				n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
+				writer.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
-			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
+			writer.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 			if (scaleLevel != 0) {
-				n5.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
-				n5.setAttribute(uniqeLabelsDataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
+				writer.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
+				writer.setAttribute(uniqeLabelsDataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
 			}
 		}
 	}

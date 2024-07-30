@@ -49,9 +49,7 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
-import org.slf4j.LoggerFactory
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.List
 import java.util.concurrent.ExecutorService
@@ -791,7 +789,9 @@ object N5Helpers {
 			?.asJsonObject?.get("data")
 			?.asJsonObject?.let { it.get("basePath") ?: it.get("file") }
 			?.asString
-		val uri = fromClassInfo ?: json[URI]?.asString ?: paintera.projectDirectory.actualDirectory.toURI().toString()
+		val uri = fromClassInfo
+			?: json[URI]?.asString
+			?: paintera.projectDirectory.actualDirectory.absolutePath
 		return getN5ContainerWithRetryPrompt(uri)
 	}
 
