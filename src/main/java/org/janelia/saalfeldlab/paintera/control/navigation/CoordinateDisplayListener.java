@@ -1,18 +1,21 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.Source;
+import javafx.beans.value.ObservableValue;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 
-import java.util.Optional;
 import java.util.function.Consumer;
+
+import static java.util.FormatProcessor.FMT;
 
 public class CoordinateDisplayListener {
 
 	private final ViewerPanelFX viewer;
+	private final ObservableValue<Source<?>> currentSource;
 
 	private double x = -1;
 
@@ -26,12 +29,13 @@ public class CoordinateDisplayListener {
 
 	public CoordinateDisplayListener(
 			final ViewerPanelFX viewer,
+			final ObservableValue<Source<?>> currentSource,
 			final Consumer<RealPoint> submitViewerCoordinate,
 			final Consumer<RealPoint> submitWorldCoordinate,
 			final Consumer<RealPoint> submitSourceCoordinate) {
 
-		super();
 		this.viewer = viewer;
+		this.currentSource = currentSource;
 		this.submitViewerCoordinate = submitViewerCoordinate;
 		this.submitWorldCoordinate = submitWorldCoordinate;
 		this.submitSourceCoordinate = submitSourceCoordinate;
@@ -72,29 +76,24 @@ public class CoordinateDisplayListener {
 	private void updateSourceCoordinates(final double x, final double y) {
 
 		final double[] mouseCoordinates = new double[]{x, y, 0.0};
-		Optional.ofNullable(Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get())
-				.ifPresent(source -> {
-					final var sourceToGlobalTransform = new AffineTransform3D();
-					source.getSourceTransform(viewer.getState().getTimepoint(), 0, sourceToGlobalTransform);
+		final Source<?> source = currentSource.getValue();
+		if (source == null)
+			return;
 
-					final RealPoint sourceCoordinates = new RealPoint(mouseCoordinates);
-					viewer.displayToSourceCoordinates(mouseCoordinates[0], mouseCoordinates[1], sourceToGlobalTransform, sourceCoordinates);
-					submitSourceCoordinate.accept(sourceCoordinates);
-				});
+		final var sourceToGlobalTransform = new AffineTransform3D();
+		source.getSourceTransform(viewer.getState().getTimepoint(), 0, sourceToGlobalTransform);
+
+		final RealPoint sourceCoordinates = new RealPoint(mouseCoordinates);
+		viewer.displayToSourceCoordinates(mouseCoordinates[0], mouseCoordinates[1], sourceToGlobalTransform, sourceCoordinates);
+		submitSourceCoordinate.accept(sourceCoordinates);
 	}
 
 	public static String realPointToString(final RealPoint p) {
 
-		final String s1 = String.format("%.3f", p.getDoublePosition(0));
-		final String s2 = String.format("%.3f", p.getDoublePosition(1));
-		final String s3 = String.format("%.3f", p.getDoublePosition(2));
-
-		return String.format(
-				"(%8s, %8s, %8s)",
-				s1.length() > 8 ? s1.substring(0, 8) : s1,
-				s2.length() > 8 ? s2.substring(0, 8) : s2,
-				s3.length() > 8 ? s3.substring(0, 8) : s3);
-
+		final double d0 = p.getDoublePosition(0);
+		final double d1 = p.getDoublePosition(1);
+		final double d2 = p.getDoublePosition(2);
+		return FMT."(%8.3f\{d0}, %8.3f\{d1}, %8.3f\{d2})";
 	}
 
 }

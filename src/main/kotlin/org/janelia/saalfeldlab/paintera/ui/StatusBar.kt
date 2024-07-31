@@ -168,7 +168,8 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 					val cdl2 = OrthoViewCoordinateDisplayListener(
 						{ point -> it.setViewerCoordinateStatus(point) },
 						{ point -> it.setWorldCoordinateStatus(point) },
-						{ point -> it.setSourceCoordinateStatus(point) }
+						{ point -> it.setSourceCoordinateStatus(point) },
+						currentSource
 					)
 					cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
 				}

@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public class OrthogonalViewsValueDisplayListener {
 
-	private final Map<ViewerPanelFX, ValueDisplayListener> listeners = new HashMap<>();
+	private final Map<ViewerPanelFX, ValueDisplayListener<?>> listeners = new HashMap<>();
 
 	private final Consumer<String> submitValue;
 
@@ -49,21 +49,24 @@ public class OrthogonalViewsValueDisplayListener {
 
 	public void addHandlers(ViewerPanelFX viewer) {
 
-		if (!this.listeners.containsKey(viewer))
-			this.listeners.put(viewer, new ValueDisplayListener(viewer, currentSource, interpolation, submitValue));
-		viewer.getDisplay().addEventFilter(MouseEvent.MOUSE_MOVED, this.listeners.get(viewer));
-		viewer.addTransformListener(this.listeners.get(viewer));
+		listeners.putIfAbsent(viewer, new ValueDisplayListener<>(viewer, currentSource, interpolation, submitValue));
+
+		viewer.getDisplay().addEventFilter(MouseEvent.MOUSE_MOVED, listeners.get(viewer));
+		viewer.addTransformListener(listeners.get(viewer));
 	}
 
 	public void removeHandlers(ViewerPanelFX viewer) {
 
-		viewer.getDisplay().removeEventHandler(MouseEvent.MOUSE_MOVED, this.listeners.get(viewer));
-		viewer.removeTransformListener(this.listeners.get(viewer));
+		listeners.computeIfPresent(viewer, (key, vdl) -> {
+			viewer.getDisplay().removeEventHandler(MouseEvent.MOUSE_MOVED, vdl);
+			viewer.removeTransformListener(vdl);
+			return null;
+		});
 		submitValue.accept("");
 	}
 
 	public void bindActiveViewer(ObservableValue<OrthogonalViews.ViewerAndTransforms> activeViewerObservable) {
 		/* Binding would be neater here, but inexplicably, doesn't work? */
-		activeViewerObservable.addListener((obs, oldv, newv) -> activeViewerProperty.set(newv));
+		activeViewerObservable.subscribe(activeViewerProperty::set);
 	}
 }
