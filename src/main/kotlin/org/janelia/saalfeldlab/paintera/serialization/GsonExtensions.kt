@@ -111,7 +111,7 @@ object GsonExtensions {
 		return getAttribute(dataset, attribute, T::class.java)
 	}
 
-	fun N5Writer.set(dataset : String, attrPath : String, attribute : Any) {
+	operator fun N5Writer.set(dataset : String, attrPath : String, attribute : Any) {
 		return setAttribute(dataset, attrPath, attribute)
 	}
 

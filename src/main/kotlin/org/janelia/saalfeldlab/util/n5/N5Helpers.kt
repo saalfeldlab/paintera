@@ -19,6 +19,7 @@ import net.imglib2.realtransform.Translation3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
+import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
@@ -703,7 +704,7 @@ object N5Helpers {
 	fun getLabelBlockLookup(metadataState: MetadataState): LabelBlockLookup {
 		val group = metadataState.group
 		val reader = metadataState.reader
-		LOG.debug { "Getting label block lookup for ${metadataState.metadata.getPath()}" }
+		LOG.debug { "Getting label block lookup for ${metadataState.metadata.path}" }
 		return if (isPainteraDataset(reader, group)) {
 			val gsonBuilder = GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
 			val gson = gsonBuilder.create()
@@ -713,15 +714,15 @@ object N5Helpers {
 				?.takeIf { it.isJsonObject }
 				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
 				?: let {
-					val labelToBlockDataset = N5URI.normalizeGroupPath(group + reader.groupSeparator + "label-to-block-mapping");
-					val scaleDatasetPattern = N5URI.normalizeGroupPath("label-to-block-mapping" + reader.groupSeparator + "s%d")
+					val lblGroup = "label-to-block-mapping"
+					val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
 					val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
 					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
-					val labelBlockLookupMetadata = LabelBlockLookupGroup(labelToBlockDataset, numScales)
-					labelBlockLookupMetadata.write(metadataState.writer!!)
+					LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup).write(metadataState.writer!!)
 					relativeLookup
-				}  as LabelBlockLookup
+				}
 			LOG.debug { "Got lookup type: ${lookup.javaClass}" }
+			(lookup as? IsRelativeToContainer)?.setRelativeTo(metadataState.writer!!, group)
 			lookup
 		} else throw NotAPainteraDataset(reader, group)
 	}
