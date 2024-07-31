@@ -135,7 +135,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	@Override
-	public synchronized long getSegment(final long fragmentId) {
+	public long getSegment(final long fragmentId) {
 
 		final long id;
 		final long segmentId = fragmentToSegmentMap.get(fragmentId);

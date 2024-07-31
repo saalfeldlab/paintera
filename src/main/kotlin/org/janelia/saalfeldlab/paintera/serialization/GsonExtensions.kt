@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
 import com.google.gson.*
+import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5Writer
 
 object GsonExtensions {
 
@@ -103,5 +105,14 @@ object GsonExtensions {
 
 	inline operator fun <reified T> JsonDeserializationContext.get(json: JsonObject, property: String, letIt: (T) -> Unit = {}) =
 		get<T>(json as JsonElement, property, letIt)
+
+
+	inline operator fun <reified T> N5Reader.get(dataset : String, attribute : String) : T? {
+		return getAttribute(dataset, attribute, T::class.java)
+	}
+
+	fun N5Writer.set(dataset : String, attrPath : String, attribute : Any) {
+		return setAttribute(dataset, attrPath, attribute)
+	}
 
 }
