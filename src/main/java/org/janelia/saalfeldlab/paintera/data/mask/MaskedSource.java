@@ -1152,7 +1152,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				final long[] max = new long[intersectedCellMax.length];
 				System.arraycopy(intersectedCellMin, 0, min, 0, min.length);
 				System.arraycopy(intersectedCellMax, 0, max, 0, max.length);
-				final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps, taskExecutor)));
+				final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps)));
 				labelsForBlockFutures.add(future);
 			}
 		}
@@ -1174,13 +1174,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param source
 	 * @param target
 	 * @param steps
-	 * @param taskExecutor
 	 */
 	private static <T extends IntegerType<T>> Set<Long> downsample(
 			final RandomAccessible<T> source,
 			final RandomAccessibleInterval<T> target,
-			final int[] steps,
-			final TaskExecutor taskExecutor) {
+			final int[] steps) {
 
 		LOG.debug(
 				"Downsampling ({} {}) with steps {}",
@@ -1189,7 +1187,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				steps
 		);
 
-		/* Views.tiles doesn't preserver intervals, so zeroMin prior to tiling */
+		/* Views.tiles doesn't preserve intervals, so zeroMin prior to tiling */
 		final var zeroMinTarget = Views.zeroMin(target);
 		final var sourceInterval = IntervalHelpers.scale(target, steps, true);
 		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
@@ -1197,7 +1195,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final HashSet<Long> labels = new HashSet<>();
 		LoopBuilder.setImages(tiledSource, zeroMinTarget)
-				.multiThreaded(taskExecutor)
 				.forEachChunk(chunk -> {
 					final TLongLongHashMap maxCounts = new TLongLongHashMap();
 					chunk.forEachPixel((sourceTile, lowResTarget) -> {
@@ -1214,11 +1211,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							}
 						}
 						lowResTarget.setInteger(maxId);
-						if (maxId != Label.INVALID) {
-							synchronized (labels) {
-								labels.add(maxId);
-							}
-						}
+						if (maxId != Label.INVALID)
+							labels.add(maxId);
 						maxCounts.clear();
 					});
 					return null;
