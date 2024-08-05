@@ -22,7 +22,7 @@ import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
-import org.janelia.saalfeldlab.labels.blocks.n5.N5DatasetLabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -37,7 +37,6 @@ import org.junit.Assert
 import org.junit.BeforeClass
 import org.junit.Test
 import org.testfx.util.WaitForAsyncUtils
-import java.nio.file.Paths
 import java.util.Random
 import java.util.stream.IntStream
 import java.util.stream.Stream
@@ -241,7 +240,8 @@ class CommitCanvasN5Test {
 				Assert.assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
 			}
 
-			val lookup = N5DatasetLabelBlockLookup(writer, dataset, scaleMappingPattern)
+			val lookup = LabelBlockLookupFromN5Relative(scaleMappingPattern)
+			lookup.setRelativeTo(writer, dataset)
 
 			labelToBlockMapping.forEachKey { id: Long ->
 				val key = LabelBlockLookupKey(0, id)
