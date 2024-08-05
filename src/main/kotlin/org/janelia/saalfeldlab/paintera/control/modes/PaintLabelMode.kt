@@ -192,7 +192,7 @@ object PaintLabelMode : AbstractToolMode() {
 
 	private fun getToolTriggers() = listOf(
 		paintBrushTool.createTriggers(this, PaintActionType.Paint),
-		fill2DTool.createTriggers(this, PaintActionType.Fill, ignoreDisable = false),
+		fill2DTool.createTriggers(this, PaintActionType.Fill),
 		toggleFill3D,
 		intersectTool.createTriggers(this, PaintActionType.Intersect),
 		activeSamTool
