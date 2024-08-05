@@ -16,8 +16,6 @@ public final class PainterThreadFx extends Thread {
 
 	private boolean isRunning;
 
-	private long lastUpdate = -1;
-	private long targetFrameRateMs = 1000 / 60;
 
 	public PainterThreadFx(PainterThreadFx.Paintable paintable) {
 

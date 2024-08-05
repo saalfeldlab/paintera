@@ -22,7 +22,6 @@ public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>, V 
 	public void convert(final V input, final ARGBType output) {
 
 		output.set(stream.argb(input.get().getIntegerLong()));
-		//		LOG.trace("Converted input {} to output {}", input, output);
 	}
 
 }

@@ -970,8 +970,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final RealRandomAccessible<T> sourceToExtend;
 
 		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
-		final RealRandomAccessible<T> interpolatedSource = this.source.getInterpolatedSource(time, level, Interpolation.NEARESTNEIGHBOR);
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.getCurrentMask() == null) {
+		final RealRandomAccessible<T> interpolatedSource = source.getInterpolatedSource(time, level, Interpolation.NEARESTNEIGHBOR);
+		if (!showCanvasOverBackground.get() || affectedBlocks.isEmpty() && getCurrentMask() == null) {
 			LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 			sourceToExtend = interpolatedSource;
 		} else {
@@ -1058,19 +1058,19 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final RealRandomAccessible<D> dataSourceToExtend;
 
 		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
-		final RealRandomAccessible<D> interpolatedDataSource = this.source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.getCurrentMask() == null) {
+		final RealRandomAccessible<D> interpolatedDataSource = source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
+		if (!showCanvasOverBackground.get() || affectedBlocks.isEmpty() && getCurrentMask() == null) {
 			LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 			dataSourceToExtend = interpolatedDataSource;
 		} else {
 			final RealRandomAccessible<UnsignedLongType> dataCanvas = Views.interpolate(
 					Views.extendValue(
-							this.dataCanvases[level],
+							dataCanvases[level],
 							new UnsignedLongType(Label.INVALID)
 					),
 					new NearestNeighborInterpolatorFactory<>()
 			);
-			final RealRandomAccessible<UnsignedLongType> dataMask = this.dMasks[level];
+			final RealRandomAccessible<UnsignedLongType> dataMask = dMasks[level];
 			final RealRandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RealRandomAccessibleTriple<>(
 					interpolatedDataSource,
 					dataCanvas,

@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -147,12 +148,12 @@ public class OrthogonalViews<BR extends Node> {
 			final Function<Source<?>, Interpolation> interpolation) {
 
 		this.manager = manager;
-
+		final var count = new AtomicInteger();
 		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
 			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
 			worker.setDaemon(true);
 			worker.setPriority(4);
-			worker.setName("render-thread-" + worker.getPoolIndex());
+			worker.setName("render-thread-" + count.getAndIncrement());
 			return worker;
 		};
 
