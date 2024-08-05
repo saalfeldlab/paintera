@@ -1,17 +1,13 @@
 package org.janelia.saalfeldlab.paintera.control.tools
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.property.StringProperty
 import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBase
-import javafx.scene.control.ToggleButton
-import javafx.scene.control.ToggleGroup
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -47,7 +43,7 @@ interface ToolBarItem {
 		get() {
 			val node = graphic()
 			val button = action?.let { action ->
-				var toggleGroup : ToggleGroup? = null
+				var toggleGroup: ToggleGroup? = null
 				node?.also { graphic ->
 					toggleGroup = graphic.properties["TOGGLE_GROUP"] as? ToggleGroup
 				}
@@ -91,7 +87,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	}
 
 	override fun deactivate() {
-		activeViewerAndTransforms?.viewer()?.let { removeFrom(it) }
+		removeFromAll()
 		activeViewerProperty.unbind()
 		activeViewerProperty.set(null)
 	}
@@ -111,6 +107,11 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 		}
 	}
 
+	fun removeFromAll() {
+		/* This should remove them all */
+		installedInto.keys.forEach { removeFrom(it) }
+	}
+
 	fun removeFrom(node: Node) {
 		installedInto[node]?.let { actions ->
 			LOG.debug { "removing $this" }
@@ -126,6 +127,6 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	val activeViewer: ViewerPanelFX? by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
 
 	companion object {
-		private val LOG = KotlinLogging.logger {  }
+		private val LOG = KotlinLogging.logger { }
 	}
 }
