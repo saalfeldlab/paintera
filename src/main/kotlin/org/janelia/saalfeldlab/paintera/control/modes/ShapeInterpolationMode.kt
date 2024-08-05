@@ -191,10 +191,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify("Fill2DTool is active") { activeTool is Fill2DTool }
 					onAction {
-						val fillNotRunning = fill2DTool.fillIsRunningProperty.not()
-						fillNotRunning.onceWhen(fillNotRunning).subscribe { _ ->
-							InvokeOnJavaFXApplicationThread { switchTool(shapeInterpolationTool) }
-						}
+						val switchBack = { InvokeOnJavaFXApplicationThread { switchTool(shapeInterpolationTool) } }
+						fill2DTool.fillJob?.invokeOnCompletion { switchBack() } ?: switchBack
 					}
 				}
 			},
