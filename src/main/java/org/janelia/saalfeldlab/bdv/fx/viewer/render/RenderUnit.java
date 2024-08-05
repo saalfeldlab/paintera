@@ -41,7 +41,15 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	protected PainterThreadFx painterThread;
 	protected boolean useVolatileIfAvailable = true;
 
-	public RenderUnit(final ThreadGroup threadGroup, final Function<Source<?>, Interpolation> interpolation, final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory, final CacheControl cacheControl, final long targetRenderNanos, final TaskExecutor renderingTaskExecutor) {
+	public RenderUnit(
+			final ThreadGroup threadGroup,
+			final Function<Source<?>, Interpolation> interpolation,
+			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
+			final CacheControl cacheControl,
+			final long targetRenderNanos,
+			final TaskExecutor renderingTaskExecutor,
+			final boolean useVolatileIfAvailable
+			) {
 
 		this.threadGroup = threadGroup;
 		this.interpolation = interpolation;
@@ -49,6 +57,7 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
 		this.renderingTaskExecutor = renderingTaskExecutor;
+		this.useVolatileIfAvailable = useVolatileIfAvailable;
 	}
 
 	public void stopRendering() {

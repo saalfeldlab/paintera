@@ -58,11 +58,11 @@ open class BaseRenderUnit(
 	accumulateProjectorFactory,
 	cacheControl,
 	targetRenderNanos,
-	renderingTaskExecutor
+	renderingTaskExecutor,
+	useVolatileIfAvailable
 ) {
 
 	init {
-		this.useVolatileIfAvailable = useVolatileIfAvailable
 		screenScales?.let { setScreenScales(it) }
 		dimensions?.let { setDimensions(it[0], it[1]) }
 	}
