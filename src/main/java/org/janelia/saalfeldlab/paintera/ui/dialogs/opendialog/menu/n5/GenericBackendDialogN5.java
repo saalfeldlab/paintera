@@ -314,10 +314,10 @@ public class GenericBackendDialogN5 implements Closeable {
 							throw e;
 						}
 						Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
-						invoke(() -> validDatasetChoices.putAll(validGroups));
+						validDatasetChoices.putAll(validGroups);
 
 						if (metadataTree == null || metadataTree.getMetadata() == null) {
-							invoke(() -> this.activeN5Node.set(null));
+							this.activeN5Node.set(null);
 						}
 						return validDatasetChoices;
 					}).onSuccess(result -> {

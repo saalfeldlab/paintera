@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
+import static org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn.*;
 import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
 public class N5FactoryOpener {
@@ -72,8 +73,7 @@ public class N5FactoryOpener {
 
 	public GenericBackendDialogN5 backendDialog() {
 
-		final ObjectField<String, StringProperty> containerField = ObjectField.stringField(selectionProperty.get(), ObjectField.SubmitOn.ENTER_PRESSED,
-				ObjectField.SubmitOn.ENTER_PRESSED);
+		final ObjectField<String, StringProperty> containerField = ObjectField.stringField(selectionProperty.get(), ENTER_PRESSED, FOCUS_LOST);
 		containerField.getTextField().addEventHandler(KeyEvent.KEY_PRESSED, createCachedContainerResetHandler());
 		final TextField containerTextField = containerField.getTextField();
 		final var tooltipBinding = Bindings.createObjectBinding(() -> new Tooltip(containerTextField.getText()), containerTextField.textProperty());
@@ -83,7 +83,7 @@ public class N5FactoryOpener {
 		containerTextField.setMaxWidth(Double.POSITIVE_INFINITY);
 		containerTextField.setPromptText("N5 container");
 
-		final EventHandler<ActionEvent> onBrowseFoldersClicked = event -> {
+		final EventHandler<ActionEvent> onBrowseFoldersClicked = _ -> {
 
 			final File initialDirectory = Optional
 					.ofNullable(selectionProperty.get())
@@ -91,10 +91,9 @@ public class N5FactoryOpener {
 					.filter(File::exists)
 					.orElse(Path.of(".").toAbsolutePath().toFile());
 			updateFromDirectoryChooser(initialDirectory, containerTextField.getScene().getWindow());
-
 		};
 
-		final EventHandler<ActionEvent> onBrowseFilesClicked = event -> {
+		final EventHandler<ActionEvent> onBrowseFilesClicked = _ -> {
 			final File initialDirectory = Optional
 					.ofNullable(selectionProperty.get())
 					.map(File::new)
@@ -105,7 +104,12 @@ public class N5FactoryOpener {
 		};
 
 		List<String> recentSelections = Lists.reverse(PainteraCache.readLines(this.getClass(), "recent"));
-		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Find", recentSelections, FAVORITES, onBrowseFoldersClicked, onBrowseFilesClicked,
+		final MenuButton menuButton = BrowseRecentFavorites.menuButton(
+				"_Find",
+				recentSelections,
+				FAVORITES,
+				onBrowseFoldersClicked,
+				onBrowseFilesClicked,
 				selectionProperty::set);
 
 		return new GenericBackendDialogN5(containerTextField, menuButton, "N5", containerState, isOpeningContainer);
