@@ -17,6 +17,9 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -30,6 +33,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.activeViewer
 import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
@@ -72,7 +76,7 @@ interface ToolMode : SourceMode {
 
 	val modeToolsBar: ActionBar
 	val modeActionsBar: ActionBar
-	val toolActionsBar : ActionBar
+	val toolActionsBar: ActionBar
 
 	override fun enter() {
 		super.enter()
@@ -86,18 +90,27 @@ interface ToolMode : SourceMode {
 		if (activeTool == tool)
 			return
 		LOG.debug { "Switch from $activeTool to $tool" }
-		(activeTool as? ViewerTool)?.apply {
-			activeViewer?.let { removeFrom(it) }
+		val activateNextTool = {
+			InvokeOnJavaFXApplicationThread {
+				(activeTool as? ViewerTool)?.apply {
+					activeViewer?.let { removeFrom(it) }
+				}
+				showToolBars()
+				tool?.activate()
+				activeTool = tool
+			}
 		}
-		activeTool?.deactivate()
-
-		showToolBars()
-
-		tool?.activate()
-		activeTool = tool
+		val deactivateJob = activeTool?.let {
+			CoroutineScope(Dispatchers.Default).launch {
+				it.deactivate()
+			}
+		}
+		deactivateJob
+			?.invokeOnCompletion { activateNextTool() }
+			?: activateNextTool()
 	}
 
-	private fun showToolBars(show : Boolean = true) {
+	private fun showToolBars(show: Boolean = true) {
 		modeToolsBar.show(show)
 		modeActionsBar.show(show)
 		toolActionsBar.show(show)
@@ -161,6 +174,8 @@ interface ToolMode : SourceMode {
 	fun selectViewerBefore(afterViewerIsSelected: () -> Unit) {
 		/* temporarily revoke permissions, so no actions are performed until we select a viewer  */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
+
+		statusProperty.unbind()
 		this.statusProperty.set("Select a Viewer...")
 
 
@@ -229,8 +244,7 @@ interface ToolMode : SourceMode {
 	}
 
 
-
-	fun <T : Event> Node.waitForEvent(event : EventType<T>) : T? {
+	fun <T : Event> Node.waitForEvent(event: EventType<T>): T? {
 		/* temporarily revoke permissions, so no actions are performed until we receive event [T]   */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
 
@@ -240,7 +254,7 @@ interface ToolMode : SourceMode {
 			lateinit var escapeFilter: EventHandler<KeyEvent>
 			lateinit var waitForEventFilter: EventHandler<T>
 
-			val resetFilterAndPermissions = { it : T? ->
+			val resetFilterAndPermissions = { it: T? ->
 				removeEventFilter(event, waitForEventFilter)
 				removeEventFilter(KEY_PRESSED, escapeFilter)
 				paintera.baseView.allowedActionsProperty().restorePermisssions()
