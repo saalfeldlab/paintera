@@ -51,7 +51,15 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		this.pickSecond = pickSecond;
 		this.scalarValue = scalarValue;
 		this.converter = new FromIntegerTypeConverter<>();
+
+		/* Seems like a no-op, but this provides a reference for the scalarValue to use
+		* when doing operations like add,count,sort, etc.
+		*
+		* Should be better documented :( */
+		final LabelMultisetEntry ref = new LabelMultisetEntry();
+		this.scalarValue.entrySetWithRef(ref);
 	}
+
 
 	@Override
 	public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
