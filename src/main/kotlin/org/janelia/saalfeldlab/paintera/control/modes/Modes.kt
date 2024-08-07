@@ -17,9 +17,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -34,6 +32,8 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.activeViewer
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.mode
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.removeFrom
 import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
@@ -86,28 +86,34 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-	fun switchTool(tool: Tool?) {
+	fun switchTool(tool: Tool?) : Job? {
 		if (activeTool == tool)
-			return
+			return null
 		LOG.debug { "Switch from $activeTool to $tool" }
-		val activateNextTool = {
-			InvokeOnJavaFXApplicationThread {
-				(activeTool as? ViewerTool)?.apply {
-					activeViewer?.let { removeFrom(it) }
-				}
-				showToolBars()
-				tool?.activate()
-				activeTool = tool
-			}
+
+		/* Deactivate off the main thread */
+		val deactivateJob = CoroutineScope(Dispatchers.Default).launch {
+			LOG.trace {"Deactivated $activeTool"}
+			activeTool?.deactivate()
 		}
-		val deactivateJob = activeTool?.let {
-			CoroutineScope(Dispatchers.Default).launch {
-				it.deactivate()
-			}
+
+		/* Activate ON the main thread (maybe should refactor this in the future) */
+		val activateJob = CoroutineScope(Dispatchers.Main.immediate).launch(start = CoroutineStart.LAZY) {
+
+			(activeTool as? ViewerTool)?.removeFromAll()
+
+			showToolBars()
+			tool?.activate()
+			activeTool = tool
+			LOG.trace {"Activated $activeTool"}
 		}
-		deactivateJob
-			?.invokeOnCompletion { activateNextTool() }
-			?: activateNextTool()
+
+		deactivateJob.invokeOnCompletion {
+			/* If the mode was changed before we can activate, don't activate anymore */
+			if (paintera.baseView.activeModeProperty.value == this@ToolMode)
+				activateJob.start()
+		}
+  		return activateJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
@@ -137,7 +143,6 @@ interface ToolMode : SourceMode {
 						(it.userData as? Tool)?.let { tool ->
 							if (activeTool != tool) {
 								if ((it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true) {
-									switchTool(null)
 									selectViewerBefore {
 										switchTool(tool)
 									}
@@ -172,6 +177,9 @@ interface ToolMode : SourceMode {
 	 * @param afterViewerIsSelected will be executed if a viewer is clicked, and [KeyCode.ESCAPE] is not pressed
 	 */
 	fun selectViewerBefore(afterViewerIsSelected: () -> Unit) {
+		/* Ensure no active tools when prompting to select viewer*/
+		runBlocking { switchTool(null)?.join() }
+		/* To ensure it's done, */
 		/* temporarily revoke permissions, so no actions are performed until we select a viewer  */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
 
@@ -189,7 +197,7 @@ interface ToolMode : SourceMode {
 				/* store the prev cursor, change to CROSSHAIR  */
 				val prevCursor = cursor
 
-				/* select the viewer, and triger the callback */
+				/* select the viewer, and trigger the callback */
 				val selectViewEvent = EventHandler<MouseEvent> {
 					it.consume()
 					paintera.baseView.currentFocusHolder.get()?.also {
@@ -407,7 +415,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	}
 
 	override fun exit() {
-		switchTool(null)
+		runBlocking { switchTool(null)?.join() }
 		activeToolProperty.removeListener(activeToolHandler)
 		activeViewerProperty.removeListener(activeViewerToolHandler)
 		super<AbstractSourceMode>.exit()

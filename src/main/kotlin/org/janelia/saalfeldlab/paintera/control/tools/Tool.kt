@@ -87,7 +87,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	}
 
 	override fun deactivate() {
-		removeFromAll()
+		activeViewerAndTransforms?.viewer()?.let { removeFrom(it) }
 		activeViewerProperty.unbind()
 		activeViewerProperty.set(null)
 	}
@@ -97,29 +97,41 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
 	fun installInto(node: Node) {
-		if (!installedInto.containsKey(node)) {
-			LOG.debug { "installing $this" }
-			installedInto.putIfAbsent(node, mutableListOf())
-			actionSets.forEach {
-				node.installActionSet(it)
-				installedInto[node]?.add(it)
+		synchronized(this) {
+			if (!installedInto.containsKey(node)) {
+				LOG.debug { "installing $this" }
+				installedInto.putIfAbsent(node, mutableListOf())
+				actionSets.forEach {
+					node.installActionSet(it)
+					installedInto[node]?.add(it)
+				}
 			}
 		}
 	}
 
 	fun removeFromAll() {
-		/* This should remove them all */
-		installedInto.keys.forEach { removeFrom(it) }
+		synchronized(this) {
+			installedInto.forEach { (node, actions) ->
+				LOG.debug { "removing $this" }
+				actions.removeIf { actionSet ->
+					node.removeActionSet(actionSet)
+					true
+				}
+			}
+			installedInto.clear()
+		}
 	}
 
 	fun removeFrom(node: Node) {
-		installedInto[node]?.let { actions ->
-			LOG.debug { "removing $this" }
-			actions.removeIf { actionSet ->
-				node.removeActionSet(actionSet)
-				true
+		synchronized(this) {
+			installedInto[node]?.let { actions ->
+				LOG.debug { "removing $this" }
+				actions.removeIf { actionSet ->
+					node.removeActionSet(actionSet)
+					true
+				}
+				if (actions.isEmpty()) installedInto -= node
 			}
-			if (actions.isEmpty()) installedInto -= node
 		}
 	}
 
