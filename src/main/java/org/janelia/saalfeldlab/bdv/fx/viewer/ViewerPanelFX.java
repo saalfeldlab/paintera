@@ -192,7 +192,9 @@ public class ViewerPanelFX
 		heightProperty().subscribe(height -> renderUnit.setDimensions((long)getWidth(), height.longValue()));
 
 		visibleProperty().subscribe(visible -> {
-			if (!visible)
+			if (visible)
+				renderUnit.setDimensions((long)getWidth(), (long)getHeight());
+			else
 				renderUnit.stopRendering();
 		});
 
