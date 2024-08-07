@@ -308,7 +308,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				)
 			}
 		}
-		setViewer?.children?.removeIf { SAM_POINT_STYLE in it.styleClass }
+		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT_STYLE in it.styleClass } }
 		paintera.baseView.disabledPropertyBindings -= this
 		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
 		viewerMask = null
