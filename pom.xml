@@ -58,7 +58,7 @@
 
 		<!-- JavaFx Version-->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.0.0</saalfx.version>
+		<saalfx.version>2.0.1-SNAPSHOT</saalfx.version>
 		<testfx.version>4.0.16-alpha</testfx.version>
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
