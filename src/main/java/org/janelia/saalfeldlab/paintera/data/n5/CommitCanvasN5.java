@@ -429,13 +429,14 @@ public class CommitCanvasN5 implements PersistCanvas {
 				maxNumEntries
 		);
 
-		final byte[] serializedAccess = new byte[getSerializedVolatileLabelMultisetArraySize(updatedAccess)];
-		serializeVolatileLabelMultisetArray(updatedAccess, serializedAccess);
-
 		if (updatedAccess.isValid() && updatedAccess.getCurrentStorageArray().length == 0) {
 			n5.deleteBlock(dataset, blockPosition);
 			return null;
 		}
+
+		final byte[] serializedAccess = new byte[getSerializedVolatileLabelMultisetArraySize(updatedAccess)];
+		serializeVolatileLabelMultisetArray(updatedAccess, serializedAccess);
+
 		n5.writeBlock(
 				dataset,
 				attributes,
