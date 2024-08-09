@@ -413,12 +413,15 @@ object N5Helpers {
 	 */
 	@JvmStatic
 	@Throws(MaxIDNotSpecified::class, IOException::class)
-	fun idService(n5: N5Writer, dataset: String?): IdService {
+	fun idService(n5: N5Reader, dataset: String?): IdService {
 		LOG.debug { "Requesting id service for $n5:$dataset" }
 		val maxId = n5.getAttribute(dataset, "maxId", Long::class.java)
 		LOG.debug { "Found maxId=$maxId" }
-		if (maxId == null) throw MaxIDNotSpecified("Required attribute `maxId' not specified for dataset `$dataset' in container `$n5'.")
-		return N5IdService(n5, dataset, maxId)
+		return when {
+			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId' not specified for dataset `$dataset' in container `$n5'.")
+			maxId == null -> N5IdService(n5, dataset, 1)
+			else -> N5IdService(n5, dataset, maxId)
+		}
 	}
 
 	/**
