@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.util.n5
 
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.BooleanProperty
@@ -18,7 +16,6 @@ import net.imglib2.realtransform.ScaleAndTranslation
 import net.imglib2.realtransform.Translation3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
@@ -38,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
@@ -85,7 +83,7 @@ object N5Helpers {
 	const val PAINTERA_DATA_DATASET = "data"
 	const val PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET = "fragment-segment-assignment"
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
-	private val LOG = KotlinLogging.logger {  }
+	private val LOG = KotlinLogging.logger { }
 
 	private val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
 		OmeNgffMetadataParser(),
@@ -143,7 +141,7 @@ object N5Helpers {
 			isMultiScale = subGroups.isNotEmpty() && areAllSubGroupsValid(n5, group, subGroups)
 
 			if (isMultiScale) {
-				LOG.debug { "Found multi-scale group without $MULTI_SCALE_KEY tag. Implicit multi-scale detection will be removed in the future. Please add \"$MULTI_SCALE_KEY\":true to attributes.json."}
+				LOG.debug { "Found multi-scale group without $MULTI_SCALE_KEY tag. Implicit multi-scale detection will be removed in the future. Please add \"$MULTI_SCALE_KEY\":true to attributes.json." }
 			}
 		}
 		return isMultiScale
@@ -275,7 +273,8 @@ object N5Helpers {
 	@JvmStatic
 	fun parseMetadata(
 		n5: N5Reader?,
-		es: ExecutorService?): Optional<N5TreeNode> {
+		es: ExecutorService?
+	): Optional<N5TreeNode> {
 		val discoverer = N5DatasetDiscoverer(n5, es, METADATA_PARSERS, GROUP_PARSERS)
 		return try {
 			val rootNode = discoverer.discoverAndParseRecursive("/")
@@ -299,7 +298,8 @@ object N5Helpers {
 	fun considerDownsampling(
 		transform: AffineTransform3D,
 		downsamplingFactors: DoubleArray,
-		initialDownsamplingFactors: DoubleArray): AffineTransform3D {
+		initialDownsamplingFactors: DoubleArray
+	): AffineTransform3D {
 		val shift = DoubleArray(downsamplingFactors.size)
 		for (d in downsamplingFactors.indices) {
 			transform[transform[d, d] * downsamplingFactors[d] / initialDownsamplingFactors[d], d] = d
@@ -323,7 +323,8 @@ object N5Helpers {
 			val persistError = "Persisting assignments not supported for non Paintera group/dataset $group"
 			return FragmentSegmentAssignmentOnlyLocal(
 				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
-				FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError))
+				FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError)
+			)
 		}
 
 		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET"
@@ -332,13 +333,15 @@ object N5Helpers {
 		} else NoInitialLutAvailable()
 		return try {
 			FragmentSegmentAssignmentOnlyLocal(
-				initialLut ,
-				N5FragmentSegmentAssignmentPersister(writer, dataset))
+				initialLut,
+				N5FragmentSegmentAssignmentPersister(writer, dataset)
+			)
 		} catch (e: ReflectionException) {
 			LOG.debug(e) { "Unable to create initial lut supplier" }
 			FragmentSegmentAssignmentOnlyLocal(
 				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
-				N5FragmentSegmentAssignmentPersister(writer, dataset))
+				N5FragmentSegmentAssignmentPersister(writer, dataset)
+			)
 		}
 	}
 
@@ -434,7 +437,8 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getFinestLevel(
 		n5: N5Reader,
-		group: String): String {
+		group: String
+	): String {
 		LOG.debug { "Getting finest level for dataset $group" }
 		val scaleDirs = listAndSortScaleDatasets(n5, group)
 		return scaleDirs[0]
@@ -450,7 +454,8 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getFinestLevelJoinWithGroup(
 		n5: N5Reader,
-		group: String): String {
+		group: String
+	): String {
 		return getFinestLevelJoinWithGroup(n5, group) { g: String?, d: String? -> String.format("%s/%s", g, d) }
 	}
 
@@ -466,7 +471,8 @@ object N5Helpers {
 	fun getFinestLevelJoinWithGroup(
 		n5: N5Reader,
 		group: String,
-		joiner: BiFunction<String?, String?, String>): String {
+		joiner: BiFunction<String?, String?, String>
+	): String {
 		return joiner.apply(group, getFinestLevel(n5, group))
 	}
 
@@ -480,7 +486,8 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getCoarsestLevel(
 		n5: N5Reader,
-		group: String): String {
+		group: String
+	): String {
 		val scaleDirs = listAndSortScaleDatasets(n5, group)
 		return scaleDirs[scaleDirs.size - 1]
 	}
@@ -495,7 +502,8 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getCoarsestLevelJoinWithGroup(
 		n5: N5Reader,
-		group: String): String {
+		group: String
+	): String {
 		return getCoarsestLevelJoinWithGroup(n5, group) { g: String?, d: String? -> String.format("%s/%s", g, d) }
 	}
 
@@ -511,7 +519,8 @@ object N5Helpers {
 	fun getCoarsestLevelJoinWithGroup(
 		n5: N5Reader,
 		group: String,
-		joiner: BiFunction<String?, String?, String>): String {
+		joiner: BiFunction<String?, String?, String>
+	): String {
 		return joiner.apply(group, getCoarsestLevel(n5, group))
 	}
 
@@ -529,7 +538,8 @@ object N5Helpers {
 		n5: N5Reader,
 		group: String,
 		key: String?,
-		vararg fallBack: Double): DoubleArray {
+		vararg fallBack: Double
+	): DoubleArray {
 		return getDoubleArrayAttribute(n5, group, key, false, *fallBack)
 	}
 
@@ -549,7 +559,8 @@ object N5Helpers {
 		group: String,
 		key: String?,
 		reverse: Boolean,
-		vararg fallBack: Double): DoubleArray {
+		vararg fallBack: Double
+	): DoubleArray {
 		if (reverse) {
 			val toReverse = getDoubleArrayAttribute(n5, group, key, false, *fallBack)
 			LOG.debug { "Will reverse $toReverse" }
@@ -709,21 +720,16 @@ object N5Helpers {
 		val reader = metadataState.reader
 		LOG.debug { "Getting label block lookup for ${metadataState.metadata.path}" }
 		return if (isPainteraDataset(reader, group)) {
-			val gsonBuilder = GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
-			val gson = gsonBuilder.create()
-			val labelBlockLookupJson = reader.getAttribute(group, "labelBlockLookup", JsonElement::class.java)
+			val labelBlockLookupJson: LabelBlockLookup? = reader[group, "labelBlockLookup"]
 			LOG.debug { "Got label block lookup json: $labelBlockLookupJson" }
-			val lookup = labelBlockLookupJson
-				?.takeIf { it.isJsonObject }
-				?.let { gson.fromJson(it, LabelBlockLookup::class.java) as LabelBlockLookup }
-				?: let {
-					val lblGroup = "label-to-block-mapping"
-					val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
-					val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
-					val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
-					LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup).write(metadataState.writer!!)
-					relativeLookup
-				}
+			val lookup = labelBlockLookupJson ?: let {
+				val lblGroup = "label-to-block-mapping"
+				val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
+				val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
+				val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
+				LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup).write(metadataState.writer!!)
+				relativeLookup
+			}
 			LOG.debug { "Got lookup type: ${lookup.javaClass}" }
 			(lookup as? IsRelativeToContainer)?.setRelativeTo(metadataState.writer!!, group)
 			lookup
@@ -803,7 +809,8 @@ object N5Helpers {
 		return try {
 			n5Factory.openWriterElseOpenReader(uri)
 		} catch (e: N5ContainerDoesntExist) {
-			promptForNewLocationOrRemove(uri, e, "Container Not Found",
+			promptForNewLocationOrRemove(
+				uri, e, "Container Not Found",
 				"""
 					N5 container does not exist at
 						$uri
@@ -844,7 +851,7 @@ object N5Helpers {
 
 				alert.dialogPane.content = VBox().apply {
 					children += HBox().apply {
-						children += TextArea( contentText ?: "Error accessing container at $uri" ).also { it.editableProperty().set(false) }
+						children += TextArea(contentText ?: "Error accessing container at $uri").also { it.editableProperty().set(false) }
 					}
 					children += HBox().apply {
 						children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }

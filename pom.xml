@@ -58,7 +58,7 @@
 
 		<!-- JavaFx Version-->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.0.1-SNAPSHOT</saalfx.version>
+		<saalfx.version>2.1.0</saalfx.version>
 		<testfx.version>4.0.16-alpha</testfx.version>
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
@@ -79,7 +79,7 @@
 		<n5-aws-s3.version>4.2.1</n5-aws-s3.version>
 		<n5-google-cloud>4.1.1</n5-google-cloud>
 		<n5-zarr.version>1.3.5</n5-zarr.version>
-		<imglib2-label-multisets.version>0.14.1-SNAPSHOT</imglib2-label-multisets.version>
+		<imglib2-label-multisets.version>0.15.0</imglib2-label-multisets.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
@@ -685,7 +685,7 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
 						<forkCount>1</forkCount>
-						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
+						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw --enable-preview</argLine>
 					</configuration>
 				</plugin>
 			</plugins>
