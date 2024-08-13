@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
-import org.janelia.saalfeldlab.fx.extensions.onceWhen
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -42,7 +41,7 @@ internal class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
 	private val previousMode: ControlMode,
 	private val shapeInterpolationMode: ShapeInterpolationMode<*>,
-	private var fill2D: Fill2DTool
+	private var fill2D: ShapeInterpolationFillTool
 ) : ViewerTool(shapeInterpolationMode) {
 
 
@@ -386,7 +385,6 @@ internal class ShapeInterpolationTool(
 							val info = mask.info
 							val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
 							return@verify sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
-
 						}
 						onAction { event ->
 							val prevSlice = controller.sliceAt(currentDepth)?.also {
@@ -396,11 +394,10 @@ internal class ShapeInterpolationTool(
 							currentJob = fillObjectInSlice(event!!, true)?.apply {
 								invokeOnCompletion { cause ->
 									prevSlice?.maskBoundingBox?.let { interval ->
-
 										cause?.let {
 											addSelection(interval, true, prevSlice.globalTransform, prevSlice.mask)
-										} ?: requestRepaint(prevSlice.globalBoundingBox)
-									}
+										}
+									} ?: requestRepaint(prevSlice?.globalBoundingBox)
 								}
 							}
 						}
@@ -486,15 +483,6 @@ internal class ShapeInterpolationTool(
 			/* If a current slice exists, try to preserve it if cancelled */
 			currentSliceMaskInterval?.also {
 				mask.pushNewImageLayer()
-
-				fill2D.fillJobProperty.onceWhen(fill2D.fillJobProperty.isNotNull).subscribe { job ->
-					job?.invokeOnCompletion { cause ->
-						cause?.let {
-							mask.popImageLayer()
-							controller.setMaskOverlay()
-						}
-					}
-				}
 			}
 
 			fill2D.fill2D.viewerMask = mask
@@ -513,6 +501,13 @@ internal class ShapeInterpolationTool(
 				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSlice)?.also { it.locked = true }
 				currentJob = null
 				fill2D.fill2D.release()
+			}?.also { job ->
+				job.invokeOnCompletion { cause ->
+					cause?.let {
+						mask.popImageLayer()
+						controller.setMaskOverlay()
+					}
+				}
 			}
 		}
 	}

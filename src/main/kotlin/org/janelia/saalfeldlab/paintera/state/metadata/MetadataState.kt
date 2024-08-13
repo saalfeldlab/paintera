@@ -137,7 +137,7 @@ open class MultiScaleMetadataState (
 	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
-	private val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
+	val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
 	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
 	final override var isLabelMultiset: Boolean = metadata[0].isLabelMultiset
 	override var isLabel: Boolean = when {

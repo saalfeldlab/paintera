@@ -141,7 +141,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 		paint2D.setBrushOverlayVisible(false)
 		activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
-		currentLabelToPaint = Label.INVALID
+		InvokeOnJavaFXApplicationThread { currentLabelToPaint = Label.INVALID }
 		super.deactivate()
 	}
 

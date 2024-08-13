@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.3.5-SNAPSHOT</version>
+	<version>1.4.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -58,16 +58,18 @@
 
 		<!-- JavaFx Version-->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.0.0</saalfx.version>
+		<saalfx.version>2.1.0</saalfx.version>
 		<testfx.version>4.0.16-alpha</testfx.version>
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
 
+
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.3.4</app.version>
+		<app.version>1.4.0</app.version>
+
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>
@@ -79,8 +81,7 @@
 		<n5-aws-s3.version>4.2.1</n5-aws-s3.version>
 		<n5-google-cloud>4.1.1</n5-google-cloud>
 		<n5-zarr.version>1.3.5</n5-zarr.version>
-
-		<imglib2-label-multisets.version>0.14.0</imglib2-label-multisets.version>
+		<imglib2-label-multisets.version>0.15.0</imglib2-label-multisets.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
@@ -332,7 +333,7 @@
 			<artifactId>scripting-groovy</artifactId>
 			<exclusions>
 				<exclusion>
-					<groupId>org.codehaus.groovy</groupId>
+					<groupId>org.apache.groovy</groupId>
 					<artifactId>groovy</artifactId>
 				</exclusion>
 			</exclusions>
@@ -340,7 +341,6 @@
 		<dependency>
 			<groupId>org.apache.groovy</groupId>
 			<artifactId>groovy</artifactId>
-			<version>${groovy.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -687,7 +687,7 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
 						<forkCount>1</forkCount>
-						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
+						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw --enable-preview</argLine>
 					</configuration>
 				</plugin>
 			</plugins>
@@ -707,6 +707,9 @@
 					<annotationProcessors>
 						<annotationProcessor>org.scijava.annotations.AnnotationProcessor</annotationProcessor>
 					</annotationProcessors>
+					<source>21</source>
+					<target>21</target>
+					<compilerArgs>--enable-preview</compilerArgs>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -910,6 +913,16 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-maven-plugin</artifactId>
+				<version>${kotlin.version}</version>
+				<configuration>
+					<javacOptions>
+						<javacOption>--enable-preview</javacOption>
+					</javacOptions>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 	<profiles>
@@ -999,9 +1012,6 @@
 								<phase>none</phase>
 							</execution>
 						</executions>
-						<configuration>
-							<jvmTarget>11</jvmTarget>
-						</configuration>
 					</plugin>
 				</plugins>
 			</build>

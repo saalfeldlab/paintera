@@ -1,17 +1,13 @@
 package org.janelia.saalfeldlab.paintera.control.tools
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.property.StringProperty
 import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBase
-import javafx.scene.control.ToggleButton
-import javafx.scene.control.ToggleGroup
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -47,7 +43,7 @@ interface ToolBarItem {
 		get() {
 			val node = graphic()
 			val button = action?.let { action ->
-				var toggleGroup : ToggleGroup? = null
+				var toggleGroup: ToggleGroup? = null
 				node?.also { graphic ->
 					toggleGroup = graphic.properties["TOGGLE_GROUP"] as? ToggleGroup
 				}
@@ -101,24 +97,41 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
 	fun installInto(node: Node) {
-		if (!installedInto.containsKey(node)) {
-			LOG.debug { "installing $this" }
-			installedInto.putIfAbsent(node, mutableListOf())
-			actionSets.forEach {
-				node.installActionSet(it)
-				installedInto[node]?.add(it)
+		synchronized(this) {
+			if (!installedInto.containsKey(node)) {
+				LOG.debug { "installing $this" }
+				installedInto.putIfAbsent(node, mutableListOf())
+				actionSets.forEach {
+					node.installActionSet(it)
+					installedInto[node]?.add(it)
+				}
 			}
 		}
 	}
 
-	fun removeFrom(node: Node) {
-		installedInto[node]?.let { actions ->
-			LOG.debug { "removing $this" }
-			actions.removeIf { actionSet ->
-				node.removeActionSet(actionSet)
-				true
+	fun removeFromAll() {
+		synchronized(this) {
+			installedInto.forEach { (node, actions) ->
+				LOG.debug { "removing $this" }
+				actions.removeIf { actionSet ->
+					node.removeActionSet(actionSet)
+					true
+				}
 			}
-			if (actions.isEmpty()) installedInto -= node
+			installedInto.clear()
+		}
+	}
+
+	fun removeFrom(node: Node) {
+		synchronized(this) {
+			installedInto[node]?.let { actions ->
+				LOG.debug { "removing $this" }
+				actions.removeIf { actionSet ->
+					node.removeActionSet(actionSet)
+					true
+				}
+				if (actions.isEmpty()) installedInto -= node
+			}
 		}
 	}
 
@@ -126,6 +139,6 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	val activeViewer: ViewerPanelFX? by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
 
 	companion object {
-		private val LOG = KotlinLogging.logger {  }
+		private val LOG = KotlinLogging.logger { }
 	}
 }

@@ -1,7 +1,10 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import com.google.gson.GsonBuilder;
 import com.pivovarit.function.ThrowingRunnable;
 import org.apache.commons.io.FileUtils;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -36,7 +39,11 @@ public class N5TestUtil {
 			dir.deleteOnExit();
 			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
 		}
-		return new N5Factory().openWriter("n5:file://" + tmp.toAbsolutePath());
+		final N5Factory n5Factory = new N5Factory();
+		final GsonBuilder builder = new GsonBuilder();
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
+		n5Factory.gsonBuilder(builder);
+		return n5Factory.openWriter("n5:file://" + tmp.toAbsolutePath());
 	}
 
 	static DatasetAttributes defaultAttributes() {

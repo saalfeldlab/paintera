@@ -187,7 +187,7 @@ public class N5Data {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
-				Objects.requireNonNull(MetadataUtils.createMetadataState((N5Writer) reader, dataset)),
+				Objects.requireNonNull(MetadataUtils.createMetadataState(reader, dataset)),
 				name,
 				queue,
 				priority,

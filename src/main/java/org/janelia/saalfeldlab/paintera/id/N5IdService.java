@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.id;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 
@@ -7,24 +8,19 @@ import java.util.stream.LongStream;
 
 public class N5IdService implements IdService {
 
-	private final N5Writer n5;
+	private final N5Reader n5;
 
 	private final String dataset;
 
 	private long next;
 	private long nextTemp = IdService.FIRST_TEMPORARY_ID;
 
-	public N5IdService(final N5Writer n5, final String dataset, final long next) {
+	public N5IdService(final N5Reader n5, final String dataset, final long next) {
 
 		super();
 		this.n5 = n5;
 		this.dataset = dataset;
 		this.next = next;
-	}
-
-	public N5Writer getWriter() {
-
-		return n5;
 	}
 
 	public String getDataset() {
@@ -74,8 +70,9 @@ public class N5IdService implements IdService {
 	}
 
 	private void serializeMaxId() {
-
-		n5.setAttribute(dataset, "maxId", next);
+		if (n5 instanceof N5Writer) {
+			((N5Writer)n5).setAttribute(dataset, "maxId", next);
+		}
 	}
 
 	@Override

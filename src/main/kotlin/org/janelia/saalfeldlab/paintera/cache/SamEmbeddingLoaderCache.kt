@@ -195,7 +195,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		val predictionImagePngInputStream = PipedInputStream()
 		val predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
 
-		imageRenderer.renderedImageProperty.addListener { _, _, result ->
+		imageRenderer.renderedImageProperty.subscribe { _, result ->
 			result.image?.let { img ->
 				ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
 				predictionImagePngOutputStream.close()
@@ -238,13 +238,13 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		val url =
 			with(paintera.properties.segmentAnythingConfig) {
 				with(SegmentAnythingConfig) {
-					"$serviceUrl$SESSION_ID_REQUEST_ENDPOINT"
+					"$serviceUrl/$SESSION_ID_REQUEST_ENDPOINT"
 				}
 			}
 
 		val getSessionId = HttpGet(url)
 
-		val client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build()
+		val client = HttpClientBuilder.create().useSystemProperties().setDefaultRequestConfig(requestConfig).build()
 		val response = client.execute(getSessionId)
 		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
 	}
@@ -262,7 +262,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 
 		val post = HttpPost(url)
-		val client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build()
+		val client = HttpClientBuilder.create().useSystemProperties().setDefaultRequestConfig(requestConfig).build()
 		val entityBuilder = MultipartEntityBuilder.create()
 		entityBuilder.addTextBody("session_id", id)
 		post.entity = entityBuilder.build()
@@ -304,7 +304,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		val post = HttpPost(url)
 		post.entity = entityBuilder.build()
 
-		val client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build()
+		val client = HttpClientBuilder.create().useSystemProperties().setDefaultRequestConfig(requestConfig).build()
 
 		val response = client.execute(post)
 		when (response.statusLine.statusCode) {

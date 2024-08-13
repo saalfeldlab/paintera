@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -123,15 +124,16 @@ public class PainteraBaseView {
 	private final ExecutorService propagationQueue;
 
 	{
+		final AtomicInteger count = new AtomicInteger();
 		final ForkJoinPool.ForkJoinWorkerThreadFactory factory = pool -> {
 			final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
 			worker.setDaemon(true);
 			worker.setPriority(4);
-			worker.setName("propagation-queue-" + worker.getPoolIndex());
+			worker.setName("propagation-queue-" + count.getAndIncrement());
 			return worker;
 		};
 
-		propagationQueue = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2), factory, null, false);
+		propagationQueue = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2), factory, (thread, throwable) -> throwable.printStackTrace(), false);
 
 	}
 
@@ -382,7 +384,7 @@ public class PainteraBaseView {
 			final String name) {
 
 		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
-				new RaiBackendRaw<D, T>(data, resolution, offset, "test"),
+				new RaiBackendRaw<>(data, resolution, offset, "test"),
 				getQueue(),
 				getQueue().getNumPriorities() - 1,
 				name
@@ -486,7 +488,7 @@ public class PainteraBaseView {
 			final String name,
 			LabelBlockLookup labelBlockLookup) {
 
-		return this.addConnectomicsLabelSource(
+		return addConnectomicsLabelSource(
 				new RandomAccessibleInterval[]{data},
 				new double[][]{resolution},
 				new double[][]{offset},
@@ -560,7 +562,7 @@ public class PainteraBaseView {
 	 */
 	public ExecutorService getMeshManagerExecutorService() {
 
-		return this.meshManagerExecutorService;
+		return meshManagerExecutorService;
 	}
 
 	/**

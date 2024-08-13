@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control;
 
+import bdv.viewer.Source;
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.TransformListener;
 import javafx.beans.property.ObjectProperty;
@@ -35,16 +36,19 @@ public class OrthoViewCoordinateDisplayListener {
 
 	private final ObjectProperty<OrthogonalViews.ViewerAndTransforms> activeViewerProperty = new SimpleObjectProperty<>();
 
+	private final ObservableValue<Source<?>> currentSource;
+
 	public OrthoViewCoordinateDisplayListener(
 			final Consumer<RealPoint> submitViewerCoordinate,
 			final Consumer<RealPoint> submitWorldCoordinate,
-			final Consumer<RealPoint> submitSourceCoordinate
+			final Consumer<RealPoint> submitSourceCoordinate,
+			final ObservableValue<Source<?>> currentSource
 	) {
 
-		super();
 		this.submitViewerCoordinate = submitViewerCoordinate;
 		this.submitWorldCoordinate = submitWorldCoordinate;
 		this.submitSourceCoordinate = submitSourceCoordinate;
+		this.currentSource = currentSource;
 		activeViewerProperty.addListener((obs, exiting, entering) -> {
 			if (Objects.nonNull(exiting)) {
 				removeHandlers(exiting.viewer());
@@ -58,8 +62,7 @@ public class OrthoViewCoordinateDisplayListener {
 	public void addHandlers(ViewerPanelFX viewer) {
 
 		if (!this.listeners.containsKey(viewer)) {
-			final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(viewer, submitViewerCoordinate, submitWorldCoordinate,
-					submitSourceCoordinate);
+			final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(viewer, currentSource, submitViewerCoordinate, submitWorldCoordinate, submitSourceCoordinate);
 			final var coordinateUpdate = painteraActionSet("coordinate update", null, actionSet -> {
 				actionSet.addMouseAction(MouseEvent.MOUSE_MOVED, action -> {
 					action.setConsume(false);

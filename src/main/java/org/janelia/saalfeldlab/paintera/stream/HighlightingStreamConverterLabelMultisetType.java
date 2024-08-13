@@ -22,7 +22,8 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 		}
 		// entry
 		final var entries = input.get().entrySet();
-		if (entries.size() == 0) {
+		final int numEntries = entries.size();
+		if (numEntries == 0) {
 			output.set(stream.argb(Label.INVALID));
 		} else {
 			double a = 0;
@@ -33,7 +34,8 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 			for (final var entry : entries) {
 				final int argb = stream.argb(entry.getElement().id());
 				final double alpha = ARGBType.alpha(argb);
-				final double alphaCount = alpha * ONE_OVER_255 * entry.getCount();
+				final int count = numEntries == 1 ? 1 : entry.getCount();
+				final double alphaCount = alpha * ONE_OVER_255 * count;
 				a += alphaCount * alpha;
 				r += alphaCount * ARGBType.red(argb);
 				g += alphaCount * ARGBType.green(argb);

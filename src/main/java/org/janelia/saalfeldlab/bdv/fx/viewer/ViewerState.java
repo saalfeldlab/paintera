@@ -105,11 +105,14 @@ public class ViewerState extends ObservableWithListenersList {
 
 	public synchronized int getBestMipMapLevel() {
 
-		final var currentSource = Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get();
+		return  getBestMipMapLevel(Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get());
+	}
+
+	public int getBestMipMapLevel(Source<?> source) {
 
 		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
 		viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-		return getBestMipMapLevel(screenScaleTransform, currentSource);
+		return getBestMipMapLevel(screenScaleTransform, source);
 	}
 
 	public synchronized ViewerState copy() {

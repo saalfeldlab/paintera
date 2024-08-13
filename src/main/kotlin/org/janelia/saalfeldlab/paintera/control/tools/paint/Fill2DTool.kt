@@ -10,10 +10,7 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.imglib2.Interval
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -58,9 +55,10 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 	}
 
 	val fillJobProperty: SimpleObjectProperty<Job> = SimpleObjectProperty(null)
-	private var fillJob by fillJobProperty.nullable()
+	var fillJob by fillJobProperty.nullable()
+		private set
 
-	open protected val afterFill : (Interval) -> Unit = {}
+	protected open val afterFill : (Interval) -> Unit = {}
 
 
 	private val overlay by lazy {
@@ -81,13 +79,11 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 	override fun deactivate() {
 
-		val fillNotRunning = fillIsRunningProperty.not()
-		fillNotRunning.onceWhen(fillNotRunning).subscribe { notRunning ->
-			if (notRunning) {
-				overlay.visible = false
-				fill2D.release()
-				super.deactivate()
-			}
+		runBlocking {
+			fillJob?.join()
+			overlay.visible = false
+			fill2D.release()
+			super.deactivate()
 		}
 	}
 
@@ -129,23 +125,23 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 	fun cancelFloodFill() = fillJob?.cancel(CancellationException("Fill task cancelled by user", null))
 
-	val fillIsRunningProperty = SimpleBooleanProperty(false, "Fill2D is Running")
 
 	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): Job? {
 
-		fillIsRunningProperty.set(true)
 		val applyIfMaskNotProvided = fill2D.viewerMask == null
 		if (applyIfMaskNotProvided) {
 			statePaintContext!!.dataSource.resetMasks(true)
 		}
 
-		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 
+		val fillIsRunningProperty = SimpleBooleanProperty()
+		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 		fillJob = CoroutineScope(Dispatchers.Default).launch {
+			fillIsRunningProperty.set(true)
 			fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
 		}.also { job ->
 			job.invokeOnCompletion { cause ->
-
+				fillIsRunningProperty.set(false)
 				cause?.let {
 					if (it is CancellationException) LOG.trace(it) {}
 					else LOG.error(it) {"Flood Fill 2D Failed"}
@@ -178,14 +174,13 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 	}
 
 	private fun cleanup() {
-		fillIsRunningProperty.set(false)
 		paintera.baseView.disabledPropertyBindings -= this
 		fillJob = null
 	}
 
 	private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
 
-		val brushDepthProperty = SimpleDoubleProperty().apply { addListener { _, _, _ -> viewer?.display?.drawOverlays() } }
+		val brushDepthProperty = SimpleDoubleProperty().apply { subscribe { _ -> viewer?.display?.drawOverlays() } }
 		private val brushDepth by brushDepthProperty.nonnullVal()
 
 		override val overlayText: String

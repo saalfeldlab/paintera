@@ -133,15 +133,15 @@ class FloodFill<T : IntegerType<T>>(
 		val floodFillJob = CoroutineScope(Dispatchers.Default).launch {
 			val fillContext = coroutineContext
 			InvokeOnJavaFXApplicationThread {
-				delay(250)
+				delay(1000)
 				while (fillContext.isActive) {
-					awaitPulse()
 					if (triggerRefresh.get()) {
 						val repaintInterval = globalToSource.inverse().estimateBounds(accessTracker.createAccessInterval())
 						requestRepaint.accept(repaintInterval.smallestContainingInterval)
 						triggerRefresh.set(false)
 					}
-					delay(250)
+					awaitPulse()
+					awaitPulse()
 				}
 			}
 
@@ -222,7 +222,7 @@ class FloodFill<T : IntegerType<T>>(
 				seed,
 				UnsignedLongType(fillLabel),
 				DiamondShape(1)
-			) { source, target: UnsignedLongType -> runBlocking { predicate(source, target) } }
+			) { source, target: UnsignedLongType -> predicate(source, target) }
 		}
 
 		private suspend fun <T : IntegerType<T>> fillPrimitiveType(
@@ -246,7 +246,7 @@ class FloodFill<T : IntegerType<T>>(
 			) { source, target: UnsignedLongType -> runBlocking { predicate(source, target) } }
 		}
 
-		private fun <T : IntegerType<T>> makePredicate(seedLabel: Long, assignment: FragmentSegmentAssignment?): suspend (T, UnsignedLongType) -> Boolean {
+		private fun <T : IntegerType<T>> makePredicate(seedLabel: Long, assignment: FragmentSegmentAssignment?): (T, UnsignedLongType) -> Boolean {
 			val (singleFragment, seedFragments) = assignment?.let {
 				val fragments = assignment.getFragments(seedLabel)
 				val singleFragment = if (fragments.size() == 1) fragments.toArray()[0] else null
@@ -255,8 +255,6 @@ class FloodFill<T : IntegerType<T>>(
 
 
 			return { sourceVal: T, targetVal: UnsignedLongType ->
-				if (!coroutineContext.isActive)
-					throw CancellationException("Flood fill canceled")
 				/* true if sourceFragment is a seedFragment */
 				val sourceFragment = sourceVal.integerLong
 				val shouldFill = if (singleFragment != null) singleFragment == sourceFragment else seedFragments!!.contains(sourceFragment)

@@ -28,11 +28,6 @@ public class N5FragmentSegmentAssignmentPersister implements FragmentSegmentAssi
 		LOG.debug("Creating {} with writer {} and dataset {}", getClass().getName(), this.writer, this.dataset);
 	}
 
-	public N5Writer getWriter() {
-
-		return this.writer;
-	}
-
 	public String getDataset() {
 
 		return this.dataset;

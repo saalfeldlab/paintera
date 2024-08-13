@@ -970,8 +970,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final RealRandomAccessible<T> sourceToExtend;
 
 		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
-		final RealRandomAccessible<T> interpolatedSource = this.source.getInterpolatedSource(time, level, Interpolation.NEARESTNEIGHBOR);
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.getCurrentMask() == null) {
+		final RealRandomAccessible<T> interpolatedSource = source.getInterpolatedSource(time, level, Interpolation.NEARESTNEIGHBOR);
+		if (!showCanvasOverBackground.get() || affectedBlocks.isEmpty() && getCurrentMask() == null) {
 			LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 			sourceToExtend = interpolatedSource;
 		} else {
@@ -1058,19 +1058,19 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final RealRandomAccessible<D> dataSourceToExtend;
 
 		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
-		final RealRandomAccessible<D> interpolatedDataSource = this.source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.getCurrentMask() == null) {
+		final RealRandomAccessible<D> interpolatedDataSource = source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
+		if (!showCanvasOverBackground.get() || affectedBlocks.isEmpty() && getCurrentMask() == null) {
 			LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 			dataSourceToExtend = interpolatedDataSource;
 		} else {
 			final RealRandomAccessible<UnsignedLongType> dataCanvas = Views.interpolate(
 					Views.extendValue(
-							this.dataCanvases[level],
+							dataCanvases[level],
 							new UnsignedLongType(Label.INVALID)
 					),
 					new NearestNeighborInterpolatorFactory<>()
 			);
-			final RealRandomAccessible<UnsignedLongType> dataMask = this.dMasks[level];
+			final RealRandomAccessible<UnsignedLongType> dataMask = dMasks[level];
 			final RealRandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RealRandomAccessibleTriple<>(
 					interpolatedDataSource,
 					dataCanvas,
@@ -1152,7 +1152,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				final long[] max = new long[intersectedCellMax.length];
 				System.arraycopy(intersectedCellMin, 0, min, 0, min.length);
 				System.arraycopy(intersectedCellMax, 0, max, 0, max.length);
-				final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps, taskExecutor)));
+				final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps)));
 				labelsForBlockFutures.add(future);
 			}
 		}
@@ -1174,13 +1174,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param source
 	 * @param target
 	 * @param steps
-	 * @param taskExecutor
 	 */
 	private static <T extends IntegerType<T>> Set<Long> downsample(
 			final RandomAccessible<T> source,
 			final RandomAccessibleInterval<T> target,
-			final int[] steps,
-			final TaskExecutor taskExecutor) {
+			final int[] steps) {
 
 		LOG.debug(
 				"Downsampling ({} {}) with steps {}",
@@ -1189,7 +1187,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				steps
 		);
 
-		/* Views.tiles doesn't preserver intervals, so zeroMin prior to tiling */
+		/* Views.tiles doesn't preserve intervals, so zeroMin prior to tiling */
 		final var zeroMinTarget = Views.zeroMin(target);
 		final var sourceInterval = IntervalHelpers.scale(target, steps, true);
 		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
@@ -1197,7 +1195,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final HashSet<Long> labels = new HashSet<>();
 		LoopBuilder.setImages(tiledSource, zeroMinTarget)
-				.multiThreaded(taskExecutor)
 				.forEachChunk(chunk -> {
 					final TLongLongHashMap maxCounts = new TLongLongHashMap();
 					chunk.forEachPixel((sourceTile, lowResTarget) -> {
@@ -1214,11 +1211,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							}
 						}
 						lowResTarget.setInteger(maxId);
-						if (maxId != Label.INVALID) {
-							synchronized (labels) {
-								labels.add(maxId);
-							}
-						}
+						if (maxId != Label.INVALID)
+							labels.add(maxId);
 						maxCounts.clear();
 					});
 					return null;
