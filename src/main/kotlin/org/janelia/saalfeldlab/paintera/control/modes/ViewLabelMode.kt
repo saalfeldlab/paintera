@@ -27,9 +27,6 @@ object ViewLabelMode : AbstractToolMode() {
 			old?.viewer()?.removeActionSet(actionSet)
 			new?.viewer()?.installActionSet(actionSet)
 		}
-
-		/* set the currently activeTool for this viewer */
-		switchTool(activeTool ?: NavigationTool)
 	}
 
 	override fun enter() {

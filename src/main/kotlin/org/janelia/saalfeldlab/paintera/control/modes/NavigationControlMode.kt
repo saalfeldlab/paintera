@@ -71,10 +71,6 @@ object NavigationControlMode : AbstractToolMode() {
 
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList(NavigationTool)
 
-	override fun enter() {
-		super.enter()
-		switchTool(NavigationTool)
-	}
 }
 
 object NavigationTool : ViewerTool() {
