@@ -206,14 +206,14 @@ object NavigationTool : ViewerTool() {
 
 		fun scrollActions(translationController: TranslationController): ActionSet {
 			data class ScrollSpeedStruct(val name: String, val speed: Double, val keysInit: Action<ScrollEvent>.() -> Unit)
-			return painteraActionSet("scroll translate along normal", NavigationActionType.Slice) {
+			return painteraActionSet("scroll-translate-along-normal", NavigationActionType.Slice) {
 				listOf(
 					ScrollSpeedStruct("default", DEFAULT) { keysDown() },
 					ScrollSpeedStruct("fast", FAST) { keysDown(KeyCode.SHIFT) },
 					ScrollSpeedStruct("slow", SLOW) { keysDown(KeyCode.CONTROL) }
 				).map { (actionName, speed, keysInit) ->
 					ScrollEvent.SCROLL {
-						name = actionName
+						name = "${this@painteraActionSet.name}.$actionName"
 						onAction {
 							val delta = -ControlUtils.getBiggestScroll(it).sign * speed
 							translationController.translate(0.0, 0.0, delta)
