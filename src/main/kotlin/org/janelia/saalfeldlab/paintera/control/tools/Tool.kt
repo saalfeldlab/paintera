@@ -112,7 +112,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	fun removeFromAll() {
 		synchronized(this) {
 			installedInto.forEach { (node, actions) ->
-				LOG.debug { "removing $this" }
+				LOG.debug { "removing $this from all nodes" }
 				actions.removeIf { actionSet ->
 					node.removeActionSet(actionSet)
 					true
@@ -125,7 +125,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	fun removeFrom(node: Node) {
 		synchronized(this) {
 			installedInto[node]?.let { actions ->
-				LOG.debug { "removing $this" }
+				LOG.debug { "removing $this from node $node" }
 				actions.removeIf { actionSet ->
 					node.removeActionSet(actionSet)
 					true

@@ -122,7 +122,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		controller.apply {
 			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
 				modifyFragmentAlpha()
-				switchTool(shapeInterpolationTool)
 				enterShapeInterpolation(viewerAndTransforms.viewer())
 				shapeInterpolationTool.apply {
 					requestEmbedding(currentDepth)

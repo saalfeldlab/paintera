@@ -49,7 +49,7 @@ internal class ShapeInterpolationTool(
 		mutableListOf(
 			*shapeInterpolationActions().filterNotNull().toTypedArray(),
 			cancelShapeInterpolationTask(),
-			*NavigationTool.actionSets.filter { "rotat" !in it.name }.toTypedArray() //Kinda ugly to filter like this, but this is a weird case. Still, should do better
+			*NavigationTool.actionSets.toTypedArray() //Kinda ugly to filter like this, but this is a weird case. Still, should do better
 		)
 	}
 
@@ -71,8 +71,6 @@ internal class ShapeInterpolationTool(
 				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
 		/* Activate, but we want to bind it to our activeViewer bindings instead of the default. */
-		NavigationTool.activate()
-		NavigationTool.activeViewerProperty.unbind()
 		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
 	}
 

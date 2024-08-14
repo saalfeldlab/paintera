@@ -31,9 +31,6 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.activeViewer
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.mode
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.removeFrom
 import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
@@ -86,14 +83,15 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-	fun switchTool(tool: Tool?) : Job? {
+	fun switchTool(tool: Tool?): Job? {
 		if (activeTool == tool)
 			return null
+
 		LOG.debug { "Switch from $activeTool to $tool" }
 
 		/* Deactivate off the main thread */
 		val deactivateJob = CoroutineScope(Dispatchers.Default).launch {
-			LOG.trace {"Deactivated $activeTool"}
+			LOG.trace { "Deactivated $activeTool" }
 			activeTool?.deactivate()
 		}
 
@@ -105,7 +103,7 @@ interface ToolMode : SourceMode {
 			showToolBars()
 			tool?.activate()
 			activeTool = tool
-			LOG.trace {"Activated $activeTool"}
+			LOG.trace { "Activated $activeTool" }
 		}
 
 		deactivateJob.invokeOnCompletion {
@@ -113,7 +111,7 @@ interface ToolMode : SourceMode {
 			if (paintera.baseView.activeModeProperty.value == this@ToolMode)
 				activateJob.start()
 		}
-  		return activateJob
+		return activateJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
