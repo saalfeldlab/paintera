@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
 import com.pivovarit.function.ThrowingSupplier;
+import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -14,50 +15,63 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class PainteraConfigYaml {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final String USER_HOME = System.getProperty("user.home");
+	private static final String PAINTERA_YAML = "paintera.yml";
 
-	private static final Path PAINTERA_YAML = Paths.get(USER_HOME, ".config", "paintera.yml");
+	public static <T> T getConfig(final Supplier<T> fallBack, final String... segments) {
 
-	public static Object getConfig(final Supplier<Object> fallBack, final String... segments) {
 
-		Object currentConfig = getConfig();
-		for (final String segment : segments) {
-			if (!(currentConfig instanceof Map<?, ?>))
+		Map<?, ?> currentConfig = getConfig();
+
+		final Function<Object, T> getOrFallback = (config) -> {
+			try {
+				return (T) config;
+			} catch (ClassCastException e) {
 				return fallBack.get();
-			final Map<?, ?> map = (Map<?, ?>)currentConfig;
-			if (!map.containsKey(segment))
-				return fallBack.get();
-			currentConfig = map.get(segment);
+			}
+		};
+
+		for (int i = 0; i < segments.length; i++) {
+			final String segment = segments[i];
+			if (currentConfig.containsKey(segment)) {
+				final Object config = currentConfig.get(segment);
+				if (i == segments.length - 1)
+					return getOrFallback.apply(config);
+				if (config instanceof Map<?, ?>)
+					currentConfig = (Map<?, ?>) config;
+				else
+					return fallBack.get();
+			}
 		}
-		return currentConfig;
+		return fallBack.get();
 	}
 
-	// TODO should this return copy?
 	public static Map<?, ?> getConfig() {
 
-		return CONFIG;
+		String appConfigDir;
+		try {
+			appConfigDir = Paintera.getPaintera().getProperties().getPainteraDirectoriesConfig().getAppConfigDir();
+		} catch (Exception e) {
+			appConfigDir = PainteraDirectoriesConfig.APPLICATION_DIRECTORIES.configDir;
+		}
+		return readConfigUnchecked(Paths.get(appConfigDir, PAINTERA_YAML));
 	}
 
-	private static final Map<?, ?> CONFIG = readConfigUnchecked();
+	private static Map<?, ?> readConfigUnchecked(Path painteraYaml) {
+		return ThrowingSupplier.unchecked(() -> readConfig(painteraYaml)).get();
+	};
 
-	private static Map<?, ?> readConfigUnchecked() {
-
-		return ThrowingSupplier.unchecked(PainteraConfigYaml::readConfig).get();
-	}
-
-	private static Map<?, ?> readConfig() throws IOException {
+	private static Map<?, ?> readConfig(Path painteraYaml) throws IOException {
 
 		final Yaml yaml = new Yaml();
-		try (final InputStream fis = new FileInputStream(PAINTERA_YAML.toFile())) {
-			// TODO is this cast always safe?
-			// TODO make this type safe, maybe create config class
-			final Map<?, ?> data = (Map<?, ?>)yaml.load(fis);
+		try (final InputStream fis = new FileInputStream(painteraYaml.toFile())) {
+			final Map<?, ?> data = yaml.load(fis);
 			LOG.debug("Loaded paintera info: {}", data);
 			return data;
 		} catch (final FileNotFoundException e) {
