@@ -1,16 +1,15 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import bdv.cache.SharedQueue;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
@@ -97,10 +96,6 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	private final SimpleObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
 
-	private final ObjectBinding<N5Writer> sourceWriter = Bindings.createObjectBinding(
-			() -> containerState.isNotNull().get() ? containerState.get().getWriter() : null,
-			containerState);
-
 	private final BooleanBinding isContainerValid = containerState.isNotNull();
 	private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
@@ -169,38 +164,32 @@ public class GenericBackendDialogN5 implements Closeable {
 		return entries[entries.length - 1];
 	}, activeN5Node);
 
-	private final MapProperty<String, N5TreeNode> datasetChoices = new SimpleMapProperty<>();
+	private final ObservableMap<String, N5TreeNode> datasetChoices = FXCollections.synchronizedObservableMap(FXCollections.observableMap(new HashMap<>()));
 
 	static final HashMap<N5ContainerState, Map<String, N5TreeNode>> previousContainerChoices = new HashMap<>();
-
-	private final String identifier;
 
 	private final Node node;
 
 	public GenericBackendDialogN5(
 			final Node n5RootNode,
 			final Node browseNode,
-			final String identifier,
 			final ObservableValue<N5ContainerState> containerState,
 			final BooleanProperty isOpeningContainer) {
 
-		this("_Dataset", n5RootNode, browseNode, identifier, containerState, isOpeningContainer);
+		this("_Dataset", n5RootNode, browseNode, containerState, isOpeningContainer);
 	}
 
 	public GenericBackendDialogN5(
 			final String datasetPrompt,
 			final Node n5RootNode,
 			final Node browseNode,
-			final String identifier,
 			final ObservableValue<N5ContainerState> containerState,
 			final BooleanProperty isOpeningContainer) {
 
-		this.identifier = identifier;
 		this.isBusy = Bindings.createBooleanBinding(() -> isOpeningContainer.get() || discoveryIsActive().get(), isOpeningContainer, discoveryIsActive);
 		this.containerState.bind(containerState);
 
-		this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
-		this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
+		this.isContainerValid.subscribe(() -> datasetUpdateFailed.set(false));
 
 		this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 
@@ -211,7 +200,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 			/* otherwise, clear the existing choices, reset the active node*/
 			invoke(() -> {
-				resetDatasetChoices();
+				setDatasetChoices(null);
 				this.activeN5Node.set(null);
 			});
 
@@ -271,9 +260,8 @@ public class GenericBackendDialogN5 implements Closeable {
 				cancelDiscovery(); // If discovery is ongoing, cancel it.
 				LOG.debug("Updating dataset choices!");
 				discoveryIsActive.set(true);
-				resetDatasetChoices(); // clean up whatever is currently shown
 				mapRootToContainerName(choices);
-				datasetChoices.set(FXCollections.synchronizedObservableMap(FXCollections.observableMap(choices)));
+				setDatasetChoices(choices);
 				discoveryIsActive.set(false);
 			});
 		}
@@ -295,7 +283,7 @@ public class GenericBackendDialogN5 implements Closeable {
 				cancelDiscovery(); // If discovery is ongoing, cancel it.
 				LOG.debug("Updating dataset choices!");
 				discoveryIsActive.set(true);
-				invoke(this::resetDatasetChoices); // clean up whatever is currently shown
+				setDatasetChoices(null);
 			});
 			Tasks.createTask(() -> {
 						/* Parse the container's metadata*/
@@ -321,15 +309,19 @@ public class GenericBackendDialogN5 implements Closeable {
 						}
 						return validDatasetChoices;
 					}).onSuccess(result -> {
-						datasetChoices.set(mapRootToContainerName(result));
-						previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices.getValue()));
+						invoke(() -> {
+							setDatasetChoices(result);
+							previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices));
+						});
 					}).onEnd((result, error) -> invoke(() -> discoveryIsActive.set(false)));
 		}
 	}
 
-	private void resetDatasetChoices() {
+	private void setDatasetChoices(Map<String, N5TreeNode> result) {
 
-		datasetChoices.set(FXCollections.observableHashMap());
+		datasetChoices.clear();
+		if (result != null)
+			datasetChoices.putAll(result);
 	}
 
 	public void cancelDiscovery() {
@@ -463,7 +455,8 @@ public class GenericBackendDialogN5 implements Closeable {
 		datasetDropDown.disableProperty().bind(datasetDropDownDisable);
 		datasetDropDown.textProperty().bind(datasetDropDownText);
 		/* If the datasetchoices are changed, create new menuItems, and update*/
-		datasetChoices.addListener((obs, oldv, newv) -> {
+
+		datasetChoices.subscribe(() -> {
 			choices.setAll(datasetChoices.keySet());
 			choices.sort(new AlphanumericComparator());
 		});
@@ -473,11 +466,6 @@ public class GenericBackendDialogN5 implements Closeable {
 	public ObservableStringValue nameProperty() {
 
 		return name;
-	}
-
-	public String identifier() {
-
-		return identifier;
 	}
 
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
