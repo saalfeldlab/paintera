@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.PainteraCache.appendLine
 import org.janelia.saalfeldlab.util.PainteraCache.readLines
+import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -146,20 +147,11 @@ class N5FactoryOpener {
 
 		CoroutineScope(Dispatchers.IO).launch {
 			isOpeningContainer.set(true)
-			val containerState = n5ContainerStateCache[newSelection] ?: let {
-				val container = n5Factory.openReaderOrNull(newSelection)?.let { container ->
-					if (container is N5HDF5Reader) {
-						container.close()
-						n5Factory.openWriterElseOpenReader(newSelection)
-					} else container
-				} ?: let {
-					containerStateProperty.set(null)
-					return@launch
-				}
-				N5ContainerState(container)
-			}
-			containerStateProperty.set(containerState)
-			n5ContainerStateCache[newSelection] = containerState
+
+			n5ContainerStateCache.getOrPut(newSelection) {
+				n5Factory.openWriterOrReaderOrNull(newSelection)?.let { N5ContainerState(it) }
+			}?.let { containerStateProperty.set(it) }
+
 		}.invokeOnCompletion { cause ->
 			cause?.let { LOG.error(it) { "Error opening container: $newSelection" } }
 			isOpeningContainer.set(false)
@@ -176,7 +168,7 @@ class N5FactoryOpener {
 		private val H5_EXTENSIONS = arrayOf("*.h5", "*.hdf", "*.hdf5")
 
 		private val LOG: KLogger = KotlinLogging.logger {}
-		private val n5ContainerStateCache = HashMap<String, N5ContainerState>()
+		private val n5ContainerStateCache = HashMap<String, N5ContainerState?>()
 
 		private fun <T> getPainteraConfig(vararg segments: String, fallback: () -> T) = PainteraConfigYaml.getConfig(fallback, *segments) as T
 	}

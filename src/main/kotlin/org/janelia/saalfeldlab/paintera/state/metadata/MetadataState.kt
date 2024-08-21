@@ -275,9 +275,7 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-			val reader = with(Paintera.n5Factory) {
-				openWriterOrNull(n5container) ?: openReaderOrNull(n5container) ?: return Optional.empty()
-			}
+			val reader = Paintera.n5Factory.openReader(n5container) ?: return Optional.empty()
 
 			val n5ContainerState = N5ContainerState(reader)
 			val metadataRoot = N5Helpers.parseMetadata(reader)
