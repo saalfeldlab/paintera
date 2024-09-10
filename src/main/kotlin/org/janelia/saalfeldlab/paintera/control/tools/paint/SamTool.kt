@@ -328,7 +328,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		lateinit var resetPromptAction: Action<*>
 		lateinit var applyPredictionAction: Action<*>
 		return arrayOf(
-			painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
+			painteraActionSet("sam-selections", PaintActionType.Paint, ignoreDisable = true) {
 				/* Handle Painting */
 				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
 					name = "apply last segmentation result to canvas"

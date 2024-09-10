@@ -70,15 +70,12 @@ internal class ShapeInterpolationTool(
 				val disabledViewer = disabledViewerAndTransform.viewer()
 				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
-		/* Activate, but we want to bind it to our activeViewer bindings instead of the default. */
+		/* We want to bind it to our activeViewer bindings instead of the default. */
 		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
 	}
 
 	override fun deactivate() {
-		/* We intentionally unbound the activeViewer for this, to support the button toggle.
-		* We now need to explicitly remove the NavigationTool from the activeViewer we care about.
-		* Still deactive it first, to handle the rest of the cleanup */
-		NavigationTool.deactivate()
+		NavigationTool.activeViewerProperty.unbind()
 		disabledViewerActions.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
 		disabledViewerActions.clear()
 		super.deactivate()

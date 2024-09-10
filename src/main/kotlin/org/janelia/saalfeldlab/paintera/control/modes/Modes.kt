@@ -89,29 +89,23 @@ interface ToolMode : SourceMode {
 
 		LOG.debug { "Switch from $activeTool to $tool" }
 
-		/* Deactivate off the main thread */
-		val deactivateJob = CoroutineScope(Dispatchers.Default).launch {
+		/* deactivate/activate off the main thread */
+		val switchToolJob = CoroutineScope(Dispatchers.Default).launch {
 			LOG.trace { "Deactivated $activeTool" }
 			activeTool?.deactivate()
-		}
-
-		/* Activate ON the main thread (maybe should refactor this in the future) */
-		val activateJob = CoroutineScope(Dispatchers.Main.immediate).launch(start = CoroutineStart.LAZY) {
-
 			(activeTool as? ViewerTool)?.removeFromAll()
 
-			showToolBars()
+			/* If the mode was changed before we can activate, don't activate anymore */
+			if (paintera.baseView.activeModeProperty.value != this@ToolMode)
+				return@launch
+
 			tool?.activate()
 			activeTool = tool
 			LOG.trace { "Activated $activeTool" }
 		}
 
-		deactivateJob.invokeOnCompletion {
-			/* If the mode was changed before we can activate, don't activate anymore */
-			if (paintera.baseView.activeModeProperty.value == this@ToolMode)
-				activateJob.start()
-		}
-		return activateJob
+		switchToolJob.invokeOnCompletion { InvokeOnJavaFXApplicationThread { showToolBars() } }
+		return switchToolJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
@@ -160,7 +154,7 @@ interface ToolMode : SourceMode {
 						toggles
 							.firstOrNull { it.userData == newTool }
 							?.also { toggleForTool -> selectToggle(toggleForTool) }
-						toolActionsBar.set(*newTool.actionSets.toTypedArray())
+						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*newTool.actionSets.toTypedArray()) }
 					}
 				}
 			}
@@ -375,9 +369,11 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	override val statusProperty: StringProperty = SimpleStringProperty().apply {
 		activeToolProperty.addListener { _, _, new ->
-			new?.let {
-				bind(it.statusProperty)
-			} ?: unbind()
+			InvokeOnJavaFXApplicationThread {
+				new?.let {
+					bind(it.statusProperty)
+				} ?: unbind()
+			}
 		}
 	}
 

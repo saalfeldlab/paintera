@@ -10,6 +10,7 @@ import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -184,6 +185,7 @@ object PaintLabelMode : AbstractToolMode() {
 	override fun switchTool(tool: Tool?) : Job? {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
+		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
 		if (activeTool is SamTool)
 			activeViewerProperty.unbind()
 		else if (!activeViewerProperty.isBound)
