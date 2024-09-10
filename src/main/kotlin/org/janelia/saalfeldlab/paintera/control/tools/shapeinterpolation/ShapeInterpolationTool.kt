@@ -66,7 +66,7 @@ internal class ShapeInterpolationTool(
 		paintera.baseView.orthogonalViews().viewerAndTransforms()
 			.filter { !it.viewer().isFocusable }
 			.forEach { disabledViewerAndTransform ->
-				val disabledTranslationActions = disabledViewerActions.computeIfAbsent(disabledViewerAndTransform, disabledViewerTranslateOnly)
+				val disabledTranslationActions = disabledViewerActionsMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerActions)
 				val disabledViewer = disabledViewerAndTransform.viewer()
 				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
@@ -76,8 +76,8 @@ internal class ShapeInterpolationTool(
 
 	override fun deactivate() {
 		NavigationTool.activeViewerProperty.unbind()
-		disabledViewerActions.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
-		disabledViewerActions.clear()
+		disabledViewerActionsMap.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
+		disabledViewerActionsMap.clear()
 		super.deactivate()
 	}
 
@@ -99,13 +99,11 @@ internal class ShapeInterpolationTool(
 			}
 		}
 
-	private val disabledViewerActions = mutableMapOf<OrthogonalViews.ViewerAndTransforms, Array<ActionSet>>()
+	private val disabledViewerActionsMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, Array<ActionSet>>()
 
-	private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
-		val translator = vat.run {
-			val globalTransformManager = paintera.baseView.manager()
-			TranslationController(globalTransformManager, globalToViewerTransform)
-		}
+	private val disabledViewerActions = { vat: OrthogonalViews.ViewerAndTransforms ->
+		val globalTransformManager = paintera.baseView.manager()
+		val translator = TranslationController(globalTransformManager, vat.globalToViewerTransform)
 		arrayOf(
 			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {
 				relative = true
@@ -123,8 +121,37 @@ internal class ShapeInterpolationTool(
 						translator.translate(x, y, 0.0, Duration.millis(500.0))
 					}
 				}
+			},
+			painteraActionSet("disabled_auto_sam", PaintActionType.SegmentAnything, ignoreDisable = true) {
+				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
+					onAction {
+						with(controller) {
+							val viewer = vat.viewer()
+							val dX = viewer.width / 2 - viewer.mouseXProperty.value
+							val dY = viewer.height / 2 - viewer.mouseYProperty.value
+							val delta = doubleArrayOf(dX, dY, 0.0)
+
+							val globalTransform = globalTransformManager.transform
+							TranslationController.translateFromViewer(
+								globalTransform,
+								vat.globalToViewerTransform.transformCopy,
+								delta
+							)
+
+							val resultActiveGlobalToViewer = activeViewerAndTransforms!!.displayTransform.transformCopy
+								.concatenate(activeViewerAndTransforms!!.viewerSpaceToViewerTransform.transformCopy)
+								.concatenate(globalTransform)
+
+							requestSamPrediction(depthAt(resultActiveGlobalToViewer), refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer)
+						}
+					}
+				}
 			}
 		)
+	}
+
+	private val disabledViewerTriggerAutoSampling = { vat: OrthogonalViews.ViewerAndTransforms ->
+
 	}
 
 	internal fun requestEmbedding(depth: Double) {
@@ -141,6 +168,7 @@ internal class ShapeInterpolationTool(
 		depth: Double,
 		moveToSlice: Boolean = false,
 		refresh: Boolean = false,
+		provideGlobalToViewerTransform: AffineTransform3D? = null,
 		afterPrediction: (AffineTransform3D) -> Unit = {}
 	): AffineTransform3D {
 
@@ -148,7 +176,7 @@ internal class ShapeInterpolationTool(
 		if (newPrediction)
 			SamEmbeddingLoaderCache.cancelPendingRequests()
 
-		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
+		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getComponentMaxDistancePosition()?.let { positions ->

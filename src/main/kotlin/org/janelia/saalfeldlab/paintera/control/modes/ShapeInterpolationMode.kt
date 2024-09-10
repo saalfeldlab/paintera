@@ -79,7 +79,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	override val modeActions by lazy { modeActions() }
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
-		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill)
+		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
 		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
@@ -371,17 +371,17 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 		}
 
-	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth): SamSliceInfo {
+	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform : AffineTransform3D? = null): SamSliceInfo {
 		return samSliceCache[depth] ?: with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
 			val viewer = viewerAndTransforms.viewer()!!
 			val width = viewer.width
 			val height = viewer.height
 
-			val globalToViewerTransform = if (translate) {
-				calculateGlobalToViewerTransformAtDepth(depth)
-			} else {
-				AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
+			val globalToViewerTransform = when {
+				provideGlobalToViewerTransform != null -> provideGlobalToViewerTransform
+				translate -> calculateGlobalToViewerTransformAtDepth(depth)
+				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
 
 			val maxDistancePositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
