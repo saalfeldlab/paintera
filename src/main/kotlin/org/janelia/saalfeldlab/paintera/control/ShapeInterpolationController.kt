@@ -41,6 +41,7 @@ import net.imglib2.view.Views
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.net.imglib2.MultiRealIntervalAccessibleRealRandomAccessible
 import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -483,7 +484,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		synchronized(source) {
 			source.resetMasks(false)
 			/* If preview is on, hide all except the first and last fill mask */
-			val fillMasks: MutableList<RealRandomAccessible<UnsignedLongType>> = mutableListOf()
+			val fillMasks: MutableList<RealRandomAccessibleRealInterval<UnsignedLongType>> = mutableListOf()
 			val slices = slicesAndInterpolants.slices
 			slices.forEachIndexed { idx, slice ->
 				if (idx == 0 || idx == slices.size - 1 || !includeInterpolant) {
@@ -493,52 +494,42 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 							.extendValue(Label.INVALID)
 							.interpolateNearestNeighbor()
 							.affineReal(initialGlobalToMaskTransform.inverse())
+							.realInterval(slice.globalBoundingBox!!)
 					}
 
 
 				}
 			}
-			val constantInvalid = ConstantUtils.constantRandomAccessible(UnsignedLongType(Label.INVALID), 3).interpolateNearestNeighbor()
-			if (fillMasks.isEmpty()) {
-				fillMasks += constantInvalid
-			}
+			val invalidLabel = UnsignedLongType(Label.INVALID)
 
-			var compositeFill: RealRandomAccessible<UnsignedLongType> = fillMasks[0]
-			for ((index, dataMask) in fillMasks.withIndex()) {
-				if (index == 0) continue
+			val composedSlices =
+				if (slices.isEmpty())
+					ConstantUtils.constantRandomAccessible(invalidLabel, 3).interpolateNearestNeighbor()
+				else
+					MultiRealIntervalAccessibleRealRandomAccessible(fillMasks, invalidLabel) { it.get() != Label.INVALID }
 
-				compositeFill = compositeFill.convertWith(dataMask, UnsignedLongType(Label.INVALID)) { composite, mask, result ->
-					val maskVal = mask.get()
-					result.setInteger(if (maskVal != Label.INVALID) maskVal else composite.get())
-				}
-			}
 
 			val interpolants = slicesAndInterpolants.interpolants
-			val dataMasks: MutableList<RealRandomAccessible<UnsignedLongType>> = mutableListOf()
-
-			if (preview) {
-				interpolants.forEach { info ->
-					dataMasks += info.dataInterpolant
+			val composedInterpolations =
+				if (!preview || interpolants.isEmpty())
+					ConstantUtils.constantRealRandomAccessible(invalidLabel, composedSlices.numDimensions())
+				else {
+					val interpolantRais = interpolants.map { info -> info.dataInterpolant.realInterval(info.interval!!) }.toList()
+					val interpolantBounds: RealInterval = interpolantRais.map { it as RealInterval }.reduce { l, r -> l.union(r) }
+					val outOfBounds = invalidLabel
+					ExtendedRealRandomAccessibleRealInterval(
+						MultiRealIntervalAccessibleRealRandomAccessible(interpolantRais, outOfBounds) { it.get() != Label.INVALID }.realInterval(interpolantBounds),
+						RealOutOfBoundsConstantValueFactory(outOfBounds)
+					)
 				}
-			}
 
-			var compositeInterpolation: RealRandomAccessible<UnsignedLongType> = dataMasks.getOrNull(0) ?: ConstantUtils.constantRealRandomAccessible(UnsignedLongType(Label.INVALID), compositeFill.numDimensions())
-			for ((index, dataMask) in dataMasks.withIndex()) {
-				if (index == 0) continue
-
-				compositeInterpolation = compositeInterpolation.convertWith(dataMask, UnsignedLongType(Label.INVALID)) { composite, mask, result ->
-					val maskVal = mask.get()
-					result.setInteger(if (maskVal != Label.INVALID) maskVal else composite.get())
-				}
-			}
-
-			val compositeMaskInGlobal = BiConvertedRealRandomAccessible(compositeFill, compositeInterpolation, Supplier {
+			val compositeMaskInGlobal = BiConvertedRealRandomAccessible(composedSlices, composedInterpolations, Supplier {
 				BiConverter { fillValue: UnsignedLongType, interpolationValue: UnsignedLongType, compositeValue: UnsignedLongType ->
 					val aVal = fillValue.get()
 					val aOrB = if (aVal.isInterpolationLabel) fillValue else interpolationValue
 					compositeValue.set(aOrB)
 				}
-			}) { UnsignedLongType(Label.INVALID) }
+			}) { invalidLabel.copy() }
 			val compositeVolatileMaskInGlobal = compositeMaskInGlobal.convert(VolatileUnsignedLongType(Label.INVALID)) { source, target ->
 				target.get().set(source.get())
 				target.isValid = true
