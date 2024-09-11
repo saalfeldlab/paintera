@@ -237,6 +237,10 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	}
 
+	public ObservableValue<Boolean> getVisibleProperty() {
+		return node.visibleProperty();
+	}
+
 	public static double[] asPrimitiveArray(final DoubleProperty[] data) {
 
 		return Arrays.stream(data).mapToDouble(DoubleProperty::get).toArray();
@@ -310,8 +314,9 @@ public class GenericBackendDialogN5 implements Closeable {
 						return validDatasetChoices;
 					}).onSuccess(result -> {
 						invoke(() -> {
+							mapRootToContainerName(result);
 							setDatasetChoices(result);
-							previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices));
+							previousContainerChoices.put(getContainer(), new HashMap<>(datasetChoices));
 						});
 					}).onEnd((result, error) -> invoke(() -> discoveryIsActive.set(false)));
 		}

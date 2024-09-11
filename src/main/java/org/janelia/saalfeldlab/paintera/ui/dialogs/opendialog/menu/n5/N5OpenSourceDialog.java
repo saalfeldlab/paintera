@@ -145,20 +145,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final BooleanBinding isError;
 
-	private final ExecutorService propagationExecutor;
-
 	private final GenericBackendDialogN5 backendDialog;
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
 	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 
-		super();
-
 		this.backendDialog = backendDialog;
 		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
-
-		this.propagationExecutor = viewer.getPropagationQueue();
 
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);

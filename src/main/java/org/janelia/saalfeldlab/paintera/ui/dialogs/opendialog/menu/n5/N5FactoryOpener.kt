@@ -19,13 +19,11 @@ import kotlinx.coroutines.launch
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.PainteraCache.appendLine
 import org.janelia.saalfeldlab.util.PainteraCache.readLines
-import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -64,23 +62,23 @@ class N5FactoryOpener {
 			}
 		}
 		val onBrowseFoldersClicked = EventHandler<ActionEvent> {
-			selection?.let { path ->
-				var file = File(path)
-				if (!file.exists())
-					file = Path.of(".").toAbsolutePath().toFile()
-
-				updateFromDirectoryChooser(file, ownerWindow)
-			}
+			val startDir = selection?.let { path ->
+				File(path).let { if (it.exists()) it else null }
+			} ?: Path.of(".").toAbsolutePath().toFile()
+			updateFromDirectoryChooser(startDir, ownerWindow)
 		}
 
 		val onBrowseFilesClicked = EventHandler<ActionEvent> {
-			selection?.let { path ->
-				var file = File(path)
-				if (file.isFile) file = file.parentFile
-				if (!file.exists()) Path.of(".").toAbsolutePath().toFile()
-
-				updateFromFileChooser(file, ownerWindow)
-			}
+			val startDir = selection?.let { path ->
+				File(path).let {
+					when {
+						it.isDirectory -> it
+						it.parentFile?.isDirectory == true -> it.parentFile
+						else -> null
+					}
+				}
+			} ?: Path.of(".").toAbsolutePath().toFile()
+			updateFromFileChooser(startDir, ownerWindow)
 		}
 
 		val recentSelections = readLines(this.javaClass, "recent").reversed()
@@ -92,7 +90,9 @@ class N5FactoryOpener {
 			onBrowseFilesClicked
 		) { value: String -> selectionProperty.set(value) }
 
-		return GenericBackendDialogN5(containerField.textField, menuButton, containerStateProperty, isOpeningContainer)
+		val dialog = GenericBackendDialogN5(containerField.textField, menuButton, containerStateProperty, isOpeningContainer)
+		dialog.visibleProperty.subscribe { visible -> if (visible) selectionChanged(selection) }
+		return dialog
 	}
 
 	private fun createCachedContainerResetHandler(): EventHandler<KeyEvent> {
