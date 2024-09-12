@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.channel
 
+import bdv.BigDataViewerActions.CROP
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
@@ -12,6 +13,7 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.scene.Node
 import javafx.scene.layout.VBox
+import net.imglib2.Interval
 import net.imglib2.Volatile
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import net.imglib2.type.numeric.ARGBType
@@ -135,6 +137,8 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				state.resolution.let { map.add(RESOLUTION, context[it]) }
 				state.offset.let { map.add(OFFSET, context[it]) }
+				state.crop?.let { map.add(CROP, context[it]) }
+
 			}
 			return map
 		}
@@ -168,7 +172,9 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
 					val backend = context.fromClassInfo<ConnectomicsChannelBackend<CD, V>>(json, BACKEND)!!
-					ConnectomicsChannelState<D, T, CD, CT, V>(
+					backend.crop = context.get<Interval?>(json, CROP)
+
+					ConnectomicsChannelState(
 						backend,
 						queue,
 						priority,

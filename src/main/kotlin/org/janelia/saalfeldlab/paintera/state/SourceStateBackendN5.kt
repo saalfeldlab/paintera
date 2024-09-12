@@ -11,6 +11,7 @@ import javafx.scene.control.Label
 import javafx.scene.control.Separator
 import javafx.scene.control.TextField
 import javafx.scene.layout.*
+import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
@@ -34,6 +35,12 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 
 	override val translation: DoubleArray
 		get() = getMetadataState().translation
+
+	override var crop: Interval?
+		get() = getMetadataState().crop
+		set(value) {
+			getMetadataState().crop = value
+		}
 
 	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = getMetadataState().updateTransform(resolution, translation)
 

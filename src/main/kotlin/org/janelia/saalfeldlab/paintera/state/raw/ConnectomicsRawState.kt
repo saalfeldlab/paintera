@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.raw
 
+import bdv.BigDataViewerActions.CROP
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
@@ -12,6 +13,8 @@ import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
+import net.imglib2.Interval
+import net.imglib2.RealInterval
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -194,6 +197,7 @@ open class ConnectomicsRawState<D, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
+				state.crop?.let { map.add(CROP, context[it]) }
 			}
 			return map
 		}
@@ -230,7 +234,10 @@ open class ConnectomicsRawState<D, T>(
 			val backend: ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
+			val crop = context.get<RealInterval?>(json, CROP) as? Interval
 			backend.updateTransform(resolution, offset)
+			backend.crop = crop
+
 			return ConnectomicsRawState(
 				backend,
 				queue,

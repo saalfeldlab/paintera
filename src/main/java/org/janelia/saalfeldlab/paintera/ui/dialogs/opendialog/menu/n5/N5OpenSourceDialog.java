@@ -211,6 +211,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			backendDialog.setOffset(reverse(metaPanel.getOffset()));
 		});
 
+		metaPanel.getCropIntervalProperty().subscribe(interval -> {
+			final MetadataState metadataState = backendDialog.metadataStateProperty().get();
+			if (metadataState != null) {
+				metadataState.setCrop(interval);
+			}
+		});
+
 		this.typeChoice.setValue(typeChoices.get(0));
 		choices.getChildren().addAll(this.typeChoiceButton);
 		this.grid.add(choices, 0, 0);

@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
 import bdv.cache.SharedQueue
+import net.imglib2.FinalInterval
+import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -40,6 +42,7 @@ interface MetadataState {
 	var maxIntensity: Double
 	var resolution: DoubleArray
 	var translation: DoubleArray
+	var crop : Interval?
 	var unit: String
 	var reader: N5Reader
 
@@ -75,6 +78,7 @@ interface MetadataState {
 			target.maxIntensity = source.maxIntensity
 			target.resolution = source.resolution.copyOf()
 			target.translation = source.translation.copyOf()
+			target.crop = source.crop?.let { FinalInterval(it.minAsLongArray(), it.maxAsLongArray()) }
 			target.unit = source.unit
 			target.group = source.group
 		}
@@ -94,6 +98,7 @@ open class SingleScaleMetadataState(
 	override var maxIntensity = metadata.maxIntensity()
 	override var resolution = metadata.resolution
 	override var translation = metadata.offset
+	override var crop: Interval? = null
 	override var unit: String = metadata.unit()
 	override var reader = n5ContainerState.reader
 	override val writer: N5Writer?
@@ -193,6 +198,13 @@ class PainteraDataMultiscaleMetadataState (
 
 	override var maxIntensity: Double = (painteraDataMultiscaleMetadata as? N5PainteraLabelMultiScaleGroup)?.maxId?.toDouble() ?: super.maxIntensity
 	val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata)
+
+	override var crop: Interval? = null
+		get() = field
+		set(value) {
+			dataMetadataState.crop = value
+			field = value
+		}
 
 	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
 		return if (isLabelMultiset) {

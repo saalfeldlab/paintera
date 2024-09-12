@@ -14,6 +14,7 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
+import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.cache.Invalidate
@@ -53,6 +54,8 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 		get() = resolutions[0]
 	override val translation: DoubleArray
 		get() = translations[0]
+
+	override var crop: Interval? = null
 
 	constructor(
 		name: String,
