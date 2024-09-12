@@ -409,7 +409,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	}
 
 	override fun exit() {
-		runBlocking { switchTool(null)?.join() }
+		runBlocking { switchTool(defaultTool)?.join() }
 		activeToolProperty.removeListener(activeToolHandler)
 		activeViewerProperty.removeListener(activeViewerToolHandler)
 		super<AbstractSourceMode>.exit()
