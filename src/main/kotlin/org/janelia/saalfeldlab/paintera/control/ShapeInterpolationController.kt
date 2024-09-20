@@ -206,7 +206,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		previousSlice(depth) to nextSlice(depth)
 	}
 
-	fun enterShapeInterpolation(viewer: ViewerPanelFX?) {
+	fun enterShapeInterpolation(viewer: ViewerPanelFX) {
 		if (isControllerActive) {
 			LOG.trace { "Already in shape interpolation" }
 			return

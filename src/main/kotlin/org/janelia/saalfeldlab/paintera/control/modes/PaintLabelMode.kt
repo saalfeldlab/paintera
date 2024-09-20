@@ -53,8 +53,6 @@ object PaintLabelMode : AbstractToolMode() {
 	private val fill3DTool = Fill3DTool(activeSourceStateProperty, this)
 	private val intersectTool = IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty, this)
 
-	override val defaultTool = NavigationTool
-
 	override val tools: ObservableList<Tool> by lazy {
 		FXCollections.observableArrayList(
 			NavigationTool,
@@ -247,7 +245,6 @@ object PaintLabelMode : AbstractToolMode() {
 
 	private fun newShapeInterpolationModeForSource(sourceState: SourceState<*, *>?): ShapeInterpolationMode<*>? {
 		return sourceState?.let { state ->
-			@Suppress("UNCHECKED_CAST")
 			(state as? ConnectomicsLabelState<*, *>)?.run {
 				(dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
 					ShapeInterpolationController(

@@ -39,8 +39,6 @@ import org.janelia.saalfeldlab.util.*
 
 object RawSourceMode : AbstractToolMode() {
 
-	override val defaultTool: Tool = NavigationTool
-
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
 
 	override val allowedActions = AllowedActions.NAVIGATION

@@ -95,12 +95,13 @@ interface ToolMode : SourceMode {
 			activeTool?.deactivate()
 			(activeTool as? ViewerTool)?.removeFromAll()
 
-			/* If the mode was changed before we can activate, don't activate anymore */
-			if (paintera.baseView.activeModeProperty.value != this@ToolMode)
-				return@launch
 
-			tool?.activate()
-			activeTool = tool
+
+			/* If the mode was changed before we can activate, switch to null */
+			val activeMode = paintera.baseView.activeModeProperty.value
+			activeTool = if (activeMode != this@ToolMode) null else tool
+
+			activeTool?.activate()
 			LOG.trace { "Activated $activeTool" }
 		}
 
@@ -384,13 +385,6 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 		}
 	}
 
-	private val activeToolHandler = ChangeListener<Tool?> { _, old, new ->
-		activeViewerProperty.get()?.let { viewer ->
-			(old as? ViewerTool)?.removeFrom(viewer.viewer())
-			(new as? ViewerTool)?.installInto(viewer.viewer())
-		}
-	}
-
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
 		KEY_PRESSED(KeyCode.ESCAPE) {
 			/* Don't change to default if we are default */
@@ -403,15 +397,11 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	override fun enter() {
 		super<AbstractSourceMode>.enter()
-		activeViewerProperty.addListener(activeViewerToolHandler)
-		activeToolProperty.addListener(activeToolHandler)
 		switchTool(activeTool ?: defaultTool)
 	}
 
 	override fun exit() {
-		runBlocking { switchTool(defaultTool)?.join() }
-		activeToolProperty.removeListener(activeToolHandler)
-		activeViewerProperty.removeListener(activeViewerToolHandler)
+		runBlocking { switchTool(null)?.join() }
 		super<AbstractSourceMode>.exit()
 	}
 }
