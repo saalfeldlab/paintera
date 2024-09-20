@@ -707,7 +707,6 @@ public class CommitCanvasN5 implements PersistCanvas {
 		}
 	}
 
-	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void downsampleAndWriteBlocksLabelMultisetType(
 			final long[] affectedTargetBlocks,
 			final N5Writer n5,

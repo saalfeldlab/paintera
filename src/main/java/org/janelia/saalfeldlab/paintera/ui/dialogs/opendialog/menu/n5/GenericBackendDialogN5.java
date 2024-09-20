@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import bdv.cache.SharedQueue;
-import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -35,7 +34,6 @@ import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata;

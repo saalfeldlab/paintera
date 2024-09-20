@@ -933,7 +933,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				*   When [https://github.com/imglib/imglib2-algorithm/issues/98] is resolved,
 				*   hopefully this will be as well */
 				val stdErr = System.err
-				System.setErr(NullPrintStream())
+				System.setErr(NullPrintStream.INSTANCE)
 				try {
 					ConnectedComponents.labelAllConnectedComponents(
 						thresholdFilter,
