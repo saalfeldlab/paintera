@@ -105,13 +105,13 @@ internal class ShapeInterpolationTool(
 		val globalTransformManager = paintera.baseView.manager()
 		val translator = TranslationController(globalTransformManager, vat.globalToViewerTransform)
 		arrayOf(
-			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {
+			painteraDragActionSet("disabled_view_translate_xy", NavigationActionType.Pan) {
 				relative = true
 				verify { it.isSecondaryButtonDown }
 				verify { controller.controllerState != ShapeInterpolationController.ControllerState.Interpolate }
 				onDrag { translator.translate(it.x - startX, it.y - startY) }
 			},
-			painteraActionSet("disabled_move_to_cursor", NavigationActionType.Pan, ignoreDisable = true) {
+			painteraActionSet("disabled_view_move_to_cursor", NavigationActionType.Pan, ignoreDisable = true) {
 				MOUSE_CLICKED(MouseButton.PRIMARY) {
 					verify("only double click") { it?.clickCount!! > 1 }
 					onAction {
@@ -122,7 +122,7 @@ internal class ShapeInterpolationTool(
 					}
 				}
 			},
-			painteraActionSet("disabled_auto_sam", PaintActionType.SegmentAnything, ignoreDisable = true) {
+			painteraActionSet("disabled_view_auto_sam", PaintActionType.SegmentAnything, ignoreDisable = true) {
 				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
 					onAction {
 						with(controller) {
@@ -142,7 +142,21 @@ internal class ShapeInterpolationTool(
 								.concatenate(activeViewerAndTransforms!!.viewerSpaceToViewerTransform.transformCopy)
 								.concatenate(globalTransform)
 
-							requestSamPrediction(depthAt(resultActiveGlobalToViewer), refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer)
+							val depth = depthAt(resultActiveGlobalToViewer)
+							requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
+								val depths = sortedSliceDepths
+								val sliceIdx = depths.indexOf(depth)
+								if (sliceIdx - 1 >= 0) {
+									val prevHalfDepth = (depths[sliceIdx] + depths[sliceIdx - 1]) / 2.0
+									requestEmbedding(prevHalfDepth)
+								}
+								if (sliceIdx + 1 < depths.size) {
+									val nextHalfDepth = (depths[sliceIdx + 1] + depths[sliceIdx]) / 2.0
+									requestEmbedding(nextHalfDepth)
+								}
+
+							}
+
 						}
 					}
 				}

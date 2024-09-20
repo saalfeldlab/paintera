@@ -384,10 +384,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
 
-			val maxDistancePositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				interpolantInViewer.getComponentMaxDistancePosition()
-			} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
+			val predictionPositions = provideGlobalToViewerTransform?.let { listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0)) } ?: let {
+					controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+						val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+						interpolantInViewer.getComponentMaxDistancePosition()
+					} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
+			}
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
@@ -399,7 +401,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(maxDistancePositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
+			val predictionRequest = SamPredictor.SparsePrediction(predictionPositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
 
 			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
 				SamEmbeddingLoaderCache.load(renderState)
