@@ -10,6 +10,7 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
 import kotlinx.coroutines.*
+import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -19,7 +20,7 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.labels.Label
@@ -98,9 +99,9 @@ internal class ShapeInterpolationTool(
 			}
 		}
 
-	private val disabledViewerActionsMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, Array<ActionSet>>()
+	private val disabledViewerActionsMap = mutableMapOf<ViewerAndTransforms, Array<ActionSet>>()
 
-	private val disabledViewerActions = { vat: OrthogonalViews.ViewerAndTransforms ->
+	private val disabledViewerActions = { vat: ViewerAndTransforms ->
 		val globalTransformManager = paintera.baseView.manager()
 		val translator = TranslationController(globalTransformManager, vat.globalToViewerTransform)
 		arrayOf(
@@ -122,45 +123,53 @@ internal class ShapeInterpolationTool(
 				}
 			},
 			painteraActionSet("disabled_view_auto_sam", PaintActionType.SegmentAnything, ignoreDisable = true) {
-				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
-					onAction {
-						with(controller) {
-							val viewer = vat.viewer()
-							val dX = viewer.width / 2 - viewer.mouseXProperty.value
-							val dY = viewer.height / 2 - viewer.mouseYProperty.value
-							val delta = doubleArrayOf(dX, dY, 0.0)
-
-							val globalTransform = globalTransformManager.transform
-							TranslationController.translateFromViewer(
-								globalTransform,
-								vat.globalToViewerTransform.transformCopy,
-								delta
-							)
-
-							val resultActiveGlobalToViewer = activeViewerAndTransforms!!.displayTransform.transformCopy
-								.concatenate(activeViewerAndTransforms!!.viewerSpaceToViewerTransform.transformCopy)
-								.concatenate(globalTransform)
-
-							val depth = depthAt(resultActiveGlobalToViewer)
-							requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
-								val depths = sortedSliceDepths
-								val sliceIdx = depths.indexOf(depth)
-								if (sliceIdx - 1 >= 0) {
-									val prevHalfDepth = (depths[sliceIdx] + depths[sliceIdx - 1]) / 2.0
-									requestEmbedding(prevHalfDepth)
-								}
-								if (sliceIdx + 1 < depths.size) {
-									val nextHalfDepth = (depths[sliceIdx + 1] + depths[sliceIdx]) / 2.0
-									requestEmbedding(nextHalfDepth)
-								}
-
-							}
-
 						}
-					}
+			painteraActionSet("disabled_view_auto_sam_click", PaintActionType.SegmentAnything, ignoreDisable = true) {
+				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
+					onAction { requestSamPredictionAtViewerPoint(vat) }
 				}
 			}
 		)
+	}
+
+	private fun requestSamPredictionAtViewerPoint(vat : ViewerAndTransforms, requestMidPoint : Boolean = true, runAfter : () -> Unit = {}) {
+		with(controller) {
+			val viewer = vat.viewer()
+			val dX = viewer.width / 2 - viewer.mouseXProperty.value
+			val dY = viewer.height / 2 - viewer.mouseYProperty.value
+			val delta = doubleArrayOf(dX, dY, 0.0)
+
+			val globalTransform = paintera.baseView.manager().transform
+			TranslationController.translateFromViewer(
+				globalTransform,
+				vat.globalToViewerTransform.transformCopy,
+				delta
+			)
+
+			val resultActiveGlobalToViewer = activeViewerAndTransforms!!.displayTransform.transformCopy
+				.concatenate(activeViewerAndTransforms!!.viewerSpaceToViewerTransform.transformCopy)
+				.concatenate(globalTransform)
+
+			val depth = depthAt(resultActiveGlobalToViewer)
+			if (!requestMidPoint) {
+				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {runAfter() }
+			} else {
+				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
+					val depths = sortedSliceDepths
+					val sliceIdx = depths.indexOf(depth)
+					if (sliceIdx - 1 >= 0) {
+						val prevHalfDepth = (depths[sliceIdx] + depths[sliceIdx - 1]) / 2.0
+						requestEmbedding(prevHalfDepth)
+					}
+					if (sliceIdx + 1 < depths.size) {
+						val nextHalfDepth = (depths[sliceIdx + 1] + depths[sliceIdx]) / 2.0
+						requestEmbedding(nextHalfDepth)
+					}
+					runAfter()
+				}
+			}
+
+		}
 	}
 
 
