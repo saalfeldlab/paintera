@@ -48,8 +48,7 @@ internal class ShapeInterpolationTool(
 	override val actionSets: MutableList<ActionSet> by lazy {
 		mutableListOf(
 			*shapeInterpolationActions().filterNotNull().toTypedArray(),
-			cancelShapeInterpolationTask(),
-			*NavigationTool.actionSets.toTypedArray() //Kinda ugly to filter like this, but this is a weird case. Still, should do better
+			cancelShapeInterpolationTask()
 		)
 	}
 
@@ -71,13 +70,13 @@ internal class ShapeInterpolationTool(
 				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
 		/* We want to bind it to our activeViewer bindings instead of the default. */
-		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
+		NavigationTool.activate()
 	}
 
 	override fun deactivate() {
-		NavigationTool.activeViewerProperty.unbind()
 		disabledViewerActionsMap.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
 		disabledViewerActionsMap.clear()
+		NavigationTool.deactivate()
 		super.deactivate()
 	}
 
