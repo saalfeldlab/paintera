@@ -263,7 +263,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		/* Trigger initial prediction request when activating the tool */
 		setViewer?.let { viewer ->
 
-			Platform.runLater { statusProperty.set("Predicting...") }
+			statusProperty.set("Predicting...")
 			val x = viewer.mouseXProperty.get().toLong()
 			val y = viewer.mouseYProperty.get().toLong()
 

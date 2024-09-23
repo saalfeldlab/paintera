@@ -17,6 +17,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
+import javafx.util.Subscription
 import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -368,23 +369,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	override val modeToolsBar: ActionBar = ActionBar()
 	override val toolActionsBar: ActionBar = ActionBar()
 
-	override val statusProperty: StringProperty = SimpleStringProperty().apply {
-		activeToolProperty.addListener { _, _, new ->
-			InvokeOnJavaFXApplicationThread {
-				new?.let {
-					bind(it.statusProperty)
-				} ?: unbind()
-			}
-		}
-	}
-
-	private val activeViewerToolHandler = ChangeListener<ViewerAndTransforms?> { _, old, new ->
-		(activeTool as? ViewerTool)?.let { tool ->
-			old?.viewer()?.let { tool.removeFrom(it) }
-			new?.viewer()?.let { tool.installInto(it) }
-		}
-	}
-
+	override val statusProperty: StringProperty = SimpleStringProperty()
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
 		KEY_PRESSED(KeyCode.ESCAPE) {
 			/* Don't change to default if we are default */
@@ -397,6 +382,15 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	override fun enter() {
 		super<AbstractSourceMode>.enter()
+		var statusSubscription : Subscription? = null
+		activeToolProperty.subscribe { tool ->
+			statusSubscription?.unsubscribe()
+			statusSubscription = tool?.statusProperty?.subscribe { status ->
+				InvokeOnJavaFXApplicationThread {
+					this@AbstractToolMode.statusProperty.set(status)
+				}
+			}
+		}
 		switchTool(activeTool ?: defaultTool)
 	}
 
