@@ -164,9 +164,7 @@ internal class ShapeInterpolationTool(
 		)
 	}
 
-	private val disabledViewerTriggerAutoSampling = { vat: OrthogonalViews.ViewerAndTransforms ->
 
-	}
 
 	internal fun requestEmbedding(depth: Double) {
 		shapeInterpolationMode.cacheLoadSamSliceInfo(depth)

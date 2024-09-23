@@ -159,7 +159,6 @@ public class SegmentMaskGenerators {
 			}
 			final var validLabelsContainedCount = new AtomicLong(0);
 			if (validLabelsSize < inputSize) {
-				final var ref = new LabelMultisetEntry();
 				final var breakEarly = !validLabels.forEach(label -> {
 					final var count = validLabelsContainedCount.addAndGet(input.countWithRef(label, reusableReference));
 					if (count >= minNumRequiredPixels) {
