@@ -65,10 +65,19 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 					).realRandomAccess();
 				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged
 		);
+
+		this.accessBinding.addListener((_, _, _) -> {
+			synchronized (viewer) {
+				getInfo();
+			}
+		});
 	}
 
 	@Override
 	public void handle(final MouseEvent e) {
+
+		if (x == e.getX() && y == e.getY())
+			return;
 
 		x = e.getX();
 		y = e.getY();
@@ -86,9 +95,6 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 		if (isChanged) {
 			viewerTransform.set(transform);
 			viewerTransformChanged.setValue(!viewerTransformChanged.getValue());
-			synchronized (viewer) {
-				getInfo();
-			}
 		}
 	}
 
