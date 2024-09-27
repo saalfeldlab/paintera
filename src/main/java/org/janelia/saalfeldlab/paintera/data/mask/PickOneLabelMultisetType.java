@@ -20,6 +20,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 	private final BiPredicate<M, M> pickSecond;
 
 	private final LabelMultisetType scalarValue;
+	private final int numOccurrences;
 
 	private final Converter<M, LabelMultisetType> converter;
 
@@ -27,7 +28,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 			final Predicate<M> pickThird,
 			final BiPredicate<M, M> pickSecond) {
 
-		this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType());
+		this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType(), 1);
 	}
 
 	public PickOneLabelMultisetType(
@@ -38,24 +39,32 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		this(
 				pickThird,
 				pickSecond,
-				new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
+				new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)),
+				numOccurrences);
 	}
 
 	private PickOneLabelMultisetType(
 			final Predicate<M> pickThird,
 			final BiPredicate<M, M> pickSecond,
-			final LabelMultisetType scalarValue) {
+			final LabelMultisetType scalarValue,
+			final int numOccurrences) {
 
 		super();
 		this.pickThird = pickThird;
 		this.pickSecond = pickSecond;
 		this.scalarValue = scalarValue;
-		this.converter = new FromIntegerTypeConverter<>();
+		this.converter = new FromIntegerTypeConverter<>() {
+
+			@Override public void convert(M input, LabelMultisetType output) {
+				output.set(input.getIntegerLong(), numOccurrences);
+			}
+		};
+		this.numOccurrences = numOccurrences;
 
 		/* Seems like a no-op, but this provides a reference for the scalarValue to use
-		* when doing operations like add,count,sort, etc.
-		*
-		* Should be better documented :( */
+		 * when doing operations like add,count,sort, etc.
+		 *
+		 * Should be better documented :( */
 		final LabelMultisetEntry ref = new LabelMultisetEntry();
 		this.scalarValue.entrySetWithRef(ref);
 	}
@@ -83,7 +92,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 	@Override
 	public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copy() {
 
-		return new PickOneLabelMultisetType<>(pickThird, pickSecond, this.scalarValue.copy());
+		return new PickOneLabelMultisetType<>(pickThird, pickSecond, scalarValue.copy(), numOccurrences);
 	}
 
 	@Override
