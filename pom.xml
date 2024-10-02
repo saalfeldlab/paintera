@@ -687,7 +687,7 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
 						<forkCount>1</forkCount>
-						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw --enable-preview</argLine>
+						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
 					</configuration>
 				</plugin>
 			</plugins>
@@ -709,7 +709,7 @@
 					</annotationProcessors>
 					<source>21</source>
 					<target>21</target>
-					<compilerArgs>--enable-preview</compilerArgs>
+					<compilerArgs></compilerArgs>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -919,7 +919,7 @@
 				<version>${kotlin.version}</version>
 				<configuration>
 					<javacOptions>
-						<javacOption>--enable-preview</javacOption>
+						<javacOption></javacOption>
 					</javacOptions>
 				</configuration>
 			</plugin>
