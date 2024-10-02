@@ -51,6 +51,8 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 		this.submitValue = submitValue;
 		this.accessBinding = Bindings.createObjectBinding(() -> {
 					final var source = this.dataSource.getValue();
+					if (source == null)
+						return null;
 					final int level = viewer.getState().getBestMipMapLevel(source);
 					final var interp = interpolation.apply(source);
 					final var affine = new AffineTransform3D();
@@ -66,7 +68,9 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged
 		);
 
-		this.accessBinding.addListener((_, _, _) -> {
+		this.accessBinding.addListener((_, _, newAccess) -> {
+			if (newAccess == null)
+				return;
 			synchronized (viewer) {
 				getInfo();
 			}
