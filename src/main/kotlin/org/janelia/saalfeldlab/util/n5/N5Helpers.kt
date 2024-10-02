@@ -10,15 +10,21 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
+import net.imglib2.iterator.IntervalIterator
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.ScaleAndTranslation
 import net.imglib2.realtransform.Translation3D
+import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.DatasetAttributes
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
@@ -30,6 +36,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NoInitialLutAvailable
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -53,6 +60,7 @@ import java.util.*
 import java.util.List
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.*
 import kotlin.collections.ArrayList
@@ -870,6 +878,41 @@ object N5Helpers {
 			}
 		}
 		return n5Container.get() ?: throw exception()
+	}
+
+	suspend fun forEachBlockExists(
+		source: MaskedSource<*, *>,
+		scaleLevel: Int,
+		n5: GsonKeyValueN5Reader,
+		dataset: String,
+		processedCount: AtomicInteger? = null,
+		withBlock: (Interval) -> Unit
+	) {
+
+		val cellGrid: CellGrid = source.getCellGrid(0, scaleLevel)
+
+		//TODO Caleb: Use Streams.localizable over `cellIntervals()` after bumping to the newest imglib2 version
+		val gridIterable = IntervalIterator(cellGrid.gridDimensions)
+		val curBlock = LongArray(gridIterable.numDimensions())
+		val cellMin = LongArray(gridIterable.numDimensions())
+		val cellDims = LongArray(gridIterable.numDimensions()) { cellGrid.cellDimensions[it].toLong() }
+
+		coroutineScope {
+			while (gridIterable.hasNext()) {
+				gridIterable.fwd()
+				gridIterable.localize(curBlock)
+				if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(dataset, *curBlock))) {
+					for (i in cellMin.indices)
+						cellMin[i] = cellGrid.getCellMin(i, curBlock[i])
+					val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
+					launch {
+						withBlock(cellInterval)
+						processedCount?.getAndIncrement()
+					}
+				} else
+					processedCount?.getAndIncrement()
+			}
+		}
 	}
 
 	class RemoveSourceException : PainteraException {
