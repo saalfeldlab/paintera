@@ -69,7 +69,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
 	public static class N5Opener implements OpenDialogMenuEntry {
 
 		private static N5FactoryOpener factoryOpener = new N5FactoryOpener();
