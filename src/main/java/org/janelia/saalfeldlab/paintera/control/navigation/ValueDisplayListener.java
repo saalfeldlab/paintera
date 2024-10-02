@@ -68,7 +68,7 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged
 		);
 
-		this.accessBinding.addListener((_, _, newAccess) -> {
+		this.accessBinding.addListener((obs, old, newAccess) -> {
 			if (newAccess == null)
 				return;
 			synchronized (viewer) {

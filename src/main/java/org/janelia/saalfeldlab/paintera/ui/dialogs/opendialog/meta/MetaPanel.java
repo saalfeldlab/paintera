@@ -125,15 +125,15 @@ public class MetaPanel {
 				SpatialInformation.Submit.ON_FOCUS_LOST);
 
 		intervalMin = new NumberField[]{
-			NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-			NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-			NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
+			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
+			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
+			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
 		};
 
 		intervalMax = new NumberField[]{
-				NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-				NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-				NumberField.longField(0, _ -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
+				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
+				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
+				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
 		};
 
 		cropInterval = Bindings.createObjectBinding(() -> {
