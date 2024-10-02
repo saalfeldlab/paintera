@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSource
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -136,7 +137,8 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
 
-		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane, KeyCode.CONTROL, KeyCode.O)
+		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane)
+		globalActionHandlers + addExportDatasetAction(paneWithStatus.pane)
 
 		viewerToTransforms[orthogonalViews.topLeft.viewer()] = orthogonalViews.topLeft
 		viewerToTransforms[orthogonalViews.topRight.viewer()] = orthogonalViews.topRight
@@ -407,11 +409,17 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 		}
 	}
 
-	fun addOpenDatasetAction(target: Node, vararg keyTrigger: KeyCode): ActionSet {
+	fun addOpenDatasetAction(target: Node): ActionSet {
 
-		assert(keyTrigger.isNotEmpty())
 
 		val actionSet = N5Opener.openSourceDialogAction(baseView, projectDirectory)
+		target.installActionSet(actionSet)
+		return actionSet
+	}
+
+	fun addExportDatasetAction(target: Node): ActionSet {
+
+		val actionSet = ExportSource.exportSourceDialogAction(baseView, projectDirectory)
 		target.installActionSet(actionSet)
 		return actionSet
 	}
