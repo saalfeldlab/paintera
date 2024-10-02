@@ -123,7 +123,7 @@ object RawSourceMode : AbstractToolMode() {
 	private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: ConnectomicsRawState<*, *>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
 		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, 4, false)
 		val histogram = Histogram1d(binMapper)
-		val img = screenSource.convert(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
+		val img = screenSource.convertRAI(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
 		histogram.countData(img)
 
 		val numPixels = screenSource.dimensionsAsLongArray().sum()

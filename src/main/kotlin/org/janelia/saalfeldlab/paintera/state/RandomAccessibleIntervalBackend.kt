@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.util.convertRAI
 import java.util.function.Predicate
 
 private val NO_OP_INVALIDATE: Invalidate<Long> = object : Invalidate<Long> {
@@ -111,13 +112,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 			val volatileType = VolatileTypeMatcher.getVolatileTypeForType(Util.getTypeFromInterval(source)).createVariable() as T
 			volatileType.isValid = true
 
-			val volatileSource = Converters.convert(
-				zeroMinSource,
-				{ s, t ->
-					(t.get() as NativeType<D>).set(s)
-				},
-				volatileType
-			)
+			val volatileSource = zeroMinSource.convertRAI(volatileType) { s, t -> (t.get() as NativeType<D>).set(s) }
 
 			dataSources += zeroMinSource
 			volatileSources += volatileSource

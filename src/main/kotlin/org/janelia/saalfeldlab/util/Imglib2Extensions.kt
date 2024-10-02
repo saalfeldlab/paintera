@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.util
 
 import net.imglib2.*
+import net.imglib2.converter.Converter
 import net.imglib2.converter.Converters
 import net.imglib2.converter.read.ConvertedRealRandomAccessible
 import net.imglib2.interpolation.InterpolatorFactory
@@ -15,8 +16,8 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
-import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -61,12 +62,16 @@ fun <T> RandomAccessibleInterval<T>.translate(vararg translation: Long) = Views.
 fun <T> RealRandomAccessible<T>.affineReal(affine: AffineGet) = RealViews.affineReal(this, affine)!!
 fun <T> RealRandomAccessible<T>.affine(affine: AffineGet) = RealViews.affine(this, affine)!!
 
-fun <T, R : Type<R>> RandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit): RandomAccessible<R> {
-	return Converters.convert(this, converter, type)
+fun <T, R : Type<*>, I : Type<I>> RandomAccessible<T>.convert(type: R, converter: Converter<in T, in R>) : RandomAccessible<R> {
+	type as I
+	converter as Converter<in T, in I>
+	return Converters.convert(this, converter, type) as RandomAccessibleInterval<R>
 }
 
-fun <T, R : Type<R>> RandomAccessibleInterval<T>.convert(type: R, converter: (T, R) -> Unit): RandomAccessibleInterval<R> {
-	return Converters.convert(this, converter, type)
+fun <T, R : Type<*>, I : Type<I>> RandomAccessibleInterval<T>.convertRAI(type: R, converter: Converter<in T, in R>) : RandomAccessibleInterval<R> {
+	type as I
+	converter as Converter<in T, in I>
+	return Converters.convert(this, converter, type) as RandomAccessibleInterval<R>
 }
 
 fun <A, B, C : Type<C>> RandomAccessible<A>.convertWith(other: RandomAccessible<B>, type: C, converter: (A, B, C) -> Unit): RandomAccessible<C> {

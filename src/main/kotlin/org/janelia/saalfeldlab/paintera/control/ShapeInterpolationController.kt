@@ -418,20 +418,18 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		if (Label.regular(finalLastSelectedId)) {
 			val maskInfo = source.currentMask.info
 			source.resetMasks(false)
-			val interpolatedMaskImgsA = Converters.convert(
-				globalCompositeFillAndInterpolationImgs!!.first.affineReal(globalToSource),
-				{ input: UnsignedLongType, output: UnsignedLongType ->
+			val interpolatedMaskImgsA = globalCompositeFillAndInterpolationImgs!!.first
+				.affineReal(globalToSource)
+				.convert(UnsignedLongType(Label.INVALID)) { input, output ->
 					val originalLabel = input.long
 					val label = if (originalLabel == finalInterpolationId) {
 						finalLastSelectedId
 					} else input.get()
 					output.set(label)
-				},
-				UnsignedLongType(Label.INVALID)
-			)
-			val interpolatedMaskImgsB = Converters.convert(
-				globalCompositeFillAndInterpolationImgs!!.second.affineReal(globalToSource),
-				{ input: VolatileUnsignedLongType, out: VolatileUnsignedLongType ->
+				}
+			val interpolatedMaskImgsB = globalCompositeFillAndInterpolationImgs!!.second
+				.affineReal(globalToSource)
+				.convert(VolatileUnsignedLongType(Label.INVALID)) { input, out ->
 					val isValid = input.isValid
 					out.isValid = isValid
 					if (isValid) {
@@ -439,9 +437,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						val label = if (originalLabel == finalInterpolationId) finalLastSelectedId else input.get().get()
 						out.get().set(label)
 					}
-				},
-				VolatileUnsignedLongType(Label.INVALID)
-			)
+				}
 			source.setMask(
 				maskInfo,
 				interpolatedMaskImgsA,
@@ -849,7 +845,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			for (i in 0..1) {
 				if (Thread.currentThread().isInterrupted) return null
 				val distanceTransform = ArrayImgFactory(FloatType()).create(slices[i]).also {
-					val binarySlice = Converters.convert(slices[i], { source, target -> target.set(source.get().isInterpolationLabel) }, BoolType())
+					val binarySlice = slices[i]!!.convertRAI(BoolType()){ source, target ->
+						val label = source.get().isInterpolationLabel
+						target.set(label)
+					}
 					computeSignedDistanceTransform(binarySlice, it, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
 				}
 				distanceTransformPair.add(distanceTransform)
@@ -917,11 +916,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				.interpolate(NLinearInterpolatorFactory())
 				.affineReal(distanceScale)
 
-			val interpolatedShapeRaiInSource = Converters.convert(
-				scaledInterpolatedDistanceTransform,
-				{ input: R, output: T -> output.set(if (input.realDouble <= 0) targetValue else invalidValue) },
-				targetValue.createVariable()
-			)
+			val interpolatedShapeRaiInSource = scaledInterpolatedDistanceTransform.convert(targetValue.createVariable()) { input, output : T ->
+				val value = if (input.realDouble <= 0) targetValue else invalidValue
+				output.set(value)
+			}
 				.affineReal(transformToSource)
 				.realInterval(transformToSource.copy().concatenate(distanceScale).estimateBounds(distanceTransformStack))
 

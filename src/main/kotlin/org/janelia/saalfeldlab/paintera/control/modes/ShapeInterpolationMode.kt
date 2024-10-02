@@ -518,8 +518,8 @@ internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): L
 	/* find the max point to initialize with */
 	val invalidBorderRai = extendValue(Label.INVALID).interval(Intervals.expand(this, 1, 1, 0))
 	val distances = ArrayImgs.doubles(*invalidBorderRai.dimensionsAsLongArray())
-	val binaryImg = invalidBorderRai.convert(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
-	val invertedBinaryImg = binaryImg.convert(BoolType()) { source, target -> target.set(!source.get()) }
+	val binaryImg = invalidBorderRai.convertRAI(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
+	val invertedBinaryImg = binaryImg.convertRAI(BoolType()) { source, target -> target.set(!source.get()) }
 
 	val connectedComponents = ArrayImgs.unsignedInts(*binaryImg.dimensionsAsLongArray())
 	ConnectedComponents.labelAllConnectedComponents(
