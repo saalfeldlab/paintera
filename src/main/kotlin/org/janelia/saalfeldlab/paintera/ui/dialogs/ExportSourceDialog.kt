@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs
 
-import javafx.beans.property.*
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.geometry.HPos
@@ -12,173 +11,40 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
 import javafx.util.StringConverter
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import net.imglib2.RandomAccessibleInterval
-import net.imglib2.img.cell.CellGrid
-import net.imglib2.type.NativeType
-import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
-import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
-import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
-import org.janelia.saalfeldlab.paintera.*
+import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.namedCombinationsCopy
+import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
-import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.get
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
-import org.janelia.saalfeldlab.util.convertRAI
-import org.janelia.saalfeldlab.util.interval
-import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Supplier
+import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 
-internal object ExportSource {
+object ExportSourceDialog {
 
 	private const val DIALOG_HEADER = "Export Source"
 	private const val CANCEL_LABEL = "_Cancel"
 	private const val EXPORT = "Export"
 	private val acceptableDataTypes = DataType.entries.filter { it < DataType.FLOAT32 }.toTypedArray()
 
-	class State {
 
-		val backendProperty = SimpleObjectProperty<N5Backend<*, *>?>()
-		val sourceStateProperty = SimpleObjectProperty<ConnectomicsLabelState<*, *>?>()
-		val sourceProperty = SimpleObjectProperty<MaskedSource<*, *>?>()
-
-		val datasetProperty = SimpleStringProperty()
-		val writerPathProperty = SimpleStringProperty()
-		val segmentFragmentMappingProperty = SimpleBooleanProperty(true)
-		val scaleLevelProperty = SimpleIntegerProperty(0)
-		val dataTypeProperty = SimpleObjectProperty(DataType.UINT64)
-
-		internal val exportableSourceRAI: RandomAccessibleInterval<out NativeType<*>>?
-			get() {
-				val source = sourceProperty.value ?: return null
-				val backend = backendProperty.value ?: return null
-
-				val fragmentMapper = backend.fragmentSegmentAssignment
-
-				val scaleLevel = scaleLevelProperty.value
-				val mapFragmentToSegment = segmentFragmentMappingProperty.value
-				val dataType = dataTypeProperty.value
-
-
-				val dataSource = (source.getDataSource(0, scaleLevel) as? RandomAccessibleInterval<IntegerType<*>>)!!
-				val typeVal = N5Utils.type(dataType)!! as AbstractIntegerType<out AbstractIntegerType<*>>
-
-				val mappedIntSource = if (mapFragmentToSegment)
-					dataSource.convertRAI(typeVal) { src, target -> target.setInteger(fragmentMapper.getSegment(src.integerLong)) }
-				else
-					dataSource
-
-				return mappedIntSource as RandomAccessibleInterval<out NativeType<*>>
-			}
-	}
-
-	fun exportDialog() {
-		val state = State()
+	fun askAndExport() {
+		val state = ExportSourceState()
 		if (newDialog(state).showAndWait().nullable == ButtonType.OK) {
-			exportSource(state)
+			state.exportSource()
 		}
-	}
-
-	private fun exportSource(state: State) {
-
-
-		val backend = state.backendProperty.value ?: return
-		val source = state.sourceProperty.value ?: return
-		val writerPath = state.writerPathProperty.value ?: return
-		val dataset = state.datasetProperty.value ?: return
-
-
-		val scaleLevel = state.scaleLevelProperty.value
-		val dataType = state.dataTypeProperty.value
-
-		val sourceMetadata: N5SpatialDatasetMetadata = backend.getMetadataState().let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: backend.getMetadataState() as N5SpatialDatasetMetadata
-		val n5 = backend.container as GsonKeyValueN5Reader
-
-		val exportRAI = state.exportableSourceRAI!!
-		val cellGrid: CellGrid = source.getCellGrid(0, scaleLevel)
-		val sourceAttributes: DatasetAttributes = sourceMetadata.attributes
-
-		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, sourceAttributes.compression)
-
-		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
-		val processedBlocks = AtomicInteger()
-		val progressUpdater = AnimatedProgressBarAlert(
-			"Export Label Source",
-			"Exporting data...",
-			"Blocks Written",
-			processedBlocks::get,
-			totalBlocks.toInt()
-		)
-
-		CoroutineScope(Dispatchers.IO).launch {
-			val writer = Paintera.n5Factory.openWriter(writerPath)
-			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata)
-			val scaleLevelDataset = "$dataset/s$scaleLevel"
-
-			forEachBlockExists(source, scaleLevel, n5, sourceMetadata.path, processedBlocks) { cellInterval ->
-				val cellRai = exportRAI.interval(cellInterval)
-				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
-			}
-			Paintera.n5Factory.clearKey(writerPath)
-		}.invokeOnCompletion {
-			progressUpdater.stopAndClose()
-		}
-		progressUpdater.showAndStart()
-	}
-
-	private fun exportOmeNGFFMetadata(
-		writer: N5Writer,
-		dataset: String,
-		scaleLevel: Int,
-		datasetAttributes: DatasetAttributes,
-		sourceMetadata: N5SpatialDatasetMetadata
-	) {
-		val scaleLevelDataset = "$dataset/s$scaleLevel"
-		writer.createGroup(dataset)
-		writer.createDataset(scaleLevelDataset, datasetAttributes)
-
-		val exportMetadata = OmeNgffMetadata.buildForWriting(
-			datasetAttributes.numDimensions,
-			dataset,
-			arrayOf(
-				Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
-				Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
-				Axis(Axis.SPACE, "z", sourceMetadata.unit(), false)
-			),
-			arrayOf("s$scaleLevel"),
-			arrayOf(sourceMetadata.resolution),
-			arrayOf(sourceMetadata.offset)
-		)
-
-		OmeNgffMetadataParser().writeMetadata(
-			exportMetadata,
-			writer,
-			dataset
-		)
 	}
 
 	/**
@@ -202,16 +68,14 @@ internal object ExportSource {
 		return smallestType
 	}
 
-	private fun newDialog(state: State): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL, true, paintera.pane.scene?.window).apply {
+	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL, true, paintera.pane.scene?.window).apply {
 		val choiceBox = createSourceChoiceBox().apply {
 			maxWidth = Double.MAX_VALUE
 		}
 
-		val maxIdProperty = SimpleLongProperty(-1)
 		choiceBox.selectionModel.selectedItemProperty().subscribe { (_, _, backend) ->
 			backend.getMetadataState().apply {
-				val maxId: Long? = reader[dataset, "maxId"]
-				maxIdProperty.set(maxId ?: -1)
+				state.maxIdProperty.value = reader[dataset, MAX_ID_KEY] ?: -1
 			}
 		}
 
@@ -242,7 +106,7 @@ internal object ExportSource {
 			val containerPathField = TextField().apply {
 				promptText = "Enter the container path"
 				maxWidth = Double.MAX_VALUE
-				state.writerPathProperty.bind(textProperty())
+				state.exportLocationProperty.bind(textProperty())
 			}
 			add(containerPathField, 2, 1, 2, 1)
 			add(Button("Browse").apply {
@@ -307,7 +171,7 @@ internal object ExportSource {
 				}
 			}
 
-			maxIdProperty.subscribe { maxId -> dataTypeChoices.selectionModel.select(pickSmallestDataType(maxId.toLong())) }
+			state.maxIdProperty.subscribe { maxId -> dataTypeChoices.selectionModel.select(pickSmallestDataType(maxId.toLong())) }
 			state.dataTypeProperty.bind(dataTypeChoices.selectionModel.selectedItemProperty())
 
 			smallOptions.add(Label("Map Fragment to Segment ID").apply { alignment = Pos.BOTTOM_RIGHT }, 0, 0)
@@ -363,15 +227,14 @@ internal object ExportSource {
 
 	fun exportSourceDialogAction(
 		baseView: PainteraBaseView,
-		projectDir: Supplier<String>
-	) = painteraActionSet("export-dataset", MenuActionType.ExportSource) {
+	) = painteraActionSet("export-source", MenuActionType.ExportSource) {
 		KeyEvent.KEY_PRESSED(namedCombinationsCopy(), PainteraBaseKeys.EXPORT_SOURCE) {
 			onAction { PainteraMenuItems.EXPORT_SOURCE.menu.fire() }
 			handleException {
 				val scene = baseView.viewer3D().scene.scene
 				exceptionAlert(
 					Constants.NAME,
-					"Error showing export dataset menu",
+					"Error showing export source menu",
 					it,
 					null,
 					scene?.window

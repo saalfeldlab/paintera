@@ -10,8 +10,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.iterator.IntervalIterator
@@ -23,11 +22,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
-import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
-import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5URI
-import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
@@ -36,7 +31,6 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NoInitialLutAvailable
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -880,22 +874,34 @@ object N5Helpers {
 		return n5Container.get() ?: throw exception()
 	}
 
+	/**
+	 * Iterates through each block in the specified dataset that exists at the given scale level and performs an action using the provided lambda function.
+	 * `withBlock` is called asynchronously for each block that exists, and the overall call will return only
+	 * when all blocks are processed.
+	 *
+	 * @param source The source from which to generate the grid and intervals corresponding to blocks.
+	 * @param scaleLevel The scale level to consider when generating the grid of blocks.
+	 * @param n5 The N5 reader used to check for the existence of blocks.
+	 * @param dataset The dataset path to check within the N5 container.
+	 * @param processedCount An optional AtomicInteger to track the number of processed blocks.
+	 * @param withBlock A lambda function to execute for each existing block's interval.
+	 */
 	suspend fun forEachBlockExists(
-		source: MaskedSource<*, *>,
-		scaleLevel: Int,
 		n5: GsonKeyValueN5Reader,
 		dataset: String,
 		processedCount: AtomicInteger? = null,
 		withBlock: (Interval) -> Unit
 	) {
 
-		val cellGrid: CellGrid = source.getCellGrid(0, scaleLevel)
+		val blockGrid = n5.getDatasetAttributes(dataset).run {
+			CellGrid(dimensions, blockSize)
+		}
 
 		//TODO Caleb: Use Streams.localizable over `cellIntervals()` after bumping to the newest imglib2 version
-		val gridIterable = IntervalIterator(cellGrid.gridDimensions)
+		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
 		val curBlock = LongArray(gridIterable.numDimensions())
 		val cellMin = LongArray(gridIterable.numDimensions())
-		val cellDims = LongArray(gridIterable.numDimensions()) { cellGrid.cellDimensions[it].toLong() }
+		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
 
 		coroutineScope {
 			while (gridIterable.hasNext()) {
@@ -903,7 +909,7 @@ object N5Helpers {
 				gridIterable.localize(curBlock)
 				if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(dataset, *curBlock))) {
 					for (i in cellMin.indices)
-						cellMin[i] = cellGrid.getCellMin(i, curBlock[i])
+						cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
 					val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
 					launch {
 						withBlock(cellInterval)

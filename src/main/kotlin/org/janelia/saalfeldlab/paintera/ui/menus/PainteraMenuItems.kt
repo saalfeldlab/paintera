@@ -13,7 +13,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSource
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
@@ -74,7 +74,7 @@ enum class PainteraMenuItems(
 					}
 				},
 				OPEN_SOURCE { N5Opener().onAction().accept(baseView, getProjectDirectory) },
-				EXPORT_SOURCE { ExportSource.exportDialog() },
+				EXPORT_SOURCE { ExportSourceDialog.askAndExport() },
 				SAVE { saveOrSaveAs() },
 				SAVE_AS { saveAs() },
 				TOGGLE_MENU_BAR_VISIBILITY { properties.menuBarConfig.toggleIsVisible() },

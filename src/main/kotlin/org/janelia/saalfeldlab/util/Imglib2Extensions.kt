@@ -65,7 +65,7 @@ fun <T> RealRandomAccessible<T>.affine(affine: AffineGet) = RealViews.affine(thi
 fun <T, R : Type<*>, I : Type<I>> RandomAccessible<T>.convert(type: R, converter: Converter<in T, in R>) : RandomAccessible<R> {
 	type as I
 	converter as Converter<in T, in I>
-	return Converters.convert(this, converter, type) as RandomAccessibleInterval<R>
+	return Converters.convert(this, converter, type) as RandomAccessible<R>
 }
 
 fun <T, R : Type<*>, I : Type<I>> RandomAccessibleInterval<T>.convertRAI(type: R, converter: Converter<in T, in R>) : RandomAccessibleInterval<R> {
