@@ -75,7 +75,7 @@ class CircleScaleView(var child : Circle) : ScaleView(), Styleable {
 			override fun isSettable(styleable: CircleScaleView) = !styleable.radiusPercentProperty.isBound
 
 			override fun getStyleableProperty(styleable: CircleScaleView): StyleableProperty<Number> {
-				return styleable.radiusPercentProperty as StyleableProperty<Number>
+				return styleable.radiusPercentProperty
 			}
 
 			override fun getInitialValue(styleable: CircleScaleView): Double {

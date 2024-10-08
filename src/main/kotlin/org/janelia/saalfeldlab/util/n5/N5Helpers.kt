@@ -78,6 +78,7 @@ object N5Helpers {
 	const val MAX_ID_KEY = "maxId"
 	const val RESOLUTION_KEY = "resolution"
 	const val OFFSET_KEY = "offset"
+	const val UNIT_KEY = "unit"
 	const val DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors"
 	const val LABEL_MULTISETTYPE_KEY = "isLabelMultiset"
 	const val MAX_NUM_ENTRIES_KEY = "maxNumEntries"

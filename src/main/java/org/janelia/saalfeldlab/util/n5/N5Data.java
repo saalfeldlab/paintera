@@ -784,6 +784,38 @@ public class N5Data {
 			final boolean labelMultisetType,
 			final boolean ignoreExisiting) throws IOException {
 
+		final String defaultUnit = "pixel";
+		createEmptyLabelDataset(writer, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, defaultUnit, maxNumEntries, labelMultisetType, ignoreExisiting);
+	}
+
+	/**
+	 * @param writer               N5Writer
+	 * @param group                target group in {@code writer}
+	 * @param dimensions           size
+	 * @param blockSize            chunk size
+	 * @param resolution           voxel size
+	 * @param offset               in world coordinates
+	 * @param relativeScaleFactors relative scale factors for multi-scale data, e.g.
+	 *                             {@code [2,2,1], [2,2,2]} will result in absolute factors {@code [1,1,1], [2,2,1], [4,4,2]}.
+	 * @param unit
+	 * @param maxNumEntries        limit number of entries in each {@link LabelMultiset} (set to less than or equal to zero for unbounded)
+	 * @param ignoreExisiting      overwrite any existing data set
+	 * @throws IOException if any n5 operation throws {@link IOException} or {@code group}
+	 *                     already exists and {@code ignorExisting} is {@code false}
+	 */
+	public static void createEmptyLabelDataset(
+			final N5Writer writer,
+			final String group,
+			final long[] dimensions,
+			final int[] blockSize,
+			final double[] resolution,
+			final double[] offset,
+			final double[][] relativeScaleFactors,
+			final String unit,
+			@Nullable final int[] maxNumEntries,
+			final boolean labelMultisetType,
+			final boolean ignoreExisiting) throws IOException {
+
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
@@ -838,6 +870,7 @@ public class N5Data {
 			} else
 				writer.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
+			writer.setAttribute(dataset, N5Helpers.UNIT_KEY, unit);
 			writer.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 			if (scaleLevel != 0) {
 				writer.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);

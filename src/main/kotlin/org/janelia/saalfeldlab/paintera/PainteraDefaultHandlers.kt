@@ -53,7 +53,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
-import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSource
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -419,7 +419,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 	fun addExportDatasetAction(target: Node): ActionSet {
 
-		val actionSet = ExportSource.exportSourceDialogAction(baseView, projectDirectory)
+		val actionSet = ExportSourceDialog.exportSourceDialogAction(baseView)
 		target.installActionSet(actionSet)
 		return actionSet
 	}
