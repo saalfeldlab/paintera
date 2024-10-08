@@ -1,8 +1,9 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs
+package org.janelia.saalfeldlab.paintera.control.actions
 
 import javafx.beans.property.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable.invokeOnCompletion
 import kotlinx.coroutines.launch
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
@@ -26,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.o
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.get
+import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
@@ -68,7 +70,12 @@ class ExportSourceState {
 			return mappedIntSource as RandomAccessibleInterval<out NativeType<*>>
 		}
 
-	fun exportSource() {
+	//TODO Caleb: some future ideas:
+	//  - Export specific label? Maybe only if LabelBlockLookup is present?
+	//  - Export multiscale pyramid
+	//  - Export interval of label source
+	//  - custom fragment to segment mapping
+	fun exportSource(showProgressAlert : Boolean = false) {
 
 		val backend = backendProperty.value ?: return
 		val source = sourceProperty.value ?: return
@@ -89,16 +96,18 @@ class ExportSourceState {
 		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, sourceAttributes.compression)
 
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
-		val processedBlocks = AtomicInteger()
-		val progressUpdater = AnimatedProgressBarAlert(
-			"Export Label Source",
-			"Exporting data...",
-			"Blocks Written",
-			processedBlocks::get,
-			totalBlocks.toInt()
-		)
+		val (processedBlocks, progressUpdater) = if (showProgressAlert) {
+			val count = AtomicInteger()
+			count to  AnimatedProgressBarAlert(
+				"Export Label Source",
+				"Exporting data...",
+				"Blocks Written",
+				count::get,
+				totalBlocks.toInt()
+			)
+		} else null to null
 
-		CoroutineScope(Dispatchers.IO).launch {
+		val exportJob = CoroutineScope(Dispatchers.IO).launch {
 			val writer = Paintera.n5Factory.openWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata)
 			if (maxIdProperty.value > -1)
@@ -110,10 +119,11 @@ class ExportSourceState {
 				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
 			}
 			Paintera.n5Factory.clearKey(exportLocation)
-		}.invokeOnCompletion {
-			progressUpdater.stopAndClose()
 		}
-		progressUpdater.showAndStart()
+		progressUpdater?.apply {
+			exportJob.invokeOnCompletion { finish() }
+			showAndStart()
+		}
 	}
 }
 

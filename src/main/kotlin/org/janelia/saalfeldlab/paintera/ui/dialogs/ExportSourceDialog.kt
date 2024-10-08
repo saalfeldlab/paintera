@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.namedCombinationsCopy
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
@@ -43,7 +44,7 @@ object ExportSourceDialog {
 	fun askAndExport() {
 		val state = ExportSourceState()
 		if (newDialog(state).showAndWait().nullable == ButtonType.OK) {
-			state.exportSource()
+			state.exportSource(true)
 		}
 	}
 

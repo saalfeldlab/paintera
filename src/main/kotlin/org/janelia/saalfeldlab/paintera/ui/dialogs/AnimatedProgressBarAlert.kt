@@ -8,6 +8,7 @@ import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.scene.control.Label
 import javafx.scene.control.ProgressBar
+import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.util.Duration
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
@@ -40,7 +41,9 @@ class AnimatedProgressBarAlert(
 			prefWidth = 300.0
 		}
 
-		dialogPane.content = VBox(10.0, createProgressLabel(), progressBar)
+		val doneLabel = Label("Done!")
+		doneLabel.visibleProperty().bind(progressProperty.isEqualTo(1.0, 0.0001))
+		dialogPane.content = VBox(10.0, createProgressLabel(), progressBar, HBox(doneLabel))
 		isResizable = false
 	}
 
@@ -81,6 +84,10 @@ class AnimatedProgressBarAlert(
 	fun showAndStart() = InvokeOnJavaFXApplicationThread {
 		updater.start()
 		progressAlert.showAndWait()
+	}
+
+	fun finish() = InvokeOnJavaFXApplicationThread {
+		updater.stop()
 	}
 
 	fun stopAndClose() = InvokeOnJavaFXApplicationThread {
