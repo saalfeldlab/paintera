@@ -211,6 +211,10 @@ public class OrthogonalViews<BR extends Node> {
 		this.applyToAll(v -> v.requestRepaint(intervalInGlobalSpace));
 	}
 
+	public void drawOverlays() {
+		applyToAll(it -> it.getDisplay().drawOverlays());
+	}
+
 	/**
 	 * {@link ViewerPanelFX#setAllSources(Collection)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
 	 *
