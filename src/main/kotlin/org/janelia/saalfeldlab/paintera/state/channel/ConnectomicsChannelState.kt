@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.channel
 
-import bdv.BigDataViewerActions.CROP
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
@@ -117,6 +116,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 		const val NAME = "name"
 		const val COMPOSITE = "composite"
 		const val CONVERTER = "converter"
+		const val VIRTUAL_CROP = "virtualCrop"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
 		const val RESOLUTION = "resolution"
@@ -137,7 +137,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				state.resolution.let { map.add(RESOLUTION, context[it]) }
 				state.offset.let { map.add(OFFSET, context[it]) }
-				state.crop?.let { map.add(CROP, context[it]) }
+				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
 
 			}
 			return map
@@ -172,7 +172,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
 					val backend = context.fromClassInfo<ConnectomicsChannelBackend<CD, V>>(json, BACKEND)!!
-					backend.crop = context.get<Interval?>(json, CROP)
+					backend.virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 
 					ConnectomicsChannelState(
 						backend,

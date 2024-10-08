@@ -56,7 +56,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 	override val translation: DoubleArray
 		get() = translations[0]
 
-	override var crop: Interval? = null
+	override var virtualCrop: Interval? = null
 
 	constructor(
 		name: String,

@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.raw
 
-import bdv.BigDataViewerActions.CROP
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
@@ -15,7 +14,6 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import net.imglib2.Interval
 import net.imglib2.RealInterval
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
@@ -24,6 +22,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
 import org.janelia.saalfeldlab.paintera.composition.Composite
@@ -52,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Serializa
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.NAME
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.OFFSET
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RESOLUTION
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.VIRTUAL_CROP
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
@@ -175,6 +175,7 @@ open class ConnectomicsRawState<D, T>(
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
 		const val RESOLUTION = "resolution"
+		const val VIRTUAL_CROP = "virtualCrop"
 		const val OFFSET = "offset"
 	}
 
@@ -197,7 +198,7 @@ open class ConnectomicsRawState<D, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.crop?.let { map.add(CROP, context[it]) }
+				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
 			}
 			return map
 		}
@@ -234,9 +235,9 @@ open class ConnectomicsRawState<D, T>(
 			val backend: ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
-			val crop = context.get<RealInterval?>(json, CROP) as? Interval
+			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
 			backend.updateTransform(resolution, offset)
-			backend.crop = crop
+			backend.virtualCrop = virtualCrop
 
 			return ConnectomicsRawState(
 				backend,

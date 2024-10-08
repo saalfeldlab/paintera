@@ -5,9 +5,7 @@ import bdv.img.cache.VolatileCachedCellImg;
 import bdv.viewer.Interpolation;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
-import com.pivovarit.function.ThrowingRunnable;
 import com.pivovarit.function.ThrowingSupplier;
-import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
@@ -28,9 +26,6 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -278,28 +273,6 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) throws IOException {
 
-		return openRaw(reader, dataset, transform, null, queue, priority);
-	}
-
-	/**
-	 * @param reader    N5Reader
-	 * @param dataset   dataset
-	 * @param transform transforms voxel data into real world coordinates
-	 * @param priority  in fetching queue
-	 * @param <T>       data type
-	 * @param <V>       viewer type
-	 * @return image data with cache invalidation
-	 * @throws IOException if any N5 operation throws {@link IOException}
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
-	ImagesWithTransform<T, V> openRaw(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final Interval crop,
-			final SharedQueue queue,
-			final int priority) throws IOException {
 
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
@@ -307,13 +280,7 @@ public class N5Data {
 					(CachedCellImg)raw,
 					queue,
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-			if (crop != null) {
-				final IntervalView<T> croppedRaw = Views.interval(raw, crop);
-				final IntervalView<V> croppedVraw = Views.interval(vraw.getRai(), crop);
-				return new ImagesWithTransform<>(croppedRaw, croppedVraw, transform, raw.getCache(), vraw.getInvalidate());
-			} else {
 				return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
-			}
 		} catch (final Exception e) {
 			throw e instanceof IOException ? (IOException)e : new IOException(e);
 		}
@@ -389,30 +356,18 @@ public class N5Data {
 		final int numProcessors = Runtime.getRuntime().availableProcessors();
 		final NamedThreadFactory threadFactory = new NamedThreadFactory("populate-mipmap-scales-%d", true);
 		final ExecutorService es = Executors.newFixedThreadPool(numProcessors, threadFactory);
-		final ArrayList<Future<?>> futures = new ArrayList<>();
+		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
 
 		final var ssTransforms = metadataState.getScaleTransforms();
-		final AffineTransform3D s0Transform = ssTransforms[0];
 		final N5Reader reader = metadataState.getReader();
-		final Interval s0Crop = metadataState.getCrop();
-		for (int idx = 0; idx < ssPaths.length; idx++) {
-			final int scaleIdx = idx;
+		IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 			/* get the metadata state for the respective child */
 			LOG.debug("Populating scale level {}", scaleIdx);
-			final Interval crop;
-			final AffineTransform3D thisTransform = ssTransforms[scaleIdx];
-			if (s0Crop != null) {
-				crop = Intervals.smallestContainingInterval(s0Transform.copy().concatenate(thisTransform.inverse()).estimateBounds(s0Crop));
-			} else {
-				crop = null;
-			}
-			var openRawFuture = es.submit(() -> ThrowingRunnable.unchecked(() -> {
-				imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], thisTransform, crop, queue, priority);
+			imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], queue, priority);
 				LOG.debug("Populated scale level {}", scaleIdx);
-			}).run());
-			futures.add(openRawFuture);
-		}
+			return true;
+		})::get)));
 
 		futures.forEach(ThrowingConsumer.unchecked(Future::get));
 		es.shutdown();

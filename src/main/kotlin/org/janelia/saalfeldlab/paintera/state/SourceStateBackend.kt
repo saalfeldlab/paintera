@@ -27,7 +27,7 @@ interface SourceStateBackend<D, T> {
 
 	val translation: DoubleArray
 
-	var crop: Interval?
+	var virtualCrop: Interval?
 
 	fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
 		val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)

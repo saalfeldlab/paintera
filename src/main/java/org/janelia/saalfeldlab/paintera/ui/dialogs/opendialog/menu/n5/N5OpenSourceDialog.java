@@ -47,7 +47,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +55,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -208,13 +206,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		metaPanel.getReverseButton().setOnAction(event -> {
 			backendDialog.setResolution(reverse(metaPanel.getResolution()));
 			backendDialog.setOffset(reverse(metaPanel.getOffset()));
-		});
-
-		metaPanel.getCropIntervalProperty().subscribe(interval -> {
-			final MetadataState metadataState = backendDialog.metadataStateProperty().get();
-			if (metadataState != null) {
-				metadataState.setCrop(interval);
-			}
 		});
 
 		this.typeChoice.setValue(typeChoices.get(0));

@@ -7,7 +7,7 @@ interface SourceStateWithBackend<D, T> : SourceState<D, T> {
 	val backend: SourceStateBackend<D, T>
 	val resolution: DoubleArray get() = backend.resolution
 	val offset: DoubleArray get() = backend.translation
-	val crop: Interval? get() = backend.crop
+	val virtualCrop: Interval? get() = backend.virtualCrop
 
     override fun onShutdown(paintera: PainteraBaseView) {
         backend.shutdown()

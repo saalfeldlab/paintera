@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
-import bdv.BigDataViewerActions.CROP
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
@@ -566,6 +565,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
+        const val VIRTUAL_CROP                     = "virtualCrop"
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
@@ -598,7 +598,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.crop?.let { map.add(CROP, context[it]) }
+				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 			}
@@ -644,9 +644,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val name = json[NAME] ?: backend.name
 						val resolution = context[json, RESOLUTION] ?: backend.resolution
 						val offset = context[json, OFFSET] ?: backend.translation
-						val crop = context.get<Interval?>(json, CROP)
+						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
-						backend.crop = crop
+						backend.virtualCrop = virtualCrop
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(

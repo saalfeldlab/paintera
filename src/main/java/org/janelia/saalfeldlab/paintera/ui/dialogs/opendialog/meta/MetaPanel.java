@@ -1,12 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
@@ -17,7 +12,6 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -31,8 +25,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
-import net.imglib2.Interval;
-import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -42,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -65,14 +56,6 @@ public class MetaPanel {
 	private final SpatialInformation resolution;
 
 	private final SpatialInformation offset;
-
-	private final NumberField<LongProperty>[] intervalMin;
-
-	private final NumberField<LongProperty>[] intervalMax;
-
-	private final BooleanProperty cropToggle = new SimpleBooleanProperty(false);
-
-	private final ObjectBinding<Interval> cropInterval;
 
 	private final NumberField<DoubleProperty> min = NumberField.doubleField(0, d -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST);
 
@@ -124,34 +107,6 @@ public class MetaPanel {
 				SpatialInformation.Submit.ON_ENTER,
 				SpatialInformation.Submit.ON_FOCUS_LOST);
 
-		intervalMin = new NumberField[]{
-			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-			NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
-		};
-
-		intervalMax = new NumberField[]{
-				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST),
-				NumberField.longField(0, unused -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
-		};
-
-		cropInterval = Bindings.createObjectBinding(() -> {
-			if (!cropToggle.get()) return null;
-
-			return Intervals.createMinMax(
-					(long)intervalMin[0].getValue(),
-					(long)intervalMin[1].getValue(),
-					(long)intervalMin[2].getValue(),
-					(long)intervalMax[0].getValue(),
-					(long)intervalMax[1].getValue(),
-					(long)intervalMax[2].getValue()
-			);
-		}, cropToggle,
-				intervalMin[0].valueProperty(), intervalMin[1].valueProperty(), intervalMin[2].valueProperty(),
-				intervalMax[0].valueProperty(), intervalMax[1].valueProperty(), intervalMax[2].valueProperty()
-				);
-
 		cc.setFitToWidth(true);
 
 		final GridPane spatialInfo = new GridPane();
@@ -172,22 +127,8 @@ public class MetaPanel {
 				resolution.textY(),
 				resolution.textZ()
 		);
-		addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
-		final CheckBox cropCheckBox = new CheckBox("Crop");
-		cropCheckBox.selectedProperty().bindBidirectional(this.cropToggle);
-		spatialInfo.add(cropCheckBox, 3, 3);
-		addToGrid(spatialInfo, 0, 4, new Label("Crop Min"), intervalMin[0].getTextField(), intervalMin[1].getTextField(), intervalMin[2].getTextField());
-		addToGrid(spatialInfo, 0, 5, new Label("Crop Max"), intervalMax[0].getTextField(), intervalMax[1].getTextField(), intervalMax[2].getTextField());
-		List.of(
-				intervalMin[0].getTextField(),
-				intervalMin[1].getTextField(),
-				intervalMin[2].getTextField(),
-				intervalMax[0].getTextField(),
-				intervalMax[1].getTextField(),
-				intervalMax[2].getTextField()
-		).forEach(it -> it.disableProperty().bind(cropCheckBox.selectedProperty().not()));
-		cropCheckBox.setSelected(false);
-		spatialInfo.add(reverseButton, 3, 6);
+		addToGrid(spatialInfo, 0, 2, new Label("Offset (physical)"), offset.textX(), offset.textY(), offset.textZ());
+		spatialInfo.add(reverseButton, 3, 3);
 		reverseButton.setPrefWidth(TEXTFIELD_WIDTH);
 		final ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow(Priority.ALWAYS);
@@ -327,10 +268,6 @@ public class MetaPanel {
 				resolution.textY().textProperty(),
 				resolution.textZ().textProperty()
 		);
-	}
-
-	public ObjectBinding<Interval> getCropIntervalProperty() {
-		return cropInterval;
 	}
 
 	public double[] getOffset() {
