@@ -10,7 +10,6 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
 import kotlinx.coroutines.*
-import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -122,8 +121,6 @@ internal class ShapeInterpolationTool(
 					}
 				}
 			},
-			painteraActionSet("disabled_view_auto_sam", PaintActionType.SegmentAnything, ignoreDisable = true) {
-						}
 			painteraActionSet("disabled_view_auto_sam_click", PaintActionType.SegmentAnything, ignoreDisable = true) {
 				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
 					onAction { requestSamPredictionAtViewerPoint(vat) }
