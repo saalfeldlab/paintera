@@ -356,6 +356,7 @@ private class DummyMetadataState(override val dataset: String, override val n5Co
 	override var reader: N5Reader = n5ContainerState.reader
 	override var unit: String = "pixel"
 	override var translation: DoubleArray = DoubleArray(0)
+	override var virtualCrop: Interval? = null
 	override var resolution: DoubleArray = DoubleArray(0)
 	override var maxIntensity: Double = 0.0
 	override var minIntensity: Double = 0.0

@@ -40,21 +40,30 @@ public class TranslationController {
 
 			manager.getTransform(globalTransform);
 			globalToViewerTransformListener.getTransformCopy(globalToViewerTransform);
-			/* undo global transform, left with only scale, rotation, translation in viewer space */
-			globalToViewerTransform.concatenate(globalTransform.inverse());
-			globalToViewerTransform.setTranslation(0.0, 0.0, 0.0);
-
 
 			delta[0] = dX;
 			delta[1] = dY;
 			delta[2] = dZ;
 
-			globalToViewerTransform.applyInverse(delta, delta);
-			globalTransform.translate(delta);
+			translateFromViewer(globalTransform, globalToViewerTransform, delta);
 
 			manager.setTransform(globalTransform, duration != null ? duration : Duration.ZERO);
 		}
 
+	}
+
+	public static void translateFromViewer(
+			final AffineTransform3D globalTransform,
+			final AffineTransform3D globalToViewerTransform,
+			final double[] delta
+	) {
+
+		/* undo global transform, left with only scale, rotation, translation in viewer space */
+		globalToViewerTransform.concatenate(globalTransform.inverse());
+		globalToViewerTransform.setTranslation(0.0, 0.0, 0.0);
+
+		globalToViewerTransform.applyInverse(delta, delta);
+		globalTransform.translate(delta);
 	}
 
 	/*TODO: Move this to somewhere else*/

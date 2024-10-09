@@ -4,7 +4,6 @@ import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
 import net.imglib2.cache.Invalidate
-import net.imglib2.converter.Converters
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.RealViews
@@ -217,10 +216,13 @@ class ViewerMask private constructor(
 
 	@JvmOverloads
 	fun displayPointToMask(displayX: Int, displayY: Int, pointInCurrentDisplay: Boolean = false) = displayPointToMask(Point(displayX, displayY, 0), pointInCurrentDisplay)
+
 	@JvmOverloads
 	fun displayPointToMask(displayX: Double, displayY: Double, pointInCurrentDisplay: Boolean = false) = displayPointToMask(RealPoint(displayX, displayY, 0.0), pointInCurrentDisplay)
+
 	@JvmOverloads
 	fun displayPointToMask(displayPoint: Point, pointInCurrentDisplay: Boolean = false) = displayPointToMask(displayPoint.positionAsRealPoint(), pointInCurrentDisplay)
+
 	@JvmOverloads
 	fun displayPointToMask(displayPoint: RealPoint, pointInCurrentDisplay: Boolean = false): Point {
 		val globalToMask = if (pointInCurrentDisplay) currentGlobalToViewerTransform else initialGlobalToViewerTransform
@@ -280,41 +282,36 @@ class ViewerMask private constructor(
 
 	internal fun pushNewImageLayer(writableSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>? = newBackingImages()) {
 		writableSourceImages?.let { (newImg, newVolatileImg) ->
-			val compositeMask = Converters.convert(
-				viewerImg.wrappedSource.extendValue(Label.INVALID),
-				newImg.extendValue(Label.INVALID),
-				{ oldVal, newVal, result ->
-					val new = newVal.get()
-					if (new != Label.INVALID) {
-						result.set(new)
-					} else result.set(oldVal)
-				},
-				UnsignedLongType(Label.INVALID)
-			).interval(newImg)
 
-			val compositeVolatileMask = Converters.convert(
-				volatileViewerImg.wrappedSource.extendValue(VolatileUnsignedLongType(Label.INVALID)),
-				newVolatileImg.extendValue(VolatileUnsignedLongType(Label.INVALID)),
-				{ original, overlay, composite ->
 
-					var checkOriginal = false
-					if (overlay.isValid) {
-						val overlayVal = overlay.get().get()
-						if (overlayVal != Label.INVALID) {
-							composite.get().set(overlayVal)
-							composite.isValid = true
-						} else checkOriginal = true
+			val currentRA = viewerImg.wrappedSource.extendValue(Label.INVALID)
+			val newRA = newImg.extendValue(Label.INVALID)
+			val compositeMask = currentRA.convertWith(newRA, UnsignedLongType(Label.INVALID)) { oldVal, newVal, result ->
+				val new = newVal.get()
+				if (new != Label.INVALID) {
+					result.set(new)
+				} else result.set(oldVal)
+			}.interval(newImg)
+
+			val currentVolatileRA = volatileViewerImg.wrappedSource.extendValue(VolatileUnsignedLongType(Label.INVALID))
+			val newVolatileRA = newVolatileImg.extendValue(VolatileUnsignedLongType(Label.INVALID))
+			val compositeVolatileMask = currentVolatileRA.convertWith(newVolatileRA, VolatileUnsignedLongType(Label.INVALID)) { original, overlay, composite ->
+				var checkOriginal = false
+				if (overlay.isValid) {
+					val overlayVal = overlay.get().get()
+					if (overlayVal != Label.INVALID) {
+						composite.get().set(overlayVal)
+						composite.isValid = true
 					} else checkOriginal = true
-					if (checkOriginal) {
-						if (original.isValid) {
-							composite.set(original)
-							composite.isValid = true
-						} else composite.isValid = false
-					}
-					composite.isValid = true
-				},
-				VolatileUnsignedLongType(Label.INVALID)
-			).interval(newVolatileImg)
+				} else checkOriginal = true
+				if (checkOriginal) {
+					if (original.isValid) {
+						composite.set(original)
+						composite.isValid = true
+					} else composite.isValid = false
+				}
+				composite.isValid = true
+			}.interval(newVolatileImg)
 
 			val wrappedCompositeMask = WrappedRandomAccessibleInterval(compositeMask)
 			wrappedCompositeMask.writableSource = WrappedRandomAccessibleInterval(viewerImg.wrappedSource).apply { writableSource = viewerImg.writableSource }
@@ -520,7 +517,7 @@ class ViewerMask private constructor(
 	 * @return The screen interval in ViewerMask space.
 	 */
 	@JvmOverloads
-	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong(), currentScreenInterval : Boolean = false): Interval {
+	fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong(), currentScreenInterval: Boolean = false): Interval {
 		val (x: Long, y: Long) = displayPointToMask(0, 0, currentScreenInterval)
 		return Intervals.createMinSize(x, y, 0, width, height, 1)
 	}

@@ -14,6 +14,7 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
+import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.cache.Invalidate
@@ -33,6 +34,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.util.convertRAI
 import java.util.function.Predicate
 
 private val NO_OP_INVALIDATE: Invalidate<Long> = object : Invalidate<Long> {
@@ -53,6 +55,8 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 		get() = resolutions[0]
 	override val translation: DoubleArray
 		get() = translations[0]
+
+	override var virtualCrop: Interval? = null
 
 	constructor(
 		name: String,
@@ -108,13 +112,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 			val volatileType = VolatileTypeMatcher.getVolatileTypeForType(Util.getTypeFromInterval(source)).createVariable() as T
 			volatileType.isValid = true
 
-			val volatileSource = Converters.convert(
-				zeroMinSource,
-				{ s, t ->
-					(t.get() as NativeType<D>).set(s)
-				},
-				volatileType
-			)
+			val volatileSource = zeroMinSource.convertRAI(volatileType) { s, t -> (t.get() as NativeType<D>).set(s) }
 
 			dataSources += zeroMinSource
 			volatileSources += volatileSource

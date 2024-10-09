@@ -81,9 +81,9 @@ class N5BackendPainteraDataset<D, T>(
 
 	//FIXME Caleb: same as above with idService
 	override fun createIdService(source: DataSource<D, T>): IdService {
-		return (metadataState.writer ?: metadataState.reader)?.let {
+		return (metadataState.writer ?: metadataState.reader).let {
 			N5Helpers.idService(it, dataset)
-		} ?: IdService.IdServiceNotProvided()
+		}
 	}
 
 	companion object {

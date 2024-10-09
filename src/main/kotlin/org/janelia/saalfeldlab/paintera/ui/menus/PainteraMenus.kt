@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
 import com.google.common.collect.Lists
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -15,6 +16,7 @@ import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenu
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -57,9 +59,9 @@ private val fileMenu by LazyForeignValue(::paintera) {
 		}
 	}
 }
-private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", null, NEW_LABEL_SOURCE.menu) }
+private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", FontAwesome[FontAwesomeIcon.PLUS, 1.5], NEW_LABEL_SOURCE.menu, newVirtualSourceMenu) }
 private val newVirtualSourceMenu by LazyForeignValue(::paintera) { Menu("_Virtual", null, NEW_CONNECTED_COMPONENT_SOURCE.menu, NEW_THRESHOLDED_SOURCE.menu) }
-private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, newSourceMenu, newVirtualSourceMenu) }
+private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, EXPORT_SOURCE.menu, newSourceMenu) }
 private val menuBarMenu by LazyForeignValue(::paintera) { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
 private val statusBarMenu by LazyForeignValue(::paintera) { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
 private val sideBarMenu by LazyForeignValue(::paintera) { Menu("_Side Bar", null, TOGGLE_SIDE_BAR_MENU_ITEM.menu) }

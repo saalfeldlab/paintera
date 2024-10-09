@@ -10,8 +10,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 
 import java.util.function.Consumer;
 
-import static java.util.FormatProcessor.FMT;
-
 public class CoordinateDisplayListener {
 
 	private final ViewerPanelFX viewer;
@@ -93,7 +91,7 @@ public class CoordinateDisplayListener {
 		final double d0 = p.getDoublePosition(0);
 		final double d1 = p.getDoublePosition(1);
 		final double d2 = p.getDoublePosition(2);
-		return FMT."(%8.3f\{d0}, %8.3f\{d1}, %8.3f\{d2})";
+		return String.format("(%8.3f, %8.3f, %8.3f)", d0, d1, d2);
 	}
 
 }

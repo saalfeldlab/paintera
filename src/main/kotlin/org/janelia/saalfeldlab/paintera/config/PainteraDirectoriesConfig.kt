@@ -25,15 +25,20 @@ import java.lang.reflect.Type
 
 class PainteraDirectoriesConfig {
 
-	private val appCacheDirProperty = SimpleStringProperty(APPLICATION_DIRECTORIES.cacheDir).apply {
+	internal val appCacheDirProperty = SimpleStringProperty(APPLICATION_DIRECTORIES.cacheDir).apply {
 		addListener { _, _, new -> if (new.isBlank()) appCacheDir = APPLICATION_DIRECTORIES.cacheDir }
 	}
 	var appCacheDir: String by appCacheDirProperty.nonnull()
 
-	private val tmpDirProperty = SimpleStringProperty(TEMP_DIRECTORY).apply {
+	internal val tmpDirProperty = SimpleStringProperty(TEMP_DIRECTORY).apply {
 		addListener { _, _, new -> if (new.isBlank()) tmpDir = TEMP_DIRECTORY }
 	}
 	var tmpDir: String by tmpDirProperty.nonnull()
+
+	internal val appConfigDirProperty = SimpleStringProperty(APPLICATION_DIRECTORIES.configDir).apply {
+		subscribe { _, new -> if (new.isBlank()) appConfigDir = APPLICATION_DIRECTORIES.configDir }
+	}
+	var appConfigDir: String by appConfigDirProperty.nonnull()
 
 	internal val allDefault
 		get() = appCacheDir == APPLICATION_DIRECTORIES.cacheDir && tmpDir == TEMP_DIRECTORY
@@ -41,8 +46,10 @@ class PainteraDirectoriesConfig {
 	companion object {
 		@JvmField
 		internal val APPLICATION_DIRECTORIES = ProjectDirectories.from("org", "janelia", "Paintera")
+
 		@JvmField
 		internal val DEFAULT_CACHE_DIR = APPLICATION_DIRECTORIES.cacheDir
+
 		@JvmField
 		internal val TEMP_DIRECTORY = System.getProperty("java.io.tmpdir")
 	}
@@ -57,8 +64,30 @@ class PainteraDirectoriesConfigNode(val config: PainteraDirectoriesConfig) : Tit
 	}
 
 	private fun createNode() = GridPane().apply {
-		addCacheDirectoryConfigRow(0)
-		addTempDirectoryConfigRow(1)
+		addDirectoryConfigRow(
+			0, "Cache Directory", config.appCacheDirProperty, APPLICATION_DIRECTORIES.cacheDir,
+			"""
+			Directory used for storing potentially large, temporary data files used during the application runtime for caching non-persisted data.
+			
+			By default, the cache directory is shared for all instances of the application, across all projects. 
+			""".trimIndent()
+		)
+		addDirectoryConfigRow(
+			1, "Temp Directory", config.tmpDirProperty, TEMP_DIRECTORY,
+			"""
+			Directory used for storing temporary non-data files used during the application runtime.
+			
+			By default, the temp directory is project-specific, and will change if a new project is loaded."""
+			.trimIndent()
+		)
+		addDirectoryConfigRow(
+			2, "Config Directory", config.appConfigDirProperty, APPLICATION_DIRECTORIES.configDir,
+			"""
+			Directory used to store application wide configuration.
+			
+			By default, the config directory is shared for all instances of the application, across all projects, per user. 
+			""".trimIndent()
+		)
 
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.ALWAYS })
@@ -66,93 +95,47 @@ class PainteraDirectoriesConfigNode(val config: PainteraDirectoriesConfig) : Tit
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
 	}
 
-	private fun GridPane.addCacheDirectoryConfigRow(row: Int) {
-		Label("Cache Directory").also {
+	private fun GridPane.addDirectoryConfigRow(
+		row: Int,
+		label: String,
+		directoryProperty: SimpleStringProperty,
+		defaultValue: String,
+		helpText: String
+	) {
+		Label(label).also {
 			add(it, 0, row)
 			it.alignment = Pos.BASELINE_LEFT
 			it.minWidth = Label.USE_PREF_SIZE
 		}
-		val cacheTextField = TextField(config.appCacheDir).also {
+		val textField = TextField(directoryProperty.get()).also {
 			VBox.setVgrow(it, Priority.NEVER)
 			it.maxWidth = Double.MAX_VALUE
 			it.prefWidth - Double.MAX_VALUE
 			it.textProperty().addListener { _, _, new ->
 				if (new.isBlank()) {
-					it.text = APPLICATION_DIRECTORIES.cacheDir
+					it.text = defaultValue
 					Platform.runLater { it.positionCaret(0) }
 				} else {
-					config.appCacheDir = new
+					directoryProperty.value = new
 				}
 			}
 			add(it, 1, row)
 		}
 		Button().also {
 			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
-			it.onAction = EventHandler { cacheTextField.text = APPLICATION_DIRECTORIES.cacheDir }
+			it.onAction = EventHandler { textField.text = defaultValue }
 			add(it, 2, row)
 		}
 		Button().also {
 			it.graphic = FontAwesome[FontAwesomeIcon.QUESTION]
 			it.onAction = EventHandler {
 				PainteraAlerts.information("Ok", true).also { alert ->
-					alert.title = "Cache Directory"
+					alert.title = label
 					alert.headerText = alert.title
 					alert.dialogPane.content = TextArea().also { area ->
 						area.isWrapText = true
 						area.isEditable = false
-						area.text = """
-						Directory used for storing potentially large, temporary data files used during the application runtime for caching non-persisted data.
-						
-						
-						By default, the cache directory is shared for all instances of the application, across all projects. 
-					""".trimIndent()
-					}
-				}.showAndWait()
-			}
-			add(it, 3, row)
-		}
-	}
-
-	private fun GridPane.addTempDirectoryConfigRow(row: Int) {
-		Label("Temp Directory").also {
-			add(it, 0, row)
-			it.alignment = Pos.BASELINE_LEFT
-			it.minWidth = Label.USE_PREF_SIZE
-		}
-		val tempDirTextField = TextField(config.tmpDir).also {
-			VBox.setVgrow(it, Priority.NEVER)
-			it.maxWidth = Double.MAX_VALUE
-			it.prefWidth - Double.MAX_VALUE
-			it.textProperty().addListener { _, _, new ->
-				if (new.isBlank()) {
-					it.text = TEMP_DIRECTORY
-					Platform.runLater { it.positionCaret(0) }
-				} else {
-					config.tmpDir = new
-				}
-			}
-			add(it, 1, row)
-		}
-		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
-			it.onAction = EventHandler { tempDirTextField.text = TEMP_DIRECTORY }
-			add(it, 2, row)
-		}
-		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.QUESTION]
-			it.onAction = EventHandler {
-				PainteraAlerts.information("Ok", true).also { alert ->
-					alert.title = "Temp Directory"
-					alert.headerText = alert.title
-					alert.dialogPane.content = TextArea().also { area ->
-						area.isEditable = false
-						area.isWrapText = true
-						area.text = """
-						Directory used for storing temporary non-data files used during the application runtime.
-						
-						
-						By default, the temp directory is project-specific, and will change if a new project is loaded. 
-					""".trimIndent()
+						area.text = helpText
 					}
 				}.showAndWait()
 			}

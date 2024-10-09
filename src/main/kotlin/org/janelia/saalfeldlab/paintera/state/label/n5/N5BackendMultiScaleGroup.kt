@@ -91,7 +91,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 				it,
 				dataset,
 				Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })
-		} ?: LocalIdService(metadataState.reader.getAttribute(dataset, "maxId", Long::class.java) ?: 0L)
+		} ?: LocalIdService(metadataState.reader.getAttribute(dataset, "maxId", Long::class.java) ?: 1L)
 	}
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!

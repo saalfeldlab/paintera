@@ -105,7 +105,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 				verify { activeTool == this@ShapeInterpolationPaintBrushTool }
 				onAction {
 					paintClickOrDrag?.apply {
-						currentLabelToPaint = controller.interpolationId
+						setCurrentLabel(controller.interpolationId)
 					}
 				}
 			}
@@ -117,7 +117,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 				verify { activeTool == this@ShapeInterpolationPaintBrushTool }
 				onAction {
 					paintClickOrDrag!!.apply {
-						currentLabelToPaint = Label.TRANSPARENT
+						setCurrentLabel(Label.TRANSPARENT)
 					}
 				}
 			}

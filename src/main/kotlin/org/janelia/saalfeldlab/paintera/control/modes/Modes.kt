@@ -17,6 +17,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
+import javafx.util.Subscription
 import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -89,29 +90,24 @@ interface ToolMode : SourceMode {
 
 		LOG.debug { "Switch from $activeTool to $tool" }
 
-		/* Deactivate off the main thread */
-		val deactivateJob = CoroutineScope(Dispatchers.Default).launch {
+		/* deactivate/activate off the main thread */
+		val switchToolJob = CoroutineScope(Dispatchers.Default).launch {
 			LOG.trace { "Deactivated $activeTool" }
 			activeTool?.deactivate()
-		}
-
-		/* Activate ON the main thread (maybe should refactor this in the future) */
-		val activateJob = CoroutineScope(Dispatchers.Main.immediate).launch(start = CoroutineStart.LAZY) {
-
 			(activeTool as? ViewerTool)?.removeFromAll()
 
-			showToolBars()
-			tool?.activate()
-			activeTool = tool
+
+
+			/* If the mode was changed before we can activate, switch to null */
+			val activeMode = paintera.baseView.activeModeProperty.value
+			activeTool = if (activeMode != this@ToolMode) null else tool
+
+			activeTool?.activate()
 			LOG.trace { "Activated $activeTool" }
 		}
 
-		deactivateJob.invokeOnCompletion {
-			/* If the mode was changed before we can activate, don't activate anymore */
-			if (paintera.baseView.activeModeProperty.value == this@ToolMode)
-				activateJob.start()
-		}
-		return activateJob
+		switchToolJob.invokeOnCompletion { InvokeOnJavaFXApplicationThread { showToolBars() } }
+		return switchToolJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
@@ -160,7 +156,7 @@ interface ToolMode : SourceMode {
 						toggles
 							.firstOrNull { it.userData == newTool }
 							?.also { toggleForTool -> selectToggle(toggleForTool) }
-						toolActionsBar.set(*newTool.actionSets.toTypedArray())
+						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*newTool.actionSets.toTypedArray()) }
 					}
 				}
 			}
@@ -373,28 +369,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	override val modeToolsBar: ActionBar = ActionBar()
 	override val toolActionsBar: ActionBar = ActionBar()
 
-	override val statusProperty: StringProperty = SimpleStringProperty().apply {
-		activeToolProperty.addListener { _, _, new ->
-			new?.let {
-				bind(it.statusProperty)
-			} ?: unbind()
-		}
-	}
-
-	private val activeViewerToolHandler = ChangeListener<ViewerAndTransforms?> { _, old, new ->
-		(activeTool as? ViewerTool)?.let { tool ->
-			old?.viewer()?.let { tool.removeFrom(it) }
-			new?.viewer()?.let { tool.installInto(it) }
-		}
-	}
-
-	private val activeToolHandler = ChangeListener<Tool?> { _, old, new ->
-		activeViewerProperty.get()?.let { viewer ->
-			(old as? ViewerTool)?.removeFrom(viewer.viewer())
-			(new as? ViewerTool)?.installInto(viewer.viewer())
-		}
-	}
-
+	override val statusProperty: StringProperty = SimpleStringProperty()
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
 		KEY_PRESSED(KeyCode.ESCAPE) {
 			/* Don't change to default if we are default */
@@ -407,15 +382,20 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	override fun enter() {
 		super<AbstractSourceMode>.enter()
-		activeViewerProperty.addListener(activeViewerToolHandler)
-		activeToolProperty.addListener(activeToolHandler)
+		var statusSubscription : Subscription? = null
+		activeToolProperty.subscribe { tool ->
+			statusSubscription?.unsubscribe()
+			statusSubscription = tool?.statusProperty?.subscribe { status ->
+				InvokeOnJavaFXApplicationThread {
+					this@AbstractToolMode.statusProperty.set(status)
+				}
+			}
+		}
 		switchTool(activeTool ?: defaultTool)
 	}
 
 	override fun exit() {
 		runBlocking { switchTool(null)?.join() }
-		activeToolProperty.removeListener(activeToolHandler)
-		activeViewerProperty.removeListener(activeViewerToolHandler)
 		super<AbstractSourceMode>.exit()
 	}
 }

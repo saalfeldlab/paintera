@@ -24,7 +24,8 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 		final var entries = input.get().entrySet();
 		final int numEntries = entries.size();
 		if (numEntries == 0) {
-			output.set(stream.argb(Label.INVALID));
+			final long emptyValue = 0;
+			output.set(stream.argb(emptyValue));
 		} else {
 			double a = 0;
 			double r = 0;

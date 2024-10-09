@@ -47,7 +47,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +55,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -69,7 +67,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
 	public static class N5Opener implements OpenDialogMenuEntry {
 
 		private static N5FactoryOpener factoryOpener = new N5FactoryOpener();
@@ -145,20 +142,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final BooleanBinding isError;
 
-	private final ExecutorService propagationExecutor;
-
 	private final GenericBackendDialogN5 backendDialog;
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
 	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 
-		super();
-
 		this.backendDialog = backendDialog;
 		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
-
-		this.propagationExecutor = viewer.getPropagationQueue();
 
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
