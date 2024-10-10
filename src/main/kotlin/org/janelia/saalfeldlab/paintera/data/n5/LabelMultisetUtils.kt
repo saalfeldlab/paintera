@@ -13,6 +13,10 @@ import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
+import java.nio.ByteBuffer
+import java.util.function.BiFunction
+
+private val LOG = KotlinLogging.logger { }
 
 /**
  * Open an N5 dataset of [LabelMultisetType] as a memory cached
@@ -55,6 +59,45 @@ fun openLabelMultiset(
 	return cachedImg
 }
 
+internal fun constantNullReplacementEmptyArgMax(id : Long): BiFunction<CellGrid, LongArray, ByteArray> = BiFunction { cellGrid, cellPos ->
+
+	val cellMin = LongArray(cellPos.size) { d -> cellPos[d] * cellGrid.cellDimension(d) }
+	val cellDims = IntArray(cellMin.size) { d -> cellGrid.cellDimension(d) }
+	val numElements = cellDims.reduce { d1, d2 -> d1 * d2 }
+
+	val listData = LongMappedAccessData.factory.createStorage(0)
+	val list = LabelMultisetEntryList(listData, 0)
+	val entry = LabelMultisetEntry(id, 1)
+	list.createListAt(listData, 0)
+	list.add(entry)
+	val listSize = list.sizeInBytes.toInt()
+
+	val bytes = ByteArray(
+		Integer.BYTES // for argmax size (always zero)
+				+ numElements * Integer.BYTES // for mappings
+				+ list.sizeInBytes.toInt() // for actual entries (one single entry)
+	)
+
+	val bb = ByteBuffer.wrap(bytes)
+
+	// argmax ;
+	//  No longer necessary to serialize, since we can calculate fairly cheaply during deserialization
+	//  Indicated by size 0
+	bb.putInt(0)
+
+	// offsets
+	repeat(numElements) { bb.putInt(0) }
+
+	if (id != 0L) {
+		LOG.debug { "Putting id $id" }
+		repeat(listSize) { i ->
+			bb.put(ByteUtils.getByte(listData.data, i.toLong()))
+		}
+	}
+	LOG.debug { "Returning ${bytes.size} bytes for $numElements elements" }
+	bytes
+}
+
 class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: String) : AbstractLabelMultisetLoader(generateCellGrid(n5, dataset)) {
 
 	override fun getData(vararg gridPosition: Long): ByteArray? {
@@ -90,8 +133,6 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 	}
 
 	companion object {
-		private val LOG = KotlinLogging.logger { }
-
 		private val EMPTY_ACCESS = VolatileLabelMultisetArray(0, true, longArrayOf(Label.INVALID))
 
 		private fun generateCellGrid(n5: N5Reader, dataset: String): CellGrid {
