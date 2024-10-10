@@ -42,6 +42,9 @@ object ExportSourceDialog {
 
 
 	fun askAndExport() {
+		if (getValidExportSources().isEmpty())
+			return
+
 		val state = ExportSourceState()
 		if (newDialog(state).showAndWait().nullable == ButtonType.OK) {
 			state.exportSource(true)
@@ -196,8 +199,24 @@ object ExportSourceDialog {
 	}
 
 	private fun createSourceChoiceBox(): ChoiceBox<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>> {
-		val choices = FXCollections.observableArrayList<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>>()
-		val labelSources = paintera.baseView.sourceInfo().trackSources()
+		val choices = getValidExportSources()
+
+		return ChoiceBox(choices).apply {
+			val curChoiceIdx = choices.indexOfFirst { it.second == paintera.currentSource }
+			if (curChoiceIdx != -1)
+				selectionModel.select(curChoiceIdx)
+			else
+				selectionModel.selectFirst()
+			maxWidth = Double.MAX_VALUE
+			converter = object : StringConverter<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>>() {
+				override fun toString(`object`: Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>?): String = `object`?.second?.nameProperty()?.get() ?: "Select a Source..."
+				override fun fromString(string: String?) = choices.first { it.second.nameProperty().get() == string }
+			}
+		}
+	}
+
+	internal fun getValidExportSources(): ObservableList<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>> {
+		return paintera.baseView.sourceInfo().trackSources()
 			.asSequence()
 			.filterIsInstance<MaskedSource<*, *>>()
 			.mapNotNull { source ->
@@ -209,27 +228,14 @@ object ExportSourceDialog {
 				(state.backend as? N5Backend<*, *>)?.let { backend ->
 					Triple(source, state, backend)
 				}
-
-			}.toCollection(choices)
-
-		return ChoiceBox(labelSources).apply {
-			val curChoiceIdx = choices.indexOfFirst { it.second == paintera.currentSource }
-			if (curChoiceIdx != -1)
-				selectionModel.select(curChoiceIdx)
-			else
-				selectionModel.selectFirst()
-			maxWidth = Double.MAX_VALUE
-			converter = object : StringConverter<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>>() {
-				override fun toString(`object`: Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5Backend<*, *>>?): String = `object`?.second?.nameProperty()?.get() ?: "Select a Source..."
-				override fun fromString(string: String?) = labelSources.first { it.second.nameProperty().get() == string }
-			}
-		}
+			}.toCollection(FXCollections.observableArrayList())
 	}
 
 	fun exportSourceDialogAction(
 		baseView: PainteraBaseView,
 	) = painteraActionSet("export-source", MenuActionType.ExportSource) {
 		KeyEvent.KEY_PRESSED(namedCombinationsCopy(), PainteraBaseKeys.EXPORT_SOURCE) {
+			verify { getValidExportSources().isNotEmpty() }
 			onAction { PainteraMenuItems.EXPORT_SOURCE.menu.fire() }
 			handleException {
 				val scene = baseView.viewer3D().scene.scene
