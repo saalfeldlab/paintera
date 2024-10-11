@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.id;
 import net.imglib2.type.label.Label;
 import org.checkerframework.checker.units.qual.A;
 
+import java.util.Iterator;
 import java.util.Random;
 import java.util.stream.LongStream;
 
@@ -11,7 +12,7 @@ public interface IdService {
 	// Labels in this should not be persisted, other than the reserved values above
 	long FIRST_TEMPORARY_ID = 0xfff0ffffffffffffL;
 	long LAST_TEMPORARY_ID = 0xfff1ffffffffffffL;
-	LongStream randomTemps = new Random().longs(FIRST_TEMPORARY_ID, LAST_TEMPORARY_ID);
+	Iterator<Long> randomTemps = new Random().longs(FIRST_TEMPORARY_ID, LAST_TEMPORARY_ID).iterator();
 
 
 	/**
@@ -102,7 +103,7 @@ public interface IdService {
 	}
 
 	static long randomTemporaryId() {
-		return randomTemps.findFirst().getAsLong();
+		return randomTemps.next();
 	}
 
 	static boolean isTemporary(final long id) {

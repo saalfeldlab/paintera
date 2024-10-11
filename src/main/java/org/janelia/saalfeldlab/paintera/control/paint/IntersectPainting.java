@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
@@ -23,13 +21,16 @@ import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
+import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessible;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask;
@@ -271,12 +272,13 @@ public class IntersectPainting {
 				Views.extendValue(canvas, new UnsignedLongType(Label.INVALID))
 		);
 
+		var ref = new LabelMultisetEntry();
 		intersectAt(
 				paired,
 				accessTracker,
 				seed,
 				new DiamondShape(1),
-				bg -> bg.contains(backgroundSeedLabel),
+				bg -> bg.argMax() == backgroundSeedLabel || bg.contains(backgroundSeedLabel, ref),
 				cv -> cv.valueEquals(paintedLabel)
 		);
 
@@ -350,7 +352,11 @@ public class IntersectPainting {
 				if (maskVal.valueEquals(unvisited) && canvasFilter.test(canvasVal)) {
 					// If background is same as at seed, mark mask with canvas label, else with the background label.
 					final T backgroundVal = backgroundAndCanvas.getA();
-					final long label = backgroundFilter.test(backgroundVal) ? canvasVal.getIntegerLong() : backgroundVal.getIntegerLong();
+					final long label = backgroundFilter.test(backgroundVal)
+							? canvasVal.getIntegerLong()
+							: backgroundVal.getIntegerLong() == Label.INVALID
+							? 0L
+							: backgroundVal.getIntegerLong();
 					maskVal.setInteger(label);
 					for (int d = 0; d < n; ++d) {
 						coordinates[d].add(neighborhoodCursor.getLongPosition(d));
