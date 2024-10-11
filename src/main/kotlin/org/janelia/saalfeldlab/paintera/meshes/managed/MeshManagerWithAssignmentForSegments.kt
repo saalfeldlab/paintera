@@ -169,7 +169,7 @@ class MeshManagerWithAssignmentForSegments(
 		if (!segmentsToAdd.isEmpty)
 			createMeshes(segmentsToAdd)
 
-		if (!(segmentsToAdd.isEmpty && segmentsToAdd.isEmpty))
+		if (!segmentsToAdd.isEmpty || !segmentsToRemove.isEmpty)
 			manager.requestCancelAndUpdate()
 
 		this._meshUpdateObservable.meshUpdateCompleted()

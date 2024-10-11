@@ -19,7 +19,7 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.labels.Label
@@ -48,8 +48,7 @@ internal class ShapeInterpolationTool(
 	override val actionSets: MutableList<ActionSet> by lazy {
 		mutableListOf(
 			*shapeInterpolationActions().filterNotNull().toTypedArray(),
-			cancelShapeInterpolationTask(),
-			*NavigationTool.actionSets.toTypedArray() //Kinda ugly to filter like this, but this is a weird case. Still, should do better
+			cancelShapeInterpolationTask()
 		)
 	}
 
@@ -66,21 +65,18 @@ internal class ShapeInterpolationTool(
 		paintera.baseView.orthogonalViews().viewerAndTransforms()
 			.filter { !it.viewer().isFocusable }
 			.forEach { disabledViewerAndTransform ->
-				val disabledTranslationActions = disabledViewerActions.computeIfAbsent(disabledViewerAndTransform, disabledViewerTranslateOnly)
+				val disabledTranslationActions = disabledViewerActionsMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerActions)
 				val disabledViewer = disabledViewerAndTransform.viewer()
 				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
 			}
-		/* Activate, but we want to bind it to our activeViewer bindings instead of the default. */
-		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
+		/* We want to bind it to our activeViewer bindings instead of the default. */
+		NavigationTool.activate()
 	}
 
 	override fun deactivate() {
-		/* We intentionally unbound the activeViewer for this, to support the button toggle.
-		* We now need to explicitly remove the NavigationTool from the activeViewer we care about.
-		* Still deactive it first, to handle the rest of the cleanup */
+		disabledViewerActionsMap.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
+		disabledViewerActionsMap.clear()
 		NavigationTool.deactivate()
-		disabledViewerActions.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
-		disabledViewerActions.clear()
 		super.deactivate()
 	}
 
@@ -102,21 +98,19 @@ internal class ShapeInterpolationTool(
 			}
 		}
 
-	private val disabledViewerActions = mutableMapOf<OrthogonalViews.ViewerAndTransforms, Array<ActionSet>>()
+	private val disabledViewerActionsMap = mutableMapOf<ViewerAndTransforms, Array<ActionSet>>()
 
-	private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
-		val translator = vat.run {
-			val globalTransformManager = paintera.baseView.manager()
-			TranslationController(globalTransformManager, globalToViewerTransform)
-		}
+	private val disabledViewerActions = { vat: ViewerAndTransforms ->
+		val globalTransformManager = paintera.baseView.manager()
+		val translator = TranslationController(globalTransformManager, vat.globalToViewerTransform)
 		arrayOf(
-			painteraDragActionSet("disabled_translate_xy", NavigationActionType.Pan) {
+			painteraDragActionSet("disabled_view_translate_xy", NavigationActionType.Pan) {
 				relative = true
 				verify { it.isSecondaryButtonDown }
 				verify { controller.controllerState != ShapeInterpolationController.ControllerState.Interpolate }
 				onDrag { translator.translate(it.x - startX, it.y - startY) }
 			},
-			painteraActionSet("disabled_move_to_cursor", NavigationActionType.Pan, ignoreDisable = true) {
+			painteraActionSet("disabled_view_move_to_cursor", NavigationActionType.Pan, ignoreDisable = true) {
 				MOUSE_CLICKED(MouseButton.PRIMARY) {
 					verify("only double click") { it?.clickCount!! > 1 }
 					onAction {
@@ -126,9 +120,56 @@ internal class ShapeInterpolationTool(
 						translator.translate(x, y, 0.0, Duration.millis(500.0))
 					}
 				}
+			},
+			painteraActionSet("disabled_view_auto_sam_click", PaintActionType.SegmentAnything, ignoreDisable = true) {
+				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.SHIFT)) {
+					onAction { requestSamPredictionAtViewerPoint(vat) }
+				}
 			}
 		)
 	}
+
+	private fun requestSamPredictionAtViewerPoint(vat : ViewerAndTransforms, requestMidPoint : Boolean = true, runAfter : () -> Unit = {}) {
+		with(controller) {
+			val viewer = vat.viewer()
+			val dX = viewer.width / 2 - viewer.mouseXProperty.value
+			val dY = viewer.height / 2 - viewer.mouseYProperty.value
+			val delta = doubleArrayOf(dX, dY, 0.0)
+
+			val globalTransform = paintera.baseView.manager().transform
+			TranslationController.translateFromViewer(
+				globalTransform,
+				vat.globalToViewerTransform.transformCopy,
+				delta
+			)
+
+			val resultActiveGlobalToViewer = activeViewerAndTransforms!!.displayTransform.transformCopy
+				.concatenate(activeViewerAndTransforms!!.viewerSpaceToViewerTransform.transformCopy)
+				.concatenate(globalTransform)
+
+			val depth = depthAt(resultActiveGlobalToViewer)
+			if (!requestMidPoint) {
+				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {runAfter() }
+			} else {
+				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
+					val depths = sortedSliceDepths
+					val sliceIdx = depths.indexOf(depth)
+					if (sliceIdx - 1 >= 0) {
+						val prevHalfDepth = (depths[sliceIdx] + depths[sliceIdx - 1]) / 2.0
+						requestEmbedding(prevHalfDepth)
+					}
+					if (sliceIdx + 1 < depths.size) {
+						val nextHalfDepth = (depths[sliceIdx + 1] + depths[sliceIdx]) / 2.0
+						requestEmbedding(nextHalfDepth)
+					}
+					runAfter()
+				}
+			}
+
+		}
+	}
+
+
 
 	internal fun requestEmbedding(depth: Double) {
 		shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
@@ -144,6 +185,7 @@ internal class ShapeInterpolationTool(
 		depth: Double,
 		moveToSlice: Boolean = false,
 		refresh: Boolean = false,
+		provideGlobalToViewerTransform: AffineTransform3D? = null,
 		afterPrediction: (AffineTransform3D) -> Unit = {}
 	): AffineTransform3D {
 
@@ -151,7 +193,7 @@ internal class ShapeInterpolationTool(
 		if (newPrediction)
 			SamEmbeddingLoaderCache.cancelPendingRequests()
 
-		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
+		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getComponentMaxDistancePosition()?.let { positions ->

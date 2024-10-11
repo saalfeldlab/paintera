@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.n5.universe
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
@@ -10,14 +11,11 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.net.URI
-import java.nio.file.Path
-import java.nio.file.Paths
-import kotlin.io.path.toPath
 
 class N5FactoryWithCache : N5Factory() {
 
 	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger {  }
 
 		private const val ZGROUP = ".zgroup"
 		private const val ZARRAY = ".zarray"
@@ -76,14 +74,21 @@ class N5FactoryWithCache : N5Factory() {
 	fun openWriterOrNull(uri : String) : N5Writer? = try {
 		openWriter(uri)
 	} catch (e : Exception) {
-		LOG.debug("Unable to open $uri as N5Writer", e)
+		LOG.debug(e) {"Unable to open $uri as N5Writer"}
 		null
 	}
 
 	fun openReaderOrNull(uri : String) : N5Reader? = try {
 		openReader(uri)
 	} catch (e : Exception) {
-		LOG.debug("Unable to open $uri as N5Reader", e)
+		LOG.debug(e) { "Unable to open $uri as N5Reader"}
+		null
+	}
+
+	fun openWriterOrReaderOrNull(uri: String) = try {
+		openWriterOrNull(uri) ?: openReaderOrNull(uri)
+	} catch (e : N5Exception) {
+		LOG.trace(e) {"Cannot get N5Reader at $uri"}
 		null
 	}
 

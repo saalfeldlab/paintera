@@ -13,8 +13,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 
 object ViewLabelMode : AbstractToolMode() {
 
-	override val defaultTool: Tool = NavigationTool
-
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
 
 	override val modeActions: List<ActionSet> = listOf()

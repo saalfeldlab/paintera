@@ -29,7 +29,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.*
 import java.util.stream.Collectors
-import kotlin.coroutines.coroutineContext
 
 class FloodFill<T : IntegerType<T>>(
 	private val activeViewerProperty: ObservableValue<ViewerPanelFX>,
@@ -39,20 +38,26 @@ class FloodFill<T : IntegerType<T>>(
 	private val isVisible: BooleanSupplier
 ) {
 
-	fun fillAt(x: Double, y: Double, fillSupplier: (() -> Long?)?): Job? {
+	fun fillAt(x: Double, y: Double, fillSupplier: (() -> Long?)?): Job {
 		val fill = fillSupplier?.invoke() ?: let {
-			LOG.info { "Received invalid label -- will not fill." }
-			return null
+			return Job().apply {
+				val reason = CancellationException("Received invalid label -- will not fill.")
+				LOG.debug(reason) {  }
+				completeExceptionally(reason)
+			}
 		}
 		return fillAt(x, y, fill)
 	}
 
-	private fun fillAt(x: Double, y: Double, fill: Long): Job? {
+	private fun fillAt(x: Double, y: Double, fill: Long): Job {
 		// TODO should this check happen outside?
 
 		if (!isVisible.asBoolean) {
-			LOG.info { "Selected source is not visible -- will not fill" }
-			return null
+			return Job().apply {
+				val reason = CancellationException("Selected source is not visible -- will not fill")
+				LOG.debug(reason) {  }
+				completeExceptionally(reason)
+			}
 		}
 
 		val level = 0
@@ -67,12 +72,12 @@ class FloodFill<T : IntegerType<T>>(
 			sourceSeed.setPosition(Math.round(realSourceSeed.getDoublePosition(d)), d)
 		}
 
-		LOG.debug("Filling source {} with label {} at {}", source, fill, sourceSeed)
+		LOG.debug { "Filling source $source with label $fill at $sourceSeed" }
 		try {
 			return fill(time, level, fill, sourceSeed, assignment)
 		} catch (e: MaskInUse) {
-			LOG.info(e) {}
-			return null
+			LOG.error(e) {}
+			return Job().apply { completeExceptionally(e) }
 		}
 	}
 
@@ -83,15 +88,16 @@ class FloodFill<T : IntegerType<T>>(
 		fill: Long,
 		seed: Localizable,
 		assignment: FragmentSegmentAssignment?
-	): Job? {
+	): Job {
 		val data = source.getDataSource(time, level)
 		val dataAccess = data.randomAccess()
 		dataAccess.setPosition(seed)
 		val seedValue = dataAccess.get()
 		val seedLabel = assignment?.getSegment(seedValue!!.integerLong) ?: seedValue!!.integerLong
 		if (!Label.regular(seedLabel)) {
-			LOG.info { "Cannot fill at irregular label: $seedLabel (${Point(seed)})" }
-			return null
+			val reason = CancellationException("Cannot fill at irregular label: $seedLabel (${Point(seed)})")
+			LOG.debug(reason) {  }
+			return Job().apply { completeExceptionally(reason) }
 		}
 
 		val maskInfo = MaskInfo(

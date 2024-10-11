@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state
 
 import bdv.cache.SharedQueue
 import javafx.scene.Node
+import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
@@ -25,6 +26,8 @@ interface SourceStateBackend<D, T> {
 	val resolution: DoubleArray
 
 	val translation: DoubleArray
+
+	var virtualCrop: Interval?
 
 	fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
 		val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)

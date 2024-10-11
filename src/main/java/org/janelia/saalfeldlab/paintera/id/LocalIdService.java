@@ -9,7 +9,12 @@ public class LocalIdService implements IdService {
 
 	public LocalIdService() {
 
-		this(0);
+		this(1);
+	}
+
+	public LocalIdService(final long next) {
+
+		this.next = next;
 	}
 
 	@Override public long nextTemporary() {
@@ -24,11 +29,6 @@ public class LocalIdService implements IdService {
 		final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
 		nextTemp += n;
 		return tempIds;
-	}
-
-	public LocalIdService(final long maxId) {
-
-		this.next = maxId;
 	}
 
 	@Override

@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.4.4-SNAPSHOT</version>
+	<version>1.5.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -68,7 +68,7 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.4.1</app.version>
+		<app.version>1.5.0</app.version>
 
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -81,7 +81,9 @@
 		<n5-aws-s3.version>4.2.1</n5-aws-s3.version>
 		<n5-google-cloud>4.1.1</n5-google-cloud>
 		<n5-zarr.version>1.3.5</n5-zarr.version>
-		<imglib2-label-multisets.version>0.15.0</imglib2-label-multisets.version>
+		<imglib2-label-multisets.version>0.15.1</imglib2-label-multisets.version>
+		<imglib2.version>6.1.0</imglib2.version>
+		<imglib2-realtransform.version>4.0.1</imglib2-realtransform.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
@@ -185,7 +187,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>6.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -194,7 +195,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
-			<version>4.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -687,7 +687,7 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
 						<forkCount>1</forkCount>
-						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw --enable-preview</argLine>
+						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
 					</configuration>
 				</plugin>
 			</plugins>
@@ -709,7 +709,6 @@
 					</annotationProcessors>
 					<source>21</source>
 					<target>21</target>
-					<compilerArgs>--enable-preview</compilerArgs>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -919,7 +918,6 @@
 				<version>${kotlin.version}</version>
 				<configuration>
 					<javacOptions>
-						<javacOption>--enable-preview</javacOption>
 					</javacOptions>
 				</configuration>
 			</plugin>

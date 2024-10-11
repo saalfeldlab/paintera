@@ -7,6 +7,7 @@ import javafx.beans.property.StringProperty
 import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.util.Subscription
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -81,13 +82,26 @@ const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
 abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
 
 	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
+	private var subscriptions : Subscription? = null
 
 	override fun activate() {
 		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
+		/* This handles viewer changes while  activated */
+		val viewerPropSubscription = activeViewerProperty.subscribe { old, new ->
+			old?.viewer()?.let { removeFrom(it) }
+			new?.viewer()?.let { installInto(it) }
+		}
+		/* this handles installing into the currently active viewer */
+		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
+		subscriptions = subscriptions?.and(viewerPropSubscription) ?: viewerPropSubscription
 	}
 
 	override fun deactivate() {
-		activeViewerAndTransforms?.viewer()?.let { removeFrom(it) }
+		subscriptions?.let {
+			it.unsubscribe()
+			subscriptions = null
+		}
+		removeFromAll()
 		activeViewerProperty.unbind()
 		activeViewerProperty.set(null)
 	}
@@ -111,8 +125,8 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 
 	fun removeFromAll() {
 		synchronized(this) {
+			LOG.debug { "removing $this from all nodes" }
 			installedInto.forEach { (node, actions) ->
-				LOG.debug { "removing $this from all nodes" }
 				actions.removeIf { actionSet ->
 					node.removeActionSet(actionSet)
 					true

@@ -67,8 +67,6 @@ object NavigationControlMode : AbstractToolMode() {
 
 	override val allowedActions = AllowedActions.NAVIGATION
 
-	override val defaultTool: Tool = NavigationTool
-
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList(NavigationTool)
 
 }

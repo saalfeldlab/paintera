@@ -2,17 +2,24 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 
 import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 
 import java.io.IOException;
 import java.util.function.Function;
@@ -52,6 +59,37 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 				name);
 
 		this.metadataState = metadataState;
+	}
+
+	@Override public RandomAccessibleInterval<T> getSource(int t, int level) {
+
+		final Interval virtualCrop = getVirtualCrop(t, level);
+		if (virtualCrop == null) {
+			return super.getSource(t, level);
+		}
+		return Views.interval(super.getSource(t, level), virtualCrop);
+	}
+
+	@Override public RandomAccessibleInterval<D> getDataSource(int t, int level) {
+
+		final Interval virtualCrop = getVirtualCrop(t, level);
+		if (virtualCrop == null) {
+			return super.getDataSource(t, level);
+		}
+		return Views.interval(super.getDataSource(t, level), virtualCrop);
+	}
+
+	private Interval getVirtualCrop(int t, int level) {
+
+		var virtualCrop = metadataState.getVirtualCrop();
+		if (virtualCrop == null) return null;
+		else if (level == 0) return virtualCrop;
+
+		MultiScaleMetadataState state = (MultiScaleMetadataState)metadataState;
+		final AffineTransform3D[] transforms = state.getScaleTransforms();
+
+		final FinalRealInterval realVirtualCropForLevel = transforms[0].copy().concatenate(transforms[level].inverse()).estimateBounds(virtualCrop);
+		return Intervals.smallestContainingInterval(realVirtualCropForLevel);
 	}
 
 	public MetadataState getMetadataState() {

@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.creat
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.getSourceDataInInitialMaskSpace
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.extendValue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.BooleanSupplier
@@ -157,14 +158,10 @@ class FloodFill2D<T : IntegerType<T>>(
 				throw CancellationException(reason)
 			}
 
-			return Converters.convert(
-				backgroundViewerRai,
-				{ src: RealType<out RealType<*>?>?, target: BoolType ->
-					val segmentId = assignment.getSegment(src!!.realDouble.toLong())
-					target.set(segmentId == seedLabel)
-				},
-				BoolType()
-			)
+			return backgroundViewerRai.convertRAI(BoolType()) { src, target ->
+				val segmentId = assignment.getSegment(src!!.realDouble.toLong())
+				target.set(segmentId == seedLabel)
+			}
 		}
 
 		fun fillAt(

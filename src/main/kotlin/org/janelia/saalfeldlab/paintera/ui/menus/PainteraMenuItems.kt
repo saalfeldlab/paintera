@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
@@ -31,6 +32,7 @@ enum class PainteraMenuItems(
 	NEW_PROJECT("_New Project", allowedAction = MenuActionType.OpenProject),
 	OPEN_PROJECT("Open _Project", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
 	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
+	EXPORT_SOURCE("_Export Source", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, MenuActionType.ExportSource),
 	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
 	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
@@ -72,6 +74,7 @@ enum class PainteraMenuItems(
 					}
 				},
 				OPEN_SOURCE { N5Opener().onAction().accept(baseView, getProjectDirectory) },
+				EXPORT_SOURCE { ExportSourceDialog.askAndExport() },
 				SAVE { saveOrSaveAs() },
 				SAVE_AS { saveAs() },
 				TOGGLE_MENU_BAR_VISIBILITY { properties.menuBarConfig.toggleIsVisible() },

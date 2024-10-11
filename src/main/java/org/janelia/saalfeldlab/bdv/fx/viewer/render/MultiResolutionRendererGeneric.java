@@ -256,7 +256,7 @@ public class MultiResolutionRendererGeneric<T> {
 	/**
 	 * @param display                    The canvas that will display the images we render.
 	 * @param painterThread              Thread that triggers repainting of the display. Requests for repainting are send there.
-	 * @param screenScales               Scale factors from the viewer canvas to screen images of different resolutions. A scale factor of 1 means 1
+	 * @param initialScreenScales               Scale factors from the viewer canvas to screen images of different resolutions. A scale factor of 1 means 1
 	 *                                   pixel in the screen image is displayed as 1 pixel on the canvas, a scale factor of 0.5 means 1 pixel in the
 	 *                                   screen image is displayed as 2 pixel on the canvas, etc.
 	 * @param targetRenderNanos          Target rendering time in nanoseconds. The rendering time for the coarsest rendered scale should be below
@@ -271,7 +271,7 @@ public class MultiResolutionRendererGeneric<T> {
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
 			final PainterThreadFx painterThread,
-			final double[] screenScales,
+			final double[] initialScreenScales,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
 			final TaskExecutor renderingTaskExecutor,
@@ -287,7 +287,7 @@ public class MultiResolutionRendererGeneric<T> {
 		this.painterThread = painterThread;
 		projector = null;
 		currentScreenScaleIndex = -1;
-		this.screenScales = screenScales.clone();
+		this.screenScales = initialScreenScales.clone();
 		this.doubleBuffered = doubleBuffered;
 		createVariables();
 

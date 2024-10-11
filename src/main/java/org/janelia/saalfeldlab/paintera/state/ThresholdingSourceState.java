@@ -124,6 +124,9 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
+
+		/*Threshold Meshes turned off by default */
+		this.meshes.getManagedSettings().getMeshesEnabledProperty().set(false);
 	}
 
 	private void updateThreshold() {

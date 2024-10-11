@@ -42,7 +42,7 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
-			*super<PaintTool>.actionSets.toTypedArray(),
+			*super.actionSets.toTypedArray(),
 			painteraActionSet("intersect", PaintActionType.Intersect) {
 				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
 					keysExclusive = false

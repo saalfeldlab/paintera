@@ -79,7 +79,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	override val modeActions by lazy { modeActions() }
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
-		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill)
+		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
 		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
@@ -190,8 +190,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					filter = true
 					verify("Fill2DTool is active") { activeTool is Fill2DTool }
 					onAction {
-						val switchBack = { InvokeOnJavaFXApplicationThread { switchTool(shapeInterpolationTool) } }
-						fill2DTool.fillJob?.invokeOnCompletion { switchBack() } ?: switchBack
+						val switchBack = { switchTool(shapeInterpolationTool) }
+						fill2DTool.fillJob?.invokeOnCompletion { switchBack() } ?: switchBack()
 					}
 				}
 			},
@@ -371,23 +371,25 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 		}
 
-	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth): SamSliceInfo {
+	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform : AffineTransform3D? = null): SamSliceInfo {
 		return samSliceCache[depth] ?: with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
 			val viewer = viewerAndTransforms.viewer()!!
 			val width = viewer.width
 			val height = viewer.height
 
-			val globalToViewerTransform = if (translate) {
-				calculateGlobalToViewerTransformAtDepth(depth)
-			} else {
-				AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
+			val globalToViewerTransform = when {
+				provideGlobalToViewerTransform != null -> provideGlobalToViewerTransform
+				translate -> calculateGlobalToViewerTransformAtDepth(depth)
+				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
 
-			val maxDistancePositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				interpolantInViewer.getComponentMaxDistancePosition()
-			} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
+			val predictionPositions = provideGlobalToViewerTransform?.let { listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0)) } ?: let {
+					controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+						val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+						interpolantInViewer.getComponentMaxDistancePosition()
+					} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
+			}
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
@@ -399,7 +401,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(maxDistancePositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
+			val predictionRequest = SamPredictor.SparsePrediction(predictionPositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
 
 			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
 				SamEmbeddingLoaderCache.load(renderState)
@@ -516,8 +518,8 @@ internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): L
 	/* find the max point to initialize with */
 	val invalidBorderRai = extendValue(Label.INVALID).interval(Intervals.expand(this, 1, 1, 0))
 	val distances = ArrayImgs.doubles(*invalidBorderRai.dimensionsAsLongArray())
-	val binaryImg = invalidBorderRai.convert(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
-	val invertedBinaryImg = binaryImg.convert(BoolType()) { source, target -> target.set(!source.get()) }
+	val binaryImg = invalidBorderRai.convertRAI(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
+	val invertedBinaryImg = binaryImg.convertRAI(BoolType()) { source, target -> target.set(!source.get()) }
 
 	val connectedComponents = ArrayImgs.unsignedInts(*binaryImg.dimensionsAsLongArray())
 	ConnectedComponents.labelAllConnectedComponents(

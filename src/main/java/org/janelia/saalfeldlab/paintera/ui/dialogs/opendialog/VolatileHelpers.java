@@ -4,15 +4,12 @@ import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultisetEntry;
-import net.imglib2.type.label.LabelMultisetEntryList;
-import net.imglib2.type.label.LongMappedAccessData;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
-import net.imglib2.util.Intervals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Random;
 
 public class VolatileHelpers {
 
@@ -38,23 +35,10 @@ public class VolatileHelpers {
 			final int[] cellDims = new int[cellPosition.length];
 			grid.getCellDimensions(cellPosition, cellMin, cellDims);
 
-			final LabelMultisetEntry e = new LabelMultisetEntry(Label.INVALID, 1);
-			final int numEntities = (int)Intervals.numElements(cellDims);
-
-			final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage(32);
-			final LabelMultisetEntryList list = new LabelMultisetEntryList(listData, 0);
-			list.createListAt(listData, 0);
-			list.add(e);
-			final int[] data = new int[numEntities];
-			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray(
-					data,
-					listData,
-					false,
-					new long[]{Label.INVALID}
-			);
-			return new Cell<>(cellDims, cellMin, array);
+			return new Cell<>(cellDims, cellMin, EMPTY_ACCESS);
 		}
-
 	}
+
+	private static final VolatileLabelMultisetArray EMPTY_ACCESS = new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID});
 
 }

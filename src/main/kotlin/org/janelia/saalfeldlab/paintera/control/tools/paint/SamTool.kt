@@ -33,7 +33,6 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealInterval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
-import net.imglib2.converter.Converters
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
@@ -263,7 +262,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		/* Trigger initial prediction request when activating the tool */
 		setViewer?.let { viewer ->
 
-			Platform.runLater { statusProperty.set("Predicting...") }
+			statusProperty.set("Predicting...")
 			val x = viewer.mouseXProperty.get().toLong()
 			val y = viewer.mouseYProperty.get().toLong()
 
@@ -328,7 +327,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		lateinit var resetPromptAction: Action<*>
 		lateinit var applyPredictionAction: Action<*>
 		return arrayOf(
-			painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
+			painteraActionSet("sam-selections", PaintActionType.Paint, ignoreDisable = true) {
 				/* Handle Painting */
 				MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
 					name = "apply last segmentation result to canvas"
@@ -375,7 +374,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							doubleArrayOf(max.toDouble(), mean, stddev)
 						}
 						val min = (mean - std).toFloat()
-						val zeroMinValue = maskRai.convert(FloatType()) { input, output -> output.set(input.get() - min) }
+						val zeroMinValue = maskRai.convertRAI(FloatType()) { input, output -> output.set(input.get() - min) }
 						val predictionSource = paintera.baseView.addConnectomicsRawSource<FloatType, VolatileFloatType>(
 							zeroMinValue.let {
 								val prediction3D = Views.addDimension(it)
@@ -879,7 +878,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}
 			val predictor = SamPredictor(ortEnv, session, imageEmbedding, imgWidth to imgHeight)
 			while (predictionJob.isActive) {
-				val (predictionRequest, estimateThreshold) =  predictionChannel.receive()
+				val (predictionRequest, estimateThreshold) = predictionChannel.receive()
 				val points = (predictionRequest as SparsePrediction).points
 
 				val newPredictionRequest = estimateThreshold || currentPrediction == null
@@ -904,9 +903,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				val predictedImage = currentPrediction!!.image
 
 				var noneAccepted = true
-				val thresholdFilter = Converters.convert(
-					BundleView(predictedImage.extendValue(Float.NEGATIVE_INFINITY)),
-					{ predictionMaskRA, output ->
+				val thresholdFilter = BundleView(predictedImage.extendValue(Float.NEGATIVE_INFINITY))
+					.convert(BoolType()) { predictionMaskRA, output ->
 						val predictionType = predictionMaskRA.get()
 						val predictionValue = predictionType.get()
 						val accept = predictionValue >= threshold
@@ -920,9 +918,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							maxPoint[0] = max(maxPoint[0], pos[0])
 							maxPoint[1] = max(maxPoint[1], pos[1])
 						}
-					},
-					BoolType()
-				)
+					}
+
 
 				val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictedImage.dimensionsAsLongArray())
 				/* FIXME: This is annoying, but I don't see a better way around it at the moment.
@@ -933,7 +930,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				*   When [https://github.com/imglib/imglib2-algorithm/issues/98] is resolved,
 				*   hopefully this will be as well */
 				val stdErr = System.err
-				System.setErr(NullPrintStream())
+				System.setErr(NullPrintStream.INSTANCE)
 				try {
 					ConnectedComponents.labelAllConnectedComponents(
 						thresholdFilter,
@@ -980,13 +977,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}
 
-				val selectedComponents = Converters.convertRAI(
-					connectedComponents,
-					{ source, output ->
-						output.set(if (source.get() in acceptedComponents) 1.0f else 0.0f)
-					},
-					FloatType()
-				)
+				val selectedComponents = connectedComponents.convertRAI(FloatType()) { source, output ->
+					val value = if (source.get() in acceptedComponents) 1.0f else 0.0f
+					output.set(value)
+				}
 
 				val (width, height) = predictedImage.dimensionsAsLongArray()
 				val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)

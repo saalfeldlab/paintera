@@ -11,8 +11,10 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import kotlinx.coroutines.Deferred;
 import net.imglib2.RealRandomAccess;
+import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.Tasks;
@@ -25,15 +27,15 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, TransformListener<AffineTransform3D> {
+public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, TransformListener<AffineTransform3D> {
 
 	private final ViewerPanelFX viewer;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
 	private final SimpleBooleanProperty viewerTransformChanged = new SimpleBooleanProperty();
-	private final ObservableValue<? extends DataSource<D, ?>> dataSource;
-	private final ObservableValue<RealRandomAccess<D>> accessBinding;
+	private final ObservableValue<Source<T>> source;
+	private final ObservableValue<RealRandomAccess<T>> accessBinding;
 
 	private double x = -1;
 	private double y = -1;
@@ -47,16 +49,18 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 			final Consumer<String> submitValue) {
 
 		this.viewer = viewer;
-		this.dataSource = currentSource.map(it -> (DataSource<D, ?>)it).when(currentSource.map(it -> it instanceof DataSource<?, ?>));
+		this.source = currentSource.map(it -> (Source<T>)it);
 		this.submitValue = submitValue;
 		this.accessBinding = Bindings.createObjectBinding(() -> {
-					final var source = this.dataSource.getValue();
+					final var source = this.source.getValue();
+					if (source == null)
+						return null;
 					final int level = viewer.getState().getBestMipMapLevel(source);
 					final var interp = interpolation.apply(source);
 					final var affine = new AffineTransform3D();
 					source.getSourceTransform(0, level, affine);
 					return RealViews.transformReal(
-							source.getInterpolatedDataSource(
+							source.getInterpolatedSource(
 									0,
 									level,
 									interp
@@ -65,10 +69,21 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 					).realRandomAccess();
 				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged
 		);
+
+		this.accessBinding.addListener((obs, old, newAccess) -> {
+			if (newAccess == null)
+				return;
+			synchronized (viewer) {
+				getInfo();
+			}
+		});
 	}
 
 	@Override
 	public void handle(final MouseEvent e) {
+
+		if (x == e.getX() && y == e.getY())
+			return;
 
 		x = e.getX();
 		y = e.getY();
@@ -86,13 +101,10 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 		if (isChanged) {
 			viewerTransform.set(transform);
 			viewerTransformChanged.setValue(!viewerTransformChanged.getValue());
-			synchronized (viewer) {
-				getInfo();
-			}
 		}
 	}
 
-	private D getVal() {
+	private T getVal() {
 
 		final var access = accessBinding.getValue();
 		access.setPosition(x, 0);
@@ -102,11 +114,11 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 		return access.get();
 	}
 
-	private final Map<DataSource<D, ?>, Deferred<?>> taskMap = new HashMap<>();
+	private final Map<Source<T>, Deferred<?>> taskMap = new HashMap<>();
 
 	private void getInfo() {
 
-		final DataSource<D, ?> source = dataSource.getValue();
+		final Source<T> source = this.source.getValue();
 
 		final var job = Tasks.createTask(() -> stringConverterFromSource(source).apply(getVal()))
 				.onSuccess(result -> Platform.runLater(() -> submitValue.accept(result)))
@@ -122,14 +134,14 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 		job.start();
 	}
 
-	private static <D> Function<D, String> stringConverterFromSource(final DataSource<D, ?> source) {
+	private static <T> Function<T, String> stringConverterFromSource(final Source<T> source) {
 
 		if (source instanceof ChannelDataSource<?, ?>) {
 			final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
 
 			// Cast not actually redundant
 			//noinspection unchecked,RedundantCast
-			return (Function<D, String>)(Function<? extends Composite<?>, String>)comp -> {
+			return (Function<T, String>)(Function<? extends Composite<?>, String>)comp -> {
 				StringBuilder sb = new StringBuilder("(");
 				if (numChannels > 0)
 					sb.append(comp.get(0).toString());
@@ -142,12 +154,13 @@ public class ValueDisplayListener<D> implements EventHandler<MouseEvent>, Transf
 				return sb.toString();
 			};
 		}
-		return stringConverter(source.getDataType());
+		return stringConverter(source.getType());
 	}
 
-	private static <D> Function<D, String> stringConverter(final D d) {
-		// TODO are we ever going to need anything other than toString?
-		return D::toString;
+	private static <T> Function<T, String> stringConverter(final T t) {
+		if (t instanceof Volatile<?>)
+			return it -> ((Volatile<?>)it).get().toString();
+		return T::toString;
 	}
 
 }

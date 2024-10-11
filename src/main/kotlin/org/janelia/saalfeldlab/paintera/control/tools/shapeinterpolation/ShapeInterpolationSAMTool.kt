@@ -59,14 +59,15 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		lastPrediction?.apply {
 			/* cache the prediction. lock the cached slice, since this was applied manually */
 			super.applyPrediction()
-			shapeInterpolationMode.addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
-				it.prediction = predictionRequest
-				it.locked = true
-			}
-			InvokeOnJavaFXApplicationThread {
-				shapeInterpolationMode.run {
-					switchTool(defaultTool)
-					modeToolsBar.toggleGroup?.selectToggle(null)
+			shapeInterpolationMode.run {
+				addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
+					it.prediction = predictionRequest
+					it.locked = true
+				}
+				switchTool(defaultTool)?.invokeOnCompletion {
+					InvokeOnJavaFXApplicationThread {
+						modeToolsBar.toggleGroup?.selectToggle(null)
+					}
 				}
 			}
 		}

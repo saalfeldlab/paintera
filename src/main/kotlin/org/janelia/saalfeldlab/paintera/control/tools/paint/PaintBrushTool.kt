@@ -59,6 +59,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
 	internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
+		private set
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
 
 	val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
@@ -118,12 +119,12 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	}
 
 	private val selectedIdListener: (obs: Observable) -> Unit = {
-		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
+		statePaintContext?.selectedIds?.lastSelection?.let { setCurrentLabel(it) }
 	}
 
 	override fun activate() {
 		super.activate()
-		setCurrentLabelToSelection()
+		setCurrentLabel()
 		paint2D.setOverlayValidState()
 		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
 		activeViewerProperty.get()?.viewer()?.scene?.addEventFilter(KEY_PRESSED, filterSpaceHeldDown)
@@ -141,7 +142,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 		paint2D.setBrushOverlayVisible(false)
 		activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
-		InvokeOnJavaFXApplicationThread { currentLabelToPaint = Label.INVALID }
+		setCurrentLabel(Label.INVALID)
 		super.deactivate()
 	}
 
@@ -149,8 +150,8 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		setBrushOverlayValid(isLabelValid, if (isLabelValid) null else "No Id Selected")
 	}
 
-	private fun setCurrentLabelToSelection() {
-		currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
+	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) = InvokeOnJavaFXApplicationThread.invokeAndWait {
+		currentLabelToPaint = label
 	}
 
 	protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint, ignoreDisable = true) {
@@ -192,7 +193,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			verify { KeyCode.SHIFT !in keyTracker()!!.getActiveKeyCodes(true) }
 			onAction {
 				isPainting = true
-				currentLabelToPaint = Label.TRANSPARENT
+				setCurrentLabel(Label.TRANSPARENT)
 				paintClickOrDrag?.startPaint(it!!)
 			}
 		}
@@ -204,7 +205,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			verifyPainteraNotDisabled()
 			onAction {
 				isPainting = true
-				currentLabelToPaint = Label.BACKGROUND
+				setCurrentLabel(Label.BACKGROUND)
 				paintClickOrDrag?.startPaint(it!!)
 			}
 		}
@@ -212,7 +213,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			name = END_ERASE
 			onAction {
 				paintClickOrDrag?.busySubmitPaint()
-				setCurrentLabelToSelection()
+				setCurrentLabel()
 				isPainting = false
 			}
 		}

@@ -127,7 +127,7 @@ public class MetaPanel {
 				resolution.textY(),
 				resolution.textZ()
 		);
-		addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
+		addToGrid(spatialInfo, 0, 2, new Label("Offset (physical)"), offset.textX(), offset.textY(), offset.textZ());
 		spatialInfo.add(reverseButton, 3, 3);
 		reverseButton.setPrefWidth(TEXTFIELD_WIDTH);
 		final ColumnConstraints cc = new ColumnConstraints();

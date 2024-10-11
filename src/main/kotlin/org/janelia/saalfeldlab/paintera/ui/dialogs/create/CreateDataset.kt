@@ -133,6 +133,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	private val blockSize = SpatialField.intField(1, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
 	private val resolution = SpatialField.doubleField(1.0, { it > 0 }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
 	private val offset = SpatialField.doubleField(0.0, { true }, FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private val unitField = TextField("pixel")
 	private val labelMultiset = CheckBox().also { it.isSelected = true }
 	private val scaleLevels = TitledPane("Scale Levels", mipmapLevelsNode)
 	//TODO Caleb: Use a proper grid layout instead of this...
@@ -143,7 +144,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		nameIt("Dimensions", NAME_WIDTH, false, bufferNode(), dimensions.node),
 		nameIt("Block Size", NAME_WIDTH, false, bufferNode(), blockSize.node),
 		nameIt("Resolution", NAME_WIDTH, false, bufferNode(), resolution.node),
-		nameIt("Offset", NAME_WIDTH, false, bufferNode(), offset.node),
+		nameIt("Offset (physical)", NAME_WIDTH, false, bufferNode(), offset.node),
+		nameIt("Unit", NAME_WIDTH, false, bufferNode(), unitField),
 		nameIt("", NAME_WIDTH, false, bufferNode(), HBox(Label("Label Multiset Type  "), labelMultiset)),
 		setFromCurrentBox,
 		scaleLevels
@@ -289,8 +291,10 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						resolution.asDoubleArray(),
 						offset.asDoubleArray(),
 						scaleLevels.map { it.downsamplingFactors() }.toTypedArray(),
+						unitField.text,
 						if (labelMultiset.isSelected) scaleLevels.stream().mapToInt { it.maxNumEntries() }.toArray() else null,
-						labelMultiset.isSelected
+						labelMultiset.isSelected,
+						false
 					)
 
 					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
@@ -356,10 +360,17 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		resolution.x.value = transform[0, 0]
 		resolution.y.value = transform[1, 1]
 		resolution.z.value = transform[2, 2]
-		offset.x.value = transform[0, 3]
-		offset.y.value = transform[1, 3]
-		offset.z.value = transform[2, 3]
+		metadataSource?.metadataState?.virtualCrop?.let {
+			offset.x.value = it.min(0) * transform[0, 0]
+			offset.y.value = it.min(1) * transform[1, 1]
+			offset.z.value = it.min(2) * transform[2, 2]
+		} ?: let {
+			offset.x.value = transform[0, 3]
+			offset.y.value = transform[1, 3]
+			offset.z.value = transform[2, 3]
+		}
 
+		unitField.text = metadataSource?.metadataState?.unit
 		setMipMapLevels(source)
 	}
 

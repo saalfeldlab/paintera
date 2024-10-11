@@ -122,10 +122,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 	@Override
 	public void updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup {
 
-		LOG.debug(() -> STR."Updating label block lookup with \{blockDiffsByLevel}");
+		LOG.debug(() -> "Updating label block lookup with " + blockDiffsByLevel);
 		try {
-			final String uniqueLabelsPath = STR."\{dataset()}/unique-labels";
-			LOG.debug(() -> STR."uniqueLabelsPath \{uniqueLabelsPath}");
+			final String uniqueLabelsPath = "%s/unique-labels".formatted(dataset());
+			LOG.debug(() -> "uniqueLabelsPath %s".formatted(uniqueLabelsPath));
 
 			final LabelBlockLookup labelBlockLoader;
 			try {
@@ -136,9 +136,9 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 			final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(getN5(), uniqueLabelsPath);
 
-			LOG.debug(() -> STR."Found scale datasets \{scaleUniqueLabels}");
+			LOG.debug(() -> "Found scale datasets %s".formatted(scaleUniqueLabels));
 			for (int level = 0; level < scaleUniqueLabels.length; ++level) {
-				final String uniqueLabelScalePath = N5URI.normalizeGroupPath(STR."\{uniqueLabelsPath}/\{scaleUniqueLabels[level]}");
+				final String uniqueLabelScalePath = N5URI.normalizeGroupPath("%s/%s".formatted(uniqueLabelsPath, scaleUniqueLabels[level]));
 				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(getN5(), uniqueLabelScalePath);
 				final TLongObjectMap<TLongHashSet> removedById = new TLongObjectHashMap<>();
 				final TLongObjectMap<TLongHashSet> addedById = new TLongObjectHashMap<>();
@@ -152,7 +152,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 					blockSpec.fromLinearIndex(blockId);
 
-					LOG.trace(() -> STR."Unique labels for block (\{blockId}: \{blockSpec.min} \{blockSpec.max}): \{blockDiff}");
+					LOG.trace(() -> "Unique labels for block (%d: %s %s): %s".formatted(blockId, blockSpec.min, blockSpec.max, blockDiff));
 
 					getN5().writeBlock(
 							datasetUniqueLabels.dataset,
@@ -178,8 +178,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 				final TLongSet modifiedIds = new TLongHashSet();
 				modifiedIds.addAll(removedById.keySet());
 				modifiedIds.addAll(addedById.keySet());
-				LOG.debug(() -> STR."Removed by id: \{removedById}");
-				LOG.debug(() -> STR."Added by id: \{addedById}");
+				LOG.debug(() -> "Removed by id: " + removedById);
+				LOG.debug(() -> "Added by id: " + addedById);
 				for (final long modifiedId : modifiedIds.toArray()) {
 					final Interval[] blockList = labelBlockLoader.read(new LabelBlockLookupKey(level, modifiedId));
 					final TLongSet blockListLinearIndices = new TLongHashSet();
@@ -191,8 +191,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 					final TLongSet removed = removedById.get(modifiedId);
 					final TLongSet added = addedById.get(modifiedId);
 
-					LOG.debug(() -> STR."Removed for id \{modifiedId}: \{removed}");
-					LOG.debug(() -> STR."Added for id \{modifiedId}: \{added}");
+					LOG.debug(() -> "Removed for id %d: %s".formatted(modifiedId, removed));
+					LOG.debug(() -> "Added for id %d: %s".formatted(modifiedId, added));
 
 					if (removed != null)
 						blockListLinearIndices.removeAll(removed);
@@ -207,7 +207,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 						blockSpec.fromLinearIndex(blockId);
 						final Interval interval = blockSpec.asInterval();
 						updatedIntervals[index] = interval;
-						LOG.trace(() -> STR."Added interval \{interval} for linear index \{blockId} and block spec \{blockSpec}");
+						LOG.trace(() -> "Added interval %s for linear index %d and block spec %s".formatted(interval, blockId, blockSpec));
 					}
 					labelBlockLoader.write(new LabelBlockLookupKey(level, modifiedId), updatedIntervals);
 				}
@@ -216,7 +216,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		} catch (final IOException e) {
 			LOG.error(e, () -> null);
-			throw new UnableToUpdateLabelBlockLookup(STR."Unable to update label block lookup for \{dataset()}", e);
+			throw new UnableToUpdateLabelBlockLookup("Unable to update label block lookup for %s".formatted(dataset()), e);
 		}
 		LOG.info(() -> "Finished updating label-block-lookup");
 	}
@@ -224,8 +224,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 	@Override
 	public List<TLongObjectMap<BlockDiff>> persistCanvas(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks) throws UnableToPersistCanvas {
 
-		LOG.info(() -> STR."Committing canvas: \{blocks.length} blocks");
-		LOG.debug(() -> STR."Affected blocks in grid \{canvas.getCellGrid()}: \{blocks}");
+		LOG.info(() -> "Committing canvas: %d blocks".formatted(blocks.length));
+		LOG.debug(() -> "Affected blocks in grid %s: %s".formatted(canvas.getCellGrid(), blocks));
 		InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.1));
 		try {
 			final String datasetPath = getDatasetPath();
@@ -240,7 +240,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 			final BlockSpec highestResolutionBlockSpec = new BlockSpec(highestResolutionDataset.grid);
 
-			LOG.debug(() -> STR."Persisting canvas with grid=\{canvasGrid} into background with grid=\{highestResolutionDataset.grid}");
+			LOG.debug(() -> "Persisting canvas with grid=%s into background with grid=%s".formatted(canvasGrid, highestResolutionDataset.grid));
 
 			final List<TLongObjectMap<BlockDiff>> blockDiffs = new ArrayList<>();
 			final TLongObjectHashMap<BlockDiff> blockDiffsAtHighestLevel = new TLongObjectHashMap<>();
@@ -265,9 +265,9 @@ public class CommitCanvasN5 implements PersistCanvas {
 					blockDiffs.add(blockDiffsAt);
 
 					final int sourceLevel = targetLevel - 1;
-					final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(STR."\{datasetPath}/\{scaleDatasets[sourceLevel]}"));
+					final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath("%s/%s".formatted(datasetPath, scaleDatasets[sourceLevel])));
 
-					final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(STR."\{datasetPath}/\{scaleDatasets[targetLevel]}"));
+					final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath("%s/%s".formatted(datasetPath, scaleDatasets[targetLevel])));
 
 					final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(getN5(), targetDataset.dataset);
 					final double[] sourceDownsamplingFactors = N5Helpers.getDownsamplingFactors(getN5(), sourceDataset.dataset);
@@ -278,7 +278,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 							highestResolutionDataset.grid,
 							targetDataset.grid,
 							targetDownsamplingFactors).toArray();
-					LOG.debug(() -> STR."Affected blocks at higher targetLevel: \{affectedLowResBlocks}");
+					LOG.debug(() -> "Affected blocks at higher targetLevel: %s".formatted(affectedLowResBlocks));
 
 					final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
 
@@ -287,7 +287,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 					final int[] relativeFactors = ArrayMath.asInt3(relativeDownsamplingFactors, true);
 
 					int finalTargetLevel = targetLevel;
-					LOG.debug(() -> STR."targetLevel=\{finalTargetLevel}: Got \{affectedLowResBlocks.length} blocks");
+					LOG.debug(() -> "targetLevel=%d: Got %d blocks".formatted(finalTargetLevel, affectedLowResBlocks.length));
 
 					final BlockSpec targetBlockSpec = new BlockSpec(targetDataset.grid);
 
@@ -331,7 +331,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	private @NotNull String getDatasetPath() {
 
-		return isPainteraDataset() ? STR."\{dataset()}/data" : dataset();
+		return isPainteraDataset() ? "%s/data".formatted(dataset()) : dataset();
 	}
 
 	private String getHighestResolutionDatasetPath() {
@@ -394,7 +394,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final String dataset
 	) throws IOException {
 
-		LOG.debug(() -> STR."Checking if dataset \{dataset} is label multiset type.");
+		LOG.debug(() -> "Checking if dataset %s is label multiset type.".formatted(dataset));
 		if (!N5Helpers.getBooleanAttribute(n5, dataset, N5Helpers.LABEL_MULTISETTYPE_KEY, false)) {
 			throw new RuntimeException("Only label multiset type accepted currently!");
 		}
@@ -406,7 +406,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	) {
 
 		if (!highestResolutionGrid.equals(canvasGrid)) {
-			final RuntimeException error = new RuntimeException(STR."Canvas grid \{canvasGrid} and highest resolution dataset grid \{highestResolutionGrid} incompatible!");
+			final RuntimeException error = new RuntimeException("Canvas grid %s and highest resolution dataset grid %s incompatible!".formatted(canvasGrid, highestResolutionGrid));
 			LOG.error(error, () -> null);
 			throw error;
 		}
@@ -460,7 +460,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		i.setInteger(Label.OUTSIDE);
 		final RandomAccessibleInterval<I> input = Views.isZeroMin(data) ? data : Views.zeroMin(data);
 		final RandomAccessibleInterval<I> output = new ArrayImgFactory<>(i).create(size);
-		WinnerTakesAll.downsample(input, output, relativeFactors);
+		WinnerTakesAll.downsample(Views.extendMirrorDouble(input), output, relativeFactors);
 
 		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(N5Utils.<I>open(n5, dataset), blockInterval);
 		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
@@ -707,7 +707,6 @@ public class CommitCanvasN5 implements PersistCanvas {
 		}
 	}
 
-	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void downsampleAndWriteBlocksLabelMultisetType(
 			final long[] affectedTargetBlocks,
 			final N5Writer n5,
@@ -749,7 +748,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 					targetToPrevious.apply(realSourceMin, realSourceMin);
 					targetToPrevious.apply(realSourceMax, realSourceMax);
 
-					LOG.debug(() -> STR."level=\{level}: realSourceMin=\{realSourceMin} realSourceMax=\{realSourceMax}");
+					LOG.debug(() -> "level=%d: realSourceMin=%s realSourceMax=%s".formatted(level, realSourceMin, realSourceMax));
 
 					final long[] sourceMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(realSourceMin, realSourceMin)), sourceDataset.dimensions);
 					final long[] sourceMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(realSourceMax, realSourceMax)), sourceDataset.dimensions);
@@ -763,7 +762,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 					ArrayMath.add3(sourceMax, -1, sourceMax);
 					ArrayMath.minOf3(sourceMax, sourceMin, sourceMax);
 
-					LOG.trace(() -> STR."Reading existing access at position \{blockSpecCopy.pos} and size \{size}. (\{blockSpecCopy.min} \{blockSpecCopy.max})");
+					LOG.trace(() -> "Reading existing access at position %s and size %s. (%s %s)".formatted(blockSpecCopy.pos, size, blockSpecCopy.min, blockSpecCopy.max));
 					final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpecCopy.pos);
 					final VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
 							? LabelUtils.fromBytes((byte[])block.getData(), (int)Intervals.numElements(size))
@@ -827,7 +826,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			targetToPrevious.apply(blockMinDouble, blockMinDouble);
 			targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
 
-			LOG.debug(() -> STR."level=\{level}: blockMinDouble=\{blockMinDouble} blockMaxDouble=\{blockMaxDouble}");
+			LOG.debug(() -> "level=%d: blockMinDouble=%s blockMaxDouble=%s".formatted(level, blockMinDouble, blockMaxDouble));
 
 			final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
 			final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
@@ -842,7 +841,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			ArrayMath.add3(blockMax, -1, blockMax);
 			ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
-			LOG.trace(() -> STR."Reading old access at position \{blockSpec.pos} and size \{size}. (\{blockSpec.min} \{blockSpec.max})");
+			LOG.trace(() -> "Reading old access at position %s and size %s. (%s %s)".formatted(blockSpec.pos, size, blockSpec.min, blockSpec.max));
 
 			final BlockDiff blockDiff = downsampleIntegerTypeAndSerialize(
 					n5,

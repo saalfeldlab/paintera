@@ -40,6 +40,10 @@ public class N5FragmentSegmentAssignmentInitialLut implements Supplier<TLongLong
 			final long[] keys = new long[(int)data.dimension(0)];
 			final long[] values = new long[keys.length];
 			LOG.debug("Found {} assignments", keys.length);
+			/* May happen in the case of detaching all existing mappings.
+			 * I would prefer flatIterable to work correctly over an empty interval, but it doesn't (yet) */
+			if (data.dimension(0) <= 0)
+				return new TLongLongHashMap();
 			final Cursor<UnsignedLongType> keyCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
 			final Cursor<UnsignedLongType> valueCursor = Views.flatIterable(Views.hyperSlice(data, 1, 1L)).cursor();
 			for (int i = 0; i < keys.length; ++i) {

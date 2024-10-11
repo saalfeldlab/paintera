@@ -21,6 +21,7 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -37,6 +38,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.LabelMultisetUtilsKt;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
@@ -273,15 +275,16 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) throws IOException {
 
+
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
 			final TmpVolatileHelpers.RaiWithInvalidate<V> vraw = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-					(CachedCellImg) raw,
+					(CachedCellImg)raw,
 					queue,
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-			return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
+				return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
 		} catch (final Exception e) {
-			throw e instanceof IOException ? (IOException) e : new IOException(e);
+			throw e instanceof IOException ? (IOException)e : new IOException(e);
 		}
 	}
 
@@ -364,9 +367,10 @@ public class N5Data {
 			/* get the metadata state for the respective child */
 			LOG.debug("Populating scale level {}", scaleIdx);
 			imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], queue, priority);
-			LOG.debug("Populated scale level {}", scaleIdx);
+				LOG.debug("Populated scale level {}", scaleIdx);
 			return true;
 		})::get)));
+
 		futures.forEach(ThrowingConsumer.unchecked(Future::get));
 		es.shutdown();
 		return imagesWithInvalidate;
@@ -401,13 +405,16 @@ public class N5Data {
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = N5URI.normalizeGroupPath(dataset + reader.getGroupSeparator() + scaleDatasets[fScale]);
-				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), queue, priority);
+
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-				imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
-						imagesWithInvalidate[fScale].transform.copy(),
+
+				final AffineTransform3D scaleTransform = N5Helpers.considerDownsampling(
+						transform.copy(),
 						downsamplingFactors,
-						initialDonwsamplingFactors));
+						initialDonwsamplingFactors);
+				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, scaleTransform, queue, priority);
+
 				LOG.debug("Populated scale level {}", fScale);
 				return true;
 			})::get));
@@ -435,7 +442,7 @@ public class N5Data {
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 
-		return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer) reader, dataset), queue, priority, name, null);
+		return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
 	}
 
 	/**
@@ -535,8 +542,8 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) {
 
-		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage = N5LabelMultisets.openLabelMultiset(n5, dataset);
-
+		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage
+				= N5LabelMultisets.openLabelMultiset(n5, dataset, LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND));
 
 		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
 		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(
@@ -550,7 +557,7 @@ public class N5Data {
 		final VolatileCachedCellImg<VolatileLabelMultisetType, VolatileLabelMultisetArray> vimg = new VolatileCachedCellImg<>(
 				cachedLabelMultisetImage.getCellGrid(),
 				new VolatileLabelMultisetType().getEntitiesPerPixel(),
-				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img),
+				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>)img),
 				cacheHints,
 				unchecked::get);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
@@ -724,8 +731,8 @@ public class N5Data {
 			final String name) throws IOException, ReflectionException {
 
 		return N5Types.isLabelMultisetType(reader, dataset)
-				? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
-				: (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, queue, priority, name);
+				? (DataSource<D, T>)openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
+				: (DataSource<D, T>)openScalarAsSource(reader, dataset, transform, queue, priority, name);
 	}
 
 	/**
@@ -780,6 +787,38 @@ public class N5Data {
 			final boolean labelMultisetType,
 			final boolean ignoreExisiting) throws IOException {
 
+		final String defaultUnit = "pixel";
+		createEmptyLabelDataset(writer, group, dimensions, blockSize, resolution, offset, relativeScaleFactors, defaultUnit, maxNumEntries, labelMultisetType, ignoreExisiting);
+	}
+
+	/**
+	 * @param writer               N5Writer
+	 * @param group                target group in {@code writer}
+	 * @param dimensions           size
+	 * @param blockSize            chunk size
+	 * @param resolution           voxel size
+	 * @param offset               in world coordinates
+	 * @param relativeScaleFactors relative scale factors for multi-scale data, e.g.
+	 *                             {@code [2,2,1], [2,2,2]} will result in absolute factors {@code [1,1,1], [2,2,1], [4,4,2]}.
+	 * @param unit
+	 * @param maxNumEntries        limit number of entries in each {@link LabelMultiset} (set to less than or equal to zero for unbounded)
+	 * @param ignoreExisiting      overwrite any existing data set
+	 * @throws IOException if any n5 operation throws {@link IOException} or {@code group}
+	 *                     already exists and {@code ignorExisting} is {@code false}
+	 */
+	public static void createEmptyLabelDataset(
+			final N5Writer writer,
+			final String group,
+			final long[] dimensions,
+			final int[] blockSize,
+			final double[] resolution,
+			final double[] offset,
+			final double[][] relativeScaleFactors,
+			final String unit,
+			@Nullable final int[] maxNumEntries,
+			final boolean labelMultisetType,
+			final boolean ignoreExisiting) throws IOException {
+
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
@@ -803,7 +842,6 @@ public class N5Data {
 		final String dataGroup = String.format("%s/data", group);
 		writer.createGroup(dataGroup);
 
-
 		writer.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
 		writer.setAttribute(dataGroup, N5Helpers.OFFSET_KEY, offset);
 		writer.setAttribute(dataGroup, N5Helpers.RESOLUTION_KEY, resolution);
@@ -820,7 +858,7 @@ public class N5Data {
 			final double[] scaleFactors = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
 
 			if (scaleFactors != null) {
-				Arrays.setAll(scaledDimensions, dim -> (long) Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
+				Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
 				Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
 			}
 
@@ -835,6 +873,7 @@ public class N5Data {
 			} else
 				writer.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
+			writer.setAttribute(dataset, N5Helpers.UNIT_KEY, unit);
 			writer.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 			if (scaleLevel != 0) {
 				writer.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);

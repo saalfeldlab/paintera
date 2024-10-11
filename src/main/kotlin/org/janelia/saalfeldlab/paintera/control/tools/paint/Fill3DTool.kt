@@ -106,7 +106,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 							paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 
-							task?.invokeOnCompletion { cause ->
+							task.invokeOnCompletion { cause ->
 								fillIsRunningProperty.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
 								statePaintContext?.refreshMeshes?.invoke()
