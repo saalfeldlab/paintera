@@ -93,24 +93,24 @@ public class IntersectPainting {
 		final Source<?> currentSource = sourceInfo.currentSourceProperty().get();
 		final ViewerState viewerState = viewer.getState();
 		if (currentSource == null) {
-			LOG.info("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not intersect");
 			return;
 		}
 
 		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
 
 		if (!currentSourceState.isVisibleProperty().get()) {
-			LOG.info("Selected source is not visible -- will not fill");
+			LOG.info("Selected source is not visible -- will not intersect");
 			return;
 		}
 
 		if (!(currentSource instanceof MaskedSource<?, ?>)) {
-			LOG.info("Selected source is not painting-enabled -- will not fill");
+			LOG.info("Selected source is not painting-enabled -- will not intersect");
 			return;
 		}
 
 		if (maskForLabel == null) {
-			LOG.info("Cannot generate boolean mask for this source -- will not fill");
+			LOG.info("Cannot generate boolean mask for this source -- will not intersect");
 			return;
 		}
 
@@ -119,7 +119,7 @@ public class IntersectPainting {
 		final Type<?> t = source.getDataType();
 
 		if (!(t instanceof IntegerType<?>)) {
-			LOG.info("Data type is not integer type or LabelMultisetType -- will not fill");
+			LOG.info("Data type is not integer type or LabelMultisetType -- will not intersect");
 			return;
 		}
 
