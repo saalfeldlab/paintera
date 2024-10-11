@@ -460,7 +460,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		i.setInteger(Label.OUTSIDE);
 		final RandomAccessibleInterval<I> input = Views.isZeroMin(data) ? data : Views.zeroMin(data);
 		final RandomAccessibleInterval<I> output = new ArrayImgFactory<>(i).create(size);
-		WinnerTakesAll.downsample(input, output, relativeFactors);
+		WinnerTakesAll.downsample(Views.extendMirrorDouble(input), output, relativeFactors);
 
 		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(N5Utils.<I>open(n5, dataset), blockInterval);
 		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
