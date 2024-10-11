@@ -100,9 +100,7 @@ interface ToolMode : SourceMode {
 
 			/* If the mode was changed before we can activate, switch to null */
 			val activeMode = paintera.baseView.activeModeProperty.value
-			activeTool = if (activeMode != this@ToolMode) null else tool
-
-			activeTool?.activate()
+			activeTool = if (activeMode != this@ToolMode) null else tool?.apply { activate() }
 			LOG.trace { "Activated $activeTool" }
 		}
 
@@ -156,7 +154,8 @@ interface ToolMode : SourceMode {
 						toggles
 							.firstOrNull { it.userData == newTool }
 							?.also { toggleForTool -> selectToggle(toggleForTool) }
-						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*newTool.actionSets.toTypedArray()) }
+   						val toolActionSets = newTool.actionSets.toTypedArray()
+						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*toolActionSets) }
 					}
 				}
 			}
