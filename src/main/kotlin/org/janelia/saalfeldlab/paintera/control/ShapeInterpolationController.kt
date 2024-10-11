@@ -2,13 +2,13 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.viewer.TransformListener
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.InvalidationListener
-import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
+import javafx.collections.FXCollections
+import javafx.collections.ObservableList
 import javafx.scene.paint.Color
 import javafx.util.Duration
 import kotlinx.coroutines.*
@@ -16,7 +16,6 @@ import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.converter.BiConverter
-import net.imglib2.converter.Converters
 import net.imglib2.converter.logical.Logical
 import net.imglib2.converter.read.BiConvertedRealRandomAccessible
 import net.imglib2.img.array.ArrayImgFactory
@@ -62,7 +61,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.util.*
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 import java.util.stream.Collectors
@@ -618,7 +616,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
 
 		/* If we have a mask, get it; else create a new one */
-		currentViewerMask = (if (ignoreExisting) null else sliceAtCurrentDepth)?.let { oldSlice ->
+            		currentViewerMask = (if (ignoreExisting) null else sliceAtCurrentDepth)?.let { oldSlice ->
 			val oldSliceBoundingBox = oldSlice.maskBoundingBox ?: let {
 				deleteSliceAt()
 				return@let null
@@ -982,44 +980,31 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	private class SlicesAndInterpolants : MutableList<SliceOrInterpolant> by Collections.synchronizedList(mutableListOf()), Observable {
+	private class SlicesAndInterpolants : ObservableList<SliceOrInterpolant> by FXCollections.synchronizedObservableList(FXCollections.observableArrayList()) {
 		fun removeSlice(slice: SliceInfo): Boolean {
-			synchronized(this) {
-				for (idx in indices) {
-					if (idx >= 0 && idx <= size - 1 && get(idx).equals(slice)) {
-						removeIfInterpolant(idx + 1)
-						LOG.trace { "Removing Slice: $idx" }
-						removeAt(idx).getSlice()
-						removeIfInterpolant(idx - 1)
-
-						notifyListeners()
-
-						return true
-					}
+			for (idx in indices) {
+				if (idx >= 0 && idx <= size - 1 && get(idx).equals(slice)) {
+					removeIfInterpolant(idx + 1)
+					LOG.trace { "Removing Slice: $idx" }
+					removeAt(idx).getSlice()
+					removeIfInterpolant(idx - 1)
+					return true
 				}
-				return false
 			}
+			return false
 		}
 
 		fun removeSliceAtDepth(depth: Double): SliceInfo? {
-			synchronized(this) {
-				return getSliceAtDepth(depth)?.also {
-					removeSlice(it)
-				}
+			return getSliceAtDepth(depth)?.also {
+				removeSlice(it)
 			}
 		}
 
 		fun removeIfInterpolant(idx: Int): InterpolantInfo? {
-			synchronized(this) {
-				return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant) {
-					LOG.trace { "Removing Interpolant: $idx" }
-					val interp = removeAt(idx).getInterpolant()
-
-					notifyListeners()
-
-					interp
-				} else null
-			}
+			return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant) {
+				LOG.trace { "Removing Interpolant: $idx" }
+				removeAt(idx).getInterpolant()
+			} else null
 
 		}
 
@@ -1032,22 +1017,16 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		fun add(depth: Double, sliceOrInterpolant: SliceOrInterpolant) {
-			synchronized(this) {
-				for (idx in this.indices) {
-					if (get(idx).isSlice && get(idx).sliceDepth > depth) {
-						LOG.trace { "Adding Slice: $idx" }
-						add(idx, sliceOrInterpolant)
-						removeIfInterpolant(idx - 1)
-						return
-					}
-				}
-				LOG.trace { "Adding Slice: ${this.size}" }
-				add(sliceOrInterpolant)
-
-				InvokeOnJavaFXApplicationThread {
-					listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
+			for (idx in this.indices) {
+				if (get(idx).isSlice && get(idx).sliceDepth > depth) {
+					LOG.trace { "Adding Slice: $idx" }
+					add(idx, sliceOrInterpolant)
+					removeIfInterpolant(idx - 1)
+					return
 				}
 			}
+			LOG.trace { "Adding Slice: ${this.size}" }
+			add(sliceOrInterpolant)
 		}
 
 		fun removeAllInterpolants() {
@@ -1148,20 +1127,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				}
 				return false
 			}
-		}
-
-		private val listeners = mutableListOf<InvalidationListener>()
-
-		override fun addListener(p0: InvalidationListener) {
-			listeners += p0
-		}
-
-		override fun removeListener(p0: InvalidationListener) {
-			listeners -= p0
-		}
-
-		private fun notifyListeners() = InvokeOnJavaFXApplicationThread {
-			listeners.forEach { it.invalidated(this@SlicesAndInterpolants) }
 		}
 	}
 
