@@ -14,8 +14,8 @@ open class AsyncCacheWithLoader<K : Any, V>(
 	private val loader: suspend (K) -> V
 ) : Cache<K, V> {
 
-	private val loaderContext = Dispatchers.IO + Job()
-	private val loaderQueueContext = Dispatchers.IO + Job()
+	private val loaderScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	private val loaderQueueScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
 	val cacheSizeProperty = SimpleIntegerProperty()
 	var cacheSize by cacheSizeProperty.nonnull()
@@ -25,7 +25,7 @@ open class AsyncCacheWithLoader<K : Any, V>(
 		private set
 
 	fun cancelUnsubmittedLoadRequests() {
-		loaderQueueContext.cancelChildren()
+		loaderScope.coroutineContext.cancelChildren()
 	}
 
 	override fun getIfPresent(key: K): V? {
@@ -44,7 +44,7 @@ open class AsyncCacheWithLoader<K : Any, V>(
 	fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
 		cache.get(key) {
 			if (clear) cancelUnsubmittedLoadRequests()
-			async(loaderContext) {  loader(key) }
+			loaderScope.async { loader(key) }
 		}.also { if (it.isCancelled) cache.invalidate(key) }
 	}
 
@@ -57,7 +57,7 @@ open class AsyncCacheWithLoader<K : Any, V>(
 		}
 
 		return runBlocking {
-			async(loaderQueueContext) {
+			loaderQueueScope.async {
 				if (!isActive) invalidate(key)
 				else request(key)
 			}
