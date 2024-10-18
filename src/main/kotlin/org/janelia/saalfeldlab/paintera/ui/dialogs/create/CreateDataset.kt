@@ -394,6 +394,11 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			levels.add(level)
 		}
 		provideAbsoluteValues(levels, resolution, dimensions)
+		levels.removeIf { level ->
+			val isFirst = level == levels[0]
+			val tooSmall = level.dimensions.asLongArray().zip(blockSize.asLongArray()).all { (dim, block) -> dim <= block  }
+			!isFirst && tooSmall
+		}
 		mipmapLevels.clear()
 		mipmapLevels += levels
 	}
