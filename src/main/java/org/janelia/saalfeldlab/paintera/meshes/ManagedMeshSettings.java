@@ -29,7 +29,7 @@ public class ManagedMeshSettings<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final boolean DEFAULT_IS_MESH_LIST_ENABLED = false;
+	public static final boolean DEFAULT_IS_MESH_LIST_ENABLED = true;
 
 	public static final boolean DEFAULT_ARE_MESHES_ENABLED = true;
 
