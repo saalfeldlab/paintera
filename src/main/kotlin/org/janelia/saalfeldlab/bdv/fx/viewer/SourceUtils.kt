@@ -7,6 +7,11 @@ import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileLabelMultisetType
+
+interface CompositeSourceSupplier {
+	fun getCompositeSource() : Source<*>
+}
 
 internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndConverter<*>): SourceAndConverter<*> {
 	val data = sourceAndConverter.spimSource as? DataSource<D, *> ?: return  sourceAndConverter
@@ -30,6 +35,14 @@ internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndCo
 		override fun getNumMipmapLevels() = data.numMipmapLevels
 	}
 
-	return SourceAndConverter(dataSource, sourceAndConverter.converter as Converter<D, ARGBType>)
+	val converter = sourceAndConverter.converter.let {
+		(it as? HighlightingStreamConverterVolatileLabelMultisetType)?.nonVolatileConverter ?: it
+	} as Converter<D, ARGBType>
+
+	return object : SourceAndConverter<D>(dataSource, converter), CompositeSourceSupplier {
+		override fun getCompositeSource(): Source<*> {
+			return sourceAndConverter.spimSource
+		}
+	}
 
 }

@@ -1,10 +1,9 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
-import net.imglib2.type.label.Label;
-import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 
-public class HighlightingStreamConverterLabelMultisetType extends HighlightingStreamConverter<VolatileLabelMultisetType> {
+public class HighlightingStreamConverterLabelMultisetType extends HighlightingStreamConverter<LabelMultisetType> {
 
 	final static private double ONE_OVER_255 = 1.0 / 255.0;
 
@@ -13,15 +12,9 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 		super(stream);
 	}
 
-	@Override
-	public void convert(final VolatileLabelMultisetType input, final ARGBType output) {
+	@Override public void convert(LabelMultisetType input, ARGBType output) {
 
-		final boolean isValid = input.isValid();
-		if (!isValid) {
-			return;
-		}
-		// entry
-		final var entries = input.get().entrySet();
+		final var entries = input.entrySet();
 		final int numEntries = entries.size();
 		if (numEntries == 0) {
 			final long emptyValue = 0;
@@ -51,5 +44,4 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 			output.set(((aInt << 8 | rInt) << 8 | gInt) << 8 | bInt);
 		}
 	}
-
 }

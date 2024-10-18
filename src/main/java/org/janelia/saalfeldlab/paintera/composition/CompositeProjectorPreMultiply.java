@@ -10,6 +10,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.bdv.fx.viewer.CompositeSourceSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,12 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 
 			final ArrayList<Composite<ARGBType, ARGBType>> activeComposites = new ArrayList<>();
 			for (final var activeSource : sources) {
-				activeComposites.add(composites.get(activeSource.getSpimSource()));
+				final Source<?> compositeSource;
+				if (activeSource instanceof CompositeSourceSupplier)
+					compositeSource = ((CompositeSourceSupplier)activeSource).getCompositeSource();
+				else
+					compositeSource = activeSource.getSpimSource();
+				activeComposites.add(composites.get(compositeSource));
 			}
 
 			projector.setComposites(activeComposites);

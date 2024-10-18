@@ -14,6 +14,7 @@ import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -125,6 +126,9 @@ public abstract class HighlightingStreamConverter<T>
 
 		LOG.debug("Getting {} for type {}", HighlightingStreamConverter.class.getSimpleName(), t);
 		if (t instanceof VolatileLabelMultisetType) {
+			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterVolatileLabelMultisetType(stream);
+		}
+		if (t instanceof LabelMultisetType) {
 			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterLabelMultisetType(stream);
 		}
 		if (t instanceof Volatile<?> && ((Volatile<?>)t).get() instanceof IntegerType<?>) {
