@@ -25,6 +25,7 @@ import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -343,7 +344,10 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	fun ViewerPanelFX.getSamRenderState(globalToViewerTransform: AffineTransform3D? = null, size: Pair<Long, Long>? = null): RenderUnitState {
 		val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource
-		val sacs = state.sources.filterNot { it.spimSource == activeSourceToSkip }.toList()
+		val sacs = state.sources
+			.filterNot { it.spimSource == activeSourceToSkip }
+			.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
+			.toList()
 		return RenderUnitState(
 			globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },
 			state.timepoint,
@@ -354,8 +358,8 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 
 	private val LOG = KotlinLogging.logger { }
-	private const val HTTP_SUCCESS = 200;
-	private const val HTTP_CANCELLED = 499;
+	private const val HTTP_SUCCESS = 200
+	private const val HTTP_CANCELLED = 499
 }
 
 private data class SessionRenderUnitState(val sessionId: String, val state: RenderUnitState) : RenderUnitState(state.transform, state.timepoint, state.sources, state.width, state.height) {
