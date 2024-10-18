@@ -86,9 +86,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		}
 
 		override fun handle(now: Long) {
-			if (requestCountDown.getAndDecrement() <= 0) {
+			return
+			/* currently using -1 to indicate no change to the transform */
+			if (requestCountDown.get() == -1) return
+			else if (requestCountDown.getAndDecrement() == 0) {
 				previousJob = load(viewer, globalToViewerTransform, sessionId)
-				requestCountDown.getAndSet(REQUEST_COUNTDOWN)
+				requestCountDown.getAndSet(-1)
 			}
 		}
 
