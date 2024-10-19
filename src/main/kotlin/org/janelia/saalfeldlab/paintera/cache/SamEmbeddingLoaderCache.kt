@@ -17,11 +17,13 @@ import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.apache.http.HttpException
+import org.apache.http.client.HttpClient
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.BasicCookieStore
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
@@ -238,6 +240,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		return super.load(sessionState)
 	}
 
+	val client: HttpClient = HttpClientBuilder.create()
+					.useSystemProperties()
+					.setDefaultRequestConfig(requestConfig)
+					.setDefaultCookieStore(BasicCookieStore())
+					.build()
+
 	private fun getSessionId(): String {
 		val url =
 			with(paintera.properties.segmentAnythingConfig) {
@@ -248,7 +256,6 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val getSessionId = HttpGet(url)
 
-		val client = HttpClientBuilder.create().useSystemProperties().setDefaultRequestConfig(requestConfig).build()
 		val response = client.execute(getSessionId)
 		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
 	}
@@ -301,7 +308,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val url = with(paintera.properties.segmentAnythingConfig) {
 			with(SegmentAnythingConfig) {
-				val compress = if (compressEncoding) "$COMPRESS_ENCODING_PARAMETER" else ""
+				val compress = if (compressEncoding) COMPRESS_ENCODING_PARAMETER else ""
 				"$serviceUrl/$EMBEDDING_REQUEST_ENDPOINT?$compress"
 			}
 		}
