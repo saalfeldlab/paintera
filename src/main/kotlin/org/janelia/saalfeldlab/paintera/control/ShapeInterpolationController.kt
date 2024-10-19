@@ -102,7 +102,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	val currentSliceMaskInterval get() = sliceAtCurrentDepth?.maskBoundingBox
 
-	val numSlices: Int get() = slicesAndInterpolants.slices.size
+	val numSlices: Int get() = slicesAndInterpolants.count { it.isSlice }
 
 	var activeSelectionAlpha = (AbstractHighlightingARGBStream.DEFAULT_ACTIVE_FRAGMENT_ALPHA ushr 24) / 255.0
 
@@ -301,9 +301,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		if (replaceExistingInterpolants) {
 			slicesAndInterpolants.removeAllInterpolants()
-		}
-		if (interpolator != null) {
-			interpolator!!.cancel()
 		}
 
 		isBusy = true
@@ -582,8 +579,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	private fun interruptInterpolation() {
 		interpolator?.let {
 			it.cancel()
-			/* Ensure it's done */
-			runBlocking { it.join() }
 		}
 	}
 
@@ -955,8 +950,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val sliceDepth: Double
 			get() = sliceAndDepth!!.first
 
-		fun getInterpolant(): InterpolantInfo? {
-			return interpolant
+		fun getInterpolant(): InterpolantInfo {
+			return interpolant!!
 		}
 
 		override fun equals(other: Any?): Boolean {
@@ -1091,18 +1086,25 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		val slices: List<SliceInfo>
-			get() = synchronized(this) {
-				stream()
-					.filter { it.isSlice }
-					.map { it.getSlice() }
-					.collect(Collectors.toList())
+			get() = mutableListOf<SliceInfo>().let {
+				val iterator = iterator()
+				while (iterator.hasNext()) {
+					val element = iterator.next()
+					if (element.isSlice)
+							it.add(element.getSlice())
+				}
+				it.toList()
 			}
 		val interpolants: List<InterpolantInfo>
-			get() = synchronized(this) {
-				stream()
-					.filter { it.isInterpolant }
-					.map { it.getInterpolant()!! }
-					.collect(Collectors.toList())
+			get() = mutableListOf<InterpolantInfo>().let {
+				removeIf { false }
+				val iterator = iterator()
+				while (iterator.hasNext()) {
+					val element = iterator.next()
+					if (element.isInterpolant)
+						it.add(element.getInterpolant())
+				}
+				it.toList()
 			}
 
 		fun clearInterpolantsAroundSlice(z: Double) {
