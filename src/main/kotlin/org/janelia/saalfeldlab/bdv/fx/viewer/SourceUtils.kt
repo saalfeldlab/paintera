@@ -9,12 +9,8 @@ import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileLabelMultisetType
 
-interface CompositeSourceSupplier {
-	fun getCompositeSource() : Source<*>
-}
-
 internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndConverter<*>): SourceAndConverter<*> {
-	val data = sourceAndConverter.spimSource as? DataSource<D, *> ?: return  sourceAndConverter
+	val data = sourceAndConverter.spimSource as? DataSource<D, *> ?: return sourceAndConverter
 	val dataSource = object : Source<D> {
 		override fun isPresent(t: Int) = data.isPresent(t)
 
@@ -28,21 +24,21 @@ internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndCo
 
 		override fun getType() = data.dataType
 
-		override fun getName() = sourceAndConverter.spimSource.name
+		override fun getName() = data.name
 
 		override fun getVoxelDimensions() = data.voxelDimensions
 
 		override fun getNumMipmapLevels() = data.numMipmapLevels
+
+		override fun hashCode() = data.hashCode()
+
+		override fun equals(other: Any?) = data == other
 	}
 
 	val converter = sourceAndConverter.converter.let {
 		(it as? HighlightingStreamConverterVolatileLabelMultisetType)?.nonVolatileConverter ?: it
 	} as Converter<D, ARGBType>
 
-	return object : SourceAndConverter<D>(dataSource, converter), CompositeSourceSupplier {
-		override fun getCompositeSource(): Source<*> {
-			return sourceAndConverter.spimSource
-		}
-	}
+	return SourceAndConverter(dataSource, converter)
 
 }
