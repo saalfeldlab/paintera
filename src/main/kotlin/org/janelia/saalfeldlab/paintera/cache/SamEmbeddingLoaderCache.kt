@@ -89,7 +89,6 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		}
 
 		override fun handle(now: Long) {
-			return
 			/* currently using -1 to indicate no change to the transform */
 			if (requestCountDown.get() == -1) return
 			else if (requestCountDown.getAndDecrement() == 0) {
