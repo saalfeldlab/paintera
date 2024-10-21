@@ -61,7 +61,7 @@ class MeshSettings @JvmOverloads constructor(
 			val maxLevelOfDetail = 10
 
 			@JvmStatic
-			val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
+			val levelOfDetail = 8
 		}
 
 		companion object {
@@ -72,7 +72,7 @@ class MeshSettings @JvmOverloads constructor(
 			fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
 
 			@JvmStatic
-			fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
+			fun getDefaultFinestScaleLevel(numScaleLevels: Int) = 0
 		}
 	}
 

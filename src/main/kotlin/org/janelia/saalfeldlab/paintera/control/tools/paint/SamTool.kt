@@ -1010,38 +1010,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						composite.set(compositeVal)
 					}.interval(maskAlignedSelectedComponents)
 
-
-				val compositeVolatileMask = originalVolatileBackingImage!!
-					.extendValue(VolatileUnsignedLongType(Label.INVALID))
-					.convertWith(maskAlignedSelectedComponents, VolatileUnsignedLongType(Label.INVALID)) { original, overlay, composite ->
-						val setCompositeVal = {
-							var checkOriginal = false
-							val overlayVal = overlay.get()
-							if (overlayVal == predictionLabel) {
-								composite.get().set(predictionLabel)
-								composite.isValid = true
-							} else checkOriginal = true
-							if (checkOriginal) {
-								if (original.isValid) {
-									composite.set(original)
-									composite.isValid = true
-								} else composite.isValid = false
-								composite.isValid = true
-							}
-						}
-						if (maskPriority == MaskPriority.PREDICTION || !original.isValid) {
-							setCompositeVal()
-						} else {
-							val originalVal = original.get().get()
-							if (originalVal != Label.INVALID) {
-								composite.set(originalVal)
-								composite.isValid = true
-							} else setCompositeVal()
-						}
-					}.interval(maskAlignedSelectedComponents)
+				val compositeMaskAsVolatile = compositeMask.convertRAI(VolatileUnsignedLongType(0L)) { source, output ->
+					output.set(source.get())
+					output.isValid = true
+				}
 
 				paintMask.updateBackingImages(
-					compositeMask to compositeVolatileMask,
+					compositeMask to compositeMaskAsVolatile,
 					writableSourceImages = originalBackingImage to originalVolatileBackingImage
 				)
 

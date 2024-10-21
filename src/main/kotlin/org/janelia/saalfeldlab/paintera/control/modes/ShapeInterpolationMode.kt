@@ -21,6 +21,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -398,6 +399,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			val activeSource = activeSourceStateProperty.value!!.sourceAndConverter!!.spimSource
 			val sources = mask.viewer.state.sources
 				.filter { it.spimSource !== activeSource }
+				.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())

@@ -17,14 +17,17 @@ import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.apache.http.HttpException
+import org.apache.http.client.HttpClient
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.BasicCookieStore
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -86,9 +89,11 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		}
 
 		override fun handle(now: Long) {
-			if (requestCountDown.getAndDecrement() <= 0) {
+			/* currently using -1 to indicate no change to the transform */
+			if (requestCountDown.get() == -1) return
+			else if (requestCountDown.getAndDecrement() == 0) {
 				previousJob = load(viewer, globalToViewerTransform, sessionId)
-				requestCountDown.getAndSet(REQUEST_COUNTDOWN)
+				requestCountDown.getAndSet(-1)
 			}
 		}
 
@@ -234,6 +239,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		return super.load(sessionState)
 	}
 
+	val client: HttpClient = HttpClientBuilder.create()
+					.useSystemProperties()
+					.setDefaultRequestConfig(requestConfig)
+					.setDefaultCookieStore(BasicCookieStore())
+					.build()
+
 	private fun getSessionId(): String {
 		val url =
 			with(paintera.properties.segmentAnythingConfig) {
@@ -244,7 +255,6 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val getSessionId = HttpGet(url)
 
-		val client = HttpClientBuilder.create().useSystemProperties().setDefaultRequestConfig(requestConfig).build()
 		val response = client.execute(getSessionId)
 		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
 	}
@@ -297,7 +307,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val url = with(paintera.properties.segmentAnythingConfig) {
 			with(SegmentAnythingConfig) {
-				val compress = if (compressEncoding) "$COMPRESS_ENCODING_PARAMETER" else ""
+				val compress = if (compressEncoding) COMPRESS_ENCODING_PARAMETER else ""
 				"$serviceUrl/$EMBEDDING_REQUEST_ENDPOINT?$compress"
 			}
 		}
@@ -340,7 +350,10 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	fun ViewerPanelFX.getSamRenderState(globalToViewerTransform: AffineTransform3D? = null, size: Pair<Long, Long>? = null): RenderUnitState {
 		val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource
-		val sacs = state.sources.filterNot { it.spimSource == activeSourceToSkip }.toList()
+		val sacs = state.sources
+			.filterNot { it.spimSource == activeSourceToSkip }
+			.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
+			.toList()
 		return RenderUnitState(
 			globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },
 			state.timepoint,
@@ -351,8 +364,8 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 
 	private val LOG = KotlinLogging.logger { }
-	private const val HTTP_SUCCESS = 200;
-	private const val HTTP_CANCELLED = 499;
+	private const val HTTP_SUCCESS = 200
+	private const val HTTP_CANCELLED = 499
 }
 
 private data class SessionRenderUnitState(val sessionId: String, val state: RenderUnitState) : RenderUnitState(state.transform, state.timepoint, state.sources, state.width, state.height) {

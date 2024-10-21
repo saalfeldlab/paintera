@@ -24,7 +24,7 @@ public class Smooth {
 
 	public static final double DEFAULT_LAMBDA = 1.0;
 
-	public static final int DEFAULT_ITERATIONS = 1;
+	public static final int DEFAULT_ITERATIONS = 5;
 
 	private static boolean isBoundary(
 			final ArrayList<TIntHashSet> vertexTriangleLUT,

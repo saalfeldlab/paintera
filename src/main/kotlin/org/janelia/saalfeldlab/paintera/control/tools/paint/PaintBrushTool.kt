@@ -251,14 +251,43 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	}
 
 	protected fun getBrushActions() = arrayOf(
-		painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
+		painteraActionSet("change_brush_size", PaintActionType.SetBrushSize) {
 			ScrollEvent.SCROLL {
 				keysExclusive = false
-				name = "change brush size"
+				name = "scroll_brush_size"
 
 				verifyEventNotNull()
 				verify { !it!!.isShiftDown }
 				onAction { paint2D.changeBrushRadius(it!!.deltaY) }
+			}
+			arrayOf(KeyCode.EQUALS, KeyCode.UP, KeyCode.PLUS).map { key ->
+				KEY_PRESSED(key) {
+					keysExclusive = false
+					name = "plus_brush_size"
+					verifyEventNotNull()
+					onAction {
+						paint2D.increaseBrushRadius()
+						if (it?.isShiftDown == true) {
+							paint2D.increaseBrushRadius()
+							paint2D.increaseBrushRadius()
+						}
+					}
+				}
+			}
+
+			arrayOf(KeyCode.MINUS, KeyCode.DOWN).map { key ->
+				KEY_PRESSED(key) {
+					keysExclusive = false
+					name = "minus_brush_size"
+					verifyEventNotNull()
+					onAction {
+						paint2D.decreaseBrushRadius()
+						if (it?.isShiftDown == true) {
+							paint2D.decreaseBrushRadius()
+							paint2D.decreaseBrushRadius()
+						}
+					}
+				}
 			}
 		},
 		painteraActionSet(CHANGE_BRUSH_DEPTH, PaintActionType.SetBrushDepth) {

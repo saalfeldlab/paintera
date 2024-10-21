@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.LongPredicate;
@@ -118,8 +119,10 @@ public class LabelSourceStateIdSelectorHandler {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
 				keyAction.keyMatchesBinding(LabelSourceStateKeys.SELECT_ALL);
-				keyAction.verify(event -> selectAllTask == null);
 				keyAction.onAction(keyEvent -> {
+					if (selectAllTask != null) {
+						selectAllTask.cancel(new CancellationException("Cancelled by User"));
+					}
 					selectAllTask = Tasks.createTask(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
 						selector.selectAll();
@@ -133,13 +136,19 @@ public class LabelSourceStateIdSelectorHandler {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
 				keyAction.keyMatchesBinding(LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
-				keyAction.verify(event -> selectAllTask == null);
 				keyAction.verify(event -> getActiveViewer.get() != null);
 				keyAction.onAction(keyEvent -> {
+					if (selectAllTask != null) {
+						selectAllTask.cancel(new CancellationException("Cancelled by User"));
+					}
+					final ViewerPanelFX viewer = getActiveViewer.get();
 					selectAllTask = Tasks.createTask(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
-						selector.selectAllInCurrentView(getActiveViewer.get());
+						selector.selectAllInCurrentView(viewer);
 					}).onEnd((result, error) -> {
+						if (error != null) {
+							LOG.error("Error selecting all labels in view", error);
+						}
 						selectAllTask = null;
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
 					});
