@@ -246,6 +246,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	internal lateinit var renderState: RenderUnitState
 
+	override fun isValid() = SamEmbeddingLoaderCache.canReachServer
+
 	override fun activate() {
 		mode?.apply {
 			modeActionsBar.show(false)

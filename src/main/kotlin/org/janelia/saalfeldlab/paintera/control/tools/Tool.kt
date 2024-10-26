@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 
 interface Tool {
 
+	fun isValid() = true
 	fun activate() {}
 	fun deactivate() {}
 
@@ -62,10 +63,19 @@ interface ToolBarItem {
 
 			return button.also { btn ->
 				btn.id = name
+				//FIXME Caleb: this is either not necessary, or magic. Regardless, should fix it
+				//  why conditionally bind isDisabled only if a graphic?
 				btn.graphic?.let {
+
+					val checkIsValid = { action?.isValid(null) ?: (this as? Tool)?.isValid() ?: true }
+					/* Listen on disabled when visible*/
 					if ("ignore-disable" !in it.styleClass) {
-						btn.disableProperty().bind(paintera.baseView.isDisabledProperty)
+						paintera.baseView.isDisabledProperty.`when`(btn.visibleProperty()).subscribe { disabled ->
+							btn.disableProperty().set(disabled || !checkIsValid())
+						}
 					}
+					/* set initial state to */
+					btn.disableProperty().set(!checkIsValid())
 				}
 				btn.styleClass += "toolbar-button"
 				btn.tooltip = Tooltip(

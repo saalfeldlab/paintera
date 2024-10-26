@@ -66,6 +66,15 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 ) {
 
+	//TODO Caleb: May want to be smarter about this, server side health check maybe
+	val canReachServer =
+		try {
+			getSessionId()
+			true
+		} catch (e: Exception) {
+			false
+		}
+
 	private val navigationId by lazy { getSessionId() }
 
 	private class NavigationBasedRequestTimer(val viewerAndTransforms: ViewerAndTransforms) : AnimationTimer() {
@@ -241,12 +250,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 
 	val client: HttpClient = HttpClientBuilder.create()
-					.useSystemProperties()
-					.setDefaultRequestConfig(requestConfig)
-					.setDefaultCookieStore(BasicCookieStore())
-					.build()
+		.useSystemProperties()
+		.setDefaultRequestConfig(requestConfig)
+		.setDefaultCookieStore(BasicCookieStore())
+		.build()
 
-	private fun getSessionId(): String {
+	private fun requestSessionId(): String {
 		val url =
 			with(paintera.properties.segmentAnythingConfig) {
 				with(SegmentAnythingConfig) {
@@ -255,11 +264,14 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			}
 
 		val getSessionId = HttpGet(url)
+		val response = client.execute(getSessionId)
+		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
+	}
 
+	private fun getSessionId(): String {
 		return try {
-			val response = client.execute(getSessionId)
-			EntityUtils.toString(response.entity!!, Charsets.UTF_8)
-		} catch (e : IOException) {
+			requestSessionId()
+		} catch (e: IOException) {
 			e.message ?: "Cannot Get SAM Session ID"
 		}
 	}
@@ -357,7 +369,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource
 		val sacs = state.sources
 			.filterNot { it.spimSource == activeSourceToSkip }
-			.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
+			.map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
 			.toList()
 		return RenderUnitState(
 			globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },
