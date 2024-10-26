@@ -80,7 +80,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		Select, Interpolate, Preview, Off, Moving
 	}
 
-	private var lastSelectedId: Long = 0
+	internal var lastSelectedId: Long = 0
 
 	internal var interpolationId: Long = Label.INVALID
 
