@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import java.io.IOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.net.SocketTimeoutException
@@ -255,8 +256,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val getSessionId = HttpGet(url)
 
-		val response = client.execute(getSessionId)
-		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
+		return try {
+			val response = client.execute(getSessionId)
+			EntityUtils.toString(response.entity!!, Charsets.UTF_8)
+		} catch (e : IOException) {
+			e.message ?: "Cannot Get SAM Session ID"
+		}
 	}
 
 	private fun getImageEmbedding(it: RenderUnitState): OnnxTensor {
