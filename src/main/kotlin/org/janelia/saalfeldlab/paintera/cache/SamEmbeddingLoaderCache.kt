@@ -67,11 +67,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 ) {
 
 	//TODO Caleb: May want to be smarter about this, server side health check maybe
-	val canReachServer =
-		try {
+	val canReachServer: Boolean
+		get() = try {
 			getSessionId()
 			true
 		} catch (e: Exception) {
+			LOG.debug(e) { "Exception occurred while attempting to reach server" }
 			false
 		}
 
