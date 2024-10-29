@@ -97,10 +97,13 @@ interface ToolMode : SourceMode {
 			(activeTool as? ViewerTool)?.removeFromAll()
 
 
-
 			/* If the mode was changed before we can activate, switch to null */
 			val activeMode = paintera.baseView.activeModeProperty.value
-			activeTool = if (activeMode != this@ToolMode) null else tool?.apply { activate() }
+			activeTool = when {
+				activeMode != this@ToolMode -> null // wrong mode
+				tool?.isValid() == false -> null // tool is not currently valid
+				else -> tool?.apply { activate() } // try to activate
+			}
 			LOG.trace { "Activated $activeTool" }
 		}
 
@@ -154,7 +157,7 @@ interface ToolMode : SourceMode {
 						toggles
 							.firstOrNull { it.userData == newTool }
 							?.also { toggleForTool -> selectToggle(toggleForTool) }
-   						val toolActionSets = newTool.actionSets.toTypedArray()
+						val toolActionSets = newTool.actionSets.toTypedArray()
 						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*toolActionSets) }
 					}
 				}
@@ -381,7 +384,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
 	override fun enter() {
 		super<AbstractSourceMode>.enter()
-		var statusSubscription : Subscription? = null
+		var statusSubscription: Subscription? = null
 		activeToolProperty.subscribe { tool ->
 			statusSubscription?.unsubscribe()
 			statusSubscription = tool?.statusProperty?.subscribe { status ->
