@@ -27,8 +27,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public abstract class HighlightingStreamConverter<T>
-		implements Converter<T, ARGBType>, SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments,
-		UserSpecifiedColors {
+		implements Converter<T, ARGBType>,
+		SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments, UserSpecifiedColors {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -132,7 +132,10 @@ public abstract class HighlightingStreamConverter<T>
 			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterLabelMultisetType(stream);
 		}
 		if (t instanceof Volatile<?> && ((Volatile<?>)t).get() instanceof IntegerType<?>) {
-			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterIntegerType(stream);
+			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterVolatileIntegerType<>(stream);
+		}
+		if (t instanceof IntegerType<?>) {
+			return (HighlightingStreamConverter<T>)new HighlightingStreamConverterIntegerType<>(stream);
 		}
 
 		return null;

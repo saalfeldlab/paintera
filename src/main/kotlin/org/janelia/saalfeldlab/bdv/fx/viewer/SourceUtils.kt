@@ -8,6 +8,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileLabelMultisetType
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileType
 
 //FIXME Caleb: These are both private because imho this is a bit of a hack.
 // We want to Paintera's DataSource implemenet Source over the volatile type,
@@ -59,7 +60,7 @@ internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndCo
 	val unwrappedDataSource = UnwrappedDataSource(data)
 
 	val converter = sourceAndConverter.converter.let {
-		(it as? HighlightingStreamConverterVolatileLabelMultisetType)?.nonVolatileConverter ?: it
+		(it as? HighlightingStreamConverterVolatileType<*, *>)?.nonVolatileConverter ?: it
 	} as Converter<D, ARGBType>
 
 	return WrappedSourceAndConverter(sourceAndConverter, unwrappedDataSource, converter)
