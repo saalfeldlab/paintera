@@ -16,6 +16,7 @@ import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_COMPRESS_ENCODING
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_MODEL_LOCATION
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_RESPONSE_TIMEOUT
@@ -92,13 +93,14 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			VBox.setVgrow(it, Priority.NEVER)
 			it.maxWidth = Double.MAX_VALUE
 			it.prefWidth - Double.MAX_VALUE
-			it.textProperty().addListener { _, _, new ->
-				if (new.isBlank()) {
+			it.focusedProperty().subscribe { focused ->
+				if (!focused && it.text.isBlank()) {
 					it.text = DEFAULT_SERVICE_URL
-					Platform.runLater { it.positionCaret(0) }
-				} else {
-					config.serviceUrl = new
+					InvokeOnJavaFXApplicationThread { it.positionCaret(0) }
 				}
+			}
+			it.textProperty().subscribe { _, new ->
+				config.serviceUrl = new
 			}
 			add(it, 1, row)
 		}
