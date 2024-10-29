@@ -64,8 +64,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
@@ -120,7 +118,7 @@ class SmoothActionVerifiedState {
 	}
 }
 
-object SmoothAction : MenuAction("_Smooth") {
+object SmoothAction : MenuAction("_Smooth...") {
 
 	private fun newConvolutionExecutor(): ThreadPoolExecutor {
 		val threads = Runtime.getRuntime().availableProcessors()

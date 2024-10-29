@@ -30,19 +30,19 @@ enum class PainteraMenuItems(
 	private val allowedAction: MenuActionType? = null
 ) {
 	NEW_PROJECT("_New Project", allowedAction = MenuActionType.OpenProject),
-	OPEN_PROJECT("Open _Project", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
-	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
-	EXPORT_SOURCE("_Export Source", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, MenuActionType.ExportSource),
+	OPEN_PROJECT("Open _Project...", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
+	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
+	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, MenuActionType.ExportSource),
 	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
-	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
+	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
 
 	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, allowedAction = MenuActionType.ChangeActiveSource),
 	CYCLE_BACKWARD("Cycle _Backward", PBK.CYCLE_CURRENT_SOURCE_BACKWARD, allowedAction = MenuActionType.ChangeActiveSource),
 	TOGGLE_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_CURRENT_SOURCE_VISIBILITY),
-	NEW_LABEL_SOURCE("_Label Source (N5)", PBK.CREATE_NEW_LABEL_DATASET, allowedAction = MenuActionType.AddSource),
-	NEW_CONNECTED_COMPONENT_SOURCE("_Fill Connected Components", PBK.FILL_CONNECTED_COMPONENTS),
-	NEW_THRESHOLDED_SOURCE("_Thresholded", PBK.THRESHOLDED),
+	NEW_LABEL_SOURCE("_Label Source...", PBK.CREATE_NEW_LABEL_DATASET, allowedAction = MenuActionType.AddSource),
+	NEW_CONNECTED_COMPONENT_SOURCE("_Fill Connected Components...", PBK.FILL_CONNECTED_COMPONENTS),
+	NEW_THRESHOLDED_SOURCE("_Threshold...", PBK.THRESHOLDED),
 	TOGGLE_MENU_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_MENUBAR_VISIBILITY),
 	TOGGLE_MENU_BAR_MODE("Toggle _Mode", PBK.TOGGLE_MENUBAR_MODE),
 	TOGGLE_STATUS_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_STATUSBAR_VISIBILITY),
@@ -51,12 +51,12 @@ enum class PainteraMenuItems(
 	TOGGLE_TOOL_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_TOOL_BAR),
 	RESET_3D_LOCATION_MENU_ITEM("_Reset 3D Location", PBK.RESET_3D_LOCATION),
 	CENTER_3D_LOCATION_MENU_ITEM("_Center 3D Location", PBK.CENTER_3D_LOCATION),
-	SAVE_3D_PNG_MENU_ITEM("Save 3D As _PNG", PBK.SAVE_3D_PNG),
+	SAVE_3D_PNG_MENU_ITEM("Save 3D As _PNG...", PBK.SAVE_3D_PNG),
 	FULL_SCREEN_ITEM("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN),
-	REPL_ITEM("Show _REPL", PBK.SHOW_REPL_TABS),
+	REPL_ITEM("Show _REPL...", PBK.SHOW_REPL_TABS),
 	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS),
-	SHOW_README("Show _Readme", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
-	SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
+	SHOW_README("Show _Readme...", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
+	SHOW_KEY_BINDINGS("Show _Key Bindings...", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
 
 	val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
 
