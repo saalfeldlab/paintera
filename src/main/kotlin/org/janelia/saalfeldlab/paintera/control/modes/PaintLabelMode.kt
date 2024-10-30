@@ -26,8 +26,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION__TOGGLE_MODE
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
@@ -101,7 +100,7 @@ object PaintLabelMode : AbstractToolMode() {
 	}
 
 	private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
-		KEY_PRESSED(KeyCode.F, KeyCode.SHIFT) {
+		KEY_PRESSED(FILL_3D) {
 			onAction { switchTool(fill3DTool) }
 		}
 		KEY_PRESSED {
@@ -109,19 +108,21 @@ object PaintLabelMode : AbstractToolMode() {
 			filter = true
 			consume = true
 			verifyEventNotNull()
-			verify { it!!.code in listOf(KeyCode.F, KeyCode.SHIFT) && activeTool is Fill3DTool }
+			verify { it!!.code in FILL_3D.keyCodes && activeTool is Fill3DTool }
 		}
 
 		KEY_RELEASED {
 			verifyEventNotNull()
-			keysReleased(KeyCode.F, KeyCode.SHIFT)
+			keysReleased(*FILL_3D.keyCodes.toTypedArray())
 			verify { activeTool is Fill3DTool }
 			onAction {
-				when (it!!.code) {
-					KeyCode.F -> switchTool(NavigationTool)
-					KeyCode.SHIFT -> switchTool(fill2DTool)
-					else -> return@onAction
+
+				val nextTool = when {
+					keyTracker()?.areKeysDown(FILL_3D) == true -> return@onAction
+					keyTracker()?.areKeysDown(FILL_2D) == true -> fill2DTool
+					else -> NavigationTool
 				}
+				switchTool(nextTool)
 			}
 		}
 	}
@@ -151,7 +152,7 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
-	private val activeSamTool = painteraActionSet(LabelSourceStateKeys.SEGMENT_ANYTHING__TOGGLE_MODE, PaintActionType.Paint) {
+	private val activeSamTool = painteraActionSet(SEGMENT_ANYTHING__TOGGLE_MODE, PaintActionType.Paint) {
 		KEY_PRESSED(samTool.keyTrigger) {
 			verify { SamEmbeddingLoaderCache.canReachServer }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
@@ -171,7 +172,7 @@ object PaintLabelMode : AbstractToolMode() {
 				switchTool(defaultTool)
 			}
 		}
-		KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
+		KEY_PRESSED(CANCEL) {
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool is SamTool }
 			filter = true
@@ -205,7 +206,7 @@ object PaintLabelMode : AbstractToolMode() {
 	)
 
 	private fun getSelectNextIdActions() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
-		KEY_PRESSED(LabelSourceStateKeys.NEXT_ID) {
+		KEY_PRESSED(NEXT_ID) {
 			name = "create new segment"
 			verify { activeTool?.let { it !is PaintTool || !it.isPainting } ?: true }
 			onAction {

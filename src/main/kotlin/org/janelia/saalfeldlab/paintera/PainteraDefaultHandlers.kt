@@ -171,7 +171,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 		val borderPane = paneWithStatus.pane
 
 		baseView.allowedActionsProperty().addListener { _, _, new ->
-			val disableSidePanel = new.isAllowed(MenuActionType.SidePanel).not()
+			val disableSidePanel = new.isAllowed(MenuActionType.ToggleSidePanel).not()
 			paneWithStatus.scrollPane.disableProperty().set(disableSidePanel)
 		}
 

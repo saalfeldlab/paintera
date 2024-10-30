@@ -124,6 +124,7 @@ import kotlin.math.*
 import kotlin.properties.Delegates
 
 
+//TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "sam-select" }) }
@@ -254,7 +255,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		mode?.apply {
 			modeActionsBar.show(false)
 			modeToolsBar.show(false)
-			toolActionsBar
 		}
 		super.activate()
 		if (mode is PaintLabelMode) {
