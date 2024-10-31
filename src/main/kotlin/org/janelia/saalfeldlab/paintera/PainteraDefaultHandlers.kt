@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
-import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
-import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import javafx.beans.InvalidationListener
@@ -19,6 +16,8 @@ import javafx.scene.Node
 import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
 import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.input.MouseEvent.MOUSE_CLICKED
+import javafx.scene.input.MouseEvent.MOUSE_PRESSED
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
@@ -28,6 +27,9 @@ import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
+import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_ON
 import org.janelia.saalfeldlab.fx.actions.Action.Companion.installAction
@@ -35,8 +37,10 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
+import org.janelia.saalfeldlab.fx.actions.MouseAction
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.DynamicCellPane
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -243,41 +247,38 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 		}
 
 		val contextMenuFactory = MeshesGroupContextMenu(baseView.manager())
+
 		val contextMenuProperty = SimpleObjectProperty<ContextMenu>()
+		var contextMenu by contextMenuProperty.nullable()
 		val hideContextMenu = {
-			if (contextMenuProperty.get() != null) {
-				contextMenuProperty.get().hide()
-				contextMenuProperty.set(null)
+			contextMenu?.let {
+				it.hide()
+				contextMenu = null
 			}
 		}
-		baseView.viewer3D().meshesGroup.addEventHandler(
-			MouseEvent.MOUSE_CLICKED
-		) {
-			LOG.debug("Handling event {}", it)
-			if (baseView.isActionAllowed(MenuActionType.OrthoslicesContextMenu) &&
-				MouseButton.SECONDARY == it.button &&
-				it.clickCount == 1 &&
-				!paintera.mouseTracker.isDragging
-			) {
-				LOG.debug("Check passed for event {}", it)
-				it.consume()
-				val pickResult = it.pickResult
-				if (pickResult.intersectedNode != null) {
-					val pt = pickResult.intersectedPoint
-					val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
-					menu.show(baseView.viewer3D(), it.screenX, it.screenY)
-					contextMenuProperty.set(menu)
-				} else {
-					hideContextMenu()
-				}
-			} else {
-				hideContextMenu()
-			}
+
+		val meshContextMenuActions = painteraActionSet("3D_mesh_context_menu",  MenuActionType.OrthoslicesContextMenu, ignoreDisable = true) {
+			 MOUSE_CLICKED(MouseButton.SECONDARY) {
+				 verify("single click") { it?.clickCount == 1 }
+				 verify("not dragging") { !paintera.mouseTracker.isDragging }
+				 onAction {
+					 it?.pickResult?.let { result ->
+						 if (result.intersectedNode != null) {
+							 val point = result.intersectedPoint
+							 val menu = contextMenuFactory.createMenu(doubleArrayOf(point.x, point.y, point.z))
+							 contextMenuProperty.set(menu)
+							 menu.show(baseView.viewer3D(), it.screenX, it.screenY)
+						 }
+					 } ?: hideContextMenu()
+				 }
+			 }
 		}
-		// hide the context menu when clicked outside the meshes
-		baseView.viewer3D().addEventHandler(
-			MouseEvent.MOUSE_CLICKED
-		) { hideContextMenu() }
+		baseView.viewer3D().meshesGroup.installActionSet(meshContextMenuActions)
+		baseView.viewer3D().installAction (
+			MouseAction(MOUSE_PRESSED).apply {
+				onAction { hideContextMenu() }
+			}
+		)
 
 		this.baseView.orthogonalViews().topLeft.viewer().addTransformListener(scaleBarOverlays[0])
 		this.baseView.orthogonalViews().topLeft.viewer().display.addOverlayRenderer(scaleBarOverlays[0])
