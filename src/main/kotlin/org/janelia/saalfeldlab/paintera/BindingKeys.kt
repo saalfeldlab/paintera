@@ -159,8 +159,8 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
 }
 
 enum class RawSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombination) : NamedKeyBinding by lateInitNamedKeyCombo {
-    RESET_MIN_MAX_INTENSITY_THRESHOLD                 ( SHIFT_DOWN + Y, "Reset Min / Max Intensity Threshold"),
-    AUTO_MIN_MAX_INTENSITY_THRESHOLD                  ( Y, "Auto Min / Max Intensity Threshold"),
+    RESET_MIN_MAX_INTENSITY_THRESHOLD                 ( SHIFT_DOWN + H, "Reset Min / Max Intensity Threshold"),
+    AUTO_MIN_MAX_INTENSITY_THRESHOLD                  ( H, "Auto Min / Max Intensity Threshold"),
     ;
 
 
