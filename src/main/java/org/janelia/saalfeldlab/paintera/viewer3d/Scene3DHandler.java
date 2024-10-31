@@ -64,7 +64,7 @@ public class Scene3DHandler {
 		ActionSet.installActionSet(viewer, additionalCommands);
 
 		Paintera.whenPaintable(() -> {
-			/* These depend on the keyTracker in the PainteraMainWindow, so cannot be installed until the MainWindow is done intializing. */
+			/* These depend on the keyTracker in the PainteraMainWindow, so cannot be installed until the MainWindow is done initializing. */
 			final var zoomActionSet = zoom3D();
 			ActionSet.installActionSet(viewer, zoomActionSet);
 		});
@@ -187,16 +187,16 @@ public class Scene3DHandler {
 
 	private class Rotate3DView extends DragActionSet {
 
-		private double baseSpeed = 1.0;
+		private double baseSpeed = 0.25;
 		private double factor = 1.0;
 
 		private double speed = baseSpeed * factor;
 
-		private final static double SLOW_FACTOR = 0.1;
+		private final static double SLOW_FACTOR = 0.5;
 
 		private final static double NORMAL_FACTOR = 1;
 
-		private final static double FAST_FACTOR = 2;
+		private final static double FAST_FACTOR = 2.0;
 
 		private final Affine affineDragStart = new Affine();
 
