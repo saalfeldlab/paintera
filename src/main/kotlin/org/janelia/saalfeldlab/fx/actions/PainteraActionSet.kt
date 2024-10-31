@@ -9,9 +9,17 @@ import org.janelia.saalfeldlab.paintera.paintera
 import java.util.function.Consumer
 
 
-fun ActionSet.verifyPermission(actionType: ActionType? = null) {
-	actionType?.let { permission ->
-		verifyAll(Event.ANY, "Permission for $permission") { paintera.baseView.allowedActionsProperty().hasPermission(permission) }
+fun ActionSet.verifyPermission(vararg actionType: ActionType) {
+	if (actionType.isEmpty()) return
+	actionType.forEach { permission ->
+		verifyAll(Event.ANY, " No Permission for $permission") { paintera.baseView.allowedActionsProperty().hasPermission(permission) }
+	}
+}
+
+fun Action<*>.verifyPermission(vararg actionType: ActionType) {
+	if (actionType.isEmpty()) return
+	actionType.forEach { permission ->
+		verify( "No Permission for $permission") { paintera.baseView.allowedActionsProperty().hasPermission(permission) }
 	}
 }
 
@@ -31,7 +39,7 @@ fun painteraActionSet(namedKey: NamedKeyBinding, actionType: ActionType? = null,
 @JvmSynthetic
 fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (ActionSet.() -> Unit)?): ActionSet {
 	return ActionSet(name, { paintera.keyTracker }).apply {
-		verifyPermission(actionType)
+		actionType?.let { (verifyPermission(it)) }
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
 		}
@@ -56,7 +64,7 @@ fun painteraDragActionSet(
 	apply: (DragActionSet.() -> Unit)?
 ): DragActionSet {
 	return DragActionSet(name, { paintera.keyTracker }, filter, consumeMouseClicked).apply {
-		verifyPermission(actionType)
+		actionType?.let { (verifyPermission(it)) }
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
 		}
@@ -74,7 +82,7 @@ fun painteraMidiActionSet(
 	apply: (MidiActionSet.() -> Unit)?
 ): MidiActionSet {
 	return MidiActionSet(name, device, target, { paintera.keyTracker }) {
-		verifyPermission(actionType)
+		actionType?.let { (verifyPermission(it)) }
 		if (!ignoreDisable) {
 			verifyPainteraNotDisabled()
 		}
