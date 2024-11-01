@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction.onAction
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
@@ -207,8 +208,8 @@ object PaintLabelMode : AbstractToolMode() {
 
 	private fun getSelectNextIdActions() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
 		KEY_PRESSED(NEXT_ID) {
-			name = "create new segment"
-			verify { activeTool?.let { it !is PaintTool || !it.isPainting } ?: true }
+			name = "create_new_segment"
+			verify("Not Painting") { (activeTool as? PaintTool)?.isPainting?.not() ?: true }
 			onAction {
 				statePaintContext?.nextId(activate = true)
 			}
