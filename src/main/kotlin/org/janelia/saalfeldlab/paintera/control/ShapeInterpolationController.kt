@@ -622,7 +622,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			if (oldMask.xScaleChange == 1.0) return@let oldMask
 
 			val maskInfo = MaskInfo(0, targetMipMapLevel)
-			val newMask = source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
+			val newMask = source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
 
 			val oldToNewMask = ViewerMask.maskToMaskTransformation(oldMask, newMask)
 
@@ -666,7 +666,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			newMask
 		} ?: let {
 			val maskInfo = MaskInfo(0, targetMipMapLevel)
-			source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
+			source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
 		}
 		currentViewerMask?.setViewerMaskOnSource()
 

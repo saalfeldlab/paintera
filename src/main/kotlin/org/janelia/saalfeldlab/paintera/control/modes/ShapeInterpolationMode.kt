@@ -394,7 +394,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
-			val mask = source.createViewerMask(maskInfo, viewer, paintDepth = null, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
+			val mask = source.createViewerMask(maskInfo, viewer, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
 			val activeSource = activeSourceStateProperty.value!!.sourceAndConverter!!.spimSource
 			val sources = mask.viewer.state.sources
