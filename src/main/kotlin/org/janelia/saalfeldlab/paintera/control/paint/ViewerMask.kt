@@ -425,46 +425,9 @@ class ViewerMask private constructor(
 
 				var paintVal = viewerValType.get()
 
-				val checkAllCornersForPaint: () -> Boolean = {
-					var accepted = false
-					var inMin = false
-					var pos = false
-					var neg = false
-					val cornerPos = canvasPosition.copyOf()
-					for (idx in CUBE_CORNERS.indices) {
-						val offset = CUBE_CORNERS[idx]
-						cornerPos.indices.forEach { i -> cornerPos[i] = canvasPosition[i] + offset[i] }
-						sourceToMaskTransform.apply(cornerPos, cornerPos)
-						cubeCornerDepths[idx] = cornerPos[2]
-						val maskPos = LongArray(3) { cornerPos[it].roundToLong() }
-						val id = extendedViewerImg.get(*maskPos).get()
-						accepted = accepted || acceptAsPainted.test(id).also { paintVal = 3 }
-						val maskZ = maskPos[2]
-						pos = pos || maskPos[2] >= 0
-						neg = neg || maskPos[2] <= 0
-
-						if (accepted) {
-							if (pos && neg) {
-								paintVal = 3
-								break
-							}
-							inMin = maskZ.absoluteValue < minDistInMask
-							if (inMin) {
-								paintVal = 2
-								break
-							}
-						}
-					}
-					accepted && ((pos && neg) || inMin)
-				}
-
-				if (acceptAsPainted.test(paintVal)) {
-					if (zTransformAtCubeCorner(canvasPosition, null).absoluteValue < minDistInMask)
- 						paintCanvas(canvasBundle.get(), 1)
-					else if (checkAllCornersForPaint()) {
-						paintCanvas(canvasBundle.get(), paintVal)
-					}
-				} else {
+				if (acceptAsPainted.test(paintVal) && zTransformAtCubeCorner(canvasPosition, null).absoluteValue < minDistInMask)
+                    paintCanvas(canvasBundle.get(), 1)
+				else {
 					/* nearest neighbor interval over source */
 					for (idx in 0 until 3) {
 						realMinMaskPoint[idx] = canvasPosition[idx] + MIN_CORNER_OFFSET[idx]
