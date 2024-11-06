@@ -5,6 +5,7 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import bdv.viewer.render.AccumulateProjectorFactory
+import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.parallel.TaskExecutor
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
@@ -32,10 +33,36 @@ open class ViewerRenderUnit(
 	renderingTaskExecutor,
 	useVolatileIfAvailable = true
 ) {
+
+	val repaintRequestProperty = SimpleBooleanProperty()
+
 	override fun paint() {
 		if (viewerStateSupplier.get()?.isVisible == true)
 			super.paint()
 	}
+
+	private fun notifyRepaintObservable() = repaintRequestProperty.set(!repaintRequestProperty.value)
+
+	override fun requestRepaint() {
+		super.requestRepaint()
+		notifyRepaintObservable()
+	}
+
+	override fun requestRepaint(screenScaleIndex: Int) {
+		super.requestRepaint(screenScaleIndex)
+		notifyRepaintObservable()
+	}
+
+	override fun requestRepaint(min: LongArray?, max: LongArray?) {
+		super.requestRepaint(min, max)
+		notifyRepaintObservable()
+	}
+
+	override fun requestRepaint(screenScaleIndex: Int, min: LongArray?, max: LongArray?) {
+		super.requestRepaint(screenScaleIndex, min, max)
+		notifyRepaintObservable()
+	}
+
 	companion object {
 
 		private fun Supplier<ViewerState?>.getRenderState() : () -> RenderUnitState? = {
