@@ -423,10 +423,10 @@ class ViewerMask private constructor(
 					return@forEachPixel
 				}
 
-				var paintVal = viewerValType.get()
+				val paintVal = viewerValType.get()
 
 				if (acceptAsPainted.test(paintVal) && zTransformAtCubeCorner(canvasPosition, null).absoluteValue < minDistInMask)
-                    paintCanvas(canvasBundle.get(), 1)
+                    paintCanvas(canvasBundle.get(), paintVal)
 				else {
 					/* nearest neighbor interval over source */
 					for (idx in 0 until 3) {
@@ -464,7 +464,7 @@ class ViewerMask private constructor(
 							val maskPixelInterval = FinalRealInterval(canvasMinPositionInMask, canvasMaxPositionInMask, false)
 							val canvasInterval = sourceToMaskWithDepthTransform.inverse().estimateBounds(maskPixelInterval)
 							if (!Intervals.isEmpty(Intervals.intersect(realIntervalOverSource, canvasInterval))) {
-								paintCanvas(canvasBundle.get(), 4) // maskId)
+								paintCanvas(canvasBundle.get(), maskId)
 								return@forEachPixel
 							}
 						}
