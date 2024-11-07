@@ -224,6 +224,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setCursorWhenDoneApplying = ChangeListener { observable, _, _ ->
 			observable.removeListener(setCursorWhenDoneApplying)
 		}
+		paintera.properties.segmentAnythingConfig.subscribe( Runnable {
+			isValidProperty.set(SamEmbeddingLoaderCache.canReachServer)
+		})
 	}
 
 	private val isBusyProperty = SimpleBooleanProperty(false)
@@ -246,10 +249,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 
 	internal lateinit var renderState: RenderUnitState
-
-	override fun isValid() : Boolean {
-		return SamEmbeddingLoaderCache.canReachServer
-	}
 
 	override fun activate() {
 		mode?.apply {

@@ -101,7 +101,7 @@ interface ToolMode : SourceMode {
 			val activeMode = paintera.baseView.activeModeProperty.value
 			activeTool = when {
 				activeMode != this@ToolMode -> null // wrong mode
-				tool?.isValid() == false -> null // tool is not currently valid
+				tool?.isValidProperty?.value == false -> null // tool is not currently valid
 				else -> tool?.apply { activate() } // try to activate
 			}
 			LOG.trace { "Activated $activeTool" }

@@ -67,14 +67,15 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 ) {
 
 	//TODO Caleb: May want to be smarter about this, server side health check maybe
-	val canReachServer: Boolean
-		get() = try {
+	val canReachServer by LazyForeignValue({ paintera.properties.segmentAnythingConfig.serviceUrl }) {
+		try {
 			requestSessionId()
 			true
 		} catch (e: Exception) {
 			LOG.debug(e) { "Exception occurred while attempting to reach server" }
 			false
 		}
+	}
 
 	private val navigationId by lazy { getSessionId() }
 
@@ -266,6 +267,8 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		val getSessionId = HttpGet(url)
 		val response = client.execute(getSessionId)
+		if (response.statusLine.statusCode != HTTP_SUCCESS)
+			throw HttpException("Received Error Code: ${response.statusLine.statusCode}")
 		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
 	}
 
