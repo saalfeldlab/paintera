@@ -4,7 +4,7 @@ import java.util.EnumSet;
 
 public enum LabelActionType implements ActionType {
 	Toggle(true),
-	Append,
+	Append(true ),
 	CreateNew,
 	Lock(true),
 	Merge,
