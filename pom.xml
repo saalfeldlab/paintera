@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.5.2-SNAPSHOT</version>
+	<version>1.6.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -58,7 +58,7 @@
 
 		<!-- JavaFx Version-->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.1.0</saalfx.version>
+		<saalfx.version>2.2.0</saalfx.version>
 		<testfx.version>4.0.16-alpha</testfx.version>
 
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
@@ -68,7 +68,7 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.5.1</app.version>
+		<app.version>1.6.0</app.version>
 
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
