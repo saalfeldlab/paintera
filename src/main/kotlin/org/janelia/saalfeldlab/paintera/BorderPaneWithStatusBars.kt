@@ -115,7 +115,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	@Suppress("unused")
 	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply {
-		verifyPermission(MenuActionType.ResizePanel)
+		verifyPermission(MenuActionType.ResizePanel, MenuActionType.ResizeViewers)
 		install()
 	}
 
