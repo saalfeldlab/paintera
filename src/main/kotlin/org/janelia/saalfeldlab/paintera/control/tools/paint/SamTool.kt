@@ -476,7 +476,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
 						}
 					}
-					verifyPainteraNotDisabled()
 					onAction {
 						CoroutineScope(Dispatchers.IO).launch {
 							/* If no event, triggered via button; set Label to IN */
@@ -512,7 +511,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
 						}
 					}
-					verifyPainteraNotDisabled()
 					onAction {
 						CoroutineScope(Dispatchers.IO).launch {
 							it ?: let {
