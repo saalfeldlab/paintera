@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.beans.property.StringProperty
+import javafx.beans.property.*
 import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.*
@@ -27,6 +25,7 @@ interface Tool {
 	fun deactivate() {}
 
 	val statusProperty: StringProperty
+	val isValidProperty: BooleanProperty
 	val actionSets: MutableList<ActionSet>
 }
 
@@ -62,10 +61,24 @@ interface ToolBarItem {
 
 			return button.also { btn ->
 				btn.id = name
+				//FIXME Caleb: this is either not necessary, or magic. Regardless, should fix it
+				//  why conditionally bind isDisabled only if a graphic?
 				btn.graphic?.let {
+
+					val actionIsValid = { action?.isValid(null) ?: true }
+
+					/* Listen on disabled when visible*/
 					if ("ignore-disable" !in it.styleClass) {
-						btn.disableProperty().bind(paintera.baseView.isDisabledProperty)
+						paintera.baseView.isDisabledProperty.`when`(btn.visibleProperty()).subscribe { disabled ->
+							btn.disableProperty().set(disabled || !actionIsValid())
+						}
+					} else {
+						btn.disableProperty().set(!actionIsValid())
 					}
+					/* set initial state to */
+					btn.disableProperty().set(!actionIsValid())
+
+					(this as? Tool)?.isValidProperty?.`when`(btn.visibleProperty())?.subscribe { isValid -> btn.disableProperty().set(!isValid) }
 				}
 				btn.styleClass += "toolbar-button"
 				btn.tooltip = Tooltip(
@@ -83,6 +96,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 
 	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
 	private var subscriptions : Subscription? = null
+	override val isValidProperty = SimpleBooleanProperty(true)
 
 	override fun activate() {
 		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)

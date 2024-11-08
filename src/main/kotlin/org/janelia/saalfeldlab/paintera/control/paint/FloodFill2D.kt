@@ -48,13 +48,8 @@ class FloodFill2D<T : IntegerType<T>>(
 
 	internal var viewerMask: ViewerMask? = null
 
-	private val maskIntervalProperty = ReadOnlyObjectWrapper<Interval?>(null)
-	val readOnlyMaskInterval: ReadOnlyObjectProperty<Interval?> = maskIntervalProperty.readOnlyProperty
-	val maskInterval by readOnlyMaskInterval.nullableVal()
-
 	fun release() {
 		viewerMask = null
-		maskIntervalProperty.set(null)
 	}
 
 	private fun getOrCreateViewerMask(): ViewerMask {
@@ -66,21 +61,22 @@ class FloodFill2D<T : IntegerType<T>>(
 		}
 	}
 
-	suspend fun fillViewerAt(viewerSeedX: Double, viewerSeedY: Double, fill: Long, assignment: FragmentSegmentAssignment) {
+	suspend fun fillViewerAt(viewerSeedX: Double, viewerSeedY: Double, fill: Long, assignment: FragmentSegmentAssignment): Interval {
 
 		val mask = getOrCreateViewerMask()
 		val maskPos = mask.displayPointToMask(viewerSeedX, viewerSeedY, true)
 		val filter = getBackgroundLabelMaskForAssignment(maskPos, mask, assignment, fill)
 
-		fillMaskAt(maskPos, mask, fill, filter)
+		val interval = fillMaskAt(maskPos, mask, fill, filter)
 		if (!coroutineContext.isActive) {
 			mask.source.resetMasks()
 			mask.requestRepaint()
 		}
+		return interval
 	}
 
 
-	private suspend fun fillMaskAt(maskPos: Point, mask: ViewerMask, fill: Long, filter: RandomAccessibleInterval<BoolType>) {
+	private suspend fun fillMaskAt(maskPos: Point, mask: ViewerMask, fill: Long, filter: RandomAccessibleInterval<BoolType>) : Interval {
 		if (fill == Label.INVALID) {
 			val reason = "Received invalid label -- will not fill"
 			LOG.warn { reason }
@@ -119,8 +115,7 @@ class FloodFill2D<T : IntegerType<T>>(
 		launchRepaintRequestUpdater(fillContext, triggerRefresh, mask, sourceAccessTracker::createAccessInterval)
 
 		fillAt(maskPos, sourceAccessTracker, filter, fill)
-		if (fillContext.isActive)
-			maskIntervalProperty.set(sourceAccessTracker.createAccessInterval())
+		return sourceAccessTracker.createAccessInterval()
 	}
 
 	private fun launchRepaintRequestUpdater(fillContext: CoroutineContext, triggerRefresh: AtomicBoolean, mask: ViewerMask, interval: () -> Interval) {

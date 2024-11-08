@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.id;
 
+import java.util.Arrays;
 import java.util.stream.LongStream;
 
 public class LocalIdService implements IdService {
@@ -19,15 +20,13 @@ public class LocalIdService implements IdService {
 
 	@Override public long nextTemporary() {
 
-		final var temp = nextTemp;
-		nextTemp += 1;
-		return temp;
+		return IdService.randomTemps.next();
 	}
 
 	@Override public long[] nextTemporary(int n) {
 
-		final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
-		nextTemp += n;
+		final long[] tempIds = new long[n];
+		Arrays.setAll(tempIds, it -> IdService.randomTemps.next());
 		return tempIds;
 	}
 

@@ -22,9 +22,7 @@ import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.midi.FaderAction
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
@@ -38,9 +36,11 @@ import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
+import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.lang.Double.min
+import java.util.concurrent.atomic.AtomicLong
 
 private const val CHANGE_BRUSH_DEPTH = "change brush depth"
 private const val START_BACKGROUND_ERASE = "start background erase"
@@ -56,10 +56,13 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	override val name = "Paint"
 	override val keyTrigger = LabelSourceStateKeys.PAINT_BRUSH
 
-
-	private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
-	internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
-		private set
+	private val currentLabelToPaintAtomic = AtomicLong(Label.INVALID)
+	internal var currentLabelToPaint : Long
+		get() = currentLabelToPaintAtomic.get()
+		set(value) {
+			currentLabelToPaintAtomic.set(value)
+			updateStatus()
+		}
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
 
 	val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
@@ -104,18 +107,20 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		)
 	}
 
-	override val statusProperty = SimpleStringProperty().apply {
-		val labelNumToString: (Long) -> String = {
-			when (it) {
-				Label.BACKGROUND -> "BACKGROUND"
-				Label.TRANSPARENT -> "TRANSPARENT"
-				Label.INVALID -> "INVALID"
-				Label.OUTSIDE -> "OUTSIDE"
-				Label.MAX_ID -> "MAX_ID"
-				else -> "$it"
-			}
+	override val statusProperty = SimpleStringProperty()
+
+	private fun updateStatus() = InvokeOnJavaFXApplicationThread {
+		val labelNum = currentLabelToPaintAtomic.get()
+		if (IdService.isTemporary(labelNum)) return@InvokeOnJavaFXApplicationThread
+		val labelText = when (labelNum) {
+			Label.BACKGROUND -> "BACKGROUND"
+			Label.TRANSPARENT -> "TRANSPARENT"
+			Label.INVALID -> "INVALID"
+			Label.OUTSIDE -> "OUTSIDE"
+			Label.MAX_ID -> "MAX_ID"
+			else -> "$labelNum"
 		}
-		bind(currentLabelToPaintProperty.createNonNullValueBinding { "Painting Label: ${labelNumToString(it)}" })
+		statusProperty.value = "Painting Label: $labelText"
 	}
 
 	private val selectedIdListener: (obs: Observable) -> Unit = {
@@ -150,7 +155,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		setBrushOverlayValid(isLabelValid, if (isLabelValid) null else "No Id Selected")
 	}
 
-	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) = InvokeOnJavaFXApplicationThread.invokeAndWait {
+	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {
 		currentLabelToPaint = label
 	}
 

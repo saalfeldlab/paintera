@@ -58,7 +58,7 @@ public final class AllowedActions {
 	@Nonnull
 	public static final AllowedActions VIEW_LABELS = new AllowedActionsBuilder()
 			.add(NAVIGATION)
-			.add(LabelActionType.Toggle, LabelActionType.Append, LabelActionType.SelectAll)
+			.add(LabelActionType.readOnly())
 			.create();
 
 	private final Set<ActionType> actions;

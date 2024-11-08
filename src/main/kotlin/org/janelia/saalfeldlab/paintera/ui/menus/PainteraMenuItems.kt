@@ -1,15 +1,19 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.beans.binding.Bindings
+import javafx.beans.binding.BooleanBinding
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
-import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
+import org.janelia.saalfeldlab.paintera.control.actions.ActionType
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
@@ -27,36 +31,35 @@ enum class PainteraMenuItems(
 	private val text: String,
 	private val keys: String? = null,
 	private val icon: FontAwesomeIcon? = null,
-	private val allowedAction: MenuActionType? = null
+	private val requiredActionTypes: Array<ActionType> = emptyArray()
 ) {
-	NEW_PROJECT("_New Project", allowedAction = MenuActionType.OpenProject),
-	OPEN_PROJECT("Open _Project", icon = FontAwesomeIcon.FOLDER_OPEN, allowedAction = MenuActionType.OpenProject),
-	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
-	EXPORT_SOURCE("_Export Source", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, MenuActionType.ExportSource),
-	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
-	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
+	NEW_PROJECT("_New Project", requiredActionTypes = arrayOf(OpenProject)),
+	OPEN_PROJECT("Open _Project...", icon = FontAwesomeIcon.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
+	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, arrayOf(AddSource)),
+	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, arrayOf(ExportSource)),
+	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, arrayOf(SaveProject)),
+	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, arrayOf(SaveProject)),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
-
-	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, allowedAction = MenuActionType.ChangeActiveSource),
-	CYCLE_BACKWARD("Cycle _Backward", PBK.CYCLE_CURRENT_SOURCE_BACKWARD, allowedAction = MenuActionType.ChangeActiveSource),
+	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
+	CYCLE_BACKWARD("Cycle _Backward", PBK.CYCLE_CURRENT_SOURCE_BACKWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
 	TOGGLE_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_CURRENT_SOURCE_VISIBILITY),
-	NEW_LABEL_SOURCE("_Label Source (N5)", PBK.CREATE_NEW_LABEL_DATASET, allowedAction = MenuActionType.AddSource),
-	NEW_CONNECTED_COMPONENT_SOURCE("_Fill Connected Components", PBK.FILL_CONNECTED_COMPONENTS),
-	NEW_THRESHOLDED_SOURCE("_Thresholded", PBK.THRESHOLDED),
-	TOGGLE_MENU_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_MENUBAR_VISIBILITY),
-	TOGGLE_MENU_BAR_MODE("Toggle _Mode", PBK.TOGGLE_MENUBAR_MODE),
-	TOGGLE_STATUS_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_STATUSBAR_VISIBILITY),
-	TOGGLE_STATUS_BAR_MODE("Toggle _Mode", PBK.TOGGLE_STATUSBAR_MODE),
-	TOGGLE_SIDE_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_SIDE_BAR),
-	TOGGLE_TOOL_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_TOOL_BAR),
-	RESET_3D_LOCATION_MENU_ITEM("_Reset 3D Location", PBK.RESET_3D_LOCATION),
-	CENTER_3D_LOCATION_MENU_ITEM("_Center 3D Location", PBK.CENTER_3D_LOCATION),
-	SAVE_3D_PNG_MENU_ITEM("Save 3D As _PNG", PBK.SAVE_3D_PNG),
-	FULL_SCREEN_ITEM("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN),
-	REPL_ITEM("Show _REPL", PBK.SHOW_REPL_TABS),
-	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS),
-	SHOW_README("Show _Readme", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
-	SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
+	NEW_LABEL_SOURCE("_Label Source...", PBK.CREATE_NEW_LABEL_DATASET, requiredActionTypes = arrayOf(AddSource)),
+	NEW_CONNECTED_COMPONENT_SOURCE("_Fill Connected Components...", PBK.FILL_CONNECTED_COMPONENTS, requiredActionTypes = arrayOf(CreateVirtualSource)),
+	NEW_THRESHOLDED_SOURCE("_Threshold...", PBK.THRESHOLDED, requiredActionTypes = arrayOf(CreateVirtualSource)),
+	TOGGLE_MENU_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_MENUBAR_VISIBILITY, requiredActionTypes = arrayOf(ToggleMenuBarVisibility)),
+	TOGGLE_MENU_BAR_MODE("Toggle _Mode", PBK.TOGGLE_MENUBAR_MODE, requiredActionTypes = arrayOf(ToggleMenuBarMode)),
+	TOGGLE_STATUS_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_STATUSBAR_VISIBILITY, requiredActionTypes = arrayOf(ToggleStatusBarVisibility)),
+	TOGGLE_STATUS_BAR_MODE("Toggle _Mode", PBK.TOGGLE_STATUSBAR_MODE, requiredActionTypes = arrayOf(ToggleStatusBarMode)),
+	TOGGLE_SIDE_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_SIDE_BAR, requiredActionTypes = arrayOf(ToggleSidePanel)),
+	TOGGLE_TOOL_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_TOOL_BAR, requiredActionTypes = arrayOf(ToggleToolBarVisibility)),
+	RESET_3D_LOCATION_MENU_ITEM("_Reset 3D Location", PBK.RESET_3D_LOCATION, requiredActionTypes = arrayOf(OrthoslicesContextMenu)),
+	CENTER_3D_LOCATION_MENU_ITEM("_Center 3D Location", PBK.CENTER_3D_LOCATION, requiredActionTypes = arrayOf(OrthoslicesContextMenu)),
+	SAVE_3D_PNG_MENU_ITEM("Save 3D As _PNG...", PBK.SAVE_3D_PNG, requiredActionTypes = arrayOf(OrthoslicesContextMenu)),
+	FULL_SCREEN_ITEM("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN, requiredActionTypes = arrayOf(ResizeViewers, ResizePanel)),
+	REPL_ITEM("Show _REPL...", PBK.SHOW_REPL_TABS),
+	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS, requiredActionTypes = arrayOf(ResizeViewers, ToggleMaximizeViewer, DetachViewer)),
+	SHOW_README("Show _Readme...", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
+	SHOW_KEY_BINDINGS("Show _Key Bindings...", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
 
 	val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
 
@@ -112,9 +115,18 @@ enum class PainteraMenuItems(
 						icon?.let { graphic = FontAwesome[it, 1.5] }
 						onAction = handler
 						namedKeyCombindations[keys]?.let { acceleratorProperty().bind(it.primaryCombinationProperty) }
-						/* Set up the disabled binding*/
-						allowedAction?.let {
-							disableProperty().bind(paintera.baseView.allowedActionsProperty().allowedActionBinding(allowedAction).not())
+						/* Set up the disabled binding by permission type*/
+
+						val allowedActionsProperty = paintera.baseView.allowedActionsProperty()
+						val permissionDeniedBinding = { actionType: ActionType ->
+							Bindings.createBooleanBinding({ !allowedActionsProperty.isAllowed(actionType) }, allowedActionsProperty)
+						}
+						var disabledByPermissionsBinding: BooleanBinding? = if (requiredActionTypes.isEmpty()) null else Bindings.createBooleanBinding({false})
+						for (actionType in requiredActionTypes) {
+							disabledByPermissionsBinding = disabledByPermissionsBinding!!.or(permissionDeniedBinding(actionType))
+						}
+						disabledByPermissionsBinding?.let {
+							disableProperty().bind(it)
 						}
 					}
 				}

@@ -126,6 +126,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 	fun cancelFloodFill() = fillJob?.cancel(CancellationException("Fill task cancelled by user", null))
 
 
+	@OptIn(ExperimentalCoroutinesApi::class)
 	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): Job? {
 
 		val applyIfMaskNotProvided = fill2D.viewerMask == null
@@ -136,7 +137,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 		val fillIsRunningProperty = SimpleBooleanProperty()
 		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
-		fillJob = CoroutineScope(Dispatchers.Default).launch {
+		fillJob = CoroutineScope(Dispatchers.Default).async {
 			fillIsRunningProperty.set(true)
 			fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
 		}.also { job ->
@@ -158,7 +159,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 				}
 
 
-				val maskFillInterval = fill2D.maskInterval!!
+				val maskFillInterval = job.getCompleted()
 				afterFill(maskFillInterval)
 				if (applyIfMaskNotProvided) {
 					/* Then apply when done */

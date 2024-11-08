@@ -39,7 +39,7 @@ interface ConfigurableTool {
 abstract class PaintTool(
 	protected val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>,
 	mode: ToolMode? = null
-) : ViewerTool(mode), ConfigurableTool, ToolBarItem {
+) : ViewerTool(mode), ConfigurableTool {
 
 	abstract override val keyTrigger: NamedKeyBinding
 

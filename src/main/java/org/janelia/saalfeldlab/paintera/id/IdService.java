@@ -108,7 +108,7 @@ public interface IdService {
 
 	static boolean isTemporary(final long id) {
 
-		return id > FIRST_TEMPORARY_ID && id < LAST_TEMPORARY_ID;
+		return id >= FIRST_TEMPORARY_ID && id < LAST_TEMPORARY_ID;
 	}
 
 	class IdServiceNotProvided implements IdService {

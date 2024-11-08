@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.modes
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
-import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.histogram.Histogram1d
@@ -53,10 +52,11 @@ object RawSourceMode : AbstractToolMode() {
 			}
 		}
 		KEY_PRESSED(RawSourceStateKeys.AUTO_MIN_MAX_INTENSITY_THRESHOLD) {
-			lateinit var viewer: ViewerPanelFX
 			graphic = { ScaleView().apply { styleClass += "intensity-auto-min-max" } }
-			verify("Last focused viewer found") { paintera.baseView.lastFocusHolder.value?.viewer()?.also { viewer = it } != null }
 			onAction {
+				val viewer = paintera.baseView.run {
+					lastFocusHolder.value ?: orthogonalViews().topLeft
+				}.viewer()
 				val rawSource = activeSourceStateProperty.get() as ConnectomicsRawState<*, *>
 				autoIntensityMinMax(rawSource, viewer)
 			}
@@ -68,7 +68,7 @@ object RawSourceMode : AbstractToolMode() {
 		val viewerInterval = Intervals.createMinSize(0, 0, 0, viewer.width.toLong(), viewer.height.toLong(), 1L)
 
 		val scaleLevel = viewer.state.bestMipMapLevel
-		val dataSource = rawSource.getDataSource().getDataSource(0, scaleLevel) as RandomAccessibleInterval<RealType<*>>
+		val dataSource = rawSource.getDataSource().getSource(0, scaleLevel) as RandomAccessibleInterval<RealType<*>>
 
 		val sourceToGlobalTransform = rawSource.getDataSource().getSourceTransformCopy(0, scaleLevel)
 
@@ -89,21 +89,19 @@ object RawSourceMode : AbstractToolMode() {
 			.interval(viewerInterval)
 
 		val converter = rawSource.converter()
-		val curMin  = converter.minProperty().get()
-		val curMax  = converter.maxProperty().get()
+		val curMin = converter.minProperty().get()
+		val curMax = converter.maxProperty().get()
 
-		if ( curMin == curMax) {
+		if (curMin == curMax) {
 			resetIntensityMinMax(rawSource)
 			return
 		}
-		if (converterAtDefault(rawSource)) {
-			estimateWithRange(screenSource, converter)
-		}
 
-		if (extension is IntegerType<*>)
-			estimateWithHistogram(IntType(), screenSource, rawSource, converter)
-		else
-			estimateWithHistogram(DoubleType(), screenSource, rawSource, converter)
+		when {
+			converterAtDefault(rawSource) -> estimateWithRange(screenSource, converter)
+			extension is IntegerType<*> -> estimateWithHistogram(IntType(), screenSource, rawSource, converter)
+			else -> estimateWithHistogram(DoubleType(), screenSource, rawSource, converter)
+		}
 	}
 
 	private fun estimateWithRange(screenSource: IntervalView<RealType<*>>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
@@ -121,18 +119,37 @@ object RawSourceMode : AbstractToolMode() {
 	}
 
 	private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: ConnectomicsRawState<*, *>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
-		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, 4, false)
+		val numSamples = Intervals.numElements(screenSource)
+		val numBins = numSamples.coerceIn(100,  1000)
+		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, numBins, false)
 		val histogram = Histogram1d(binMapper)
 		val img = screenSource.convertRAI(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
 		histogram.countData(img)
 
-		val numPixels = screenSource.dimensionsAsLongArray().sum()
+		val counts = histogram.toLongArray()
+		var runningSumMin = 0L
+		var runningSumMax = 0L
+		var minBinIdx = 0
+		var maxBinIdx = counts.size - 1
+		val threshold = numSamples / 25
+		for (i in counts.indices) {
+			val count = counts[i]
+			runningSumMin += count
+			if (runningSumMin >= threshold) {
+				minBinIdx = i
+				break
+			}
+		}
+		for (i in counts.indices.reversed()) {
+			val count = counts[i]
+			runningSumMax += count
+			if (runningSumMax >= threshold) {
+				maxBinIdx = i
+				break
+			}
+		}
 
-
-		val minBinIdx = histogram.indexOfFirst { i -> i.get() > (numPixels / 5000) }
-		val maxBinIdx = histogram.indexOfLast { i -> i.get() > (numPixels / 5000) }
-
-		val updateOrResetConverter = { min : Double, max : Double ->
+		val updateOrResetConverter = { min: Double, max: Double ->
 			if (converter.minProperty().value == min && converter.maxProperty().value == max)
 				resetIntensityMinMax(rawSource)
 			else {
@@ -141,28 +158,21 @@ object RawSourceMode : AbstractToolMode() {
 			}
 		}
 
-		when {
-			minBinIdx == -1 && maxBinIdx == -1 -> resetIntensityMinMax(rawSource)
-			minBinIdx == maxBinIdx -> {
-				updateOrResetConverter(
-					histogram.getLowerBound(minBinIdx.toLong(), type).let { type.realDouble },
-					histogram.getUpperBound(maxBinIdx.toLong(), type).let { type.realDouble }
-				)
-			}
-
-			else -> {
-				updateOrResetConverter(
-					histogram.getCenterValue(minBinIdx.toLong(), type).let { type.realDouble },
-					histogram.getCenterValue(maxBinIdx.toLong(), type).let { type.realDouble }
-				)
-			}
+		if (minBinIdx >= maxBinIdx) {
+			resetIntensityMinMax(rawSource)
+			return
 		}
+
+		updateOrResetConverter(
+			histogram.getLowerBound(minBinIdx.toLong(), type).let { type.realDouble },
+			histogram.getUpperBound(maxBinIdx.toLong(), type).let { type.realDouble }
+		)
 	}
 
-	private fun converterAtDefault(rawSource: ConnectomicsRawState<*, *>) : Boolean {
+	private fun converterAtDefault(rawSource: ConnectomicsRawState<*, *>): Boolean {
 		val converter = rawSource.converter()
 		(rawSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
-			return converter.min == it.minIntensity &&  converter.max == it.maxIntensity
+			return converter.min == it.minIntensity && converter.max == it.maxIntensity
 		}
 
 		val dataSource = rawSource.getDataSource().getDataSource(0, 0) as RandomAccessibleInterval<RealType<*>>

@@ -56,7 +56,11 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 			}
 			release()
 		}
+		//TODO Caleb: Don't like it, but otherwise the status text shows a temp label. Do better
 		super.deactivate()
+		setCurrentLabel(shapeInterpolationMode.controller.lastSelectedId)
+		setCurrentLabel(shapeInterpolationMode.controller.interpolationId)
+
 	}
 
 	fun finishPaintStroke() {

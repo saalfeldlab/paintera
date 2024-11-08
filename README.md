@@ -24,7 +24,9 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation
 
-The current version release version can be installed from the [Github Releases](https://github.com/saalfeldlab/paintera/releases)
+The latest release can be installed from the [Github Releases](https://github.com/saalfeldlab/paintera/releases)
+
+[![GitHub Release](https://img.shields.io/github/v/release/saalfeldlab/paintera)](https://github.com/saalfeldlab/paintera/releases)
 
 
 

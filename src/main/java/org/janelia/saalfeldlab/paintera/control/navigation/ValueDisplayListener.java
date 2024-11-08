@@ -14,12 +14,10 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,7 +65,7 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 							),
 							affine
 					).realRandomAccess();
-				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged
+				}, currentSource, viewer.getRenderUnit().getScreenScalesProperty(), viewerTransformChanged, viewer.getRenderUnit().getRepaintRequestProperty()
 		);
 
 		this.accessBinding.addListener((obs, old, newAccess) -> {

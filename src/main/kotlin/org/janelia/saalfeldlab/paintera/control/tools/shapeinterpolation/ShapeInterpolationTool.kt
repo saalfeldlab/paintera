@@ -298,6 +298,7 @@ internal class ShapeInterpolationTool(
 
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
 						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-left") } }
+						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (firstDepth, firstSpacing, lastDepth, lastSpacing) = edgeDepthsAndSpacing(depths)
@@ -320,6 +321,7 @@ internal class ShapeInterpolationTool(
 					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
 						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-bisect") } }
+						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val remainingRequest = SimpleIntegerProperty().apply {
@@ -351,6 +353,7 @@ internal class ShapeInterpolationTool(
 					}
 
 					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
+						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
@@ -361,6 +364,7 @@ internal class ShapeInterpolationTool(
 					}
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-right") } }
+						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (firstDepth, firstSpacing, lastDepth, lastSpacing) = edgeDepthsAndSpacing(depths)
@@ -391,6 +395,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 					autoSamCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE) {
+						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							requestSamPrediction(currentDepth, refresh = true)
 						}

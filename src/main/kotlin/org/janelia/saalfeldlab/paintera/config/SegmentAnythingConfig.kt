@@ -6,6 +6,7 @@ import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.beans.value.ObservableValueBase
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.control.*
@@ -13,6 +14,7 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -26,8 +28,9 @@ import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
+import java.util.UUID
 
-class SegmentAnythingConfig {
+class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 
 	private val serviceUrlProperty = SimpleStringProperty(System.getenv(SAM_SERVICE_HOST_ENV) ?: DEFAULT_SERVICE_URL).apply {
 		addListener { _, _, new -> if (new.isBlank()) serviceUrl = DEFAULT_SERVICE_URL }
@@ -49,6 +52,13 @@ class SegmentAnythingConfig {
 
 	internal val allDefault
 		get() = serviceUrl == DEFAULT_SERVICE_URL && modelLocation == DEFAULT_MODEL_LOCATION && responseTimeout == DEFAULT_RESPONSE_TIMEOUT
+
+	@Transient
+	private val observableInvalidationBinding = serviceUrlProperty.createObservableBinding(modelLocationProperty, responseTimeoutProperty, compressEncodingProperty) {
+		UUID.randomUUID()
+	}.apply { subscribe { _ -> fireValueChangedEvent() } } //trigger the SegmentAnythingConfig listeners
+
+	override fun getValue() = this
 
 	companion object {
 		private const val SAM_SERVICE_HOST_ENV = "SAM_SERVICE_HOST"
@@ -88,19 +98,21 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			it.alignment = Pos.BASELINE_LEFT
 			it.minWidth = Label.USE_PREF_SIZE
 		}
-		val serviceTextField = TextField(config.serviceUrl).also {
-			VBox.setVgrow(it, Priority.NEVER)
-			it.maxWidth = Double.MAX_VALUE
-			it.prefWidth - Double.MAX_VALUE
-			it.textProperty().addListener { _, _, new ->
-				if (new.isBlank()) {
-					it.text = DEFAULT_SERVICE_URL
-					Platform.runLater { it.positionCaret(0) }
-				} else {
-					config.serviceUrl = new
-				}
+		val serviceTextField = TextField(config.serviceUrl).apply {
+			VBox.setVgrow(this, Priority.NEVER)
+			maxWidth = Double.MAX_VALUE
+			prefWidth - Double.MAX_VALUE
+			onAction = EventHandler {
+				if(text.isBlank())
+					text = DEFAULT_SERVICE_URL
+
+				config.serviceUrl = text.trim()
 			}
-			add(it, 1, row)
+			focusedProperty().subscribe { focused ->
+				if (!focused)
+					onAction.handle(null)
+			}
+			add(this, 1, row)
 		}
 		Button().also {
 			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]

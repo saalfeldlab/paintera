@@ -14,6 +14,7 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
+import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -21,6 +22,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.paintera.config.MenuBarConfig
 import org.janelia.saalfeldlab.paintera.config.StatusBarConfig
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.SettingsView
@@ -112,7 +114,10 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
 
 	@Suppress("unused")
-	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply { install() }
+	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply {
+		verifyPermission(MenuActionType.ResizePanel, MenuActionType.ResizeViewers)
+		install()
+	}
 
 	private val statusBarPrefWidth = Bindings.createDoubleBinding(
 		{ pane.width - if (painteraProperties.sideBarConfig.isVisible) painteraProperties.sideBarConfig.width else 0.0 },

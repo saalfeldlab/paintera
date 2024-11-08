@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import java.io.IOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.net.SocketTimeoutException
@@ -64,6 +65,17 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		getEmbedding()
 	}
 ) {
+
+	//TODO Caleb: May want to be smarter about this, server side health check maybe
+	val canReachServer by LazyForeignValue({ paintera.properties.segmentAnythingConfig.serviceUrl }) {
+		try {
+			requestSessionId()
+			true
+		} catch (e: Exception) {
+			LOG.debug(e) { "Exception occurred while attempting to reach server" }
+			false
+		}
+	}
 
 	private val navigationId by lazy { getSessionId() }
 
@@ -240,12 +252,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 
 	val client: HttpClient = HttpClientBuilder.create()
-					.useSystemProperties()
-					.setDefaultRequestConfig(requestConfig)
-					.setDefaultCookieStore(BasicCookieStore())
-					.build()
+		.useSystemProperties()
+		.setDefaultRequestConfig(requestConfig)
+		.setDefaultCookieStore(BasicCookieStore())
+		.build()
 
-	private fun getSessionId(): String {
+	private fun requestSessionId(): String {
 		val url =
 			with(paintera.properties.segmentAnythingConfig) {
 				with(SegmentAnythingConfig) {
@@ -254,9 +266,18 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			}
 
 		val getSessionId = HttpGet(url)
-
 		val response = client.execute(getSessionId)
+		if (response.statusLine.statusCode != HTTP_SUCCESS)
+			throw HttpException("Received Error Code: ${response.statusLine.statusCode}")
 		return EntityUtils.toString(response.entity!!, Charsets.UTF_8)
+	}
+
+	private fun getSessionId(): String {
+		return try {
+			requestSessionId()
+		} catch (e: IOException) {
+			e.message ?: "Cannot Get SAM Session ID"
+		}
 	}
 
 	private fun getImageEmbedding(it: RenderUnitState): OnnxTensor {
@@ -352,7 +373,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource
 		val sacs = state.sources
 			.filterNot { it.spimSource == activeSourceToSkip }
-			.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
+			.map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
 			.toList()
 		return RenderUnitState(
 			globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },

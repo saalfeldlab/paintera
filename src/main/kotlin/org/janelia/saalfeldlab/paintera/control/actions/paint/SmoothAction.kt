@@ -24,6 +24,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.util.Duration
+import javafx.util.Subscription
 import kotlinx.coroutines.*
 import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
@@ -41,6 +42,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.actions.Action
+import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
@@ -49,6 +51,8 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
+import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction.activateReplacement
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothActionVerifiedState.Companion.verifyState
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode.statePaintContext
@@ -64,8 +68,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
@@ -78,7 +80,6 @@ import kotlin.math.roundToLong
 import kotlin.properties.Delegates
 import kotlin.reflect.KMutableProperty0
 import net.imglib2.type.label.Label as Imglib2Label
-
 
 open class MenuAction(val label: String) : Action<Event>(Event.ANY) {
 
@@ -97,6 +98,8 @@ open class MenuAction(val label: String) : Action<Event>(Event.ANY) {
 
 }
 
+
+//TODO Caleb: Separate Smooth UI from SmoothAction
 class SmoothActionVerifiedState {
 	internal lateinit var labelSource: ConnectomicsLabelState<*, *>
 	internal lateinit var paintContext: StatePaintContext<*, *>
@@ -116,11 +119,15 @@ class SmoothActionVerifiedState {
 	companion object {
 		fun <E : Event> Action<E>.verifyState(state: SmoothActionVerifiedState) {
 			state.run { verifyState() }
+			verify("Paint Label Mode is Active") { paintera.currentMode is PaintLabelMode }
+			verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
+			verify("Mask is in Use") { !state.paintContext.dataSource.isMaskInUseBinding().get() }
+
 		}
 	}
 }
 
-object SmoothAction : MenuAction("_Smooth") {
+object SmoothAction : MenuAction("_Smooth...") {
 
 	private fun newConvolutionExecutor(): ThreadPoolExecutor {
 		val threads = Runtime.getRuntime().availableProcessors()
@@ -134,8 +141,20 @@ object SmoothAction : MenuAction("_Smooth") {
 	private var smoothJob: Deferred<List<Interval>?>? = null
 	private var convolutionExecutor = newConvolutionExecutor()
 
-	private val replacementLabelProperty = SimpleLongProperty(0)
+	private val replacementLabelProperty = SimpleLongProperty(0).apply {
+		subscribe { prev, next -> activateReplacementLabel(prev.toLong(), next.toLong()) }
+	}
 	private val replacementLabel by replacementLabelProperty.nonnullVal()
+
+	private val activateReplacementProperty = SimpleBooleanProperty(true).apply {
+		subscribe { _, activate ->
+			if (activate)
+				activateReplacementLabel(0L, replacementLabel)
+			else
+				activateReplacementLabel(replacementLabel, 0L)
+		}
+	}
+	private val activateReplacement by activateReplacementProperty.nonnull()
 
 	private val kernelSizeProperty = SimpleDoubleProperty()
 	private val kernelSize by kernelSizeProperty.nonnullVal()
@@ -166,9 +185,7 @@ object SmoothAction : MenuAction("_Smooth") {
 
 	init {
 		verifyState(state)
-		verify("Paint Label Mode is Active") { paintera.currentMode is PaintLabelMode }
-		verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
-		verify("Mask is in Use") { !state.paintContext.dataSource.isMaskInUseBinding().get() }
+		verifyPermission(PaintActionType.Smooth, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onAction {
 			finalizeSmoothing = false
 			/* Set lateinit values */
@@ -192,6 +209,17 @@ object SmoothAction : MenuAction("_Smooth") {
 
 	private val AffineTransform3D.resolution
 		get() = doubleArrayOf(this[0, 0], this[1, 1], this[2, 2])
+
+	private fun activateReplacementLabel(current : Long, next : Long) {
+		val selectedIds = state.paintContext.selectedIds
+		if (current != selectedIds.lastSelection) {
+			selectedIds.deactivate(current)
+
+		}
+		if (activateReplacement && next > 0L) {
+			selectedIds.activateAlso(selectedIds.lastSelection, next)
+		}
+	}
 
 	private fun SmoothActionVerifiedState.showSmoothDialog() {
 		Dialog<Boolean>().apply {
@@ -243,14 +271,19 @@ object SmoothAction : MenuAction("_Smooth") {
 
 			val timeline = Timeline()
 
-
 			dialogPane.content = VBox(10.0).apply {
 				isFillWidth = true
 				val replacementIdLabel = Label("Replacement Label")
 				val kernelSizeLabel = Label("Kernel Size (phyiscal units)")
+				val activateLabel = CheckBox("").apply {
+					tooltip = Tooltip("Select Replacement ID")
+					selectedProperty().bindBidirectional(activateReplacementProperty)
+					selectedProperty().set(true)
+				}
 				replacementIdLabel.alignment = Pos.BOTTOM_RIGHT
 				kernelSizeLabel.alignment = Pos.BOTTOM_RIGHT
-				children += HBox(10.0, replacementIdLabel, nextIdButton, replacementLabelField.textField).also {
+				activateLabel.alignment = Pos.CENTER_LEFT
+				children += HBox(10.0, replacementIdLabel, nextIdButton, replacementLabelField.textField, activateLabel).also {
 					it.disableProperty().bind(paintera.baseView.isDisabledProperty)
 					it.cursorProperty().bind(paintera.baseView.node.cursorProperty())
 				}
@@ -383,15 +416,20 @@ object SmoothAction : MenuAction("_Smooth") {
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun SmoothActionVerifiedState.startSmoothTask() {
 		val prevScales = paintera.activeViewer.get()!!.screenScales
-
-		val kernelSizeChange: ChangeListener<in Number> = ChangeListener { _, _, _ ->
-			if (scopeJob?.isActive == true)
-				cancelActiveSmoothing("Kernel Size Changed")
-			resmooth = true
+		val smoothTriggerListener = { reason : String ->
+			{ _ : Any? ->
+				if (scopeJob?.isActive == true)
+					cancelActiveSmoothing(reason)
+				resmooth = true
+			}
 		}
+		var smoothTriggerSubscription: Subscription = Subscription.EMPTY
 
 		smoothJob = CoroutineScope(Dispatchers.Default).async {
-			kernelSizeProperty.addListener(kernelSizeChange)
+			val kernelSizeChangeSubscription = kernelSizeProperty.subscribe(smoothTriggerListener("Kernel Size Changed"))
+			val replacementLabelChangeSubscription = replacementLabelProperty.subscribe(smoothTriggerListener("Replacement Label Changed"))
+			smoothTriggerSubscription.unsubscribe()
+			smoothTriggerSubscription = kernelSizeChangeSubscription.and(replacementLabelChangeSubscription)
 			paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 			smoothing = true
 			initializeSmoothLabel()
@@ -439,7 +477,7 @@ object SmoothAction : MenuAction("_Smooth") {
 				}
 
 				paintera.baseView.disabledPropertyBindings -= task
-				kernelSizeProperty.removeListener(kernelSizeChange)
+				smoothTriggerSubscription?.unsubscribe()
 				paintera.baseView.orthogonalViews().setScreenScales(prevScales)
 				convolutionExecutor.shutdown()
 			}

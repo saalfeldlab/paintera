@@ -29,7 +29,6 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
-import org.janelia.saalfeldlab.fx.extensions.onceWhen
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -81,7 +80,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
 		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
-		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer)
+		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer, MenuActionType.ResizeViewers, MenuActionType.ToggleSidePanel, MenuActionType.ResizePanel)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
 
@@ -394,7 +393,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
-			val mask = source.createViewerMask(maskInfo, viewer, paintDepth = null, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
+			val mask = source.createViewerMask(maskInfo, viewer, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
 			val activeSource = activeSourceStateProperty.value!!.sourceAndConverter!!.spimSource
 			val sources = mask.viewer.state.sources

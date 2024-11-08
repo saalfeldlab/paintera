@@ -49,7 +49,9 @@ public class OrthogonalViewsValueDisplayListener {
 
 	public void addHandlers(ViewerPanelFX viewer) {
 
-		listeners.putIfAbsent(viewer, new ValueDisplayListener<>(viewer, currentSource, interpolation, submitValue));
+		if (!listeners.containsKey(viewer)) {
+			listeners.put(viewer, new ValueDisplayListener<>(viewer, currentSource, interpolation, submitValue));
+		}
 
 		viewer.getDisplay().addEventFilter(MouseEvent.MOUSE_MOVED, listeners.get(viewer));
 		viewer.addTransformListener(listeners.get(viewer));

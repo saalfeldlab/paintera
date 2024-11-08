@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>, V extends Volatile<I>> extends HighlightingStreamConverter<V> {
+public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>> extends HighlightingStreamConverter<I> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -19,9 +19,9 @@ public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>, V 
 	}
 
 	@Override
-	public void convert(final V input, final ARGBType output) {
+	public void convert(final I input, final ARGBType output) {
 
-		output.set(stream.argb(input.get().getIntegerLong()));
+		output.set(stream.argb(input.getIntegerLong()));
 	}
 
 }

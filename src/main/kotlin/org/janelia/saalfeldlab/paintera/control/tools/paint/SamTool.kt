@@ -124,6 +124,7 @@ import kotlin.math.*
 import kotlin.properties.Delegates
 
 
+//TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "sam-select" }) }
@@ -223,6 +224,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setCursorWhenDoneApplying = ChangeListener { observable, _, _ ->
 			observable.removeListener(setCursorWhenDoneApplying)
 		}
+		paintera.properties.segmentAnythingConfig.subscribe( Runnable {
+			isValidProperty.set(SamEmbeddingLoaderCache.canReachServer)
+		})
 	}
 
 	private val isBusyProperty = SimpleBooleanProperty(false)
@@ -250,7 +254,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		mode?.apply {
 			modeActionsBar.show(false)
 			modeToolsBar.show(false)
-			toolActionsBar
 		}
 		super.activate()
 		if (mode is PaintLabelMode) {
@@ -473,7 +476,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
 						}
 					}
-					verifyPainteraNotDisabled()
 					onAction {
 						CoroutineScope(Dispatchers.IO).launch {
 							/* If no event, triggered via button; set Label to IN */
@@ -509,7 +511,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
 						}
 					}
-					verifyPainteraNotDisabled()
 					onAction {
 						CoroutineScope(Dispatchers.IO).launch {
 							it ?: let {

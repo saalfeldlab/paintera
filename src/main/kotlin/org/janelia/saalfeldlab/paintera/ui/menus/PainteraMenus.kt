@@ -42,7 +42,7 @@ private val currentSourceMenu by LazyForeignValue(::paintera) {
 	)
 }
 
-private val showVersion by LazyForeignValue(::paintera) { MenuItem("Show _Version").apply { onAction = EventHandler { PainteraAlerts.versionDialog().show() } } }
+private val showVersion by LazyForeignValue(::paintera) { MenuItem("Show _Version...").apply { onAction = EventHandler { PainteraAlerts.versionDialog().show() } } }
 
 private val recentProjects: ObservableList<String> = FXCollections.observableArrayList()
 
