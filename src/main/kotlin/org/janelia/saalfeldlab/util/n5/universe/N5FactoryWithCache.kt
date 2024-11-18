@@ -1,15 +1,14 @@
 package org.janelia.saalfeldlab.util.n5.universe
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.janelia.saalfeldlab.n5.KeyValueAccess
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
-import org.slf4j.LoggerFactory
-import java.io.File
-import java.lang.invoke.MethodHandles
+import org.janelia.saalfeldlab.paintera.Paintera
 import java.net.URI
 
 class N5FactoryWithCache : N5Factory() {
@@ -24,9 +23,9 @@ class N5FactoryWithCache : N5Factory() {
 
 		/** Check for existing of N5 and zarr specific files to indicate the format
 		 **/
-		internal fun File.guessStorageFromFormatSpecificFiles() : StorageFormat? = when {
-			resolve(N5_ATTRIBUTES).exists() -> StorageFormat.N5
-			listOf(ZGROUP, ZARRAY, ZATTRS).any { resolve(it).exists() } -> StorageFormat.ZARR
+		internal fun KeyValueAccess.guessStorageFromFormatSpecificFiles() : StorageFormat? = when {
+			exists(uri(N5_ATTRIBUTES).toString()) -> StorageFormat.N5
+			listOf(ZGROUP, ZARRAY, ZATTRS).any { exists(uri(it).toString()) } -> StorageFormat.ZARR
 			else -> null
 		}
 	}
@@ -36,10 +35,11 @@ class N5FactoryWithCache : N5Factory() {
 
 	private fun parseUriWithN5Default(uri: String) : Pair<StorageFormat, URI> {
 		return StorageFormat.parseUri(uri).run {
-			val fileBasedFormatCheck = if (a == null && (b.scheme == null || b.scheme == "file")) {
-				File(b.path).guessStorageFromFormatSpecificFiles()
-			} else null
-			(a ?: fileBasedFormatCheck ?: StorageFormat.N5) to b
+			val format = when {
+				a != null -> a
+				else -> this@N5FactoryWithCache.getKeyValueAccess(b)?.guessStorageFromFormatSpecificFiles()
+			} ?: StorageFormat.N5
+			format to b
 		}
 	}
 
