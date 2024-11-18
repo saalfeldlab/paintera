@@ -88,7 +88,7 @@ object N5Helpers {
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
 	private val LOG = KotlinLogging.logger { }
 
-	private val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
+	val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
 		OmeNgffMetadataParser(),
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
@@ -96,7 +96,7 @@ object N5Helpers {
 		N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 		N5MultiScaleMetadata.MultiScaleParser()
 	)
-	private val METADATA_PARSERS = List.of<N5MetadataParser<*>>(
+	val METADATA_PARSERS = List.of<N5MetadataParser<*>>(
 		N5CosemMetadataParser(),
 		N5SingleScaleMetadataParser(),
 		N5GenericSingleScaleMetadataParser()
