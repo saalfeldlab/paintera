@@ -33,7 +33,7 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
 				      T : Volatile<D>,
 				      T : NativeType<T> {
 
-			val metadataState = MetadataUtils.createMetadataState(container, dataset).get()
+			val metadataState = MetadataUtils.createMetadataState(container, dataset)!!
 			return createFrom(metadataState, projectDirectory, propagationQueue)
 		}
 

@@ -4,7 +4,6 @@ import bdv.cache.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess
@@ -236,8 +235,8 @@ class N5BackendPainteraDataset<D, T>(
 				with(GsonExtensions) {
 					var container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
-					val n5ContainerState = N5ContainerState(container)
-					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+					var n5ContainerState = N5ContainerState(container)
+					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)
 					while (metadataState == null) {
 						container = N5Helpers.promptForNewLocationOrRemove(container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
 						"Dataset not found",
@@ -246,8 +245,8 @@ class N5BackendPainteraDataset<D, T>(
 									${container.uri} 
 							""".trimIndent()
 						)
-						val n5ContainerState = N5ContainerState(container)
-						metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable
+						n5ContainerState = N5ContainerState(container)
+						metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)
 					}
 					N5BackendPainteraDataset<D, T>(
 						metadataState,

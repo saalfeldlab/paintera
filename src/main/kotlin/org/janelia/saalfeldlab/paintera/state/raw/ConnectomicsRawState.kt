@@ -280,7 +280,7 @@ open class ConnectomicsRawState<D, T>(
 					val meta: JsonElement = source["meta"]!!
 					val n5: String = meta["n5"]!!
 					val dataset: String = meta["dataset"]!!
-					val metadata = MetadataUtils.createMetadataState(n5, dataset).getOrNull()!!
+					val metadata = MetadataUtils.createMetadataState(n5, dataset)!!
 
 					source.get<JsonArray>("transform") { array ->
 						val transform = gson.fromJson(array, DoubleArray::class.java)

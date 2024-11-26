@@ -692,7 +692,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 					final var metadataState = matchingNode
 							.map(N5TreeNode::getMetadata)
 							.filter(MetadataUtils::metadataIsValid)
-							.flatMap(md -> MetadataUtils.createMetadataState(containerState, md))
+							.flatMap(md -> Optional.ofNullable(MetadataUtils.createMetadataState(containerState, md)))
 							.get();
 
 					//TODO currenctly this always updates the metadataState with options.resolution and offset.

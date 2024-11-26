@@ -104,7 +104,7 @@ class N5BackendChannel<D, T>(
 					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					N5BackendChannel(
-						MetadataUtils.createMetadataState(container, dataset),
+						MetadataUtils.createMetadataState(container, dataset)!!,
 						context[json, CHANNELS]!!,
 						json[CHANNEL_INDEX] ?: SerializationDefaultValues.CHANNEL_INDEX
 					)

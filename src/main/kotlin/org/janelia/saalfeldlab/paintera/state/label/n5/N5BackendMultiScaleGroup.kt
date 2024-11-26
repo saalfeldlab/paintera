@@ -154,7 +154,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
-					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
 					N5BackendMultiScaleGroup<D, T>(
 						metadataState,
 						projectDirectory,

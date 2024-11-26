@@ -258,7 +258,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			dialogPane.content = pane
 			dialogPane.lookupButton(ButtonType.OK).addEventFilter(ActionEvent.ACTION) { e: ActionEvent ->
 				val container = n5Container.directoryProperty().value!!
-				val dataset = dataset.value
+				val dataset = dataset.value ?: ""
 				val name = nameField.text
 				LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
 				var invalidCause : String? = null
@@ -299,7 +299,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
 						val containerState = N5ContainerState(writer)
-						createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }
+						createMetadataState(containerState, dataset)?.also { metadataStateProp.set(it) }
 					}
 				} catch (ex : Exception) {
 					alertIfError(ex)
