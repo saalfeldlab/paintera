@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.janelia.saalfeldlab.n5.universe.N5TreeNode.flattenN5Tree;
 import static org.janelia.saalfeldlab.util.n5.N5Helpers.listAndSortScaleDatasets;
 
 public class N5HelpersTest {
@@ -115,11 +116,9 @@ public class N5HelpersTest {
 		writer.createDataset(group + "/s2", attrs);
 		writer.createGroup("some_group");
 		writer.createDataset("some_group/two", attrs);
-		final var metadataTree = N5Helpers.parseMetadata(writer);
-		Assert.assertTrue(metadataTree.isPresent());
+		final var metadataTree = DatasetDiscovery.parseMetadata(writer);
 
-		final var groups = metadataTree.stream()
-				.flatMap(N5TreeNode::flattenN5Tree)
+		final var groups = flattenN5Tree(metadataTree)
 				.filter(node -> node.getMetadata() != null)
 				.map(N5TreeNode::getPath)
 				.sorted()

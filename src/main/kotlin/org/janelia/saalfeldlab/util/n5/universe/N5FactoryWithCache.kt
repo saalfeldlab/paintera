@@ -23,9 +23,9 @@ class N5FactoryWithCache : N5Factory() {
 
 		/** Check for existing of N5 and zarr specific files to indicate the format
 		 **/
-		internal fun KeyValueAccess.guessStorageFromFormatSpecificFiles() : StorageFormat? = when {
-			exists(uri(N5_ATTRIBUTES).toString()) -> StorageFormat.N5
-			listOf(ZGROUP, ZARRAY, ZATTRS).any { exists(uri(it).toString()) } -> StorageFormat.ZARR
+		internal fun KeyValueAccess.guessStorageFromFormatSpecificFiles(root : URI) : StorageFormat? = when {
+			exists(compose(root, N5_ATTRIBUTES)) -> StorageFormat.N5
+			listOf(ZGROUP, ZARRAY, ZATTRS).any { exists(compose(root, it)) } -> StorageFormat.ZARR
 			else -> null
 		}
 	}
@@ -37,7 +37,7 @@ class N5FactoryWithCache : N5Factory() {
 		return StorageFormat.parseUri(uri).run {
 			val format = when {
 				a != null -> a
-				else -> this@N5FactoryWithCache.getKeyValueAccess(b)?.guessStorageFromFormatSpecificFiles()
+				else -> this@N5FactoryWithCache.getKeyValueAccess(b)?.guessStorageFromFormatSpecificFiles(b)
 			} ?: StorageFormat.N5
 			format to b
 		}

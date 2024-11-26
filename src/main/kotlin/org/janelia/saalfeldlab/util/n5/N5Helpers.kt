@@ -2,15 +2,14 @@ package org.janelia.saalfeldlab.util.n5
 
 import com.google.gson.JsonObject
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.BooleanProperty
-import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
-import kotlinx.coroutines.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.iterator.IntervalIterator
@@ -23,15 +22,10 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
-import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NoInitialLutAvailable
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
@@ -39,38 +33,26 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
-import java.util.*
 import java.util.List
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.Optional
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
-import kotlin.collections.Map
-import kotlin.collections.all
-import kotlin.collections.contentToString
-import kotlin.collections.filter
-import kotlin.collections.indices
-import kotlin.collections.isNotEmpty
-import kotlin.collections.map
-import kotlin.collections.plusAssign
-import kotlin.collections.set
-import kotlin.collections.sortBy
-import kotlin.collections.toDoubleArray
-import kotlin.collections.toTypedArray
+import java.util.function.BiFunction
+import java.util.function.LongSupplier
+import java.util.function.Supplier
+import kotlin.Throws
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -101,7 +83,7 @@ object N5Helpers {
 		N5SingleScaleMetadataParser(),
 		N5GenericSingleScaleMetadataParser()
 	)
-	private val N5_METADATA_CACHE = HashMap<String, Optional<N5TreeNode>>()
+	private val N5_METADATA_CACHE = HashMap<String, N5TreeNode?>()
 
 	/**
 	 * Check if a group is a paintera data set:
@@ -221,72 +203,18 @@ object N5Helpers {
 		scaleDatasets.sortBy { s -> s.replace(Regex("\\D"), "").toIntOrNull() ?: 0 }
 	}
 
-	/**
-	 * Find all datasets inside an n5 container
-	 * A dataset is any one of:
-	 * - N5 dataset
-	 * - multi-scale group
-	 * - paintera dataset
-	 *
-	 * @param n5          container
-	 * @param discoverActive discover datasets while `keepLooking.get() == true`
-	 * @return List of all contained datasets (paths wrt to the root of the container)
-	 */
-	@JvmStatic
-	fun parseMetadata(n5: N5Reader, discoverActive: BooleanProperty?): Optional<N5TreeNode> {
-		val threadFactory = NamedThreadFactory("dataset-discovery-%d", true)
-		val es = if (n5 is N5HDF5Reader) {
-			Executors.newFixedThreadPool(1, threadFactory)
-		} else {
-			Executors.newCachedThreadPool(threadFactory)
-		}
-		val stopDiscovery = ChangeListener<Boolean> { _, _, continueLooking -> if (!continueLooking) es.shutdown() }
-		discoverActive?.addListener(stopDiscovery)
-		val parsedN5Tree = parseMetadata(n5, es)
-		LOG.debug { "Shutting down discovery ExecutorService." }
-		/* we are done, remove our listener */
-		discoverActive?.removeListener(stopDiscovery)
-		es.shutdownNow()
-		return parsedN5Tree
-	}
-
 	@JvmStatic
 	@JvmOverloads
+	@Deprecated("prefer DatasetDiscovery", ReplaceWith("DatasetDiscovery.parseMetadata(n5)"))
 	fun parseMetadata(n5: N5Reader, ignoreCache: Boolean = false): Optional<N5TreeNode> {
-		val uri: String = n5.uri.toString()
+		//TODO Caleb: make [OpenSourceState.ParserContainerCache] a static loader, and use it here
+		val uri = n5.uri.toString()
 		if (!ignoreCache && N5_METADATA_CACHE.containsKey(uri)) {
-			return N5_METADATA_CACHE[uri]!!
+			return Optional.ofNullable(N5_METADATA_CACHE[uri])
 		}
-		val n5TreeNode = parseMetadata(n5, null as BooleanProperty?)
+		val n5TreeNode = DatasetDiscovery.parseMetadata(n5)
 		N5_METADATA_CACHE[uri] = n5TreeNode
-		return n5TreeNode
-	}
-
-	/**
-	 * Find all datasets inside an n5 container
-	 * A dataset is any one of:
-	 * - N5 dataset
-	 * - multi-scale group
-	 * - paintera dataset
-	 *
-	 * @param n5 container
-	 * @param es ExecutorService for parallelization of discovery
-	 * @return List of all contained datasets (paths wrt to the root of the container)
-	 */
-	@JvmStatic
-	fun parseMetadata(
-		n5: N5Reader?,
-		es: ExecutorService?
-	): Optional<N5TreeNode> {
-		val discoverer = N5DatasetDiscoverer(n5, es, METADATA_PARSERS, GROUP_PARSERS)
-		return try {
-			val rootNode = discoverer.discoverAndParseRecursive("/")
-			Optional.of(rootNode)
-		} catch (e: IOException) {
-			//FIXME give more info in error, remove stacktrace.
-			LOG.error(e) { "Unable to discover datasets" }
-			Optional.empty()
-		}
+		return Optional.ofNullable(n5TreeNode)
 	}
 
 	/**
@@ -311,42 +239,12 @@ object N5Helpers {
 		return transform.concatenate(Translation3D(*shift))
 	}
 
-	/**
-	 * Get appropriate [FragmentSegmentAssignmentState] for `group` in n5 container `writer`
-	 *
-	 * @param writer container
-	 * @param group  group
-	 * @return [FragmentSegmentAssignmentState]
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun assignments(writer: N5Writer, group: String): FragmentSegmentAssignmentOnlyLocal {
-		if (!isPainteraDataset(writer, group)) {
-			val persistError = "Persisting assignments not supported for non Paintera group/dataset $group"
-			return FragmentSegmentAssignmentOnlyLocal(
-				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
-				FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError)
-			)
-		}
-
-		val dataset = "$group/$PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET"
-		val initialLut = if (writer.exists(dataset)) {
-			N5FragmentSegmentAssignmentInitialLut(writer, dataset)
-		} else NoInitialLutAvailable()
-		return try {
-			FragmentSegmentAssignmentOnlyLocal(
-				initialLut,
-				N5FragmentSegmentAssignmentPersister(writer, dataset)
-			)
-		} catch (e: ReflectionException) {
-			LOG.debug(e) { "Unable to create initial lut supplier" }
-			FragmentSegmentAssignmentOnlyLocal(
-				FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
-				N5FragmentSegmentAssignmentPersister(writer, dataset)
-			)
-		}
-	}
+	@Deprecated(
+		"use MetadataUtils fragmentSegmentAssignmentState extension",
+		ReplaceWith("MetadataUtils.createMetadataState(writer, group)?.fragmentSegmentAssignmentState!!")
+	)
+	fun assignments(writer: N5Writer, group: String) =
+		MetadataUtils.createMetadataState(writer, group)?.fragmentSegmentAssignmentState!!
 
 	/**
 	 * Get id-service for n5 `container` and `dataset`.
@@ -424,7 +322,7 @@ object N5Helpers {
 		val maxId = n5.getAttribute(dataset, "maxId", Long::class.java)
 		LOG.debug { "Found maxId=$maxId" }
 		return when {
-			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId' not specified for dataset `$dataset' in container `$n5'.")
+			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId` not specified for dataset `$dataset` in container `$n5`.")
 			maxId == null -> N5IdService(n5, dataset, 1)
 			else -> N5IdService(n5, dataset, maxId)
 		}

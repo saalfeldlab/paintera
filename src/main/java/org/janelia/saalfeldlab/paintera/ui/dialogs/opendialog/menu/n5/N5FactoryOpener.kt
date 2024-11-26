@@ -13,22 +13,21 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.stage.DirectoryChooser
 import javafx.stage.FileChooser
 import javafx.stage.Window
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.OpenSourceState.Companion.ContainerLoaderCache
 import org.janelia.saalfeldlab.util.PainteraCache.appendLine
 import org.janelia.saalfeldlab.util.PainteraCache.readLines
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class N5FactoryOpener {
+class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	private val selectionProperty: StringProperty = SimpleStringProperty()
 	private var selection by selectionProperty.nullable()
 
@@ -36,13 +35,14 @@ class N5FactoryOpener {
 	private val isOpeningContainer: BooleanProperty = SimpleBooleanProperty(false)
 
 	init {
+		containerStateProperty.subscribe { it -> openSourceState.parseContainer(it) }
 		selectionProperty.subscribe { _, new -> selectionChanged(new) }
 		DEFAULT_DIRECTORY?.let {
 			selection = Paths.get(it).toRealPath().toString()
 		}
 	}
 
-	fun backendDialog(): GenericBackendDialogN5 {
+	fun backendDialog(): OpenSourceBackend {
 		var ownerWindow: Window? = null
 		val containerField = stringField(selectionProperty.get(), SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
 			valueProperty().bindBidirectional(selectionProperty)
@@ -54,8 +54,13 @@ class N5FactoryOpener {
 				val tooltipBinding = Bindings.createObjectBinding({ Tooltip(text) }, textProperty())
 				tooltipProperty().bind(tooltipBinding)
 
-				textProperty().subscribe { _ ->
-					containerStateProperty.set(null)
+				textProperty().subscribe { _, new ->
+					selectionChanged(new)
+				}
+
+				focusedProperty().subscribe { _, focus ->
+					if (!focus)
+						selectionChanged(text)
 				}
 
 				ownerWindow = this.scene?.window
@@ -90,20 +95,17 @@ class N5FactoryOpener {
 			onBrowseFilesClicked
 		) { value: String -> selectionProperty.set(value) }
 
-		val dialog = GenericBackendDialogN5(containerField.textField, menuButton, containerStateProperty, isOpeningContainer)
+		val dialog = OpenSourceBackend(openSourceState, containerField.textField, menuButton, isOpeningContainer)
 		dialog.visibleProperty.subscribe { visible -> if (visible) selectionChanged(selection) }
 		return dialog
 	}
 
-	private fun createCachedContainerResetHandler(): EventHandler<KeyEvent> {
-		return EventHandler<KeyEvent> { event: KeyEvent ->
-			if (event.code == KeyCode.ENTER) {
-				val url = selectionProperty.get()
-				val oldContainer = n5ContainerStateCache.remove(url)
-				containerStateProperty.set(null)
-				GenericBackendDialogN5.previousContainerChoices.remove(oldContainer)
-				selectionChanged(url)
-			}
+	private fun createCachedContainerResetHandler() = EventHandler { event: KeyEvent ->
+		if (event.code == KeyCode.ENTER) {
+			val url = selectionProperty.get()
+			n5ContainerStateCache.remove(url)?.let { ContainerLoaderCache.invalidate(it) }
+			containerStateProperty.set(null)
+			selectionChanged(url)
 		}
 	}
 
@@ -139,22 +141,35 @@ class N5FactoryOpener {
 		}
 	}
 
+	private var createContainerStateJob: Job? = null
+
 	private fun selectionChanged(newSelection: String?) {
 		if (newSelection.isNullOrBlank()) {
 			containerStateProperty.set(null)
 			return
 		}
 
-		CoroutineScope(Dispatchers.IO).launch {
+		createContainerStateJob?.cancel("Cancelled by new selection")
+
+		createContainerStateJob = CoroutineScope(Dispatchers.IO).launch {
 			isOpeningContainer.set(true)
 
 			n5ContainerStateCache.getOrPut(newSelection) {
-				n5Factory.openWriterOrReaderOrNull(newSelection)?.let { N5ContainerState(it) }
+				val state = n5Factory.openWriterOrReaderOrNull(newSelection)?.let { N5ContainerState(it) }
+				ensureActive()
+				state
 			}?.let { containerStateProperty.set(it) }
+				?: containerStateProperty.set(null)
 
-		}.invokeOnCompletion { cause ->
-			cause?.let { LOG.error(it) { "Error opening container: $newSelection" } }
-			isOpeningContainer.set(false)
+		}.apply {
+			invokeOnCompletion { cause ->
+				when (cause) {
+					null -> Unit
+					is CancellationException -> LOG.trace(cause) {}
+					else -> LOG.error(cause) { "Error opening container: $newSelection" }
+				}
+				isOpeningContainer.set(false)
+			}
 		}
 	}
 

@@ -9,8 +9,6 @@ import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess
 import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
@@ -25,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -37,7 +36,7 @@ import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
 import java.util.function.Supplier
@@ -49,7 +48,7 @@ class N5BackendPainteraDataset<D, T>(
 	private val propagationExecutorService: ExecutorService,
 	private val backupLookupAttributesIfMakingRelative: Boolean,
 ) : N5Backend<D, T>
-	where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 	override val container: N5Reader = metadataState.reader
 	override val dataset: String = metadataState.dataset
@@ -69,13 +68,7 @@ class N5BackendPainteraDataset<D, T>(
 		)
 	}
 
-	//FIXME Caleb: should use metadata; AND we should expect the correct metadata type (not just MetadataState)
-	override val fragmentSegmentAssignment: FragmentSegmentAssignmentStateWithActionTracker
-		get() {
-			return metadataState.writer?.let {
-				N5Helpers.assignments(it, dataset)
-			} ?: FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
-		}
+	override val fragmentSegmentAssignment = metadataState.fragmentSegmentAssignmentState
 	override val providesLookup = true
 
 	//FIXME Caleb: same as above with idService
@@ -186,7 +179,7 @@ class N5BackendPainteraDataset<D, T>(
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
 	class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendPainteraDataset<D, T>>
-		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 		override fun serialize(
 			backend: N5BackendPainteraDataset<D, T>,
@@ -209,11 +202,11 @@ class N5BackendPainteraDataset<D, T>(
 		private val projectDirectory: Supplier<String>,
 		private val propagationExecutorService: ExecutorService
 	) : JsonDeserializer<N5BackendPainteraDataset<D, T>>
-		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
 		class Factory<D, T> : StatefulSerializer.DeserializerFactory<N5BackendPainteraDataset<D, T>, Deserializer<D, T>>
-			where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+				where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 			override fun createDeserializer(
 				arguments: StatefulSerializer.Arguments,
 				projectDirectory: Supplier<String>,
@@ -238,8 +231,9 @@ class N5BackendPainteraDataset<D, T>(
 					var n5ContainerState = N5ContainerState(container)
 					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)
 					while (metadataState == null) {
-						container = N5Helpers.promptForNewLocationOrRemove(container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
-						"Dataset not found",
+						container = N5Helpers.promptForNewLocationOrRemove(
+							container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
+							"Dataset not found",
 							"""
 								Expected dataset "${dataset.ifEmpty { "/" }}" not found at
 									${container.uri} 

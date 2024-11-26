@@ -17,7 +17,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -25,9 +24,6 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -45,6 +41,7 @@ import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.janelia.saalfeldlab.util.n5.DatasetDiscovery;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
@@ -324,35 +321,18 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			final int channelDimension,
 			final long[] channels,
 			final String name
-	) throws IOException {
+	) {
 
-		try {
-			final N5ChannelDataSourceMetadata<D, T> channelSource = N5ChannelDataSourceMetadata.zeroExtended(
-					metadataState,
-					name,
-					viewer.getQueue(),
-					0,
-					channelDimension,
-					channels);
-
-			final N5BackendChannel<D, T> backend = new N5BackendChannel<>(
-					metadataState,
-					Arrays.stream(channels).mapToInt(l -> (int)l).toArray(),
-					channelDimension
-			);
-			return new ConnectomicsChannelState<D, T, RealComposite<D>, RealComposite<T>, VolatileWithSet<RealComposite<T>>>(
-					backend,
-					viewer.getQueue(),
-					viewer.getQueue().getNumPriorities() - 1,
-					name);
-		} catch (final DataTypeNotSupported e) {
-			throw new IOException(e);
-		}
-	}
-
-	private static <T> T getLastEntry(final T[] array) {
-
-		return array.length > 0 ? array[array.length - 1] : null;
+		final N5BackendChannel<D, T> backend = new N5BackendChannel<>(
+				metadataState,
+				Arrays.stream(channels).mapToInt(l -> (int)l).toArray(),
+				channelDimension
+		);
+		return new ConnectomicsChannelState<>(
+				backend,
+				viewer.getQueue(),
+				viewer.getQueue().getNumPriorities() - 1,
+				name);
 	}
 
 	private static long[] range(final int N) {
@@ -650,10 +630,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				N5Reader n5Container = Paintera.getN5Factory().openWriterElseOpenReader(container);
 
 				final Predicate<String> datasetFilter = options.useDataset();
-				final ExecutorService es = getDiscoveryExecutorService();
 				final String[] datasets;
 				if (options.addEntireContainer) {
-					Optional<N5TreeNode> rootNode = N5Helpers.parseMetadata(n5Container, es);
+					Optional<N5TreeNode> rootNode = N5Helpers.parseMetadata(n5Container);
 					if (rootNode.isPresent()) {
 						final List<String> validGroups = N5Helpers.validPainteraGroupMap(rootNode.get()).keySet().stream()
 								.filter(datasetFilter)
@@ -677,18 +656,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 					}
 
 					final var containerState = new N5ContainerState(n5Container);
-					final var metadataOpt = N5Helpers.parseMetadata(n5Container);
-					if (metadataOpt.isEmpty()) {
-						LOG.warn("Group " + dataset + " from " + container + " cannot be parsed");
-						return;
-					}
-					final var metadata = metadataOpt.get();
+					final var metadata = DatasetDiscovery.parseMetadata(n5Container);
 
 					final Stream<N5TreeNode> flatTree = N5TreeNode.flattenN5Tree(metadata);
 					final Optional<N5TreeNode> matchingNode = flatTree
 							.filter(node -> node.getNodeName().equals(dataset))
 							.findFirst();
-					final var metaForNode = matchingNode.get().getMetadata();
 					final var metadataState = matchingNode
 							.map(N5TreeNode::getMetadata)
 							.filter(MetadataUtils::metadataIsValid)

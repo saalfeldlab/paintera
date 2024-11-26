@@ -16,27 +16,27 @@ class PainteraMainWindowTest {
 		val chars : List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
 		val randString = { List(10) { chars.random() }.joinToString("") }
 
-		val noExtension = Files.temporaryFolder().resolve(randString()).absolutePath
+		val noExtension = Files.temporaryFolder().resolve(randString()).toURI().toString()
 		assertTrue { Paintera.n5Factory.newWriter(noExtension) is N5KeyValueWriter }
 		assertTrue { Paintera.n5Factory.openReader(noExtension) is N5KeyValueReader }
 
-		val noExtension2 = Files.temporaryFolder().resolve(randString()).absolutePath
+		val noExtension2 = Files.temporaryFolder().resolve(randString()).toURI().toString()
 		assertTrue("no extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:${noExtension2}") is ZarrKeyValueWriter }
 		assertTrue("No extension with .zgroup and no scheme should be zarr") { Paintera.n5Factory.openReader(noExtension2) is ZarrKeyValueReader }
 
-		val nonsenseExtension = Files.temporaryFolder().resolve("${randString()}.asdf").absolutePath
+		val nonsenseExtension = Files.temporaryFolder().resolve("${randString()}.asdf").toURI().toString()
 		assertTrue("random extension should be n5") { Paintera.n5Factory.newWriter(nonsenseExtension) is N5KeyValueWriter }
 		assertTrue("random extension should be n5") { Paintera.n5Factory.openReader(nonsenseExtension) is N5KeyValueReader }
 
-		val nonsenseExtension2 = Files.temporaryFolder().resolve("${randString()}.asdf").absolutePath
+		val nonsenseExtension2 = Files.temporaryFolder().resolve("${randString()}.asdf").toURI().toString()
 		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:$nonsenseExtension2") is ZarrKeyValueWriter }
 		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.openReader(nonsenseExtension2) is ZarrKeyValueReader }
 
-		val zarrFile = Files.temporaryFolder().resolve("${randString()}.zarr").absolutePath
+		val zarrFile = Files.temporaryFolder().resolve("${randString()}.zarr").toURI().toString()
 		assertTrue(".zarr should be zarr") { Paintera.n5Factory.newWriter(zarrFile) is ZarrKeyValueWriter }
 		assertTrue(".zarr should be zarr") { Paintera.n5Factory.openReader(zarrFile) is ZarrKeyValueReader }
 
-		val n5File = Files.temporaryFolder().resolve("${randString()}.n5").absolutePath
+		val n5File = Files.temporaryFolder().resolve("${randString()}.n5").toURI().toString()
 		assertTrue(".n5 should be n5") { Paintera.n5Factory.newWriter(n5File) is N5KeyValueWriter }
 		assertTrue(".n5 should be n5 ") { Paintera.n5Factory.openReader(n5File) is N5KeyValueReader }
 	}

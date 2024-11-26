@@ -25,15 +25,21 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
+import kotlin.Pair;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.OpenSourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -76,6 +82,8 @@ public class MetaPanel {
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
 	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
+
+	public OpenSourceState openSourceState = null; //FIXME Caleb: CHANNEL better than public non-final
 
 	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
@@ -154,8 +162,12 @@ public class MetaPanel {
 				grid.setHgap(GRID_HGAP);
 				grid.getColumnConstraints().addAll(cc);
 				grid.add(new Label("Dimensions"), 0, 1);
+				final Function<Axis, String> axisToString = axis -> axis.getName() + (axis.getUnit() != null && !axis.getUnit().isEmpty() ? "(" + axis.getUnit() + ")" : "");
+				final MetadataState metadataState = openSourceState != null ? openSourceState.getMetadataState() : null;
+				final Axis[] axes = metadataState != null ? MetadataUtils.getAxes(metadataState) : null;
 				for (int d = 0; d < newv.length; ++d) {
-					labels[d].setText("" + d);
+					final var text = axes != null ? axisToString.apply(axes[d]) : "" + d;
+					labels[d].setText(text);
 					final TextField lbl = new TextField("" + newv[d]);
 					lbl.setEditable(false);
 					grid.add(labels[d], d + 1, 0);
@@ -163,7 +175,16 @@ public class MetaPanel {
 					lbl.setPrefWidth(TEXTFIELD_WIDTH);
 				}
 
-				channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int)newv[3]);
+				final Pair<Axis, Integer> channelAxis = metadataState != null ? metadataState.getChannelAxis() : null;
+			 	final Integer channelIdx;
+				if (channelAxis != null)
+					channelIdx = channelAxis.getSecond();
+				else if (newv.length < 4)
+					channelIdx = null;
+				else
+					channelIdx = 3;
+				final int numChannels = channelIdx != null ? (int)newv[channelIdx] : 0;
+				channelInfo.numChannelsProperty().set(numChannels);
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
 				if (channelInfo.numChannelsProperty().get() > 0) {
 					final Node channelInfoNode = channelInfo.getNode();
