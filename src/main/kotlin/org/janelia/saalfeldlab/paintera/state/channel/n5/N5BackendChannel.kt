@@ -10,7 +10,7 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -44,7 +44,7 @@ class N5BackendChannel<D, T>(
 		priority: Int,
 		name: String
 	): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
-		return N5ChannelDataSourceMetadata.valueExtended(
+		return N5ChannelDataSource.valueExtended(
 			metadataState,
 			name,
 			queue,

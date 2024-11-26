@@ -248,15 +248,12 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	public boolean map(final boolean clearUntouchedTargetPixels) {
 
 		canceled.set(false);
-
 		valid = false;
 
 		final StopWatch stopWatch = StopWatch.createAndStart();
 		final IoStatistics iostat = CacheIoTiming.getIoStatistics();
 		final long startTimeIo = iostat.getIoNanoTime();
 		final long startTimeIoCumulative = iostat.getCumulativeIoNanoTime();
-
-		valid = false;
 
 		int resolutionLevel;
 		/*

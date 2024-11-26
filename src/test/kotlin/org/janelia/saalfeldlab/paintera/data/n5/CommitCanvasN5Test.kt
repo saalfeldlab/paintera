@@ -27,7 +27,9 @@ import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
@@ -309,7 +311,7 @@ class CommitCanvasN5Test {
 		) {
 
 			val (canvas, container) = canvasAndContainer
-			val metadataState = createMetadataState(container, dataset).orElseGet { DummyMetadataState(dataset, container) }
+			val metadataState = createMetadataState(container, dataset) ?: DummyMetadataState(dataset, container)
 
 			writeAll(metadataState, canvas)
 
@@ -356,6 +358,9 @@ private class DummyMetadataState(override val dataset: String, override val n5Co
 	override var reader: N5Reader = n5ContainerState.reader
 	override var unit: String = "pixel"
 	override var translation: DoubleArray = DoubleArray(0)
+	override var spatialAxes: Map<Axis, Int> = MetadataUtils.SpatialAxes.default
+	override var channelAxis: Pair<Axis, Int>? = null
+	override var timeAxis: Pair<Axis, Int>? = null
 	override var virtualCrop: Interval? = null
 	override var resolution: DoubleArray = DoubleArray(0)
 	override var maxIntensity: Double = 0.0

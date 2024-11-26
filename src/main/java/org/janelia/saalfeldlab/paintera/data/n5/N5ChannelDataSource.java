@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-public class N5ChannelDataSourceMetadata<
+public class N5ChannelDataSource<
 		D extends NativeType<D> & RealType<D>,
 		T extends AbstractVolatileRealType<D, T> & NativeType<T>>
 		implements ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
@@ -104,7 +104,7 @@ public class N5ChannelDataSourceMetadata<
 	 * @throws IOException
 	 * @throws DataTypeNotSupported
 	 */
-	public N5ChannelDataSourceMetadata(
+	public N5ChannelDataSource(
 			final MetadataState metadataState,
 			final D dataExtension,
 			final T extension,
@@ -112,8 +112,7 @@ public class N5ChannelDataSourceMetadata<
 			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
-			final long[] channels) throws
-			IOException, DataTypeNotSupported {
+			final long[] channels) {
 
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
@@ -134,7 +133,7 @@ public class N5ChannelDataSourceMetadata<
 		this.viewerData = collapseDimension(dataWithInvalidate.viewData, this.channelDimension, this.channels, extension);
 
 		this.interpolation = ipol -> new NearestNeighborInterpolatorFactory<>();
-		this.viewerInterpolation = ipol -> Interpolation.NLINEAR.equals(ipol) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>();
+		this.viewerInterpolation = ipol -> new NearestNeighborInterpolatorFactory<>();
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 	}
@@ -146,7 +145,7 @@ public class N5ChannelDataSourceMetadata<
 
 	public static <
 			D extends RealType<D> & NativeType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> valueExtended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
 			final MetadataState metadata,
 			final String name,
 			final SharedQueue queue,
@@ -155,7 +154,7 @@ public class N5ChannelDataSourceMetadata<
 			final long channelMin,
 			final long channelMax,
 			final boolean reverseChannelOrder,
-			final double value) throws IOException, DataTypeNotSupported {
+			final double value) {
 
 		return extended(
 				metadata,
@@ -173,7 +172,7 @@ public class N5ChannelDataSourceMetadata<
 
 	public static <
 			D extends RealType<D> & NativeType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> zeroExtended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final MetadataState metadata,
 			final String name,
 			final SharedQueue queue,
@@ -181,7 +180,7 @@ public class N5ChannelDataSourceMetadata<
 			final int channelDimension,
 			final long channelMin,
 			final long channelMax,
-			final boolean reverseChannelOrder) throws IOException, DataTypeNotSupported {
+			final boolean reverseChannelOrder) {
 
 		return extended(
 				metadata,
@@ -199,7 +198,7 @@ public class N5ChannelDataSourceMetadata<
 
 	public static <
 			D extends NativeType<D> & RealType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> extended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
 			final MetadataState metadataState,
 			final String name,
 			final SharedQueue queue,
@@ -209,7 +208,7 @@ public class N5ChannelDataSourceMetadata<
 			final long channelMax,
 			final boolean reverseChannelOrder,
 			final Consumer<D> extendData,
-			final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
+			final Consumer<T> extendViewer) {
 
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
@@ -225,12 +224,12 @@ public class N5ChannelDataSourceMetadata<
 		final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
 		final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
 		final long[] channels = getChannels(min, max, reverseChannelOrder);
-		return new N5ChannelDataSourceMetadata<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
+		return new N5ChannelDataSource<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
 	}
 
 	public static <
 			D extends RealType<D> & NativeType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> valueExtended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
 			final MetadataState metadata,
 			final String name,
 			final SharedQueue queue,
@@ -253,7 +252,7 @@ public class N5ChannelDataSourceMetadata<
 
 	public static <
 			D extends RealType<D> & NativeType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> zeroExtended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final MetadataState metadata,
 			final String name,
 			final SharedQueue queue,
@@ -274,7 +273,7 @@ public class N5ChannelDataSourceMetadata<
 
 	public static <
 			D extends NativeType<D> & RealType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> extended(
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
 			final MetadataState metadataState,
 			final String name,
 			final SharedQueue queue,
@@ -295,7 +294,7 @@ public class N5ChannelDataSourceMetadata<
 		extendData.accept(d);
 		extendViewer.accept(t);
 		t.setValid(true);
-		return new N5ChannelDataSourceMetadata<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
+		return new N5ChannelDataSource<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
 	}
 
 	public MetadataState meta() {
