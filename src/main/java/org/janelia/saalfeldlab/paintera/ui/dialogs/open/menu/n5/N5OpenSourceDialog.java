@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -41,18 +41,17 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Constants;
-import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.CombinesErrorMessages;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.DatasetInfo;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenuEntry;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.NameField;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.MetaPanel;
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,14 +147,13 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 
 	private final OpenSourceBackend backendDialog;
 
-	private final MetaPanel metaPanel = new MetaPanel();
+	private final MetaPanel metaPanel;
 
 	public N5OpenSourceDialog(final PainteraBaseView viewer, OpenSourceState openSourceState, final OpenSourceBackend backendDialog) {
 
-
 		this.backendDialog = backendDialog;
-		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
-		this.metaPanel.openSourceState = openSourceState;
+		this.metaPanel = new MetaPanel(openSourceState.getMetadataStateBinding());
+		this.metaPanel.listenOnDimensions(openSourceState.getDimensionsBinding());
 
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
@@ -197,14 +195,11 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 				typeChoice.set(updateType(it));
 		});
 
-		final DatasetInfo datasetInfo = openSourceState.getDatasetInfo();
-		final DoubleProperty[] res = datasetInfo.getSpatialResolutionProperties();
-		final DoubleProperty[] off = datasetInfo.getSpatialTranslationProperties();
-		this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
-		this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
+		this.metaPanel.listenOnResolution(openSourceState.getResolutionProperty());
+		this.metaPanel.listenOnOffset(openSourceState.getTranslationProperty());
 		this.metaPanel.listenOnMinMax(
-				datasetInfo.getMinProperty(),
-				datasetInfo.getMaxProperty()
+				openSourceState.getMinIntensityProperty(),
+				openSourceState.getMaxIntensityProperty()
 		);
 
 		final ObjectBinding<UUID> openSourceStateChangeBinding = Bindings.createObjectBinding(UUID::randomUUID, openSourceState.getContainerStateProperty(), openSourceState.getActiveNodeProperty());
@@ -219,12 +214,8 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 		Optional.ofNullable(nameProperty.get()).ifPresent(nameField.textField()::setText);
 
 		metaPanel.getReverseButton().setOnAction(event -> {
-			final double[] reversedResolution = reverse(metaPanel.getResolution());
-			final double[] reverseOffset = reverse(metaPanel.getOffset());
-			for (int i = 0; i < res.length; i++) {
-				res[i] .set(reversedResolution[i]);
-				off[i] .set(reverseOffset[i]);
-			}
+			openSourceState.getResolutionProperty().set(reverse(metaPanel.getResolution()));
+			openSourceState.getTranslationProperty().set(reverse(metaPanel.getOffset()));
 		});
 
 		this.typeChoice.setValue(typeChoices.get(0));
@@ -270,7 +261,7 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 		final var errors = new ArrayList<ObservableValue<String>>();
 		errors.add(this.nameField.errorMessageProperty());
 
-		final OpenSourceState openSourceState = backendDialog.state;
+		final OpenSourceState openSourceState = backendDialog.openSourceState;
 		if (openSourceState.getContainerState() == null)
 			errors.add(new SimpleStringProperty("No Valid Container"));
 		else if (openSourceState.getActiveNode() == null)

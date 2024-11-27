@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -20,7 +20,8 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.OpenSourceState.Companion.ContainerLoaderCache
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState.Companion.ContainerLoaderCache
 import org.janelia.saalfeldlab.util.PainteraCache.appendLine
 import org.janelia.saalfeldlab.util.PainteraCache.readLines
 import java.io.File
@@ -28,6 +29,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 class N5FactoryOpener(private val openSourceState: OpenSourceState) {
+
+
 	private val selectionProperty: StringProperty = SimpleStringProperty()
 	private var selection by selectionProperty.nullable()
 

@@ -8,7 +8,6 @@ import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
@@ -22,9 +21,9 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.intersecting.IntersectingSourceStateOpener
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.IntersectingSourceStateOpener
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5OpenSourceDialog.N5Opener
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
 enum class PainteraMenuItems(

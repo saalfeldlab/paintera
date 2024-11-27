@@ -1,15 +1,17 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.ReadOnlyObjectWrapper
+import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.collections.FXCollections
 import kotlinx.coroutines.*
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
-import org.janelia.saalfeldlab.fx.extensions.whenNotNull
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata
@@ -17,12 +19,8 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.DatasetInfo
 import org.janelia.saalfeldlab.util.n5.DatasetDiscovery
-import java.net.URI
 import kotlin.coroutines.coroutineContext
-import kotlin.io.path.Path
-import kotlin.io.path.name
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpenSourceState {
@@ -39,29 +37,42 @@ class OpenSourceState {
 		it.get()?.let { node -> node.metadata as? SpatialMetadata }
 	}
 
+	val resolutionProperty = SimpleObjectProperty<DoubleArray?>()
+	var resolution by resolutionProperty.nullable()
+
+	val translationProperty = SimpleObjectProperty<DoubleArray?>()
+	var translation by translationProperty.nullable()
+
+	val minIntensityProperty = SimpleDoubleProperty(Double.NaN)
+	var minIntensity by minIntensityProperty.nonnull()
+
+	val maxIntensityProperty = SimpleDoubleProperty(Double.NaN)
+	var maxIntensity by maxIntensityProperty.nonnull()
+
 	val metadataStateBinding = activeMetadataProperty.createObservableBinding {
 		val metadata = activeMetadataProperty.get() ?: return@createObservableBinding null
 		val container = containerStateProperty.get() ?: return@createObservableBinding null
 
 		MetadataUtils.createMetadataState(container, metadata)
+	}.apply {
+		subscribe { metadata ->
+			val (resolution, translation, min, max) = metadata?.run {
+				MutableInfoState(resolution, translation, minIntensity, maxIntensity)
+			} ?: MutableInfoState()
+
+			resolutionProperty.value = resolution
+			translationProperty.value = translation
+			minIntensity = min
+			maxIntensity = max
+		}
 	}
 	val metadataState by metadataStateBinding.nullableVal()
 
-	val datasetInfo = DatasetInfo().apply {
-		metadataStateBinding.subscribe { metadata ->
-			metadata ?: return@subscribe
-			metadata.resolution.zip(spatialResolutionProperties).forEach { (res, prop) -> prop.set(res) }
-			metadata.translation.zip(spatialTranslationProperties).forEach { (res, prop) -> prop.set(res) }
-			minProperty.value = metadata.minIntensity
-			maxProperty.value = metadata.maxIntensity
-		}
-	}
-
 	val datasetAttributes get() = metadataState?.datasetAttributes
-	val dimensions get() = datasetAttributes?.dimensions
+	val dimensionsBinding = metadataStateBinding.createObservableBinding { it.value?.datasetAttributes?.dimensions }
 
 	val datasetPath get() = activeNodeProperty.get()?.path
-	val sourceNameProperty = SimpleStringProperty().also {prop ->
+	val sourceNameProperty = SimpleStringProperty().also { prop ->
 		activeNodeProperty.subscribe { it ->
 			prop.value = datasetPath?.split("/")?.last()
 		}
@@ -69,14 +80,14 @@ class OpenSourceState {
 
 	val validDatasets = SimpleObjectProperty<Map<String, N5TreeNode>>(emptyMap())
 
-	private var parseJob : Deferred<Map<String, N5TreeNode>?>? = null
+	private var parseJob: Deferred<Map<String, N5TreeNode>?>? = null
 
 	fun parseContainer(state: N5ContainerState?): Deferred<Map<String, N5TreeNode>?>? {
 		writableContainerState = state
 		InvokeOnJavaFXApplicationThread { activeNode = null }
 		parseJob?.cancel("Cancelled by new request")
 		parseJob = state?.let { container ->
-			ContainerLoaderCache.request(container).apply{
+			ContainerLoaderCache.request(container).apply {
 				invokeOnCompletion { cause ->
 					when (cause) {
 						null -> Unit
@@ -85,6 +96,7 @@ class OpenSourceState {
 							LOG.trace(cause) {}
 							return@invokeOnCompletion
 						}
+
 						else -> {
 							validDatasets.set(emptyMap<String, N5TreeNode>())
 							throw cause
@@ -104,20 +116,26 @@ class OpenSourceState {
 	}
 
 
-
 	companion object {
 		private val LOG = KotlinLogging.logger { }
 
-		@JvmStatic
-		fun N5ContainerState.name() = uri.path.split("/").filter { it.isNotBlank()}.last()
+		private data class MutableInfoState(
+			val resolution: DoubleArray = DoubleArray(3) { 1.0 },
+			val translation: DoubleArray = DoubleArray(3),
+			val min: Double = Double.NaN,
+			val max: Double = Double.NaN
+		)
 
-		private fun getValidDatasets(node : N5TreeNode) : MutableMap<String, N5TreeNode> {
+		@JvmStatic
+		fun N5ContainerState.name() = uri.path.split("/").filter { it.isNotBlank() }.last()
+
+		private fun getValidDatasets(node: N5TreeNode): MutableMap<String, N5TreeNode> {
 			val map = mutableMapOf<String, N5TreeNode>()
 			getValidDatasets(node, map)
 			return map
 		}
 
-		private fun getValidDatasets(node : N5TreeNode, datasets : MutableMap<String, N5TreeNode>) {
+		private fun getValidDatasets(node: N5TreeNode, datasets: MutableMap<String, N5TreeNode>) {
 			if (MetadataUtils.metadataIsValid(node.metadata))
 				datasets[node.path] = node
 			else

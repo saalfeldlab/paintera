@@ -58,7 +58,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdat
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5OpenSourceDialog.N5Opener
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays

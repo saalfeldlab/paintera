@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta;
 
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
