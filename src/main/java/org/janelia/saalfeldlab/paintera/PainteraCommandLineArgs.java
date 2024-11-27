@@ -30,7 +30,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
@@ -263,7 +263,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		final boolean isChannelData = !isLabelData && attributes.getNumDimensions() == 4;
 
 		if (isLabelData) {
-			viewer.addState((SourceState<?, ?>)makeLabelState(viewer, projectDirectory, metadataState, name));
+			viewer.addState((SourceState<?, ?>)makeLabelState(viewer, metadataState, name));
 		} else if (isChannelData) {
 			channels = channels == null ? new long[][]{PainteraCommandLineArgs.range((int)attributes.getDimensions()[channelDimension])} : channels;
 			final String fname = name;
@@ -280,11 +280,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> makeLabelState(
 			final PainteraBaseView viewer,
-			final Supplier<String> projectDirectory,
 			final MetadataState metadataState,
 			final String name) {
 
-		final N5Backend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, viewer.getPropagationQueue());
+		final N5BackendLabel<D, T> backend = N5BackendLabel.createFrom(metadataState, viewer.getPropagationQueue());
 		return new ConnectomicsLabelState<>(
 				backend,
 				viewer.viewer3D().getMeshesGroup(),

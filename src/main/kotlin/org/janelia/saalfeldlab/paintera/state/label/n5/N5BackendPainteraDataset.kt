@@ -43,15 +43,11 @@ import java.util.function.Supplier
 import kotlin.io.path.toPath
 
 class N5BackendPainteraDataset<D, T>(
-	private val metadataState: MetadataState,
-	private val projectDirectory: Supplier<String>,
+	override val metadataState: MetadataState,
 	private val propagationExecutorService: ExecutorService,
 	private val backupLookupAttributesIfMakingRelative: Boolean,
-) : N5Backend<D, T>
+) : N5BackendLabel<D, T>
 		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-
-	override val container: N5Reader = metadataState.reader
-	override val dataset: String = metadataState.dataset
 
 	override fun createSource(
 		queue: SharedQueue,
@@ -244,7 +240,6 @@ class N5BackendPainteraDataset<D, T>(
 					}
 					N5BackendPainteraDataset<D, T>(
 						metadataState,
-						projectDirectory,
 						propagationExecutorService,
 						true
 					).also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
@@ -257,6 +252,4 @@ class N5BackendPainteraDataset<D, T>(
 				.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
 		}
 	}
-
-	override fun getMetadataState() = metadataState
 }

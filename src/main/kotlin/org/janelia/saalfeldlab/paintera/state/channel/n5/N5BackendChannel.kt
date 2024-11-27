@@ -29,7 +29,7 @@ import java.lang.reflect.Type
 //         - paintera dataset
 
 class N5BackendChannel<D, T>(
-	@JvmField val metadataState: MetadataState,
+	override val metadataState: MetadataState,
 	override val channelSelection: IntArray,
 	override val channelIndex: Int,
 ) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
@@ -114,9 +114,5 @@ class N5BackendChannel<D, T>(
 
 		override fun getTargetClass() = N5BackendChannel::class.java as Class<N5BackendChannel<D, T>>
 
-	}
-
-	override fun getMetadataState(): MetadataState {
-		return metadataState
 	}
 }

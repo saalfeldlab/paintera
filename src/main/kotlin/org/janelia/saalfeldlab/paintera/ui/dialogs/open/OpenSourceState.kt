@@ -1,13 +1,18 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open
 
+import bdv.cache.SharedQueue
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.ReadOnlyObjectWrapper
-import javafx.beans.property.SimpleDoubleProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.collections.FXCollections
+import javafx.beans.property.*
+import javafx.scene.Group
 import kotlinx.coroutines.*
+import net.imglib2.Volatile
 import net.imglib2.cache.ref.SoftRefLoaderCache
+import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.NativeType
+import net.imglib2.type.numeric.IntegerType
+import net.imglib2.type.numeric.RealType
+import net.imglib2.type.volatiles.AbstractVolatileRealType
+import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
@@ -17,9 +22,21 @@ import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState
+import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.janelia.saalfeldlab.util.n5.DatasetDiscovery
+import java.util.concurrent.ExecutorService
 import kotlin.coroutines.coroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -77,6 +94,7 @@ class OpenSourceState {
 			prop.value = datasetPath?.split("/")?.last()
 		}
 	}
+	var sourceName by sourceNameProperty.nonnull()
 
 	val validDatasets = SimpleObjectProperty<Map<String, N5TreeNode>>(emptyMap())
 
@@ -158,6 +176,101 @@ class OpenSourceState {
 				datasets
 			}
 		)
+
+		@JvmStatic
+		fun <T, V> getRaw(
+			openSourceState: OpenSourceState,
+			sharedQueue: SharedQueue,
+			priority: Int
+		): SourceState<T, V>
+				where
+				T : RealType<T>, T : NativeType<T>,
+				V : AbstractVolatileRealType<T, V>, V : NativeType<V> {
+
+			val metadataState = openSourceState.metadataState!!.copy()
+			openSourceState.resolution?.let { resolution ->
+				openSourceState.translation?.let { translation ->
+					if (metadataState.resolution != resolution || metadataState.translation != translation)
+						metadataState.updateTransform(resolution, translation)
+				}
+			}
+
+			var backend = N5BackendRaw<T, V>(metadataState)
+			return ConnectomicsRawState(backend, sharedQueue, priority, openSourceState.sourceName).apply {
+				converter().min = openSourceState.minIntensity
+				converter().max = openSourceState.maxIntensity
+			}
+		}
+
+
+		@JvmStatic
+		fun <T, V> getChannels(
+			openSourceState: OpenSourceState,
+			channelSelection: IntArray,
+			sharedQueue: SharedQueue,
+			priority: Int
+		): List<out SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>>
+				where
+				T : RealType<T>, T : NativeType<T>,
+				V : AbstractVolatileRealType<T, V>, V : NativeType<V> {
+
+			val metadataState = openSourceState.metadataState!!.copy().also {
+				openSourceState.resolution?.let { resolution ->
+					openSourceState.translation?.let { translation ->
+						if (it.resolution != resolution || it.translation != translation)
+							it.updateTransform(resolution, translation)
+					}
+				}
+			}
+
+			var channelIdx = metadataState.channelAxis!!.second
+			var backend = N5BackendChannel<T, V>(metadataState, channelSelection, channelIdx)
+			val state = ConnectomicsChannelState(backend, sharedQueue, priority, openSourceState.sourceName).apply {
+				converter().setMins { openSourceState.minIntensity }
+				converter().setMaxs { openSourceState.maxIntensity }
+			}
+			return listOf(state)
+		}
+
+
+		@JvmStatic
+		fun <T, V> getLabels(
+			openSourceState: OpenSourceState,
+			sharedQueue: SharedQueue,
+			priority: Int,
+			meshesGroup: Group,
+			viewFrustumProperty: ObjectProperty<ViewFrustum>,
+			eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D>,
+			manager: ExecutorService,
+			workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
+			propagationQueue: ExecutorService,
+		): SourceState<T, V>
+				where
+				T : IntegerType<T>, T : NativeType<T>,
+				V : Volatile<T>, V : NativeType<V> {
+
+			val metadataState = openSourceState.metadataState!!.copy()
+			openSourceState.resolution?.let { resolution ->
+				openSourceState.translation?.let { translation ->
+					if (metadataState.resolution != resolution || metadataState.translation != translation)
+						metadataState.updateTransform(resolution, translation)
+				}
+			}
+
+			var backend = N5BackendLabel.createFrom<T, V>(metadataState, propagationQueue)
+			return ConnectomicsLabelState(
+				backend,
+				meshesGroup,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				manager,
+				workers,
+				sharedQueue,
+				priority,
+				openSourceState.sourceName,
+				null
+			)
+		}
 
 	}
 }

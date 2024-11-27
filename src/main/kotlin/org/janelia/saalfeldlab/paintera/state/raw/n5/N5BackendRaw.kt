@@ -21,18 +21,11 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-class N5BackendRaw<D, T>(@JvmField val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T>(override val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
 		where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
-
-	override val container = metadataState.reader
-	override val dataset = metadataState.dataset
 
 	override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
 		return N5DataSource(metadataState, name, queue, priority)
-	}
-
-	override fun getMetadataState(): MetadataState {
-		return metadataState
 	}
 }
 

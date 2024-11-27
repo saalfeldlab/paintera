@@ -4,7 +4,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -35,7 +34,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
@@ -44,7 +42,6 @@ import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages;
@@ -60,6 +57,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -90,7 +88,7 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 					Optional<OpenSourceBackend> optBackend = osDialog.showAndWait();
 					if (optBackend.isEmpty())
 						return;
-					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), openSourceState, dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
+					N5OpenSourceDialog.addSource(osDialog.getType(), openSourceState, osDialog.getChannelSelection(), pbv);
 					factoryOpener.selectionAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open dataset", e1);
@@ -289,23 +287,20 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 	}
 
 	private static void addSource(
-			final String name,
 			final MetaPanel.TYPE type,
 			final OpenSourceState openSourceState,
-			final OpenSourceBackend backendDialog,
 			final int[] channelSelection,
-			final PainteraBaseView viewer,
-			final Supplier<String> projectDirectory) throws Exception {
+			final PainteraBaseView viewer) throws Exception {
 
 		LOG.debug("Type={}", type);
 		switch (type) {
 		case RAW:
 			LOG.trace("Adding raw data");
-			addRaw(name, channelSelection, openSourceState, backendDialog, viewer);
+			addRaw(channelSelection, openSourceState, viewer);
 			break;
 		case LABEL:
 			LOG.trace("Adding label data");
-			addLabel(name, openSourceState, backendDialog, viewer, projectDirectory);
+			addLabel(openSourceState, viewer);
 			break;
 		default:
 			break;
@@ -314,43 +309,34 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 
 	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
 	addRaw(
-			final String name,
 			final int[] channelSelection,
 			final OpenSourceState openSourceState,
-			final OpenSourceBackend dataset,
 			PainteraBaseView viewer) {
 
-		final DatasetAttributes attributes = openSourceState.getDatasetAttributes();
+		final DatasetAttributes attributes = Objects.requireNonNull(openSourceState.getDatasetAttributes());
 		if (attributes.getNumDimensions() != 3) {
 			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
-			final List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> channels = dataset.getChannels(
-					name,
-					channelSelection,
-					viewer.getQueue(),
-					viewer.getQueue().getNumPriorities() - 1);
+			final var channels = OpenSourceState.getChannels(openSourceState, channelSelection, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
 		} else {
-			final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			final SourceState<T, V> raw = OpenSourceState.getRaw(openSourceState, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
 			invoke(() -> viewer.addState(raw));
 		}
 	}
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
-			final String name,
 			final OpenSourceState openSourceState,
-			final OpenSourceBackend dataset,
-			final PainteraBaseView viewer,
-			final Supplier<String> projectDirectory) throws Exception {
+			final PainteraBaseView viewer) throws Exception {
 
 		final DatasetAttributes attributes = openSourceState.getDatasetAttributes();
 		if (attributes.getNumDimensions() > 3)
 			throw new Exception("Only 3D label data supported but got " + attributes.getNumDimensions() + " dimensions.");
 
-		final SourceState<D, T> rep = dataset.getLabels(
-				name,
+		final SourceState<D, T> rep = OpenSourceState.getLabels(
+				openSourceState,
 				viewer.getQueue(),
 				viewer.getQueue().getNumPriorities() - 1,
 				viewer.viewer3D().getMeshesGroup(),
@@ -358,8 +344,7 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
-				viewer.getPropagationQueue(),
-				projectDirectory
+				viewer.getPropagationQueue()
 		);
 		invoke(() -> viewer.addState(rep));
 	}
