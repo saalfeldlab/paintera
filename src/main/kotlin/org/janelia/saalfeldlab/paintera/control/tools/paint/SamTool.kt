@@ -233,7 +233,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var isBusy by isBusyProperty.nonnull()
 
-	private var screenScale by Delegates.notNull<Double>()
+	private var screenScale = Double.NaN
 
 	private val predictionChannel = Channel<Pair<SamPredictor.PredictionRequest, Boolean>>(1)
 
@@ -635,21 +635,27 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 			painteraDragActionSet("box prediction request", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
 				onDrag { mouse ->
-
-					val xInBounds = mouse.x.coerceIn(0.0, activeViewer!!.width)
-					val yInBounds = mouse.y.coerceIn(0.0, activeViewer!!.height)
-
-					val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
-					val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
-
-					val topLeft = SamPoint(minX * screenScale, minY * screenScale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
-					val bottomRight = SamPoint(maxX * screenScale, maxY * screenScale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
-					val points = setBoxPrompt(topLeft, bottomRight)
-					temporaryPrompt = false
-					requestPrediction(points)
+					requestBoxPromptPrediction(mouse)
 				}
 			}
 		)
+	}
+
+	internal fun DragActionSet.requestBoxPromptPrediction(mouse: MouseEvent) {
+		val (width, height) = activeViewer?.run { width to height } ?: return
+		val scale = if (screenScale != Double.NaN) screenScale else return
+
+		val xInBounds = mouse.x.coerceIn(0.0, width)
+		val yInBounds = mouse.y.coerceIn(0.0, height)
+
+		val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
+		val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
+
+		val topLeft = SamPoint(minX * scale, minY * scale, SamPredictor.SparseLabel.TOP_LEFT_BOX)
+		val bottomRight = SamPoint(maxX * scale, maxY * scale, SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX)
+		val points = setBoxPrompt(topLeft, bottomRight)
+		temporaryPrompt = false
+		requestPrediction(points)
 	}
 
 	private fun resetPromptAndPrediction() {

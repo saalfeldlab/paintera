@@ -81,7 +81,9 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	private class NavigationBasedRequestTimer(val viewerAndTransforms: ViewerAndTransforms) : AnimationTimer() {
 
-		private val REQUEST_COUNTDOWN = 30 // Unit is pulses of the Animation timer; roughly targets 60 FPS.
+		companion object {
+			private const val REQUEST_COUNTDOWN = 15 // Unit is pulses of the Animation timer; roughly targets 60 FPS.
+		}
 
 		private val viewer
 			get() = viewerAndTransforms.viewer()

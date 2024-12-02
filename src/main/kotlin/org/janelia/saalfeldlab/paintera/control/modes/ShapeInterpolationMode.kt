@@ -26,8 +26,10 @@ import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
+import org.janelia.saalfeldlab.fx.actions.DragActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraDragActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
@@ -89,7 +91,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		old?.viewer()?.apply { modeActions.forEach { removeActionSet(it) } }
 	}
 
-	private val samNavigationRequestListener = ChangeListener { _, _, curViewer ->
+	private val samNavigationRequestListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, _, curViewer ->
 		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
 		curViewer?.let {
 			SamEmbeddingLoaderCache.startNavigationBasedRequests(curViewer)
@@ -220,6 +222,17 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+			},
+			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
+				onDragDetected {
+					verify("can't trigger box prompt with active tool") { activeTool in listOf(NavigationTool, shapeInterpolationTool, samTool) }
+					switchTool(samTool)
+				}
+				onDrag {
+					(activeTool as? SamTool)?.apply {
+						requestBoxPromptPrediction(it)
+					}
+				}
 			},
 			DeviceManager.xTouchMini?.let { device ->
 				activeViewerProperty.get()?.viewer()?.let { viewer ->
