@@ -171,7 +171,7 @@ object RawSourceMode : AbstractToolMode() {
 
 	private fun converterAtDefault(rawSource: ConnectomicsRawState<*, *>): Boolean {
 		val converter = rawSource.converter()
-		(rawSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+		(rawSource.backend as? SourceStateBackendN5<*, *>)?.metadataState?.let {
 			return converter.min == it.minIntensity && converter.max == it.maxIntensity
 		}
 
@@ -188,7 +188,7 @@ object RawSourceMode : AbstractToolMode() {
 
 	fun resetIntensityMinMax(rawSource: ConnectomicsRawState<*, *>) {
 
-		(rawSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+		(rawSource.backend as? SourceStateBackendN5<*, *>)?.metadataState?.let {
 			rawSource.converter().min = it.minIntensity
 			rawSource.converter().max = it.maxIntensity
 			return

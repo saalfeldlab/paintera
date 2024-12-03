@@ -50,7 +50,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 	priority: Int,
 	name: String,
 	private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels).also {
-		(backend as? SourceStateBackendN5<*, *>)?.let { n5Backend -> it.setIntensityFrom(n5Backend.getMetadataState()) }
+		(backend as? SourceStateBackendN5<*, *>)?.let { n5Backend -> it.setIntensityFrom(n5Backend.metadataState) }
 	}
 ) : SourceStateWithBackend<CD, V>
 		where D : RealType<D>, T : AbstractVolatileRealType<D, T>, CD : RealComposite<D>, CT : RealComposite<T>, V : Volatile<CT> {
