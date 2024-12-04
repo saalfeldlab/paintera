@@ -178,7 +178,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
-			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectDirectory.directory.canonicalPath, 15)
+			PainteraCache.appendLine(PainteraCache.RECENT_CACHE, "projects", projectDirectory.directory.canonicalPath, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}

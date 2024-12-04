@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState.Companion.ContainerLoaderCache
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.PainteraCache.appendLine
 import org.janelia.saalfeldlab.util.PainteraCache.readLines
 import java.io.File
@@ -89,7 +90,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 			updateFromFileChooser(startDir, ownerWindow)
 		}
 
-		val recentSelections = readLines(this.javaClass, "recent").reversed()
+		val recentSelections = readLines(PainteraCache.RECENT_CACHE, "containers").reversed()
 		val menuButton = BrowseRecentFavorites.menuButton(
 			"_Find",
 			recentSelections,
@@ -118,7 +119,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 
 	private fun cacheCurrentSelectionAsRecent() {
 		val path = selectionProperty.get()
-		if (path != null) appendLine(javaClass, "recent", path, 50)
+		if (path != null) appendLine(PainteraCache.RECENT_CACHE, "containers", path, 50)
 	}
 
 	private fun updateFromFileChooser(initialDirectory: File, owner: Window?) {

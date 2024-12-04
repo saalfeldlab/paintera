@@ -82,7 +82,7 @@ class Paintera : Application() {
 
 		projectPath?.let {
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
+			PainteraCache.appendLine(PainteraCache.RECENT_CACHE, "projects", projectPath.canonicalPath, 10)
 		} ?: let {
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
 			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
