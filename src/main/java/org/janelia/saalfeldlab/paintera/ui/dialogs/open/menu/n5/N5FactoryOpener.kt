@@ -46,7 +46,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 		}
 	}
 
-	fun backendDialog(): OpenSourceBackend {
+	fun backendDialog(): OpenSourceNode {
 		var ownerWindow: Window? = null
 		val containerField = stringField(selectionProperty.get(), SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
 			valueProperty().bindBidirectional(selectionProperty)
@@ -99,9 +99,9 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 			onBrowseFilesClicked
 		) { value: String -> selectionProperty.set(value) }
 
-		val dialog = OpenSourceBackend(openSourceState, containerField.textField, menuButton, isOpeningContainer)
-		dialog.visibleProperty.subscribe { visible -> if (visible) selectionChanged(selection) }
-		return dialog
+		return OpenSourceNode(openSourceState, containerField.textField, menuButton, isOpeningContainer).apply {
+			visibleProperty().subscribe { visible -> if (visible) selectionChanged(selection) }
+		}
 	}
 
 	private fun createCachedContainerResetHandler() = EventHandler { event: KeyEvent ->

@@ -68,7 +68,7 @@ import java.util.stream.Collectors;
 import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
 import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
-public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements CombinesErrorMessages {
+public class N5OpenSourceDialog extends Dialog<OpenSourceNode> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -82,10 +82,10 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 
 			return (pbv, projectDirectory) -> {
 				try {
-					final OpenSourceBackend dialog = factoryOpener.backendDialog();
+					final OpenSourceNode dialog = factoryOpener.backendDialog();
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, openSourceState, dialog);
 					osDialog.setHeaderFromBackendType("source");
-					Optional<OpenSourceBackend> optBackend = osDialog.showAndWait();
+					Optional<OpenSourceNode> optBackend = osDialog.showAndWait();
 					if (optBackend.isEmpty())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getType(), openSourceState, osDialog.getChannelSelection(), pbv);
@@ -143,13 +143,13 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 
 	private final BooleanBinding isError;
 
-	private final OpenSourceBackend backendDialog;
+	private final OpenSourceNode openSourceNode;
 
 	private final MetaPanel metaPanel;
 
-	public N5OpenSourceDialog(final PainteraBaseView viewer, OpenSourceState openSourceState, final OpenSourceBackend backendDialog) {
+	public N5OpenSourceDialog(final PainteraBaseView viewer, OpenSourceState openSourceState, final OpenSourceNode openSourceNode) {
 
-		this.backendDialog = backendDialog;
+		this.openSourceNode = openSourceNode;
 		this.metaPanel = new MetaPanel(openSourceState.getMetadataStateBinding());
 		this.metaPanel.listenOnDimensions(openSourceState.getDimensionsBinding());
 
@@ -171,9 +171,10 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
 		this.setResizable(true);
 
-		GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
-		this.grid.add(this.backendDialog.getDialogNode(), 1, 0);
-		GridPane.setHgrow(this.backendDialog.getDialogNode(), Priority.ALWAYS);
+
+		GridPane.setMargin(this.openSourceNode, new Insets(0, 0, 0, 30));
+		this.grid.add(this.openSourceNode, 1, 0);
+		GridPane.setHgrow(this.openSourceNode, Priority.ALWAYS);
 
 		this.getDialogPane().setContent(dialogContent);
 		final VBox choices = new VBox();
@@ -219,7 +220,7 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 		this.typeChoice.setValue(typeChoices.get(0));
 		choices.getChildren().addAll(this.typeChoiceButton);
 		this.grid.add(choices, 0, 0);
-		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
+		this.setResultConverter(button -> button.equals(ButtonType.OK) ? openSourceNode : null);
 		combineErrorMessages();
 		setTitle(Constants.NAME);
 
@@ -259,7 +260,7 @@ public class N5OpenSourceDialog extends Dialog<OpenSourceBackend> implements Com
 		final var errors = new ArrayList<ObservableValue<String>>();
 		errors.add(this.nameField.errorMessageProperty());
 
-		final OpenSourceState openSourceState = backendDialog.openSourceState;
+		final OpenSourceState openSourceState = openSourceNode.getOpenSourceState();
 		if (openSourceState.getContainerState() == null)
 			errors.add(new SimpleStringProperty("No Valid Container"));
 		else if (openSourceState.getActiveNode() == null)
