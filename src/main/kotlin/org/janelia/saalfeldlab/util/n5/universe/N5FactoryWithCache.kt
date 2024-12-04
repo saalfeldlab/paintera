@@ -23,10 +23,13 @@ class N5FactoryWithCache : N5Factory() {
 
 		/** Check for existing of N5 and zarr specific files to indicate the format
 		 **/
-		internal fun KeyValueAccess.guessStorageFromFormatSpecificFiles(root : URI) : StorageFormat? = when {
-			exists(compose(root, N5_ATTRIBUTES)) -> StorageFormat.N5
-			listOf(ZGROUP, ZARRAY, ZATTRS).any { exists(compose(root, it)) } -> StorageFormat.ZARR
-			else -> null
+		internal fun KeyValueAccess.guessStorageFromFormatSpecificFiles(root : URI) : StorageFormat? {
+			val uri = root.takeIf { it.isAbsolute} ?: URI("file://$root")
+			return when {
+				exists(compose(uri, N5_ATTRIBUTES)) -> StorageFormat.N5
+				listOf(ZGROUP, ZARRAY, ZATTRS).any { exists(compose(uri, it)) } -> StorageFormat.ZARR
+				else -> null
+			}
 		}
 	}
 
