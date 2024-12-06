@@ -27,14 +27,15 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.util.extendValue
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.function.*
+import java.util.function.BooleanSupplier
+import java.util.function.Consumer
 import java.util.stream.Collectors
 
 class FloodFill<T : IntegerType<T>>(
 	private val activeViewerProperty: ObservableValue<ViewerPanelFX>,
-	private val source: MaskedSource<T, *>,
+	val source: MaskedSource<T, *>,
 	private val assignment: FragmentSegmentAssignment,
-	private val requestRepaint: Consumer<Interval>,
+	val requestRepaint: Consumer<Interval?>,
 	private val isVisible: BooleanSupplier
 ) {
 
@@ -42,7 +43,7 @@ class FloodFill<T : IntegerType<T>>(
 		val fill = fillSupplier?.invoke() ?: let {
 			return Job().apply {
 				val reason = CancellationException("Received invalid label -- will not fill.")
-				LOG.debug(reason) {  }
+				LOG.debug(reason) { }
 				completeExceptionally(reason)
 			}
 		}
@@ -55,7 +56,7 @@ class FloodFill<T : IntegerType<T>>(
 		if (!isVisible.asBoolean) {
 			return Job().apply {
 				val reason = CancellationException("Selected source is not visible -- will not fill")
-				LOG.debug(reason) {  }
+				LOG.debug(reason) { }
 				completeExceptionally(reason)
 			}
 		}
@@ -96,7 +97,7 @@ class FloodFill<T : IntegerType<T>>(
 		val seedLabel = assignment?.getSegment(seedValue!!.integerLong) ?: seedValue!!.integerLong
 		if (!Label.regular(seedLabel)) {
 			val reason = CancellationException("Cannot fill at irregular label: $seedLabel (${Point(seed)})")
-			LOG.debug(reason) {  }
+			LOG.debug(reason) { }
 			return Job().apply { completeExceptionally(reason) }
 		}
 
@@ -115,11 +116,13 @@ class FloodFill<T : IntegerType<T>>(
 			.collect(Collectors.toList<RealInterval>())
 
 		val triggerRefresh = AtomicBoolean(false)
+		var floodFillJob: Job? = null
 		val accessTracker: AccessBoxRandomAccessible<UnsignedLongType> = object : AccessBoxRandomAccessible<UnsignedLongType>(mask.rai.extendValue(UnsignedLongType(1))) {
 			val position: Point = Point(sourceAccess.numDimensions())
 
 			override fun get(): UnsignedLongType {
-				if (Thread.currentThread().isInterrupted) throw RuntimeException("Flood Fill Interrupted")
+				if (floodFillJob?.isCancelled == true || Thread.currentThread().isInterrupted)
+					throw CancellationException("Flood Fill Canceled")
 				synchronized(this) {
 					updateAccessBox()
 				}
@@ -136,17 +139,16 @@ class FloodFill<T : IntegerType<T>>(
 			}
 		}
 
-		val floodFillJob = CoroutineScope(Dispatchers.Default).launch {
+		floodFillJob = CoroutineScope(Dispatchers.Default).launch {
 			val fillContext = coroutineContext
 			InvokeOnJavaFXApplicationThread {
-				delay(1000)
 				while (fillContext.isActive) {
+					awaitPulse()
 					if (triggerRefresh.get()) {
 						val repaintInterval = globalToSource.inverse().estimateBounds(accessTracker.createAccessInterval())
 						requestRepaint.accept(repaintInterval.smallestContainingInterval)
 						triggerRefresh.set(false)
 					}
-					awaitPulse()
 					awaitPulse()
 				}
 			}
@@ -156,32 +158,16 @@ class FloodFill<T : IntegerType<T>>(
 			} else {
 				fillPrimitiveType(data, accessTracker, seed, seedLabel, fill, assignment)
 			}
-		}.also {
-			it.invokeOnCompletion { cause ->
-				val sourceInterval = accessTracker.createAccessInterval()
-				val globalInterval = globalToSource.inverse().estimateBounds(sourceInterval).smallestContainingInterval
 
-				when (cause) {
-					null -> {
-						LOG.trace { "FloodFill has been completed" }
-						LOG.trace {
-							"Applying mask for interval ${Intervals.minAsLongArray(sourceInterval).contentToString()} ${Intervals.maxAsLongArray(sourceInterval).contentToString()}"
-						}
-						requestRepaint.accept(globalInterval)
-						source.applyMask(mask, sourceInterval, MaskedSource.VALID_LABEL_CHECK)
-					}
+			val sourceInterval = accessTracker.createAccessInterval()
+			val globalInterval = globalToSource.inverse().estimateBounds(sourceInterval).smallestContainingInterval
 
-					is CancellationException -> try {
-						LOG.debug { "FloodFill has been interrupted" }
-						source.resetMasks()
-						requestRepaint.accept(globalInterval)
-					} catch (e: MaskInUse) {
-						LOG.error(e) {}
-					}
-
-					else -> requestRepaint.accept(globalInterval)
-				}
+			LOG.trace { "FloodFill has been completed" }
+			LOG.trace {
+				"Applying mask for interval ${Intervals.minAsLongArray(sourceInterval).contentToString()} ${Intervals.maxAsLongArray(sourceInterval).contentToString()}"
 			}
+			requestRepaint.accept(globalInterval)
+			source.applyMask(mask, sourceInterval, MaskedSource.VALID_LABEL_CHECK)
 		}
 		return floodFillJob
 	}
@@ -231,7 +217,7 @@ class FloodFill<T : IntegerType<T>>(
 			) { source, target: UnsignedLongType -> predicate(source, target) }
 		}
 
-		private suspend fun <T : IntegerType<T>> fillPrimitiveType(
+		private fun <T : IntegerType<T>> fillPrimitiveType(
 			input: RandomAccessibleInterval<T>,
 			output: RandomAccessible<UnsignedLongType>,
 			seed: Localizable,
@@ -249,7 +235,7 @@ class FloodFill<T : IntegerType<T>>(
 				seed,
 				UnsignedLongType(fillLabel),
 				DiamondShape(1)
-			) { source, target: UnsignedLongType -> runBlocking { predicate(source, target) } }
+			) { source, target: UnsignedLongType -> predicate(source, target) }
 		}
 
 		private fun <T : IntegerType<T>> makePredicate(seedLabel: Long, assignment: FragmentSegmentAssignment?): (T, UnsignedLongType) -> Boolean {

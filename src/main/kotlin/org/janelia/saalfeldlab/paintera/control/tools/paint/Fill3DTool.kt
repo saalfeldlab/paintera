@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
@@ -22,6 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -31,6 +33,10 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
 class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
+
+	companion object {
+		private val LOG = KotlinLogging.logger { }
+	}
 
 	override val graphic = { ScaleView().also { it.styleClass += "fill-3d" } }
 
@@ -48,7 +54,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 				dataSource,
 				assignment,
 				{ interval -> paintera.baseView.orthogonalViews().requestRepaint(interval) },
-				{ activeSourceStateProperty.value?.isVisibleProperty?.get() ?: false }
+				{ activeSourceStateProperty.value?.isVisibleProperty?.get() == true }
 			)
 		}
 	}
@@ -101,16 +107,23 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 
 						fillIsRunningProperty.set(true)
 						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
-							floodFillTask = task
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
 							paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 
-							task.invokeOnCompletion { cause ->
-								fillIsRunningProperty.set(false)
-								paintera.baseView.disabledPropertyBindings -= this
-								statePaintContext?.refreshMeshes?.invoke()
-								floodFillTask = null
+							floodFillTask = task.apply {
+								invokeOnCompletion { cause ->
+									fillIsRunningProperty.set(false)
+									paintera.baseView.disabledPropertyBindings -= this
+									cause?.let {
+										LOG.debug(cause) { "Fill 3D cancelled, resetting mask. " }
+										statePaintContext?.dataSource?.resetMasks(true)
+										fill.source.resetMasks()
+										fill.requestRepaint.accept(null)
+									}
+									statePaintContext?.refreshMeshes?.invoke()
+									floodFillTask = null
+								}
 							}
 						}
 					}

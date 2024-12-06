@@ -42,8 +42,8 @@ class OrthoSliceConfig(private val baseConfig: OrthoSliceConfigBase) {
 		bottomLeftSlice.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(isBottomLeftVisible))
 
 		listOf(topLeftSlice, topRightSlice, bottomLeftSlice).forEach { slice ->
-			slice.opacityProperty().bind(baseConfig.opacityProperty())
-			slice.shadingProperty().bind(baseConfig.shadingProperty())
+			slice.opacityProperty().bindBidirectional(baseConfig.opacityProperty())
+			slice.shadingProperty().bindBidirectional(baseConfig.shadingProperty())
 		}
 	}
 }

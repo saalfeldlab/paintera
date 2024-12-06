@@ -39,6 +39,6 @@ public class VolatileHelpers {
 		}
 	}
 
-	private static final VolatileLabelMultisetArray EMPTY_ACCESS = new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID});
+	private static final VolatileLabelMultisetArray EMPTY_ACCESS = new VolatileLabelMultisetArray(0, false, new long[]{Label.INVALID});
 
 }

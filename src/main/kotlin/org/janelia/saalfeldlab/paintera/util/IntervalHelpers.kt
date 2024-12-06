@@ -2,10 +2,14 @@ package org.janelia.saalfeldlab.paintera.util
 
 import net.imglib2.*
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.iterator.IntervalIterator
+import net.imglib2.iterator.LocalizingIntervalIterator
 import net.imglib2.realtransform.RealTransform
 import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scale
 import org.janelia.saalfeldlab.util.shape
+import java.io.File
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
@@ -139,43 +143,101 @@ class IntervalHelpers {
 
 		fun RealInterval.realCorner(d: Int, corner: Long) = if (corner == 0L) realMin(d) else realMax(d)
 	}
-
-
 }
 
+class IntervalIterable(private val iterator: IntervalIterator) : Iterable<LongArray> {
+
+	private val pos: LongArray = iterator.positionAsLongArray()
+
+	override fun iterator(): Iterator<LongArray> {
+		return IntervalPositionIterator(iterator, pos)
+	}
+
+	private class IntervalPositionIterator(
+		private val interval: IntervalIterator,
+		private val pos: LongArray
+	) : Iterator<LongArray> {
+
+		override fun hasNext(): Boolean {
+			return interval.hasNext()
+		}
+
+		override fun next(): LongArray {
+			interval.fwd()
+			interval.localize(pos)
+			return pos
+		}
+	}
+}
+
+open class ReusableIntervalIterator(interval: Interval) : LocalizingIntervalIterator(interval) {
+
+	protected var reusableLastIndex: Long = lastIndex
+
+	fun resetInterval(interval: Interval) {
+		interval.min(min)
+		interval.max(max)
+
+		val m = n - 1
+		var k = 1L.also { steps[0] = it }
+		for (d in 0 until m) {
+			val dimd = interval.dimension(d)
+			dimensions[d] = dimd
+			k *= dimd
+			steps[d + 1] = k
+		}
+		val dimm = interval.dimension(m)
+		dimensions[m] = dimm
+		reusableLastIndex = k * dimm - 1
+		reset()
+	}
+
+	override fun hasNext(): Boolean {
+		return index < reusableLastIndex
+	}
+}
+
+
 fun main() {
-	//TODO Caleb: Move to test
-	val zeroMin = Intervals.createMinMaxReal(0.0, 0.0, 99.0, 99.0)
-	zeroMin.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+
+	val it = LocalizingIntervalIterator(Intervals.createMinSize(0,0,4,4))
+
+	IntervalIterable(it).forEach { println(it.joinToString()) }
 
 
-	val zeroMinDoubleTrue = zeroMin.scale(2.0, scaleMin = true)
-	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
 
-	val zeroMinDoubleFalse = zeroMin.scale(2.0, scaleMin = false)
-	zeroMinDoubleFalse.shape().contentEquals(doubleArrayOf(200.0, 200.0))
-
-	val zeroMinDoubleFalse5 = zeroMin.scale(5.0, scaleMin = false)
-	zeroMinDoubleFalse5.shape().contentEquals(doubleArrayOf(500.0, 500.0))
-
-	val zeroMinHalfTrue: RealInterval = zeroMin.scale(.5, scaleMin = true)
-	zeroMinHalfTrue.shape().contentEquals(doubleArrayOf(50.0, 50.0))
-
-	val zeroMinHalfFalse = zeroMin.scale(.5, scaleMin = false)
-	zeroMinHalfFalse.shape().contentEquals(doubleArrayOf(50.0, 50.0))
-
-	val min = Intervals.createMinMaxReal(50.0, 50.0, 99.0, 99.0)
-	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
-
-	val minDoubleTrue = min.scale(2.0, scaleMin = true)
-	minDoubleTrue.shape().contentEquals(doubleArrayOf(100.0, 100.0))
-
-	val minDoubleFalse = min.scale(2.0, scaleMin = false)
-	minDoubleFalse.shape().contentEquals(doubleArrayOf(100.0, 100.0))
-
-	val minHalfTrue = min.scale(.5, scaleMin = true)
-	minHalfTrue.shape().contentEquals(doubleArrayOf(25.0, 25.0))
-
-	val minHalfFalse = min.scale(.5, scaleMin = false)
-	minHalfFalse.shape().contentEquals(doubleArrayOf(25.0, 25.0))
+//	//TODO Caleb: Move to test
+//	val zeroMin = Intervals.createMinMaxReal(0.0, 0.0, 99.0, 99.0)
+//	zeroMin.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+//
+//
+//	val zeroMinDoubleTrue = zeroMin.scale(2.0, scaleMin = true)
+//	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+//
+//	val zeroMinDoubleFalse = zeroMin.scale(2.0, scaleMin = false)
+//	zeroMinDoubleFalse.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+//
+//	val zeroMinDoubleFalse5 = zeroMin.scale(5.0, scaleMin = false)
+//	zeroMinDoubleFalse5.shape().contentEquals(doubleArrayOf(500.0, 500.0))
+//
+//	val zeroMinHalfTrue: RealInterval = zeroMin.scale(.5, scaleMin = true)
+//	zeroMinHalfTrue.shape().contentEquals(doubleArrayOf(50.0, 50.0))
+//
+//	val zeroMinHalfFalse = zeroMin.scale(.5, scaleMin = false)
+//	zeroMinHalfFalse.shape().contentEquals(doubleArrayOf(50.0, 50.0))
+//
+//	val min = Intervals.createMinMaxReal(50.0, 50.0, 99.0, 99.0)
+//	zeroMinDoubleTrue.shape().contentEquals(doubleArrayOf(200.0, 200.0))
+//
+//	val minDoubleTrue = min.scale(2.0, scaleMin = true)
+//	minDoubleTrue.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+//
+//	val minDoubleFalse = min.scale(2.0, scaleMin = false)
+//	minDoubleFalse.shape().contentEquals(doubleArrayOf(100.0, 100.0))
+//
+//	val minHalfTrue = min.scale(.5, scaleMin = true)
+//	minHalfTrue.shape().contentEquals(doubleArrayOf(25.0, 25.0))
+//
+//	val minHalfFalse = min.scale(.5, scaleMin = false)
+//	minHalfFalse.shape().contentEquals(doubleArrayOf(25.0, 25.0))
 }

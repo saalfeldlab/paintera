@@ -117,8 +117,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			{ projectDirectory.actualDirectory.absolutePath },
 			{ indexToState[it] })
 		val gson = builder.create()
-		val json = projectDirectory.actualDirectory.absolutePath
-			.let { Paintera.n5Factory.openReader(it).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+		val json = projectDirectory.actualDirectory.toURI()
+			.let { Paintera.n5Factory.openReader(it.toString()).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
 			?.takeIf { it.isJsonObject }
 			?.asJsonObject
 		Paintera.n5Factory.gsonBuilder(builder)

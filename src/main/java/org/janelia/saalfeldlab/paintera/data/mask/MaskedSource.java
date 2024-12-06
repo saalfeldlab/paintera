@@ -41,6 +41,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.AbstractInterval;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
@@ -66,6 +67,7 @@ import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.iterator.LocalizingIntervalIterator;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.parallel.TaskExecutors;
@@ -105,6 +107,8 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlo
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
+import org.janelia.saalfeldlab.paintera.util.IntervalIterable;
+import org.janelia.saalfeldlab.paintera.util.ReusableIntervalIterator;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1187,36 +1191,51 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				steps
 		);
 
-		/* Views.tiles doesn't preserve intervals, so zeroMin prior to tiling */
 		final var zeroMinTarget = Views.zeroMin(target);
 		final var sourceInterval = IntervalHelpers.scale(target, steps, true);
 		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
-		final var tiledSource = Views.tiles(zeroMinSource, steps);
-
 		final HashSet<Long> labels = new HashSet<>();
-		LoopBuilder.setImages(tiledSource, zeroMinTarget)
-				.forEachChunk(chunk -> {
-					final TLongLongHashMap maxCounts = new TLongLongHashMap();
-					chunk.forEachPixel((sourceTile, lowResTarget) -> {
-						var maxCount = -1L;
-						var maxId = Label.INVALID;
-						for (T t : Views.iterable(sourceTile)) {
-							final long id = t.getIntegerLong();
-							if (id == Label.INVALID)
-								continue;
-							final var curCount = maxCounts.adjustOrPutValue(id, 1, 1);
-							if (curCount > maxCount) {
-								maxCount = curCount;
-								maxId = id;
-							}
-						}
-						lowResTarget.setInteger(maxId);
-						if (maxId != Label.INVALID)
-							labels.add(maxId);
-						maxCounts.clear();
-					});
-					return null;
-				});
+
+		final RandomAccess<T> zeroMinSourceRA = zeroMinSource.randomAccess();
+		final RandomAccess<T> zeroMinTargetRA = zeroMinTarget.randomAccess();
+
+		final ReusableIntervalIterator sourceIntervalIterator = new ReusableIntervalIterator(sourceInterval);
+		final long[] sourcePosMin = new long[zeroMinSource.numDimensions()];
+		final long[] sourcePosMax = new long[zeroMinSource.numDimensions()];
+		final var sourceTileInterval = new AbstractInterval(sourcePosMin, sourcePosMax, false) {
+
+		};
+
+		final TLongLongHashMap maxCounts = new TLongLongHashMap();
+
+		var sourceTileIterable = new IntervalIterable(sourceIntervalIterator);
+		for (long[] targetPos : new IntervalIterable(new LocalizingIntervalIterator(zeroMinTarget))) {
+			for (int i = 0; i < sourcePosMin.length; i++) {
+				sourcePosMin[i] = targetPos[i] * steps[i];
+				sourcePosMax[i] = sourcePosMin[i] + steps[i] - 1;
+			}
+			sourceIntervalIterator.resetInterval(sourceTileInterval);
+
+			var maxCount = -1L;
+			var maxId = Label.INVALID;
+
+			for (long[] sourcePos : sourceTileIterable) {
+				final long sourceVal = zeroMinSourceRA.setPositionAndGet(sourcePos).getIntegerLong();
+				if (sourceVal != Label.INVALID) {
+					var curCount = maxCounts.adjustOrPutValue(sourceVal, 1, 1);
+					if (curCount > maxCount) {
+						maxCount++;
+						maxId = sourceVal;
+					}
+				}
+			}
+
+			final T targetVal = zeroMinTargetRA.setPositionAndGet(targetPos);
+			targetVal.setInteger(maxId);
+			labels.add(maxId);
+			maxCounts.clear();
+		}
+		labels.remove(Label.INVALID);
 		return labels;
 	}
 
