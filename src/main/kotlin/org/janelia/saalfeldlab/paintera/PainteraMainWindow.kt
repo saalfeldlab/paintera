@@ -43,7 +43,6 @@ import java.lang.reflect.Type
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
-import kotlin.collections.set
 import kotlin.system.exitProcess
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
@@ -178,7 +177,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
-			PainteraCache.appendLine(PainteraCache.RECENT_CACHE, "projects", projectDirectory.directory.canonicalPath, 15)
+			PainteraCache.RECENT_PROJECTS.appendLine(projectDirectory.directory.canonicalPath, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}

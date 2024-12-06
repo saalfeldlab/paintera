@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
-import com.google.common.collect.Lists
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
@@ -55,7 +54,7 @@ private val openRecentMenu by LazyForeignValue(::paintera) {
 private val fileMenu by LazyForeignValue(::paintera) {
 	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
 		it.setOnShowing {
-			recentProjects.setAll(Lists.reverse(PainteraCache.readLines(PainteraCache.RECENT_CACHE, "projects")))
+			recentProjects.setAll(PainteraCache.RECENT_PROJECTS.readLines().reversed())
 		}
 	}
 }

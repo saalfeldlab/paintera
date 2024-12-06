@@ -20,6 +20,8 @@ import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintable
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintableRunnables
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
@@ -30,7 +32,6 @@ import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
-import java.lang.Runnable
 import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
@@ -82,7 +83,7 @@ class Paintera : Application() {
 
 		projectPath?.let {
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-			PainteraCache.appendLine(PainteraCache.RECENT_CACHE, "projects", projectPath.canonicalPath, 10)
+			PainteraCache.RECENT_PROJECTS.appendLine(projectPath.canonicalPath, 10)
 		} ?: let {
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
 			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
