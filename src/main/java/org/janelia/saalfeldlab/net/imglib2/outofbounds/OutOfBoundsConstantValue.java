@@ -58,8 +58,7 @@ public class OutOfBoundsConstantValue<T> extends AbstractOutOfBoundsValue<T> {
 		this.value = outOfBounds.valueSupplier.get();
 	}
 
-	public <F extends Interval & RandomAccessible<T>> OutOfBoundsConstantValue(final F f, final Supplier<T>
-			valueSupplier) {
+	public <F extends Interval & RandomAccessible<T>> OutOfBoundsConstantValue(final F f, final Supplier<T> valueSupplier) {
 
 		super(f);
 		this.valueSupplier = valueSupplier;
@@ -69,7 +68,6 @@ public class OutOfBoundsConstantValue<T> extends AbstractOutOfBoundsValue<T> {
 	/* Sampler */
 
 	@Override final public T get() {
-		// System.out.println( getLocationAsString() + " " + isOutOfBounds );
 		if (isOutOfBounds) {
 			return value;
 		}
@@ -81,10 +79,4 @@ public class OutOfBoundsConstantValue<T> extends AbstractOutOfBoundsValue<T> {
 		return new OutOfBoundsConstantValue<>(this);
 	}
 
-	/* RandomAccess */
-
-	@Override final public OutOfBoundsConstantValue<T> copyRandomAccess() {
-
-		return copy();
-	}
 }

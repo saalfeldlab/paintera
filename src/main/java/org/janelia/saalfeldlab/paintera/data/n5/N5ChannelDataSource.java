@@ -213,8 +213,8 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = Util.getTypeFromInterval(data[0].data).createVariable();
-		T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
+		D d = data[0].data.getType().createVariable();
+		T t = data[0].vdata.getType().createVariable();
 		long numChannels = data[0].data.dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
@@ -286,8 +286,8 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = Util.getTypeFromInterval(data[0].data).createVariable();
-		T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
+		D d = data[0].data.getType().createVariable();
+		T t = data[0].vdata.getType().createVariable();
 		long numChannels = data[0].data.dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
@@ -343,7 +343,7 @@ public class N5ChannelDataSource<
 	@Override
 	public RealComposite<D> getDataType() {
 
-		return Util.getTypeFromInterval(getDataSource(0, 0));
+		return getDataSource(0, 0).getType();
 	}
 
 	@Override

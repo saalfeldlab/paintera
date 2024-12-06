@@ -25,10 +25,10 @@ public class BackgroundCanvasIterableTest {
 		};
 
 		final LabelMultisetType[] background = {
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType()
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence()
 		};
 
 		final List<ValuePair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas = Arrays.asList(

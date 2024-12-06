@@ -136,7 +136,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 			final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(getN5(), uniqueLabelsPath);
 
-			LOG.debug(() -> "Found scale datasets %s".formatted(scaleUniqueLabels));
+			LOG.debug(() -> "Found scale datasets %s".formatted((Object[])scaleUniqueLabels));
 			for (int level = 0; level < scaleUniqueLabels.length; ++level) {
 				final String uniqueLabelScalePath = N5URI.normalizeGroupPath("%s/%s".formatted(uniqueLabelsPath, scaleUniqueLabels[level]));
 				final DatasetSpec datasetUniqueLabels = DatasetSpec.of(getN5(), uniqueLabelScalePath);
@@ -374,7 +374,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		final TLongHashSet currentDataAsSet = new TLongHashSet();
 		final var entry = new LabelMultisetEntry();
-		for (final Pair<UnsignedLongType, LabelMultisetType> p : Views.iterable(relevantData)) {
+		for (final Pair<UnsignedLongType, LabelMultisetType> p : relevantData) {
 			final UnsignedLongType pa = p.getA();
 			final LabelMultisetType pb = p.getB();
 			final long pav = pa.getIntegerLong();
@@ -454,9 +454,9 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final int[] size,
 			final Interval blockInterval,
 			final long[] blockPosition
-	) throws IOException {
+	) {
 
-		final I i = Util.getTypeFromInterval(data).createVariable();
+		final I i = data.getType().createVariable();
 		i.setInteger(Label.OUTSIDE);
 		final RandomAccessibleInterval<I> input = Views.isZeroMin(data) ? data : Views.zeroMin(data);
 		final RandomAccessibleInterval<I> output = new ArrayImgFactory<>(i).create(size);
@@ -695,7 +695,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
 		final RandomAccessibleInterval<I> highestResolutionData = N5Utils.open(datasetSpec.container, datasetSpec.dataset);
-		final I i = Util.getTypeFromInterval(highestResolutionData).createVariable();
+		final I i = highestResolutionData.getType().createVariable();
 		for (final long blockId : blocks) {
 			blockSpec.fromLinearIndex(blockId);
 			final RandomAccessibleInterval<Pair<I, UnsignedLongType>> backgroundWithCanvas = Views
@@ -703,7 +703,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final RandomAccessibleInterval<I> mergedData = Converters
 					.convert(backgroundWithCanvas, (s, t) -> pickFirstIfSecondIsInvalid(s.getA(), s.getB(), t), i.createVariable());
 			N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes, blockSpec.pos);
-			blockDiff.put(blockId, createBlockDiffFromCanvasIntegerType(Views.iterable(backgroundWithCanvas)));
+			blockDiff.put(blockId, createBlockDiffFromCanvasIntegerType(backgroundWithCanvas));
 		}
 	}
 

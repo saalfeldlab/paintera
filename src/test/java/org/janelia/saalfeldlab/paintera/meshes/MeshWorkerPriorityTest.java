@@ -24,6 +24,6 @@ public class MeshWorkerPriorityTest {
 		Collections.shuffle(priorities);
 		Collections.sort(priorities);
 
-		Assert.assertEquals(expected.toArray(), priorities.toArray());
+		Assert.assertArrayEquals(expected.toArray(), priorities.toArray());
 	}
 }

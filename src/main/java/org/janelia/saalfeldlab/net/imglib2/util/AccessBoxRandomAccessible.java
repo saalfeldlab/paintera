@@ -260,10 +260,4 @@ public class AccessBoxRandomAccessible<T> implements RandomAccessible<T>, Random
 
 		return sourceAccess.get();
 	}
-
-	@Override
-	public AccessBoxRandomAccessible<T> copyRandomAccess() {
-
-		return copy();
-	}
 }

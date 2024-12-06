@@ -132,8 +132,8 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 				invalidate,
 				dataInterpolation,
 				interpolation,
-				Util.getTypeFromInterval(dataSources[0]).createVariable(),
-				Util.getTypeFromInterval(sources[0]).createVariable(),
+				dataSources[0].getType().createVariable(),
+				sources[0].getType().createVariable(),
 				name
 		);
 	}

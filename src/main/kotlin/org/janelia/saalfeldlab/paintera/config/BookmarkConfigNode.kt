@@ -109,8 +109,8 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
 			val closeIt = Button("x")
 			val updateNote = Button("Update Note")
 
-			goThere.setOnAction { e -> onApply.accept(bookmark) }
-			closeIt.setOnAction { e ->
+			goThere.setOnAction { onApply.accept(bookmark) }
+			closeIt.setOnAction {
 				val dialogAndMarkdown = bookmarkDialog(bookmark)
 				val dialog = dialogAndMarkdown.key
 				dialogAndMarkdown.value.isEditable = false
@@ -119,7 +119,7 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
 				if (ButtonType.OK == dialog.showAndWait().orElse(ButtonType.CANCEL))
 					onRemove.accept(bookmark)
 			}
-			updateNote.setOnAction { e ->
+			updateNote.setOnAction {
 				val dialog = bookmarkDialog(bookmark)
 				dialog.key.headerText = "Update Bookmark Note"
 				if (ButtonType.OK == dialog.key.showAndWait().orElse(ButtonType.CANCEL))

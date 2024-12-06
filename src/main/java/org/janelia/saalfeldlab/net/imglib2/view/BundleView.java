@@ -66,6 +66,7 @@ public class BundleView<T> implements RandomAccessible<RandomAccess<T>> {
 
 	class BundleRandomAccess extends AbstractConvertedRandomAccess<T, RandomAccess<T>> {
 
+
 		BundleRandomAccess(final RandomAccess<T> source) {
 
 			super(source);
@@ -88,6 +89,12 @@ public class BundleView<T> implements RandomAccessible<RandomAccess<T>> {
 
 		this.source = source;
 	}
+
+	@Override public RandomAccess<T> getType() {
+
+		return randomAccess().get();
+	}
+
 
 	@Override
 	public int numDimensions() {

@@ -67,11 +67,4 @@ public class RealOutOfBoundsConstantValue<T extends Type<T>> extends AbstractRea
 
 		return new RealOutOfBoundsConstantValue<>(this);
 	}
-
-	/* RandomAccess */
-
-	@Override final public RealOutOfBoundsConstantValue<T> copyRandomAccess() {
-
-		return copy();
-	}
 }

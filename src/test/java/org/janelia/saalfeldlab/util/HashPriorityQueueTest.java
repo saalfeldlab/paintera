@@ -40,11 +40,11 @@ public class HashPriorityQueueTest {
 
 		Assert.assertEquals("q", pqOther.poll());
 		Assert.assertEquals("123", pqOther.poll());
-		Assert.assertEquals(
+		Assert.assertArrayEquals(
 				new String[]{"r", "xyz"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
 		);
-		Assert.assertEquals(
+		Assert.assertArrayEquals(
 				new String[]{"abc", "www"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
 		);

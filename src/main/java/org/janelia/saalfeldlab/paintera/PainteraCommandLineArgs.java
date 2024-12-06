@@ -211,7 +211,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
 
 		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
-		for (final IntegerType<?> t : Views.iterable(rai)) {
+		for (final IntegerType<?> t : rai) {
 			final long id = t.getIntegerLong();
 			if (id > maxId)
 				maxId = id;
@@ -631,7 +631,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				final Predicate<String> datasetFilter = options.useDataset();
 				final String[] datasets;
 				if (options.addEntireContainer) {
-					Optional<N5TreeNode> rootNode = N5Helpers.parseMetadata(n5Container);
+					Optional<N5TreeNode> rootNode = Optional.ofNullable(DatasetDiscovery.parseMetadata(n5Container));
 					if (rootNode.isPresent()) {
 						final List<String> validGroups = N5Helpers.validPainteraGroupMap(rootNode.get()).keySet().stream()
 								.filter(datasetFilter)

@@ -89,7 +89,7 @@ public class IdSelector {
 		@SuppressWarnings("unchecked") final RandomAccessibleInterval<LabelMultisetType> data = (RandomAccessibleInterval<LabelMultisetType>)
 				source.getDataSource(0, source.getNumMipmapLevels() - 1);
 
-		final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
+		final Cursor<LabelMultisetType> cursor = data.cursor();
 		final var entry = new LabelMultisetEntry();
 		while (cursor.hasNext()) {
 			if (Thread.interrupted()) {
@@ -108,7 +108,7 @@ public class IdSelector {
 
 		LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
 		final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
-		final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
+		final Cursor<? extends IntegerType<?>> cursor = data.cursor();
 		while (cursor.hasNext()) {
 			if (Thread.interrupted()) {
 				return;

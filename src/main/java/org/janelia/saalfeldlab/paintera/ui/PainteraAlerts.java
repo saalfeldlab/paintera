@@ -489,7 +489,7 @@ public class PainteraAlerts {
 	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
 
 		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
-		for (final IntegerType<?> t : Views.iterable(rai)) {
+		for (final IntegerType<?> t : rai) {
 			final long id = t.getIntegerLong();
 			if (id > maxId)
 				maxId = id;

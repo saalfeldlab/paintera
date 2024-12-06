@@ -32,13 +32,13 @@ public class BackgroundCanvasIterable implements Iterable<LabelMultisetType> {
 	@Override
 	public Iterator<LabelMultisetType> iterator() {
 
-		return new Iterator<LabelMultisetType>() {
+		return new Iterator<>() {
 
 			final Iterator<? extends Pair<LabelMultisetType, UnsignedLongType>> iterator = backgroundAndCanvas.iterator();
 
 			final Converter<UnsignedLongType, LabelMultisetType> conv = new FromIntegerTypeConverter<>();
 
-			final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+			final LabelMultisetType type = LabelMultisetType.singleEntryWithSingleOccurrence();
 
 			@Override
 			public boolean hasNext() {

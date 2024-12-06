@@ -9,6 +9,7 @@ import com.google.gson.JsonSerializationContext;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.scijava.plugin.Plugin;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
@@ -20,8 +21,8 @@ public class CompositeSerializer implements PainteraSerialization.PainteraSerial
 			throws JsonParseException {
 
 		try {
-			return (Composite<?, ?>)Class.forName(json.getAsString()).newInstance();
-		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+			return (Composite<?, ?>)Class.forName(json.getAsString()).getConstructor().newInstance();
+		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}

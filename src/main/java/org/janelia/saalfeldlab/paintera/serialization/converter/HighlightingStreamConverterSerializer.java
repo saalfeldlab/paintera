@@ -45,10 +45,9 @@ public class HighlightingStreamConverterSerializer implements PainteraSerializat
 			final JsonObject map = json.getAsJsonObject();
 			LOG.debug("Deserializing from map {}", map);
 
-			@SuppressWarnings("unchecked") final Class<? extends AbstractHighlightingARGBStream> streamClass =
-					(Class<? extends AbstractHighlightingARGBStream>)Class.forName(map.get(STREAM_TYPE_KEY)
+			@SuppressWarnings("unchecked") final var streamClass = (Class<? extends AbstractHighlightingARGBStream>)Class.forName(map.get(STREAM_TYPE_KEY)
 							.getAsString());
-			final AbstractHighlightingARGBStream stream = streamClass.newInstance();
+			final AbstractHighlightingARGBStream stream = streamClass.getConstructor().newInstance();
 
 			if (map.has(SPECIFIED_COLORS_KEY)) {
 				final JsonObject colorsMap = map.get(SPECIFIED_COLORS_KEY).getAsJsonObject();

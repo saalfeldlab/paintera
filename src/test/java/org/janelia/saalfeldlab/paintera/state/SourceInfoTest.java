@@ -38,7 +38,7 @@ public class SourceInfoTest {
 	private final FinalInterval interval = new FinalInterval(100, 200, 300);
 
 	private final RandomAccessibleInterval<DoubleType> rai = ConstantUtils
-			.constantRandomAccessibleInterval(new DoubleType(1.0), 3, interval);
+			.constantRandomAccessibleInterval(new DoubleType(1.0), interval);
 
 	private final RandomAccessibleIntervalDataSource<DoubleType, DoubleType> source1 = new
 			RandomAccessibleIntervalDataSource<>(
