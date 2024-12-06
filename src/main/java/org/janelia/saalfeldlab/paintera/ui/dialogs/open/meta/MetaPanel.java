@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,8 +81,6 @@ public class MetaPanel {
 
 	private final VBox labelMeta = new VBox();
 
-	private final VBox channelMeta = new VBox();
-
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
 	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
@@ -95,9 +94,9 @@ public class MetaPanel {
 
 	private final ChannelInformation channelInfo = new ChannelInformation();
 
-	public MetaPanel(final ObjectBinding<MetadataState> metadataStateBinding) {
+	public MetaPanel(final OpenSourceState openSourceState) {
 
-		this.metadataStateBinding = metadataStateBinding;
+		this.metadataStateBinding = openSourceState.getMetadataStateBinding();
 		this.resolution = new SpatialInformation(
 				TEXTFIELD_WIDTH,
 				X_STRING,
@@ -129,11 +128,8 @@ public class MetaPanel {
 		final Label zLabel = new Label(Z_STRING);
 		metadataStateBinding.addListener((obs, oldv, metadataState) -> {
 			if (metadataState != null) {
-				final Map<Axis, Integer> spatialAxes = metadataState != null ? metadataState.getSpatialAxes() : null;
 				final HashMap<String, Axis> axisMap = new HashMap<>();
-				if (spatialAxes != null) {
-					spatialAxes.keySet().forEach(axis -> axisMap.put(axis.getName(), axis));
-				}
+				metadataState.getSpatialAxes().keySet().forEach(axis -> axisMap.put(axis.getName(), axis));
 
 				final Function<String, String> dimensionLabel = axis -> {
 					final String lowerAxis = axis.toLowerCase();
@@ -268,9 +264,27 @@ public class MetaPanel {
 		this.max.getTextField().setPrefWidth(TEXTFIELD_WIDTH);
 		this.rawMeta.getChildren().add(rawMinMax);
 
+		listenOnDimensions(openSourceState.getDimensionsBinding());
+		listenOnResolution(openSourceState.getResolutionProperty());
+		listenOnOffset(openSourceState.getTranslationProperty());
+		listenOnMinMax(openSourceState.getMinIntensityProperty(), openSourceState.getMaxIntensityProperty());
+
+		reverseButton.setOnAction(e -> {
+			openSourceState.getResolutionProperty().set(reverse(getResolution()));
+			openSourceState.getTranslationProperty().set(reverse(getOffset()));
+		});
 	}
 
-	public void listenOnResolution(final ObservableValue<double[]> resolution) {
+	private static double[] reverse(final double[] array) {
+
+		final double[] reversed = new double[array.length];
+		for (int i = 0; i < array.length; ++i) {
+			reversed[i] = array[array.length - 1 - i];
+		}
+		return reversed;
+	}
+
+	private void listenOnResolution(final ObservableValue<double[]> resolution) {
 
 		/* Complicated, but needed to bidirectionally bind an array to individual properties*/
 		bindSpatialInformation(this.resolution, resolution);
@@ -309,7 +323,8 @@ public class MetaPanel {
 			int finalI = i;
 			prop.subscribe(it -> {
 				final double[] res = observables.getValue();
-				if (res != null) res[finalI] = it.doubleValue();
+				if (res != null)
+					res[finalI] = it.doubleValue();
 			});
 		}
 	}

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
 import javafx.beans.property.BooleanProperty
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.scene.Node
@@ -17,7 +16,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import se.sawano.java.text.AlphanumericComparator
 
 class OpenSourceNode(
-	val openSourceState: OpenSourceState,
+	openSourceState: OpenSourceState,
 	containerLocationNode: Node,
 	browseNode: Node,
 	isOpeningContainer: BooleanProperty

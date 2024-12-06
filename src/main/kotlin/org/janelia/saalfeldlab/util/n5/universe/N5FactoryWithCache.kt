@@ -8,7 +8,7 @@ import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
-import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import java.net.URI
 
 class N5FactoryWithCache : N5Factory() {
