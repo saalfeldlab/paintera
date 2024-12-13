@@ -21,6 +21,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
@@ -35,10 +36,9 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5TestUtil
-import org.junit.Assert
-import org.junit.BeforeClass
-import org.junit.Test
-import org.testfx.util.WaitForAsyncUtils
+import org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import java.util.Random
 import java.util.stream.IntStream
 import java.util.stream.Stream
@@ -84,7 +84,7 @@ class CommitCanvasN5Test {
 		"single-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap())
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap())
 
 	@Test
 	fun testMultiScaleUint64Commit() = testMultiScale(
@@ -92,7 +92,7 @@ class CommitCanvasN5Test {
 		"multi-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
 	)
 
 	@Test
@@ -101,7 +101,7 @@ class CommitCanvasN5Test {
 		"paintera-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) },
+		{ c, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) },
 		HashMap(),
 		intArrayOf(2, 2, 3)
 	)
@@ -112,17 +112,6 @@ class CommitCanvasN5Test {
 		private val INVALID = UnsignedLongType(Label.INVALID)
 		private val MULTISET_ATTRIBUTE: Map<String, Any> = mapOf(N5Helpers.LABEL_MULTISETTYPE_KEY to true)
 		private val PAINTERA_DATA_ATTRIBUTE: Map<String, Any> = mapOf("type" to "label")
-
-		@JvmStatic
-		@BeforeClass
-		fun startJavaFx() {
-			try {
-				Platform.startup {}
-				WaitForAsyncUtils.waitForFxEvents()
-			} catch (e: IllegalStateException) {
-				/* This happens if the JavaFx thread is already running, which is what we want.*/
-			}
-		}
 
 		private fun isInvalid(pixel: UnsignedLongType): Boolean {
 			val isInvalid = INVALID.valueEquals(pixel)
@@ -151,14 +140,14 @@ class CommitCanvasN5Test {
 		}
 
 		private fun assertMultisetType(c: UnsignedLongType, l: LabelMultisetType) {
-			Assert.assertEquals(1, l.entrySet().size)
+			assertEquals(1, l.entrySet().size)
 			val entry = l.entrySet().iterator().next()
-			Assert.assertEquals(1, entry.count)
+			assertEquals(1, entry.count)
 			val isInvalid = isInvalid(c)
 			if (isInvalid) {
-				Assert.assertEquals(0, l.integerLong)
+				assertEquals(0, l.integerLong)
 			} else {
-				Assert.assertEquals(c.integerLong, entry.element.id())
+				assertEquals(c.integerLong, entry.element.id())
 			}
 		}
 
@@ -239,7 +228,7 @@ class CommitCanvasN5Test {
 				}
 
 				val uniqueBlock = writer.readBlock(uniqueBlock0Group, uniqueBlockAttributes, *blockPos)
-				Assert.assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
+				assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
 			}
 
 			val lookup = LabelBlockLookupFromN5Relative(scaleMappingPattern)
@@ -249,14 +238,14 @@ class CommitCanvasN5Test {
 				val key = LabelBlockLookupKey(0, id)
 				val lookupFor = lookup.read(key)
 				LOG.trace { "Found mapping $lookupFor for id $id" }
-				Assert.assertEquals(labelToBlockMapping[id].size().toLong(), lookupFor.size.toLong())
+				assertEquals(labelToBlockMapping[id].size().toLong(), lookupFor.size.toLong())
 				val blockIndices = Stream
 					.of(*lookupFor)
 					.map { interval: Interval? -> Intervals.minAsLongArray(interval) }
 					.mapToLong { m: LongArray -> toBlockIndex(m, canvas.cellGrid) }
 					.toArray()
 				LOG.trace { "Block indices for id $id: $blockIndices" }
-				Assert.assertEquals(labelToBlockMapping[id], TLongHashSet(blockIndices))
+				assertEquals(labelToBlockMapping[id], TLongHashSet(blockIndices))
 				true
 			}
 		}
@@ -316,7 +305,7 @@ class CommitCanvasN5Test {
 			writeAll(metadataState, canvas)
 
 			val labels = openLabels(metadataState.writer!!, labelsDataset)
-			Assert.assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels))
+			assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels))
 
 			for (pair in Views.interval(Views.pair(canvas, labels), labels)) {
 				LOG.trace { "Comparing canvas ${pair.a} and background ${pair.b}" }

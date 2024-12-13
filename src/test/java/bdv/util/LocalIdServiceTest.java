@@ -1,10 +1,11 @@
 package bdv.util;
 
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.stream.LongStream;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class LocalIdServiceTest {
 
@@ -34,7 +35,7 @@ public class LocalIdServiceTest {
 		generatedIds[50] = id51;
 		System.arraycopy(ids52to90, 0, generatedIds, 51, 39);
 
-		Assert.assertArrayEquals(ids, generatedIds);
+		assertArrayEquals(ids, generatedIds);
 	}
 
 }

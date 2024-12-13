@@ -620,7 +620,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final RandomAccessibleInterval<I> newAccess,
 			final BlockDiff blockDiff) {
 
-		return createBlockDiffInteger(Views.flatIterable(oldAccess), Views.flatIterable(newAccess), blockDiff);
+		return createBlockDiffInteger(
+				(Iterable<I>)Views.flatIterable(oldAccess),
+				(Iterable<I>)Views.flatIterable(newAccess),
+				blockDiff);
 	}
 
 	private static <I extends IntegerType<I>> BlockDiff createBlockDiffInteger(

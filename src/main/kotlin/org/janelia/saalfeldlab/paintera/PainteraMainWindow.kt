@@ -262,7 +262,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		}
 	}
 
-	private var wasQuit = false
+	internal var wasQuit = false
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }

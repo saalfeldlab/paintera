@@ -412,7 +412,6 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 
 		@JvmStatic
 		fun main(args: Array<String>) {
-			Platform.startup { }
 			val obsLevels = FXCollections.observableArrayList<MipMapLevel>()
 			val levels = listOf(
 				MipMapLevel(2, -1, 60.0, 60.0),
@@ -423,7 +422,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				MipMapLevel(2, -1, 60.0, 60.0),
 			)
 			provideAbsoluteValues(levels, SpatialField.doubleField(4.0, { true }), SpatialField.longField(100, { true }))
-			Platform.runLater {
+			InvokeOnJavaFXApplicationThread {
 				val scene = Scene(createMipMapLevelsNode(obsLevels, 60.0, 60.0))
 				obsLevels += levels
 				SaalFxStyle.registerStylesheets(scene)

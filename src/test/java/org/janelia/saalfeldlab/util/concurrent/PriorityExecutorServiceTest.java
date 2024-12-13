@@ -2,8 +2,7 @@ package org.janelia.saalfeldlab.util.concurrent;
 
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,6 +10,10 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test the order of prioritized task execution.
@@ -48,13 +51,14 @@ public class PriorityExecutorServiceTest {
 
 		countDownLatch.await();
 
-		Assert.assertEquals(numTotalTasks, result.size());
+		assertEquals(numTotalTasks, result.size());
 		for (int i = 0; i < numTotalTasks - numTasksWithNullPriority; ++i)
-			Assert.assertEquals(i, result.get(i).intValue());
-		for (int i = numTotalTasks - numTasksWithNullPriority; i < numTotalTasks; ++i)
-			Assert.assertNull(result.get(i));
+			assertEquals(i, result.get(i).intValue());
+		for (int i = numTotalTasks - numTasksWithNullPriority; i < numTotalTasks; ++i) {
+			assertNull(result.get(i));
+		}
 
 		priorityExecutorService.shutdown();
-		Assert.assertTrue(priorityExecutorService.isShutdown());
+		assertTrue(priorityExecutorService.isShutdown());
 	}
 }
