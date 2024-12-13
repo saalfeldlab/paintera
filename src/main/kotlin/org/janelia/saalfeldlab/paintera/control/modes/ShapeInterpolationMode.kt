@@ -1,12 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import bdv.fx.viewer.render.RenderUnitState
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
+import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import net.imglib2.Interval
@@ -21,16 +24,12 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
+import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
-import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.actions.DragActionSet
-import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
-import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraDragActionSet
-import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -57,6 +56,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SparseLabel
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationFillTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationPaintBrushTool
@@ -65,8 +65,9 @@ import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeIn
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.util.*
-import kotlin.collections.set
+import kotlin.math.roundToLong
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
 
@@ -161,6 +162,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
 	}
 
+	internal val samStyleBoxToggle = SimpleBooleanProperty(true)
+
 	private fun modeActions(): List<ActionSet> {
 		return mutableListOf(
 			painteraActionSet(CANCEL, ignoreDisable = true) {
@@ -225,12 +228,36 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			},
 			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
 				onDragDetected {
+					verify("primary click drag only ") { it.isPrimaryButtonDown && !it.isSecondaryButtonDown && !it.isMiddleButtonDown }
 					verify("can't trigger box prompt with active tool") { activeTool in listOf(NavigationTool, shapeInterpolationTool, samTool) }
 					switchTool(samTool)
 				}
 				onDrag {
 					(activeTool as? SamTool)?.apply {
 						requestBoxPromptPrediction(it)
+					}
+				}
+			},
+			painteraActionSet("change auto sam style") {
+				KEY_PRESSED(KeyCode.B) {
+					onAction {
+						samStyleBoxToggle.set(!samStyleBoxToggle.get())
+						data class SamStyleToggle(val icon: FontAwesomeIcon, val title: String, val text: String)
+						val (toggle, title, text) = if (samStyleBoxToggle.get())
+							SamStyleToggle(FontAwesomeIcon.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
+						else
+							SamStyleToggle(FontAwesomeIcon.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
+
+						InvokeOnJavaFXApplicationThread {
+							val notification = Notifications.create()
+								.graphic(FontAwesome[toggle])
+								.title(title)
+								.text(text)
+								.owner(paintera.baseView.node)
+							notification
+								.threshold(1, notification)
+								.show()
+						}
 					}
 				}
 			},
@@ -384,7 +411,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 		}
 
-	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform : AffineTransform3D? = null): SamSliceInfo {
+	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
 		return samSliceCache[depth] ?: with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
 			val viewer = viewerAndTransforms.viewer()!!
@@ -397,11 +424,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
 			}
 
-			val predictionPositions = provideGlobalToViewerTransform?.let { listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0)) } ?: let {
-					controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-						val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-						interpolantInViewer.getComponentMaxDistancePosition()
-					} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0))
+			val fallbackPrompt = listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0) to SparseLabel.IN)
+			val predictionPositions = provideGlobalToViewerTransform?.let { fallbackPrompt } ?: let {
+				controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+					val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+					interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get())
+				} ?: fallbackPrompt
 			}
 
 
@@ -411,12 +439,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			val activeSource = activeSourceStateProperty.value!!.sourceAndConverter!!.spimSource
 			val sources = mask.viewer.state.sources
 				.filter { it.spimSource !== activeSource }
-				.map { sac -> getDataSourceAndConverter<Any> (sac) } // to ensure non-volatile
+				.map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
 				.toList()
 
 			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(predictionPositions.map { (x, y) -> renderState.getSamPoint(x, y, SamPredictor.SparseLabel.IN) })
-
+			val predictionRequest = SamPredictor.SparsePrediction(predictionPositions.map { (pos, label) -> renderState.getSamPoint(pos[0], pos[1], label) })
 			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
 				SamEmbeddingLoaderCache.load(renderState)
 				samSliceCache[depth] = it
@@ -523,9 +550,24 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	}
 }
 
-internal fun RenderUnitState.getSamPoint(screenX: Double, screenY: Double, label: SamPredictor.SparseLabel): SamPredictor.SamPoint {
+internal fun RenderUnitState.getSamPoint(screenX: Double, screenY: Double, label: SparseLabel): SamPredictor.SamPoint {
 	val screenScaleFactor = calculateTargetSamScreenScaleFactor()
 	return SamPredictor.SamPoint(screenX * screenScaleFactor, screenY * screenScaleFactor, label)
+}
+
+internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(box: Boolean): List<Pair<DoubleArray, SparseLabel>> {
+	return if (box)
+		getMinMaxIntervalPositions().mapIndexed { idx, it -> it to if (idx == 0) SparseLabel.TOP_LEFT_BOX else SparseLabel.BOTTOM_RIGHT_BOX }
+	else
+		getComponentMaxDistancePosition().map { it to SparseLabel.IN }
+}
+
+internal fun IntervalView<UnsignedLongType>.getMinMaxIntervalPositions(): List<DoubleArray> {
+	val interval = Intervals.expand(this, *dimensionsAsLongArray().map { (it * .1).roundToLong() }.toLongArray())
+	return listOf(
+		interval.minAsDoubleArray(),
+		interval.maxAsDoubleArray()
+	)
 }
 
 internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): List<DoubleArray> {
@@ -614,11 +656,16 @@ internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: Vie
 	val preGenerated get() = sliceInfo == null
 	val globalToViewerTransform get() = renderState.transform
 
-	fun updatePrediction(viewerX: Double, viewerY: Double, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
+	fun updatePrediction(viewerX: Double, viewerY: Double, label: SparseLabel = SparseLabel.IN) {
 		prediction = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(viewerX, viewerY, label)))
 	}
 
-	fun updatePrediction(viewerPositions: List<DoubleArray>, label: SamPredictor.SparseLabel = SamPredictor.SparseLabel.IN) {
+	fun updatePrediction(viewerPositions: List<DoubleArray>, label: SparseLabel = SparseLabel.IN) {
 		prediction = SamPredictor.SparsePrediction(viewerPositions.map { (x, y) -> renderState.getSamPoint(x, y, label) })
+	}
+
+	fun updatePrediction(viewerPositionsAndLabels: List<Pair<DoubleArray, SparseLabel>>) {
+		prediction = SamPredictor.SparsePrediction(viewerPositionsAndLabels.map { (pos, label) -> renderState.getSamPoint(pos[0], pos[1], label) })
+
 	}
 }

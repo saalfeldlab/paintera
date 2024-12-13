@@ -196,9 +196,11 @@ internal class ShapeInterpolationTool(
 		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
-			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getComponentMaxDistancePosition()?.let { positions ->
-				samSliceInfo.updatePrediction(positions)
+			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
+				val points = getInterpolantPrompt(shapeInterpolationMode.samStyleBoxToggle.get())
+				samSliceInfo.updatePrediction(points)
 			}
+
 		}
 
 		val viewerMask = samSliceInfo.mask
