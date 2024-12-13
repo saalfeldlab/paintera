@@ -51,6 +51,8 @@ class Paintera : Application() {
 	private lateinit var painteraArgs: PainteraCommandLineArgs
 	private var projectDir: String? = null
 
+	internal lateinit var mainWindow : PainteraMainWindow
+
 	init {
 		application = this
 		/* add window listener for scenes */
@@ -59,7 +61,7 @@ class Paintera : Application() {
 	override fun init() {
 		paintable = false
 		if (!::commandlineArguments.isInitialized) {
-			commandlineArguments = parameters.raw.toTypedArray()
+			commandlineArguments = parameters?.raw?.toTypedArray() ?: emptyArray()
 		}
 		painteraArgs = PainteraCommandLineArgs()
 		if (commandlineArguments.isNotEmpty() && !parsePainteraCommandLine(*commandlineArguments)) {
@@ -67,7 +69,9 @@ class Paintera : Application() {
 			return
 		}
 		Platform.setImplicitExit(true)
-		paintera = PainteraMainWindow()
+		paintera = PainteraMainWindow().also {
+			mainWindow = it
+		}
 
 		projectDir = painteraArgs.project()
 		val projectPath = projectDir?.let { File(it).absoluteFile }

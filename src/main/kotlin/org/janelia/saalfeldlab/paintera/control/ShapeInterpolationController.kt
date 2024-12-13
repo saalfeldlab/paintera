@@ -586,7 +586,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			try {
 				setCompositeMask()
 			} catch (e: MaskInUse) {
-				LOG.error { "Label source already has an active mask" }
+				LOG.error(e) { "Label source already has an active mask" }
 			}
 		}
 	}
