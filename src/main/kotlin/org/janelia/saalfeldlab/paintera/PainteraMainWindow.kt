@@ -189,11 +189,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	private fun showSaveCompleteNotification(owner: Any = baseView.node.scene.window) {
-		Notifications.create()
+		val saveNotification = Notifications.create()
 			.graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
 			.title("Save Project")
 			.text("Save Complete")
 			.owner(owner)
+		saveNotification
+			.threshold(1, saveNotification)
 			.show()
 	}
 
