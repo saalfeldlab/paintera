@@ -100,7 +100,11 @@ public class PainteraAlerts {
 	public static Alert alert(final Alert.AlertType type, boolean isResizable) {
 
 		final AtomicReference<Alert> alertRef = new AtomicReference<>();
-		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> alertRef.set(new Alert(type)));
+		try {
+			InvokeOnJavaFXApplicationThread.invokeAndWait(() -> alertRef.set(new Alert(type)));
+		} catch (InterruptedException e) {
+			LOG.error("Could not create alert", e);
+		}
 		final Alert alert = alertRef.get();
 		alert.setTitle(Constants.NAME);
 		alert.setResizable(isResizable);
