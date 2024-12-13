@@ -725,7 +725,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 	}
 
-	private fun SamPredictor.PredictionRequest.drawPrompt() {
+	internal fun SamPredictor.PredictionRequest.drawPrompt() {
 		clearPromptDrawings()
 		when (this) {
 			is SparsePrediction -> drawPromptPoints(points)
