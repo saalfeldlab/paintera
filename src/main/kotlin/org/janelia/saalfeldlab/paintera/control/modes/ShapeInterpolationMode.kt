@@ -12,6 +12,8 @@ import javafx.event.Event
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
+import javafx.util.Subscription
+import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
@@ -358,13 +360,32 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		).filterNotNull()
 	}
 
+	internal fun applyShapeInterpolationAndExitMode() {
+		with(controller) {
+			var applyMaskTriggered = false
+			var selfReference: Subscription? = null
+			val subscription = source.isApplyingMaskProperty.subscribe { applyingMask ->
+				if (applyMaskTriggered && !applyingMask) {
+					selfReference?.unsubscribe()
+					InvokeOnJavaFXApplicationThread {
+						paintera.baseView.changeMode(previousMode)
+					}
+				}
+
+			}
+			selfReference = subscription
+			applyMaskTriggered = true
+			if (!applyMask())
+				subscription?.unsubscribe()
+		}
+	}
 
 	fun switchAndApplyShapeInterpolationActions(toolActions: ActionSet) {
 		with(toolActions) {
 			KEY_PRESSED(CANCEL) {
 				name = "cancel_to_shape_interpolation_tool"
 				onAction {
-					switchTool(shapeInterpolationTool)
+					runBlocking { switchTool(shapeInterpolationTool)?.join() }
 					controller.setMaskOverlay(replaceExistingInterpolants = true)
 				}
 				handleException {
@@ -373,11 +394,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 			KEY_PRESSED(SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION) {
 				onAction {
-					switchTool(shapeInterpolationTool)
-					if (controller.applyMask())
-						paintera.baseView.changeMode(previousMode)
+					runBlocking { switchTool(shapeInterpolationTool)?.join() }
+					applyShapeInterpolationAndExitMode()
 				}
-				handleException { paintera.baseView.changeMode(previousMode) }
+				handleException {
+					LOG.error(it) {}
+					paintera.baseView.changeMode(previousMode)
+				}
 			}
 		}
 	}
