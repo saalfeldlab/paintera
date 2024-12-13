@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.scene.input.KeyCode
@@ -9,7 +10,7 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -29,13 +30,17 @@ import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.modes.*
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
+import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
+import org.janelia.saalfeldlab.paintera.control.modes.getInterpolantPrompt
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.util.*
+import org.janelia.saalfeldlab.util.extendValue
+import org.janelia.saalfeldlab.util.get
 
 internal class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
@@ -129,7 +134,7 @@ internal class ShapeInterpolationTool(
 		)
 	}
 
-	private fun requestSamPredictionAtViewerPoint(vat : ViewerAndTransforms, requestMidPoint : Boolean = true, runAfter : () -> Unit = {}) {
+	private fun requestSamPredictionAtViewerPoint(vat: ViewerAndTransforms, requestMidPoint: Boolean = true, runAfter: () -> Unit = {}) {
 		with(controller) {
 			val viewer = vat.viewer()
 			val dX = viewer.width / 2 - viewer.mouseXProperty.value
@@ -149,7 +154,7 @@ internal class ShapeInterpolationTool(
 
 			val depth = depthAt(resultActiveGlobalToViewer)
 			if (!requestMidPoint) {
-				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {runAfter() }
+				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) { runAfter() }
 			} else {
 				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
 					val depths = sortedSliceDepths
@@ -168,7 +173,6 @@ internal class ShapeInterpolationTool(
 
 		}
 	}
-
 
 
 	internal fun requestEmbedding(depth: Double) {
@@ -196,9 +200,11 @@ internal class ShapeInterpolationTool(
 		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
-			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.getComponentMaxDistancePosition()?.let { positions ->
-				samSliceInfo.updatePrediction(positions)
+			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
+				val points = getInterpolantPrompt(shapeInterpolationMode.samStyleBoxToggle.get())
+				samSliceInfo.updatePrediction(points)
 			}
+
 		}
 
 		val viewerMask = samSliceInfo.mask
@@ -265,13 +271,9 @@ internal class ShapeInterpolationTool(
 					verifyAll(KEY_PRESSED) { isControllerActive }
 					KEY_PRESSED(SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION) {
 						graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += listOf("accept", "accept-shape-interpolation") }) }
-						onAction {
-							if (applyMask()) {
-								paintera.baseView.changeMode(previousMode)
-							}
-						}
+						onAction { shapeInterpolationMode.applyShapeInterpolationAndExitMode() }
 						handleException {
-							it.printStackTrace()
+							LOG.error(it) {}
 							paintera.baseView.changeMode(previousMode)
 						}
 					}
@@ -555,5 +557,9 @@ internal class ShapeInterpolationTool(
 				}
 			}
 		}
+	}
+
+	companion object {
+		private val LOG = KotlinLogging.logger { }
 	}
 }

@@ -33,7 +33,9 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
-import net.imglib2.util.*
+import net.imglib2.util.ConstantUtils
+import net.imglib2.util.Intervals
+import net.imglib2.util.Util
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
@@ -64,7 +66,6 @@ import java.math.RoundingMode
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
-import kotlin.Pair
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
@@ -473,21 +474,16 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		if (freezeInterpolation) return
 		synchronized(source) {
 			source.resetMasks(false)
-			/* If preview is on, hide all except the first and last fill mask */
 			val fillMasks: MutableList<RealRandomAccessibleRealInterval<UnsignedLongType>> = mutableListOf()
 			val slices = slicesAndInterpolants.slices
 			slices.forEachIndexed { idx, slice ->
-				if (idx == 0 || idx == slices.size - 1 || !includeInterpolant) {
-					fillMasks += slice.mask.run {
-						viewerImg
-							.expandborder(0, 0, 1)
-							.extendValue(Label.INVALID)
-							.interpolateNearestNeighbor()
-							.affineReal(initialGlobalToMaskTransform.inverse())
-							.realInterval(slice.globalBoundingBox!!)
-					}
-
-
+				fillMasks += slice.mask.run {
+					viewerImg
+						.expandborder(0, 0, 1)
+						.extendValue(Label.INVALID)
+						.interpolateNearestNeighbor()
+						.affineReal(initialGlobalToMaskTransform.inverse())
+						.realInterval(slice.globalBoundingBox!!)
 				}
 			}
 			val invalidLabel = UnsignedLongType(Label.INVALID)
@@ -586,7 +582,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			try {
 				setCompositeMask()
 			} catch (e: MaskInUse) {
-				LOG.error { "Label source already has an active mask" }
+				LOG.error(e) { "Label source already has an active mask" }
 			}
 		}
 	}

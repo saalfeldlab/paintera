@@ -37,7 +37,12 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		/* If we are requesting a new embedding that isn't already pre-cached,
 		 *  then likely the existing requests are no longer needed.
 		 *  Cancel any that have not yet returned. */
-		shapeInterpolationMode.samSliceCache[controller.currentDepth] ?: let { SamEmbeddingLoaderCache.cancelPendingRequests() }
+		var drawPrompt = false
+		shapeInterpolationMode.samSliceCache[controller.currentDepth]?.let {
+			drawPrompt = true
+		} ?: let {
+			SamEmbeddingLoaderCache.cancelPendingRequests()
+		}
 
 		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(controller.currentDepth)
 		maskedSource?.resetMasks(false)
@@ -46,7 +51,9 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 		super.activate()
 
-		temporaryPrompt = !info.locked
+		if (drawPrompt)
+			info.prediction.drawPrompt()
+
 		requestPrediction(info.prediction)
 	}
 
