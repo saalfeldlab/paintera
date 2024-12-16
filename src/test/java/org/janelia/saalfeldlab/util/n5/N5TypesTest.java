@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import com.google.gson.GsonBuilder;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;
@@ -10,12 +11,19 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,6 +34,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class N5TypesTest {
+
+	@BeforeAll
+	public static void setupN5Factory() {
+
+		final var builder = new GsonBuilder();
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
+		Paintera.getN5Factory().gsonBuilder(builder);
+	}
 
 	@Test
 	public void testAndLogIsIntegerType() {
@@ -48,9 +64,9 @@ public class N5TypesTest {
 	}
 
 	@Test
-	public void testIsLabelMultisetType() throws IOException {
+	public void testIsLabelMultisetType(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 
 		final String noMultisetGroup = "no-multiset-group";
 		final String multisetGroup = "multiset-group";
@@ -67,10 +83,13 @@ public class N5TypesTest {
 		final String multisetGroupMultiscale = "multiset-group-multiscale";
 		writer.createGroup(noMultisetGroupMultiscale);
 		writer.createGroup(multisetGroupMultiscale);
-		writer.createDataset(noMultisetGroupMultiscale + "/s0", N5TestUtil.defaultAttributes());
-		writer.createDataset(noMultisetGroupMultiscale + "/s1", N5TestUtil.defaultAttributes());
-		writer.createDataset(multisetGroupMultiscale + "/s0", N5TestUtil.defaultAttributes());
-		writer.createDataset(multisetGroupMultiscale + "/s1", N5TestUtil.defaultAttributes());
+
+		final DatasetAttributes defaultAttributes = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
+
+		writer.createDataset(noMultisetGroupMultiscale + "/s0", defaultAttributes);
+		writer.createDataset(noMultisetGroupMultiscale + "/s1", defaultAttributes);
+		writer.createDataset(multisetGroupMultiscale + "/s0", defaultAttributes);
+		writer.createDataset(multisetGroupMultiscale + "/s1", defaultAttributes);
 		writer.setAttribute(noMultisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, false);
 		writer.setAttribute(multisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, true);
 		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale));
@@ -107,9 +126,9 @@ public class N5TypesTest {
 	}
 
 	@Test
-	public void testGetDataType() throws IOException {
+	public void testGetDataType(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		for (final DataType t : DataType.values()) {
 			writer.createDataset(t.toString(), new long[]{1}, new int[]{1}, t, new RawCompression());
 			assertEquals(t, N5Types.getDataType(writer, t.toString()));

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.util.n5
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.commonmark.internal.util.Parsing
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
@@ -43,9 +42,7 @@ private val LOG = KotlinLogging.logger {  }
 @JvmOverloads
 internal fun discoverAndParseRecursive(n5Reader: N5Reader, initialGroup: String = "/", callback: (N5TreeNode) -> Unit = {}): N5TreeNode {
 	val discoverer = getDiscoverer(n5Reader)
-	println("\tParsing ${n5Reader.uri}")
 	return discoverer.discoverAndParseRecursive(initialGroup) {
-		println("\t\tDiscovered dataset ${it.path} with metadata ${it.metadata}")
 		callback(it)
 	}
 }

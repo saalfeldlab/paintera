@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.util.n5;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.imglib2.img.cell.CellGrid;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -11,12 +13,16 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -49,6 +55,14 @@ public class N5HelpersTest {
 		assertEquals(gsonWithCompression.toJson(expected.getCompression()), gsonWithCompression.toJson(actual.getCompression()));
 	}
 
+	@BeforeAll
+	public static void setupN5Factory() {
+
+		final var builder = new GsonBuilder();
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
+		Paintera.getN5Factory().gsonBuilder(builder);
+	}
+
 	@Test
 	public void testAsCellGrid() {
 
@@ -66,9 +80,10 @@ public class N5HelpersTest {
 		assertEquals(group + "/" + N5Helpers.PAINTERA_DATA_DATASET, N5Helpers.volumetricDataGroup(group, true));
 	}
 
-	@Test public void testIsMultiscale() throws IOException {
+	@Test
+	public void testIsMultiscale(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		final String group = "group";
 		writer.createGroup(group);
 
@@ -91,9 +106,9 @@ public class N5HelpersTest {
 	}
 
 	@Test
-	public void testListAndSortScaleDatasets() throws IOException {
+	public void testListAndSortScaleDatasets(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -109,9 +124,9 @@ public class N5HelpersTest {
 	}
 
 	@Test
-	public void testDiscoverDatasets() throws IOException {
+	public void testDiscoverDatasets(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -134,9 +149,9 @@ public class N5HelpersTest {
 	}
 
 	@Test
-	public void testGetDatasetAttributes() throws IOException {
+	public void testGetDatasetAttributes(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		final DatasetAttributes attributes = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new GzipCompression());
 
 		// single scale

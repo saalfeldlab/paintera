@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
 import bdv.cache.SharedQueue
+import com.google.gson.GsonBuilder
 import gnu.trove.map.TLongObjectMap
 import gnu.trove.map.hash.TLongObjectHashMap
 import gnu.trove.set.TLongSet
@@ -20,6 +21,8 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
@@ -27,28 +30,45 @@ import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.PainteraGateway
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.janelia.saalfeldlab.util.n5.N5TestUtil
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import java.util.Random
 import java.util.stream.IntStream
 import java.util.stream.Stream
+import kotlin.io.path.absolutePathString
 
+@TestInstance(PER_CLASS)
 class CommitCanvasN5Test {
 
 	@JvmRecord
 	private data class CanvasAndContainer(val canvas: CachedCellImg<UnsignedLongType, *>, val container: N5ContainerState)
 
+	@BeforeAll
+	fun setupN5Factory() {
+
+		val builder = GsonBuilder()
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter());
+		Paintera.n5Factory.gsonBuilder(builder)
+	}
+
 	@Test
-	fun testSingleScaleLabelMultisetCommit() = testSingleScale(
-		getTmpCanvasAndContainer(),
+	fun testSingleScaleLabelMultisetCommit(@TempDir tmp: Path) = testSingleScale(
+		getTmpCanvasAndContainer(tmp),
 		"single-scale-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -57,8 +77,8 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testMultiScaleScaleLabelMultisetCommit() = testMultiScale(
-		getTmpCanvasAndContainer(),
+	fun testMultiScaleScaleLabelMultisetCommit(@TempDir tmp: Path) = testMultiScale(
+		getTmpCanvasAndContainer(tmp),
 		"multi-scale-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -67,8 +87,8 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testPainteraLabelMultisetCommit() = testPainteraData(
-		getTmpCanvasAndContainer(),
+	fun testPainteraLabelMultisetCommit(@TempDir tmp: Path) = testPainteraData(
+		getTmpCanvasAndContainer(tmp),
 		"paintera-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -78,15 +98,16 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testSingleScaleUint64Commit() = testSingleScale(getTmpCanvasAndContainer(),
+	fun testSingleScaleUint64Commit(@TempDir tmp: Path) = testSingleScale(
+		getTmpCanvasAndContainer(tmp),
 		"single-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
 		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap())
 
 	@Test
-	fun testMultiScaleUint64Commit() = testMultiScale(
-		getTmpCanvasAndContainer(),
+	fun testMultiScaleUint64Commit(@TempDir tmp: Path) = testMultiScale(
+		getTmpCanvasAndContainer(tmp),
 		"multi-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
@@ -94,8 +115,8 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testPainteraUint64Commit() = testPainteraData(
-		getTmpCanvasAndContainer(),
+	fun testPainteraUint64Commit(@TempDir tmp: Path) = testPainteraData(
+		getTmpCanvasAndContainer(tmp),
 		"paintera-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
@@ -129,11 +150,14 @@ class CommitCanvasN5Test {
 			}
 		}
 
-		private fun getTmpCanvasAndContainer(): CanvasAndContainer {
+		private fun getTmpCanvasAndContainer(tmp: Path): CanvasAndContainer {
 			val canvas = newTestCanvas()
-			val writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled())
+
+			val writer = Paintera.n5Factory.newWriter(tmp.absolutePathString())
 			val container = N5ContainerState(writer)
 			LOG.debug { "Created temporary N5 container $writer" }
+
+
 			return CanvasAndContainer(canvas, container)
 		}
 
@@ -298,7 +322,7 @@ class CommitCanvasN5Test {
 		) {
 
 			val (canvas, container) = canvasAndContainer
-			val metadataState = createMetadataState(container, dataset) ?: DummyMetadataState(dataset, container)
+			val metadataState = createMetadataState(container, dataset)!!
 
 			writeAll(metadataState, canvas)
 

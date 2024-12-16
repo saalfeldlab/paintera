@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import java.net.URI
 
 class N5FactoryWithCache : N5Factory() {
