@@ -315,6 +315,7 @@ class CommitCanvasN5Test {
 			openLabels: (N5Reader, String) -> RandomAccessibleInterval<T>,
 			assert: (UnsignedLongType, T) -> Unit
 		) {
+			println("\n\n\nNEXT")
 
 			val (canvas, container) = canvasAndContainer
 			println("Container: ${container.reader.uri}\t")

@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.t
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
-import java.util.stream.Stream
 import kotlin.streams.asSequence
 
 interface MetadataState {
@@ -415,17 +414,21 @@ class MetadataUtils {
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
 			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
 
+			N5TreeNode.flattenN5Tree(metadataRoot).forEach { println("\t\t\t${it.path}") }
+
 			return N5TreeNode.flattenN5Tree(metadataRoot)
 				.asSequence()
 				.filter { node: N5TreeNode ->
-					println("\t\tdataset:$dataset path:${node.path} name:${node.nodeName} ${metadataIsValid(node.metadata)}")
+					println("\t\tdataset:$dataset path:${node.path} name:${node.nodeName} valid:${metadataIsValid(node.metadata)}")
 					(node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata)
 				}
 				.map { obj: N5TreeNode -> obj.metadata }
-				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) ?: let{
-					println("null metadatastate: $md")
-					null
-				}}
+				.map { md: N5Metadata ->
+					createMetadataState(n5ContainerState, md) ?: let {
+						println("null metadatastate: $md")
+						null
+					}
+				}
 				.firstOrNull()
 		}
 
