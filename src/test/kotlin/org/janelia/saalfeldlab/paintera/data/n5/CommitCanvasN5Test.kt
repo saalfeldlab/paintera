@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import bdv.cache.SharedQueue
 import com.google.gson.GsonBuilder
 import gnu.trove.map.TLongObjectMap
 import gnu.trove.map.hash.TLongObjectHashMap
@@ -9,18 +8,17 @@ import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.Volatile
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.cache.img.*
 import net.imglib2.img.cell.CellGrid
-import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.type.NativeType
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
+import org.apache.commons.io.FileUtils
+import org.apache.commons.io.filefilter.TrueFileFilter
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
@@ -28,17 +26,12 @@ import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
-import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.PainteraGateway
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.discoverAndParseRecursive
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -46,6 +39,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
 import org.junit.jupiter.api.io.TempDir
+import java.io.File
 import java.nio.file.Path
 import java.util.Random
 import java.util.stream.IntStream
@@ -103,7 +97,8 @@ class CommitCanvasN5Test {
 		"single-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap())
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
+	)
 
 	@Test
 	fun testMultiScaleUint64Commit(@TempDir tmp: Path) = testMultiScale(
@@ -211,7 +206,7 @@ class CommitCanvasN5Test {
 			}
 
 			for ((idx, factors) in scaleFactors.withIndex()) {
-				val scaleNum = idx+1
+				val scaleNum = idx + 1
 				val scaleDims = dims / factors
 				val scaleAttributes = DatasetAttributes(scaleDims, blockSize, dataType, GzipCompression())
 				val uniqueScaleAttributes = DatasetAttributes(scaleDims, blockSize, DataType.UINT64, GzipCompression())
@@ -322,6 +317,19 @@ class CommitCanvasN5Test {
 		) {
 
 			val (canvas, container) = canvasAndContainer
+			println("Container: ${container.reader.uri}\t")
+			discoverAndParseRecursive(container.reader) {
+				println("dataset: ${it.path}\tmetadata: ${it.metadata}")
+			}
+			println(container.reader.uri)
+			FileUtils.iterateFilesAndDirs(
+				File(container.reader.uri),
+				TrueFileFilter.TRUE,
+				TrueFileFilter.TRUE
+			).forEach {
+				println(it.absolutePath.substringAfter(container.reader.uri.path))
+			}
+			println()
 			val metadataState = createMetadataState(container, dataset)!!
 
 			writeAll(metadataState, canvas)
@@ -359,34 +367,5 @@ class CommitCanvasN5Test {
 			grid.getCellPosition(intervalMin, intervalMin)
 			return IntervalIndexer.positionToIndex(intervalMin, grid.gridDimensions)
 		}
-	}
-}
-
-private class DummyMetadataState(override val dataset: String, override val n5ContainerState: N5ContainerState) : MetadataState {
-
-	override var group: String = dataset
-	override val writer: N5Writer = n5ContainerState.writer!!
-	override var reader: N5Reader = n5ContainerState.reader
-	override var unit: String = "pixel"
-	override var translation: DoubleArray = DoubleArray(0)
-	override var spatialAxes: Map<Axis, Int> = MetadataUtils.SpatialAxes.default
-	override var channelAxis: Pair<Axis, Int>? = null
-	override var timeAxis: Pair<Axis, Int>? = null
-	override var virtualCrop: Interval? = null
-	override var resolution: DoubleArray = DoubleArray(0)
-	override var maxIntensity: Double = 0.0
-	override var minIntensity: Double = 0.0
-	override var isLabelMultiset: Boolean = true
-	override var isLabel: Boolean = true
-	override var transform: AffineTransform3D = error("not necessary for test")
-	override var datasetAttributes: DatasetAttributes = error("not necessary for test")
-	override val metadata: N5Metadata = N5Metadata { "TEST" }
-
-	override fun copy(): MetadataState = this
-	override fun updateTransform(newTransform: AffineTransform3D) = Unit
-	override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) = Unit
-
-	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
-		error("not necessary for test")
 	}
 }
