@@ -30,10 +30,8 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
-import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
@@ -226,7 +224,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		LOG.info(() -> "Committing canvas: %d blocks".formatted(blocks.length));
 		LOG.debug(() -> "Affected blocks in grid %s: %s".formatted(canvas.getCellGrid(), blocks));
-		InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.1));
+		progress.set(0.1);
 		try {
 			final String datasetPath = getDatasetPath();
 			final String highestResDatasetPath = getHighestResolutionDatasetPath();
@@ -253,7 +251,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				writeBlocksLabelIntegerType(canvas, blocks, highestResolutionDataset, highestResolutionBlockSpec, blockDiffsAtHighestLevel);
 			}
 
-			InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.4));
+			progress.set(0.4);
 
 			/* If multiscale, downscale and write the lower scales*/
 			if (isMultiscale()) {
@@ -317,7 +315,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 								blockDiffsAt);
 
 				}
-				InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(1.0));
+				progress.set(1.0);
 
 			}
 			LOG.info(() -> "Finished commiting canvas");

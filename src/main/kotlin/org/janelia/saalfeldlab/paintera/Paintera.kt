@@ -52,7 +52,7 @@ class Paintera : Application() {
 	private lateinit var painteraArgs: PainteraCommandLineArgs
 	private var projectDir: String? = null
 
-	internal lateinit var mainWindow : PainteraMainWindow
+	internal lateinit var mainWindow: PainteraMainWindow
 
 	init {
 		application = this
@@ -108,7 +108,7 @@ class Paintera : Application() {
 		} ?: notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
 		paintable = true
 		runPaintable()
-		PlatformImpl.runAndWait {
+		InvokeOnJavaFXApplicationThread.invokeAndWait {
 			paintera.properties.loggingConfig.apply {
 				painteraArgs.logLevel?.let { rootLoggerLevel = it }
 				painteraArgs.logLevelsByName?.forEach { (name, level) -> name?.let { setLogLevelFor(it, level) } }
@@ -324,7 +324,7 @@ class Paintera : Application() {
 			SaalFxStyle.registerStylesheets(styleable)
 		}
 
-		private val stylesheets : List<String> = listOf(
+		private val stylesheets: List<String> = listOf(
 			"style/glyphs.css",
 			"style/toolbar.css",
 			"style/navigation.css",

@@ -6,7 +6,6 @@ import gnu.trove.map.hash.TLongObjectHashMap
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
@@ -21,7 +20,6 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
@@ -36,8 +34,8 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5TestUtil
-import org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.util.Random
 import java.util.stream.IntStream
