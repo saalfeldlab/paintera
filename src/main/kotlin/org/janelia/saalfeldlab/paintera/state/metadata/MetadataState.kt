@@ -31,6 +31,8 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.t
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
+import java.util.stream.Stream
+import kotlin.streams.asSequence
 
 interface MetadataState {
 
@@ -412,14 +414,13 @@ class MetadataUtils {
 		@JvmStatic
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
 			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
-			val metadataState = N5TreeNode.flattenN5Tree(metadataRoot)
+
+			return N5TreeNode.flattenN5Tree(metadataRoot)
+				.asSequence()
 				.filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
-				.findFirst()
 				.map { obj: N5TreeNode -> obj.metadata }
 				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
-				.get()
-
-			return metadataState
+				.firstOrNull()
 		}
 
 		fun transformFromResolutionOffset(resolution: DoubleArray, offset: DoubleArray): AffineTransform3D {
