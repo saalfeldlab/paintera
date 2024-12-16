@@ -417,9 +417,15 @@ class MetadataUtils {
 
 			return N5TreeNode.flattenN5Tree(metadataRoot)
 				.asSequence()
-				.filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
+				.filter { node: N5TreeNode ->
+					println("\t\tdataset:$dataset path:${node.path} name:${node.nodeName} ${metadataIsValid(node.metadata)}")
+					(node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata)
+				}
 				.map { obj: N5TreeNode -> obj.metadata }
-				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
+				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) ?: let{
+					println("null metadatastate: $md")
+					null
+				}}
 				.firstOrNull()
 		}
 

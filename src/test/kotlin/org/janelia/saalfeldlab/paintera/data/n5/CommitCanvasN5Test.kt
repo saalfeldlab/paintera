@@ -97,7 +97,7 @@ class CommitCanvasN5Test {
 		"single-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }
 	)
 
 	@Test
@@ -106,7 +106,7 @@ class CommitCanvasN5Test {
 		"multi-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }
 	)
 
 	@Test
@@ -174,7 +174,7 @@ class CommitCanvasN5Test {
 			dataType: DataType,
 			openLabels: (N5Reader, String) -> RandomAccessibleInterval<T>,
 			asserts: (UnsignedLongType, T) -> Unit,
-			additionalAttributes: Map<String, Any>,
+			additionalAttributes: Map<String, Any> = emptyMap(),
 			vararg scaleFactors: IntArray
 		) {
 			val (canvas, container) = canvasAndContainer
@@ -273,7 +273,7 @@ class CommitCanvasN5Test {
 			dataType: DataType,
 			openLabels: (N5Reader, String) -> RandomAccessibleInterval<T>,
 			asserts: (UnsignedLongType, T) -> Unit,
-			additionalAttributes: Map<String, Any>
+			additionalAttributes: Map<String, Any> = emptyMap()
 		) {
 			val (canvas, container) = canvasAndContainer
 			val s0 = container.writer!!.run {
