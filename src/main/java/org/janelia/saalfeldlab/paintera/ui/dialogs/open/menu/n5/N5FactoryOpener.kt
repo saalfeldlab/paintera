@@ -35,7 +35,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	fun backendDialog() = OpenSourceDialog(paintera.baseView, openSourceState, selectionProperty)
 
 	private fun cacheAsRecent(n5ContainerLocation: String) {
-		PainteraCache.RECENT_PROJECTS.appendLine(n5ContainerLocation, 50)
+		PainteraCache.RECENT_CONTAINERS.appendLine(n5ContainerLocation, 50)
 	}
 
 	private var createContainerStateJob: Job? = null
