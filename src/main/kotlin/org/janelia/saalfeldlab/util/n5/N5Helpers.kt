@@ -52,7 +52,6 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
-import kotlin.Throws
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -205,14 +204,13 @@ object N5Helpers {
 
 	@JvmStatic
 	@JvmOverloads
-	@Deprecated("prefer DatasetDiscovery", ReplaceWith("DatasetDiscovery.parseMetadata(n5)"))
 	fun parseMetadata(n5: N5Reader, ignoreCache: Boolean = false): Optional<N5TreeNode> {
 		//TODO Caleb: make [OpenSourceState.ParserContainerCache] a static loader, and use it here
 		val uri = n5.uri.toString()
 		if (!ignoreCache && N5_METADATA_CACHE.containsKey(uri)) {
 			return Optional.ofNullable(N5_METADATA_CACHE[uri])
 		}
-		val n5TreeNode = DatasetDiscovery.parseMetadata(n5)
+		val n5TreeNode = discoverAndParseRecursive(n5)
 		N5_METADATA_CACHE[uri] = n5TreeNode
 		return Optional.ofNullable(n5TreeNode)
 	}

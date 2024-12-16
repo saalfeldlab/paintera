@@ -35,7 +35,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import org.janelia.saalfeldlab.util.n5.DatasetDiscovery
+import org.janelia.saalfeldlab.util.n5.discoverAndParseRecursive
 import java.util.concurrent.ExecutorService
 import kotlin.coroutines.coroutineContext
 
@@ -164,7 +164,7 @@ class OpenSourceState {
 		val ContainerLoaderCache = AsyncCacheWithLoader<N5ContainerState, Map<String, N5TreeNode>?>(
 			SoftRefLoaderCache(),
 			{ state ->
-				val rootNode = DatasetDiscovery.parseMetadata(state.reader, "/")
+				val rootNode = discoverAndParseRecursive(state.reader, "/")
 				coroutineContext.ensureActive()
 				val datasets = getValidDatasets(rootNode).run {
 					remove("/")?.let { node -> put(state.name(), node) }

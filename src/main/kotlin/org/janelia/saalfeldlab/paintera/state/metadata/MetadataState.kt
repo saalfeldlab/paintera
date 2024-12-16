@@ -391,7 +391,7 @@ class MetadataUtils {
 			}
 
 			val n5ContainerState = N5ContainerState(reader)
-			return DatasetDiscovery.parseMetadata(reader, n5containerAndDataset).run {
+			return discoverAndParseRecursive(reader, n5containerAndDataset).run {
 				if (isDataset && metadataIsValid(metadata))
 					createMetadataState(n5ContainerState, metadata)
 				else null
@@ -411,7 +411,7 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
-			val metadataRoot = DatasetDiscovery.parseMetadata(n5ContainerState.reader)
+			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
 			val metadataState = N5TreeNode.flattenN5Tree(metadataRoot)
 				.filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
 				.findFirst()

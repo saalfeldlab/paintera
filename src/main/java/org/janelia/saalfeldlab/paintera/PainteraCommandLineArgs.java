@@ -41,7 +41,6 @@ import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
-import org.janelia.saalfeldlab.util.n5.DatasetDiscovery;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
@@ -72,6 +71,8 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.janelia.saalfeldlab.util.n5.DatasetDiscoveryKt.discoverAndParseRecursive;
 
 @Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs", usageHelpWidth = 120,
 		parameterListHeading = "%n@|bold,underline Parameters|@:%n",
@@ -631,7 +632,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				final Predicate<String> datasetFilter = options.useDataset();
 				final String[] datasets;
 				if (options.addEntireContainer) {
-					Optional<N5TreeNode> rootNode = Optional.ofNullable(DatasetDiscovery.parseMetadata(n5Container));
+					Optional<N5TreeNode> rootNode = Optional.ofNullable(discoverAndParseRecursive(n5Container));
 					if (rootNode.isPresent()) {
 						final List<String> validGroups = N5Helpers.validPainteraGroupMap(rootNode.get()).keySet().stream()
 								.filter(datasetFilter)
@@ -655,7 +656,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 					}
 
 					final var containerState = new N5ContainerState(n5Container);
-					final var metadata = DatasetDiscovery.parseMetadata(n5Container);
+					final var metadata = discoverAndParseRecursive(n5Container);
 
 					final Stream<N5TreeNode> flatTree = N5TreeNode.flattenN5Tree(metadata);
 					final Optional<N5TreeNode> matchingNode = flatTree
