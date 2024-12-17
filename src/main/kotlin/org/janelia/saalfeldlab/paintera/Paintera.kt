@@ -245,9 +245,7 @@ class Paintera : Application() {
 		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
 
 		@JvmStatic
-		val n5Factory = N5FactoryWithCache().apply {
-			cacheAttributes(true)
-		}
+		val n5Factory = N5FactoryWithCache()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
