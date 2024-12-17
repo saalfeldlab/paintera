@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
-import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -21,5 +20,5 @@ data class N5ContainerState(val reader: N5Reader) {
 		}
 	}
 
-	override fun hashCode() = HashCodeBuilder().append(uri).toHashCode()
+	override fun hashCode() = uri.hashCode()
 }

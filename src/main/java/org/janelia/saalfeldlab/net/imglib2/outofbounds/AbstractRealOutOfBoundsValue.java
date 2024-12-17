@@ -321,10 +321,4 @@ public abstract class AbstractRealOutOfBoundsValue<T extends Type<T>> extends Ab
 
 		return Math.round(position[d]);
 	}
-
-	@Override
-	public RealRandomAccess<T> copyRealRandomAccess() {
-
-		return sampler.copyRealRandomAccess();
-	}
 }

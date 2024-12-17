@@ -20,6 +20,8 @@ import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintable
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintableRunnables
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
@@ -30,7 +32,6 @@ import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
-import java.lang.Runnable
 import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
@@ -51,7 +52,7 @@ class Paintera : Application() {
 	private lateinit var painteraArgs: PainteraCommandLineArgs
 	private var projectDir: String? = null
 
-	internal lateinit var mainWindow : PainteraMainWindow
+	internal lateinit var mainWindow: PainteraMainWindow
 
 	init {
 		application = this
@@ -82,7 +83,7 @@ class Paintera : Application() {
 
 		projectPath?.let {
 			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-			PainteraCache.appendLine(Paintera::class.java, "recent_projects", projectPath.canonicalPath, 10)
+			PainteraCache.RECENT_PROJECTS.appendLine(projectPath.canonicalPath, 10)
 		} ?: let {
 			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
 			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
@@ -107,7 +108,7 @@ class Paintera : Application() {
 		} ?: notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
 		paintable = true
 		runPaintable()
-		PlatformImpl.runAndWait {
+		InvokeOnJavaFXApplicationThread.invokeAndWait {
 			paintera.properties.loggingConfig.apply {
 				painteraArgs.logLevel?.let { rootLoggerLevel = it }
 				painteraArgs.logLevelsByName?.forEach { (name, level) -> name?.let { setLogLevelFor(it, level) } }
@@ -244,9 +245,7 @@ class Paintera : Application() {
 		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
 
 		@JvmStatic
-		val n5Factory = N5FactoryWithCache().apply {
-			cacheAttributes(true)
-		}
+		val n5Factory = N5FactoryWithCache()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
@@ -323,7 +322,7 @@ class Paintera : Application() {
 			SaalFxStyle.registerStylesheets(styleable)
 		}
 
-		private val stylesheets : List<String> = listOf(
+		private val stylesheets: List<String> = listOf(
 			"style/glyphs.css",
 			"style/toolbar.css",
 			"style/navigation.css",

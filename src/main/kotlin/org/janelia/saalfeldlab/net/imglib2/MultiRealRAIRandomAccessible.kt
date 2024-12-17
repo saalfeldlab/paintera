@@ -22,6 +22,7 @@ class MultiRealIntervalAccessibleRealRandomAccessible<T>(
 
 	override fun realRandomAccess(interval: RealInterval) = realInterval(interval).realRandomAccess()
 
+	override fun getType() = outOfBounds
 
 	class MultiRealRaiRealRandomAccess<T>(
 		numDimensions: Int,

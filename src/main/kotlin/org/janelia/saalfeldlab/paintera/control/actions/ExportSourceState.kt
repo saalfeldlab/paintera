@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.actions
 import javafx.beans.property.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable.invokeOnCompletion
 import kotlinx.coroutines.launch
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
@@ -22,7 +21,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
@@ -36,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class ExportSourceState {
 
-	val backendProperty = SimpleObjectProperty<N5Backend<*, *>?>()
+	val backendProperty = SimpleObjectProperty<N5BackendLabel<*, *>?>()
 	val maxIdProperty = SimpleLongProperty(-1)
 	val sourceStateProperty = SimpleObjectProperty<ConnectomicsLabelState<*, *>?>()
 	val sourceProperty = SimpleObjectProperty<MaskedSource<*, *>?>()
@@ -86,7 +85,7 @@ class ExportSourceState {
 		val scaleLevel = scaleLevelProperty.value
 		val dataType = dataTypeProperty.value
 
-		val sourceMetadata: N5SpatialDatasetMetadata = backend.getMetadataState().let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: backend.getMetadataState() as N5SpatialDatasetMetadata
+		val sourceMetadata: N5SpatialDatasetMetadata = backend.metadataState.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: backend.metadataState as N5SpatialDatasetMetadata
 		val n5 = backend.container as GsonKeyValueN5Reader
 
 		val exportRAI = exportableSourceRAI!!

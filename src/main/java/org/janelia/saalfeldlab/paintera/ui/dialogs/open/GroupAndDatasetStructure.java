@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.Property;

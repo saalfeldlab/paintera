@@ -20,7 +20,7 @@ class ScaleBarOverlayConfigNode() : TitledPane("Scale Bar", null) {
 
 	private val isShowing = CheckBox()
 
-	private val targetScaleBarLength = NumberField.doubleField(1.0, { v -> true }, *ObjectField.SubmitOn.values())
+	private val targetScaleBarLength = NumberField.doubleField(1.0, {  true }, *ObjectField.SubmitOn.entries.toTypedArray())
 
 	private val foregroundColorPicker = ColorPicker()
 
@@ -28,7 +28,7 @@ class ScaleBarOverlayConfigNode() : TitledPane("Scale Bar", null) {
 
 	private val font = SimpleObjectProperty(Font("SansSerif", 18.0))
 
-	private val fontSize = NumberField.doubleField(font.get().size, { v -> v > 0.0 }, *ObjectField.SubmitOn.values())
+	private val fontSize = NumberField.doubleField(font.get().size, { v -> v > 0.0 }, *ObjectField.SubmitOn.entries.toTypedArray())
 
 	init {
 		val grid = GridPane()
@@ -53,8 +53,8 @@ class ScaleBarOverlayConfigNode() : TitledPane("Scale Bar", null) {
 		foregroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
 		backgroundColorPicker.maxWidth = java.lang.Double.POSITIVE_INFINITY
 
-		font.addListener { obs, oldv, newv -> fontSize.valueProperty().set(newv.size) }
-		fontSize.valueProperty().addListener { obs, oldv, newv -> font.set(Font(font.get().name, newv.toDouble())) }
+		font.subscribe { it -> fontSize.valueProperty().set(it.size) }
+		fontSize.valueProperty().subscribe { it -> font.set(Font(font.get().name, it.toDouble())) }
 	}
 
 	fun bindBidirectionalTo(config: ScaleBarOverlayConfig) {

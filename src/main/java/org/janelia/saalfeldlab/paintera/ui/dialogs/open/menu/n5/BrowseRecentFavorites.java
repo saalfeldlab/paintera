@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5;
 
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;

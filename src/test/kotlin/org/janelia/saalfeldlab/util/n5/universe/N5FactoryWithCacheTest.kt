@@ -1,43 +1,68 @@
 package org.janelia.saalfeldlab.util.n5.universe
 
-import org.assertj.core.util.Files
 import org.janelia.saalfeldlab.n5.N5KeyValueReader
 import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
 import org.janelia.saalfeldlab.paintera.Paintera
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+import java.nio.file.Path
 import kotlin.test.assertTrue
 
 class PainteraMainWindowTest {
 
 	@Test
-	fun `project directory as n5 or zarr`() {
-		val chars : List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
-		val randString = { List(10) { chars.random() }.joinToString("") }
-
-		val noExtension = Files.temporaryFolder().resolve(randString()).absolutePath
-		assertTrue { Paintera.n5Factory.newWriter(noExtension) is N5KeyValueWriter }
-		assertTrue { Paintera.n5Factory.openReader(noExtension) is N5KeyValueReader }
-
-		val noExtension2 = Files.temporaryFolder().resolve(randString()).absolutePath
-		assertTrue("no extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:${noExtension2}") is ZarrKeyValueWriter }
-		assertTrue("No extension with .zgroup and no scheme should be zarr") { Paintera.n5Factory.openReader(noExtension2) is ZarrKeyValueReader }
-
-		val nonsenseExtension = Files.temporaryFolder().resolve("${randString()}.asdf").absolutePath
-		assertTrue("random extension should be n5") { Paintera.n5Factory.newWriter(nonsenseExtension) is N5KeyValueWriter }
-		assertTrue("random extension should be n5") { Paintera.n5Factory.openReader(nonsenseExtension) is N5KeyValueReader }
-
-		val nonsenseExtension2 = Files.temporaryFolder().resolve("${randString()}.asdf").absolutePath
-		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:$nonsenseExtension2") is ZarrKeyValueWriter }
-		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.openReader(nonsenseExtension2) is ZarrKeyValueReader }
-
-		val zarrFile = Files.temporaryFolder().resolve("${randString()}.zarr").absolutePath
-		assertTrue(".zarr should be zarr") { Paintera.n5Factory.newWriter(zarrFile) is ZarrKeyValueWriter }
-		assertTrue(".zarr should be zarr") { Paintera.n5Factory.openReader(zarrFile) is ZarrKeyValueReader }
-
-		val n5File = Files.temporaryFolder().resolve("${randString()}.n5").absolutePath
-		assertTrue(".n5 should be n5") { Paintera.n5Factory.newWriter(n5File) is N5KeyValueWriter }
-		assertTrue(".n5 should be n5 ") { Paintera.n5Factory.openReader(n5File) is N5KeyValueReader }
+	fun `no extension, no scheme, should be N5`(@TempDir tmpPath: Path ) {
+		val path = tmpPath.toUri().toString()
+		assertTrue { Paintera.n5Factory.newWriter(path) is N5KeyValueWriter }
+		assertTrue { Paintera.n5Factory.openReader(path) is N5KeyValueReader }
 	}
+
+	@Test
+	fun `no extension, zarr scheme, should be zarr`(@TempDir tmpPath: Path ) {
+		val path = "zarr:${tmpPath.toUri()}"
+		assertTrue("no extension with zarr: should be zarr") { Paintera.n5Factory.newWriter(path) is ZarrKeyValueWriter }
+		assertTrue("No extension with .zgroup and no scheme should be zarr") { Paintera.n5Factory.openReader(path) is ZarrKeyValueReader }
+	}
+
+	@Test
+	fun `no extension, no scheme, has zgroup, should be zarr`(@TempDir tmpPath: Path ) {
+		val noExtensionOrScheme = tmpPath.toUri().toString()
+		val withScheme = "zarr:$noExtensionOrScheme"
+		assertTrue("no extension with zarr: should be zarr") { Paintera.n5Factory.newWriter(withScheme) is ZarrKeyValueWriter }
+		assertTrue("No extension with .zgroup and no scheme should be zarr") { Paintera.n5Factory.openReader(noExtensionOrScheme) is ZarrKeyValueReader }
+	}
+
+
+	@Test
+	fun `random extension, no scheme, should be N5`(@TempDir tmpfile: File ) {
+		val path = tmpfile.resolve("${randString()}.asdf").toURI().toString()
+		assertTrue("random extension should be n5") { Paintera.n5Factory.newWriter(path) is N5KeyValueWriter }
+		assertTrue("random extension should be n5") { Paintera.n5Factory.openReader(path) is N5KeyValueReader }
+	}
+
+	@Test
+	fun `random extension, zarr scheme, should be zarr`(@TempDir tmpfile: File ) {
+		val path = tmpfile.resolve("${randString()}.asdf").toURI().toString()
+		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:$path") is ZarrKeyValueWriter }
+		assertTrue("random extension with zgroup: should be zarr") { Paintera.n5Factory.openReader(path) is ZarrKeyValueReader }
+	}
+
+	@Test
+	fun `zarr extension, no scheme, should be zarr`(@TempDir tmpfile: File ) {
+		val path = tmpfile.resolve("${randString()}.zarr").toURI().toString()
+		assertTrue(".zarr should be zarr") { Paintera.n5Factory.newWriter(path) is ZarrKeyValueWriter }
+		assertTrue(".zarr should be zarr") { Paintera.n5Factory.openReader(path) is ZarrKeyValueReader }
+	}
+
+	@Test
+	fun `n5 extension, no scheme, should be N5`(@TempDir tmpfile: File ) {
+		val path = tmpfile.resolve("${randString()}.n5").toURI().toString()
+		assertTrue(".n5 should be n5") { Paintera.n5Factory.newWriter(path) is N5KeyValueWriter }
+		assertTrue(".n5 should be n5 ") { Paintera.n5Factory.openReader(path) is N5KeyValueReader }
+	}
+
+	private fun randString() = List(10) {( ('a'..'z') + ('A'..'Z') + ('0'..'9')).random() }.joinToString("")
 }

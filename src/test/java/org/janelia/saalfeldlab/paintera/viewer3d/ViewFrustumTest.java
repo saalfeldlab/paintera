@@ -1,14 +1,14 @@
-package org.janelia.saalfeldlab.paintera.meshes;
+package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import com.sun.javafx.geom.Vec3d;
 import javafx.scene.PerspectiveCamera;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("restriction")
 public class ViewFrustumTest {
@@ -20,7 +20,7 @@ public class ViewFrustumTest {
 	private AffineTransform3D sceneTransform;
 	private AffineTransform3D sourceToWorldTransform;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 
 		camera = new PerspectiveCamera(true);
@@ -53,16 +53,16 @@ public class ViewFrustumTest {
 	public void testIsInside() {
 
 		final ViewFrustumCulling frustumCulling = new ViewFrustumCulling(frustumCamera);
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 0)));
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 1)));
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 5)));
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 9.9)));
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(-4.8, 3.6, 8.7)));
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-4.2, 3.7, 8.7)));
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(100, -20, 15)));
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-2, 5, -0.5)));
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 10.5)));
-		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-2, 1, 0.5)));
+		assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 0)));
+		assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 1)));
+		assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 5)));
+		assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 9.9)));
+		assertTrue(frustumCulling.isInside(new Vec3d(-4.8, 3.6, 8.7)));
+		assertFalse(frustumCulling.isInside(new Vec3d(-4.2, 3.7, 8.7)));
+		assertFalse(frustumCulling.isInside(new Vec3d(100, -20, 15)));
+		assertFalse(frustumCulling.isInside(new Vec3d(-2, 5, -0.5)));
+		assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 10.5)));
+		assertFalse(frustumCulling.isInside(new Vec3d(-2, 1, 0.5)));
 
 		final AffineTransform3D eyeToSourceTransform = new AffineTransform3D();
 		eyeToSourceTransform
@@ -71,7 +71,7 @@ public class ViewFrustumTest {
 				.preConcatenate(sourceToWorldTransform.inverse());
 
 		final ViewFrustumCulling frustumCullingWithTransform = new ViewFrustumCulling(frustumCamera, eyeToSourceTransform);
-		Assert.assertTrue(frustumCullingWithTransform.isInside(new Vec3d(-80, 200, 70)));
+		assertTrue(frustumCullingWithTransform.isInside(new Vec3d(-80, 200, 70)));
 	}
 
 	@Test
@@ -85,8 +85,8 @@ public class ViewFrustumTest {
 
 		final ViewFrustumCulling frustumCullingWithTransform = new ViewFrustumCulling(frustumCamera, eyeToSourceTransform);
 
-		Assert.assertTrue(frustumCullingWithTransform.intersects(Intervals.createMinSize(0, 0, 0, 64, 64, 64)));
-		Assert.assertFalse(frustumCullingWithTransform.intersects(Intervals.createMinSize(128, 0, 0, 64, 64, 64)));
+		assertTrue(frustumCullingWithTransform.intersects(Intervals.createMinSize(0, 0, 0, 64, 64, 64)));
+		assertFalse(frustumCullingWithTransform.intersects(Intervals.createMinSize(128, 0, 0, 64, 64, 64)));
 	}
 }
 

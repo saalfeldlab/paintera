@@ -393,7 +393,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 	}
 
 	private fun SmoothActionVerifiedState.getLevelResolution(level: Int): DoubleArray {
-		val metadataScales = ((labelSource.backend as? SourceStateBackendN5<*, *>)?.getMetadataState() as? MultiScaleMetadataState)?.scaleTransforms?.get(level)
+		val metadataScales = ((labelSource.backend as? SourceStateBackendN5<*, *>)?.metadataState as? MultiScaleMetadataState)?.scaleTransforms?.get(level)
 		val resFromRai = (labelSource.backend as? RandomAccessibleIntervalBackend<*, *>)?.resolutions
 		return when {
 			level == 0 -> labelSource.resolution

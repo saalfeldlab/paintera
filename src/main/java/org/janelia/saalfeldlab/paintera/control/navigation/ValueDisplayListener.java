@@ -3,12 +3,15 @@ package org.janelia.saalfeldlab.paintera.control.navigation;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.TransformListener;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
+import kotlin.Unit;
 import kotlinx.coroutines.Deferred;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.Volatile;
@@ -18,7 +21,9 @@ import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 
+import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -117,10 +122,18 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 	private void getInfo() {
 
 		final Source<T> source = this.source.getValue();
+		if (source == null) return;
 
 		final var job = Tasks.createTask(() -> stringConverterFromSource(source).apply(getVal()))
 				.onSuccess(result -> Platform.runLater(() -> submitValue.accept(result)))
-				.onEnd((result, cause) -> taskMap.remove(source));
+				.onEnd((result, cause) -> {
+
+							if (cause != null)
+								LOG.error(cause, () -> Unit.INSTANCE);
+
+							taskMap.remove(source);
+						}
+				);
 
 
 		/* If we are creating a task for a source which has a running task, cancel and remove the old task. */
@@ -132,20 +145,24 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 		job.start();
 	}
 
-	private static <T> Function<T, String> stringConverterFromSource(final Source<T> source) {
+	private static KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
+
+	private static <T> Function<T, String> stringConverterFromSource(@Nonnull final Source<T> source) {
 
 		if (source instanceof ChannelDataSource<?, ?>) {
 			final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
 
 			// Cast not actually redundant
 			//noinspection unchecked,RedundantCast
-			return (Function<T, String>)(Function<? extends Composite<?>, String>)comp -> {
+			return (Function<T, String>)(Function<VolatileWithSet<? extends Composite<?>>, String>)volWithSet -> {
+				final var comp = volWithSet.get();
+				final Function<Object, String> stringConverter = stringConverter(comp.get(0));
 				StringBuilder sb = new StringBuilder("(");
 				if (numChannels > 0)
-					sb.append(comp.get(0).toString());
+					sb.append(stringConverter.apply(comp.get(0)));
 
 				for (int channel = 1; channel < numChannels; ++channel) {
-					sb.append((", ")).append(comp.get(channel).toString());
+					sb.append((", ")).append(stringConverter.apply(comp.get(channel)));
 				}
 
 				sb.append((")"));

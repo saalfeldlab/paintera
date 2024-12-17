@@ -1,14 +1,17 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta;
 
+import javafx.beans.Observable;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.util.StringConverter;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel.DoubleFilter;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.MetaPanel.DoubleFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

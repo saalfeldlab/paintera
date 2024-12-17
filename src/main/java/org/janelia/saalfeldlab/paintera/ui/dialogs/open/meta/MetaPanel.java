@@ -1,7 +1,9 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta;
 
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
@@ -25,15 +27,23 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
+import kotlin.Pair;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -71,11 +81,11 @@ public class MetaPanel {
 
 	private final VBox labelMeta = new VBox();
 
-	private final VBox channelMeta = new VBox();
-
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
 	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
+
+	private final ObjectBinding<MetadataState> metadataStateBinding;
 
 	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
@@ -84,8 +94,9 @@ public class MetaPanel {
 
 	private final ChannelInformation channelInfo = new ChannelInformation();
 
-	public MetaPanel() {
+	public MetaPanel(final OpenSourceState openSourceState) {
 
+		this.metadataStateBinding = openSourceState.getMetadataStateBinding();
 		this.resolution = new SpatialInformation(
 				TEXTFIELD_WIDTH,
 				X_STRING,
@@ -115,6 +126,28 @@ public class MetaPanel {
 		final Label xLabel = new Label(X_STRING);
 		final Label yLabel = new Label(Y_STRING);
 		final Label zLabel = new Label(Z_STRING);
+		metadataStateBinding.addListener((obs, oldv, metadataState) -> {
+			if (metadataState != null) {
+				final HashMap<String, Axis> axisMap = new HashMap<>();
+				metadataState.getSpatialAxes().keySet().forEach(axis -> axisMap.put(axis.getName(), axis));
+
+				final Function<String, String> dimensionLabel = axis -> {
+					final String lowerAxis = axis.toLowerCase();
+					String label = axis;
+					if (axisMap.containsKey(lowerAxis))
+						label += "(" + axisMap.get(lowerAxis).getUnit() + ")";
+					return label;
+				};
+
+				xLabel.textProperty().set(dimensionLabel.apply(X_STRING));
+				yLabel.textProperty().set(dimensionLabel.apply(Y_STRING));
+				zLabel.textProperty().set(dimensionLabel.apply(Z_STRING));
+			} else {
+				xLabel.textProperty().set(X_STRING);
+				yLabel.textProperty().set(Y_STRING);
+				zLabel.textProperty().set(Z_STRING);
+			}
+		});
 
 		formatLabels(empty, xLabel, yLabel, zLabel);
 		addToGrid(spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel);
@@ -154,8 +187,11 @@ public class MetaPanel {
 				grid.setHgap(GRID_HGAP);
 				grid.getColumnConstraints().addAll(cc);
 				grid.add(new Label("Dimensions"), 0, 1);
+				final var metadataState = metadataStateBinding.get();
+				final Axis[] axes = metadataState != null ? MetadataUtils.getAxes(metadataState) : null;
 				for (int d = 0; d < newv.length; ++d) {
-					labels[d].setText("" + d);
+					final var text = axes != null ? axes[d].getName() : "" + d;
+					labels[d].setText(text);
 					final TextField lbl = new TextField("" + newv[d]);
 					lbl.setEditable(false);
 					grid.add(labels[d], d + 1, 0);
@@ -163,7 +199,16 @@ public class MetaPanel {
 					lbl.setPrefWidth(TEXTFIELD_WIDTH);
 				}
 
-				channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int)newv[3]);
+				final Pair<Axis, Integer> channelAxis = metadataState != null ? metadataState.getChannelAxis() : null;
+				final Integer channelIdx;
+				if (channelAxis != null)
+					channelIdx = channelAxis.getSecond();
+				else if (newv.length < 4)
+					channelIdx = null;
+				else
+					channelIdx = 3;
+				final int numChannels = channelIdx != null ? (int)newv[channelIdx] : 0;
+				channelInfo.numChannelsProperty().set(numChannels);
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
 				if (channelInfo.numChannelsProperty().get() > 0) {
 					final Node channelInfoNode = channelInfo.getNode();
@@ -219,16 +264,69 @@ public class MetaPanel {
 		this.max.getTextField().setPrefWidth(TEXTFIELD_WIDTH);
 		this.rawMeta.getChildren().add(rawMinMax);
 
+		listenOnDimensions(openSourceState.getDimensionsBinding());
+		listenOnResolution(openSourceState.getResolutionProperty());
+		listenOnOffset(openSourceState.getTranslationProperty());
+		listenOnMinMax(openSourceState.getMinIntensityProperty(), openSourceState.getMaxIntensityProperty());
+
+		reverseButton.setOnAction(e -> {
+			openSourceState.getResolutionProperty().set(reverse(getResolution()));
+			openSourceState.getTranslationProperty().set(reverse(getOffset()));
+		});
 	}
 
-	public void listenOnResolution(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z) {
+	private static double[] reverse(final double[] array) {
 
-		this.resolution.bindTo(x, y, z);
+		final double[] reversed = new double[array.length];
+		for (int i = 0; i < array.length; ++i) {
+			reversed[i] = array[array.length - 1 - i];
+		}
+		return reversed;
 	}
 
-	public void listenOnOffset(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z) {
+	private void listenOnResolution(final ObservableValue<double[]> resolution) {
 
-		this.offset.bindTo(x, y, z);
+		/* Complicated, but needed to bidirectionally bind an array to individual properties*/
+		bindSpatialInformation(this.resolution, resolution);
+	}
+
+	public void listenOnOffset(final ObservableValue<double[]> offset) {
+
+		bindSpatialInformation(this.offset, offset);
+	}
+
+	private void bindSpatialInformation(final SpatialInformation spatial, final ObservableValue<double[]> observables) {
+
+		/* Complicated, but needed to bidirectionally bind an array to individual properties*/
+
+		final var props = new SimpleDoubleProperty[]{
+				new SimpleDoubleProperty(),
+				new SimpleDoubleProperty(),
+				new SimpleDoubleProperty()
+		};
+		spatial.bindTo(props[0], props[1], props[2]);
+
+		observables.subscribe(it -> {
+			final double[] res;
+			if (it != null)
+				res = it;
+			else
+				res = new double[]{1.0, 1.0, 1.0};
+
+			props[0].setValue(res[0]);
+			props[1].setValue(res[1]);
+			props[2].setValue(res[2]);
+		});
+
+		for (int i = 0; i < props.length; i++) {
+			final SimpleDoubleProperty prop = props[i];
+			int finalI = i;
+			prop.subscribe(it -> {
+				final double[] res = observables.getValue();
+				if (res != null)
+					res[finalI] = it.doubleValue();
+			});
+		}
 	}
 
 	public void listenOnDimensions(final ObservableObjectValue<long[]> dimensions) {

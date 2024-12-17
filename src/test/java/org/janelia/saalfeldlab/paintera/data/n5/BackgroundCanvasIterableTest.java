@@ -5,8 +5,8 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.ValuePair;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -25,10 +25,10 @@ public class BackgroundCanvasIterableTest {
 		};
 
 		final LabelMultisetType[] background = {
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType(),
-				FromIntegerTypeConverter.getAppropriateType()
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence(),
+				LabelMultisetType.singleEntryWithSingleOccurrence()
 		};
 
 		final List<ValuePair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas = Arrays.asList(
@@ -41,26 +41,26 @@ public class BackgroundCanvasIterableTest {
 		final Iterator<LabelMultisetType> iterator = new BackgroundCanvasIterable(backgroundAndCanvas).iterator();
 
 		final LabelMultisetType v0 = iterator.next();
-		Assert.assertNotSame(background[0], v0);
-		Assert.assertEquals(v0.entrySet().size(), 1);
-		Assert.assertEquals(1, v0.entrySet().iterator().next().getCount());
-		Assert.assertEquals(1, v0.entrySet().iterator().next().getElement().id());
-		Assert.assertEquals(1, v0.argMax());
+		assertNotSame(background[0], v0);
+		assertEquals(v0.entrySet().size(), 1);
+		assertEquals(1, v0.entrySet().iterator().next().getCount());
+		assertEquals(1, v0.entrySet().iterator().next().getElement().id());
+		assertEquals(1, v0.argMax());
 
 		final LabelMultisetType v1 = iterator.next();
-		Assert.assertSame(background[1], v1);
+		assertSame(background[1], v1);
 
 		final LabelMultisetType v2 = iterator.next();
-		Assert.assertNotSame(background[2], v2);
-		Assert.assertEquals(v2.entrySet().size(), 1);
-		Assert.assertEquals(1, v2.entrySet().iterator().next().getCount());
-		Assert.assertEquals(Label.BACKGROUND, v2.entrySet().iterator().next().getElement().id());
-		Assert.assertEquals(Label.BACKGROUND, v2.argMax());
+		assertNotSame(background[2], v2);
+		assertEquals(v2.entrySet().size(), 1);
+		assertEquals(1, v2.entrySet().iterator().next().getCount());
+		assertEquals(Label.BACKGROUND, v2.entrySet().iterator().next().getElement().id());
+		assertEquals(Label.BACKGROUND, v2.argMax());
 
 		final LabelMultisetType v3 = iterator.next();
 		// Transparent should remove only in canvas and not be propagated into background
 		// As discussed in saalfeldlab/paintera#305
-		Assert.assertSame(background[3], v3);
+		assertSame(background[3], v3);
 	}
 
 }

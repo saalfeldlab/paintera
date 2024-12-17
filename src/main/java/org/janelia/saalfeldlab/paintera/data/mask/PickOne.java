@@ -49,9 +49,14 @@ public class PickOne<A, B, C, D> extends AbstractConvertedRealRandomAccessible<T
 		@Override
 		public AbstractConvertedRealRandomAccess<Triple<A, B, C>, D> copy() {
 
-			return new PickOneAccess<>(source.copyRealRandomAccess(), pac.copy());
+			return new PickOneAccess<>(source.copy(), pac.copy());
 		}
 
+	}
+
+	@Override public D getType() {
+
+		return realRandomAccess().getType();
 	}
 
 	@Override

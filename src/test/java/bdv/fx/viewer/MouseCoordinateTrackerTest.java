@@ -7,8 +7,9 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import org.janelia.saalfeldlab.bdv.fx.viewer.MouseCoordinateTracker;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MouseCoordinateTrackerTest {
 
@@ -20,25 +21,25 @@ public class MouseCoordinateTrackerTest {
 		ActionSet.installActionSet(node, tracker.getActions());
 
 		// initially not inside
-		Assert.assertFalse(tracker.getIsInside());
+		assertFalse(tracker.getIsInside());
 
 		// move inside
 		node.fireEvent(createEvent(MouseEvent.MOUSE_ENTERED, 0, 0));
-		Assert.assertTrue(tracker.getIsInside());
+		assertTrue(tracker.getIsInside());
 
 		// move position
 		node.fireEvent(createEvent(MouseEvent.MOUSE_MOVED, 1, 2));
-		Assert.assertEquals(1.0, tracker.getMouseX(), 0.0);
-		Assert.assertEquals(2.0, tracker.getMouseY(), 0.0);
+		assertEquals(1.0, tracker.getMouseX(), 0.0);
+		assertEquals(2.0, tracker.getMouseY(), 0.0);
 
 		// drag position
 		node.fireEvent(createEvent(MouseEvent.MOUSE_DRAGGED, -1, -2));
-		Assert.assertEquals(-1.0, tracker.getMouseX(), 0.0);
-		Assert.assertEquals(-2.0, tracker.getMouseY(), 0.0);
+		assertEquals(-1.0, tracker.getMouseX(), 0.0);
+		assertEquals(-2.0, tracker.getMouseY(), 0.0);
 
 		// move outside
 		node.fireEvent(createEvent(MouseEvent.MOUSE_EXITED, 0, 0));
-		Assert.assertFalse(tracker.getIsInside());
+		assertFalse(tracker.getIsInside());
 
 		// after removing, state should not change!
 		ActionSet.removeActionSet(node, tracker.getActions());
@@ -46,25 +47,25 @@ public class MouseCoordinateTrackerTest {
 		final double y = tracker.getMouseY();
 		final boolean isInside = tracker.getIsInside();
 
-		Assert.assertEquals(isInside, tracker.getIsInside());
+		assertEquals(isInside, tracker.getIsInside());
 
 		// move inside
 		node.fireEvent(createEvent(MouseEvent.MOUSE_ENTERED, 0, 0));
-		Assert.assertEquals(isInside, tracker.getIsInside());
+		assertEquals(isInside, tracker.getIsInside());
 
 		// move position
 		node.fireEvent(createEvent(MouseEvent.MOUSE_MOVED, 3, 4));
-		Assert.assertEquals(x, tracker.getMouseX(), 0.0);
-		Assert.assertEquals(y, tracker.getMouseY(), 0.0);
+		assertEquals(x, tracker.getMouseX(), 0.0);
+		assertEquals(y, tracker.getMouseY(), 0.0);
 
 		// drag position
 		node.fireEvent(createEvent(MouseEvent.MOUSE_DRAGGED, -3, -4));
-		Assert.assertEquals(x, tracker.getMouseX(), 0.0);
-		Assert.assertEquals(y, tracker.getMouseY(), 0.0);
+		assertEquals(x, tracker.getMouseX(), 0.0);
+		assertEquals(y, tracker.getMouseY(), 0.0);
 
 		// move outside
 		node.fireEvent(createEvent(MouseEvent.MOUSE_EXITED, 0, 0));
-		Assert.assertEquals(isInside, tracker.getIsInside());
+		assertEquals(isInside, tracker.getIsInside());
 
 	}
 

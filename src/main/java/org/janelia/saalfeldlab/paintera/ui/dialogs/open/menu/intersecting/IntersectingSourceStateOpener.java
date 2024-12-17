@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.intersecting;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting;
 
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;

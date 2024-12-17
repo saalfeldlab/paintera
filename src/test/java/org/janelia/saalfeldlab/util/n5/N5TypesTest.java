@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import com.google.gson.GsonBuilder;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;
@@ -10,19 +11,37 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.junit.Assert;
-import org.junit.Test;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 public class N5TypesTest {
+
+	@BeforeAll
+	public static void setupN5Factory() {
+
+		final var builder = new GsonBuilder();
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
+		Paintera.getN5Factory().gsonBuilder(builder);
+	}
 
 	@Test
 	public void testAndLogIsIntegerType() {
@@ -41,13 +60,13 @@ public class N5TypesTest {
 		testAndLogIsIntegerType(DataType.UINT64, true, wasTested);
 		testAndLogIsIntegerType(DataType.OBJECT, false, wasTested);
 		testAndLogIsIntegerType(DataType.STRING, false, wasTested);
-		Assert.assertEquals(toBeTested, wasTested);
+		assertEquals(toBeTested, wasTested);
 	}
 
 	@Test
-	public void testIsLabelMultisetType() throws IOException {
+	public void testIsLabelMultisetType(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 
 		final String noMultisetGroup = "no-multiset-group";
 		final String multisetGroup = "multiset-group";
@@ -55,32 +74,35 @@ public class N5TypesTest {
 		writer.createGroup(multisetGroup);
 		writer.setAttribute(noMultisetGroup, N5Helpers.LABEL_MULTISETTYPE_KEY, false);
 		writer.setAttribute(multisetGroup, N5Helpers.LABEL_MULTISETTYPE_KEY, true);
-		Assert.assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup));
-		Assert.assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup, false));
-		Assert.assertTrue(N5Types.isLabelMultisetType(writer, multisetGroup));
-		Assert.assertTrue(N5Types.isLabelMultisetType(writer, multisetGroup, false));
+		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup));
+		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup, false));
+		assertTrue(N5Types.isLabelMultisetType(writer, multisetGroup));
+		assertTrue(N5Types.isLabelMultisetType(writer, multisetGroup, false));
 
 		final String noMultisetGroupMultiscale = "no-multiset-group-multiscale";
 		final String multisetGroupMultiscale = "multiset-group-multiscale";
 		writer.createGroup(noMultisetGroupMultiscale);
 		writer.createGroup(multisetGroupMultiscale);
-		writer.createDataset(noMultisetGroupMultiscale + "/s0", N5TestUtil.defaultAttributes());
-		writer.createDataset(noMultisetGroupMultiscale + "/s1", N5TestUtil.defaultAttributes());
-		writer.createDataset(multisetGroupMultiscale + "/s0", N5TestUtil.defaultAttributes());
-		writer.createDataset(multisetGroupMultiscale + "/s1", N5TestUtil.defaultAttributes());
+
+		final DatasetAttributes defaultAttributes = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
+
+		writer.createDataset(noMultisetGroupMultiscale + "/s0", defaultAttributes);
+		writer.createDataset(noMultisetGroupMultiscale + "/s1", defaultAttributes);
+		writer.createDataset(multisetGroupMultiscale + "/s0", defaultAttributes);
+		writer.createDataset(multisetGroupMultiscale + "/s1", defaultAttributes);
 		writer.setAttribute(noMultisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, false);
 		writer.setAttribute(multisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, true);
-		Assert.assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale));
-		Assert.assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale, true));
-		Assert.assertFalse(N5Types.isLabelMultisetType(writer, multisetGroupMultiscale));
-		Assert.assertTrue(N5Types.isLabelMultisetType(writer, multisetGroupMultiscale, true));
+		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale));
+		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale, true));
+		assertFalse(N5Types.isLabelMultisetType(writer, multisetGroupMultiscale));
+		assertTrue(N5Types.isLabelMultisetType(writer, multisetGroupMultiscale, true));
 	}
 
 	@Test
 	public void testMinForType() {
 
 		for (final DataType t : DataType.values())
-			Assert.assertEquals(0.0, N5Types.minForType(t), 0.0);
+			assertEquals(0.0, N5Types.minForType(t), 0.0);
 	}
 
 	@Test
@@ -100,16 +122,16 @@ public class N5TypesTest {
 		testAndLogMaxForType(DataType.UINT16, 0xffff, wasTested);
 		testAndLogMaxForType(DataType.UINT32, 0xffffffffL, wasTested);
 		testAndLogMaxForType(DataType.UINT64, 2.0 * Long.MAX_VALUE, wasTested);
-		Assert.assertEquals(toBeTested, wasTested);
+		assertEquals(toBeTested, wasTested);
 	}
 
 	@Test
-	public void testGetDataType() throws IOException {
+	public void testGetDataType(@TempDir Path tmp) throws IOException {
 
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = Paintera.getN5Factory().newWriter(tmp.toAbsolutePath().toString());
 		for (final DataType t : DataType.values()) {
 			writer.createDataset(t.toString(), new long[]{1}, new int[]{1}, t, new RawCompression());
-			Assert.assertEquals(t, N5Types.getDataType(writer, t.toString()));
+			assertEquals(t, N5Types.getDataType(writer, t.toString()));
 		}
 	}
 
@@ -130,7 +152,7 @@ public class N5TypesTest {
 		testAndLogNativeTypeForType(DataType.UINT64, UnsignedLongType.class, wasTested);
 		testAndLogNativeTypeForType(DataType.OBJECT, ByteType.class, wasTested);
 		testAndLogNativeTypeForType(DataType.STRING, ByteType.class, wasTested);
-		Assert.assertEquals(toBeTested, wasTested);
+		assertEquals(toBeTested, wasTested);
 	}
 
 	private static void testAndLogIsIntegerType(final DataType type, final boolean expected, Set<DataType> log) {
@@ -138,20 +160,20 @@ public class N5TypesTest {
 		final boolean actual = N5Types.isIntegerType(type);
 		log.add(type);
 		if (expected)
-			Assert.assertTrue(actual);
+			assertTrue(actual);
 		else
-			Assert.assertFalse(actual);
+			assertFalse(actual);
 	}
 
 	private static void testAndLogMaxForType(final DataType type, final double expected, Set<DataType> log) {
 
 		log.add(type);
-		Assert.assertEquals(expected, N5Types.maxForType(type), 0.0);
+		assertEquals(expected, N5Types.maxForType(type), 0.0);
 	}
 
 	private static <T> void testAndLogNativeTypeForType(final DataType type, final Class<T> expected, Set<DataType> log) {
 
 		log.add(type);
-		Assert.assertEquals(expected, N5Types.type(type).getClass());
+		assertEquals(expected, N5Types.type(type).getClass());
 	}
 }
