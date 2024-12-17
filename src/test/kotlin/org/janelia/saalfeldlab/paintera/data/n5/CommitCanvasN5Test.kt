@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.c
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.discoverAndParseRecursive
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -57,7 +58,18 @@ class CommitCanvasN5Test {
 
 		val builder = GsonBuilder()
 		builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter());
-		Paintera.n5Factory.gsonBuilder(builder)
+		Paintera.n5Factory.apply {
+			gsonBuilder(builder)
+//			cacheAttributes(false)
+		}
+	}
+
+
+	@AfterAll
+	fun resetN5Factory() {
+		Paintera.n5Factory.apply {
+//			cacheAttributes(true)
+		}
 	}
 
 	@Test
@@ -316,21 +328,22 @@ class CommitCanvasN5Test {
 			assert: (UnsignedLongType, T) -> Unit
 		) {
 			println("\n\n\nNEXT")
-
 			val (canvas, container) = canvasAndContainer
 			println("Container: ${container.reader.uri}\t")
+			val map = mutableMapOf<String, String>()
 			discoverAndParseRecursive(container.reader) {
-				println("dataset: ${it.path}\tmetadata: ${it.metadata}")
+				map[it.path] = "dataset: ${it.path}\tmetadata: ${it.metadata}"
 			}
-			println(container.reader.uri)
+			map.forEach { (_, v) -> println("\t$v") }
+			println("List Files")
 			FileUtils.iterateFilesAndDirs(
 				File(container.reader.uri),
 				TrueFileFilter.TRUE,
 				TrueFileFilter.TRUE
 			).forEach {
-				println(it.absolutePath.substringAfter(container.reader.uri.path))
+				println("\t\t${it.absolutePath.substringAfter(container.reader.uri.path)}")
 			}
-			println()
+			println("Create MetadataState")
 			val metadataState = createMetadataState(container, dataset)!!
 
 			writeAll(metadataState, canvas)

@@ -412,10 +412,26 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
-			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
 
-			N5TreeNode.flattenN5Tree(metadataRoot).forEach { println("\t\t\t${it.path}") }
+			val map = mutableMapOf<String, String>()
+			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader) {
+				map[it.path] = "dataset: ${it.path}\tmetadata: ${it.metadata}"
+			}
+			map.forEach { (_, v) -> println("\t$v") }
 
+			println("List Nodes")
+			var nodes = mutableListOf(metadataRoot)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			println("Flatten")
+			N5TreeNode.flattenN5Tree(metadataRoot).forEach { println("\t${it.path}") }
+
+			println("Filter Metadata")
 			return N5TreeNode.flattenN5Tree(metadataRoot)
 				.asSequence()
 				.filter { node: N5TreeNode ->
