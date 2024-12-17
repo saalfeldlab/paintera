@@ -6,9 +6,13 @@ import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.util.n5.N5Helpers.GROUP_PARSERS
 import org.janelia.saalfeldlab.util.n5.N5Helpers.METADATA_PARSERS
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.Future
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
+import java.util.function.Predicate
 
 private val IO_EXECUTOR by lazy {
 	val count = AtomicInteger()
@@ -22,6 +26,26 @@ private val IO_EXECUTOR by lazy {
 	val exceptionHandler: (Thread, Throwable) -> Unit = { _, throwable -> throwable.printStackTrace() }
 	val parallelism = Runtime.getRuntime().availableProcessors()
 	ForkJoinPool(parallelism, factory, exceptionHandler, true)
+}
+
+private fun deepList(n5: N5Reader, pathName: String, filter: Predicate<String>, executor: ExecutorService) : Array<String> {
+	with(n5) {
+		(pathName as java.lang.String)
+		val normalPathName = pathName.replaceAll("(^" + groupSeparator + "*)|(" + groupSeparator + "*$)", "");
+		val results = mutableListOf<String>()
+		val futures = LinkedBlockingQueue<Future<String>>()
+		N5Reader.deepListHelper(n5, normalPathName, false, filter, executor, futures)
+
+		futures.poll().get()?.also { println("\t\tFirst Future: $it") }
+		while (futures.isNotEmpty()) {
+			futures.poll().get()?.also { result: String ->
+				println("\t\tresult: $result")
+				val subResult = result.substring(normalPathName.length + groupSeparator.length)
+				results.add(subResult)
+			}
+		}
+		return results.toTypedArray()
+	}
 }
 
 
@@ -63,13 +87,17 @@ private fun getDiscoverer(n5: N5Reader): N5DatasetDiscoverer {
 				}
 			}
 
-			val datasetPaths : Array<String>
+			val datasetPaths: Array<String>
 			try {
-				datasetPaths = n5.deepList(root.getPath(), executor);
+				datasetPaths = deepList(
+					n5,
+					root.getPath(),
+					Predicate{ true },
+					executor);
 				println("Deep List Paths")
-				datasetPaths.forEach { println("\t $it")}
+				datasetPaths.forEach { println("\t $it") }
 				N5TreeNode.fromFlatList(root, datasetPaths, groupSeparator);
-			} catch (ignore : Exception) {
+			} catch (ignore: Exception) {
 				ignore.printStackTrace();
 				return root;
 			}
@@ -108,7 +136,7 @@ private fun getDiscoverer(n5: N5Reader): N5DatasetDiscoverer {
 	}
 }
 
-private val LOG = KotlinLogging.logger {  }
+private val LOG = KotlinLogging.logger { }
 
 /**
  * Parses the metadata from a given N5Reader starting at a specified initial group and applies parsing results to nodes
