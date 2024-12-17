@@ -6,6 +6,7 @@ import gnu.trove.map.hash.TLongObjectHashMap
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jdk.internal.vm.ThreadContainers.container
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
@@ -60,7 +61,7 @@ class CommitCanvasN5Test {
 		builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter());
 		Paintera.n5Factory.apply {
 			gsonBuilder(builder)
-//			cacheAttributes(false)
+			cacheAttributes(false)
 		}
 	}
 
@@ -68,7 +69,7 @@ class CommitCanvasN5Test {
 	@AfterAll
 	fun resetN5Factory() {
 		Paintera.n5Factory.apply {
-//			cacheAttributes(true)
+			cacheAttributes(true)
 		}
 	}
 
@@ -329,13 +330,21 @@ class CommitCanvasN5Test {
 		) {
 			println("\n\n\nNEXT")
 			val (canvas, container) = canvasAndContainer
+			println("List Files Before")
+			FileUtils.iterateFilesAndDirs(
+				File(container.reader.uri),
+				TrueFileFilter.TRUE,
+				TrueFileFilter.TRUE
+			).forEach {
+				println("\t\t${it.absolutePath.substringAfter(container.reader.uri.path)}")
+			}
 			println("Container: ${container.reader.uri}\t")
 			val map = mutableMapOf<String, String>()
 			discoverAndParseRecursive(container.reader) {
 				map[it.path] = "dataset: ${it.path}\tmetadata: ${it.metadata}"
 			}
 			map.forEach { (_, v) -> println("\t$v") }
-			println("List Files")
+			println("List Files After")
 			FileUtils.iterateFilesAndDirs(
 				File(container.reader.uri),
 				TrueFileFilter.TRUE,
