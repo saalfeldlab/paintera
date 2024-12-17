@@ -36,9 +36,8 @@ private fun deepList(n5: N5Reader, pathName: String, filter: Predicate<String>, 
 		val futures = LinkedBlockingQueue<Future<String>>()
 		N5Reader.deepListHelper(n5, normalPathName, false, filter, executor, futures)
 
-		futures.poll().get()?.also { println("\t\tFirst Future: $it") }
 		while (futures.isNotEmpty()) {
-			futures.poll().get()?.also { result: String ->
+			futures.poll().get()?.takeIf { it.isNotBlank()  }?.also { result: String ->
 				println("\t\tresult: $result")
 				val subResult = result.substring(normalPathName.length + groupSeparator.length)
 				results.add(subResult)
