@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.GROUP_PARSERS
 import org.janelia.saalfeldlab.util.n5.N5Helpers.METADATA_PARSERS
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Consumer
 
 private val IO_EXECUTOR by lazy {
 	val count = AtomicInteger()
@@ -25,7 +26,86 @@ private val IO_EXECUTOR by lazy {
 
 
 private fun getDiscoverer(n5: N5Reader): N5DatasetDiscoverer {
-	return N5DatasetDiscoverer(n5, IO_EXECUTOR, METADATA_PARSERS, GROUP_PARSERS)
+	return object : N5DatasetDiscoverer(n5, IO_EXECUTOR, METADATA_PARSERS, GROUP_PARSERS) {
+
+		val groupSeparator = n5.groupSeparator
+		val executor = IO_EXECUTOR
+
+		override fun discoverAndParseRecursive(root: N5TreeNode, callback: Consumer<N5TreeNode?>): N5TreeNode? {
+			println("List Nodes - Before Shallow")
+			var nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			discoverShallow(root, callback);
+			println("List Nodes - After Shallow")
+			nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			callback.accept(root);
+			sortAndTrimRecursive(root, callback);
+			println("List Nodes - After Sort and Trim")
+			nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+
+			val datasetPaths : Array<String>
+			try {
+				datasetPaths = n5.deepList(root.getPath(), executor);
+				println("Deep List Paths")
+				datasetPaths.forEach { println("\t $it")}
+				N5TreeNode.fromFlatList(root, datasetPaths, groupSeparator);
+			} catch (ignore : Exception) {
+				ignore.printStackTrace();
+				return root;
+			}
+			callback.accept(root);
+			println("List Nodes - Before Parse Metadata")
+			nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			parseMetadataRecursive(root, callback)
+			println("List Nodes - After Parse Metadata")
+			nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			sortAndTrimRecursive(root, callback)
+			println("List Nodes - After Sort and Trim 2")
+			nodes = mutableListOf(root)
+			while (nodes.isNotEmpty()) {
+				for (node in nodes.toList()) {
+					nodes += node.childrenList()
+					println("\tnode: ${node.path}\tmetadata: ${node.metadata}")
+					nodes.remove(node)
+				}
+			}
+			return root
+		}
+	}
 }
 
 private val LOG = KotlinLogging.logger {  }
