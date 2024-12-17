@@ -6,7 +6,6 @@ import gnu.trove.map.hash.TLongObjectHashMap
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
-import jdk.internal.vm.ThreadContainers.container
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
