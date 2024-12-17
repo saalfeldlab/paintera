@@ -41,8 +41,7 @@ private val LOG = KotlinLogging.logger {  }
  */
 @JvmOverloads
 internal fun discoverAndParseRecursive(n5Reader: N5Reader, initialGroup: String = "/", callback: (N5TreeNode) -> Unit = {}): N5TreeNode {
-	val discoverer = getDiscoverer(n5Reader)
-	return discoverer.discoverAndParseRecursive(initialGroup) {
+	return getDiscoverer(n5Reader).discoverAndParseRecursive(initialGroup) {
 		callback(it)
 	}
 }
