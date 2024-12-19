@@ -13,7 +13,7 @@ class MultiRealIntervalAccessibleRealRandomAccessible<T>(
 
 	override fun numDimensions() = rais[0].numDimensions()
 
-	override fun realRandomAccess() = MultiRealRaiRealRandomAccess(
+	override fun realRandomAccess() = MultiRealRealRandomAccess(
 		numDimensions(),
 		rais.map { it to it.realRandomAccess() },
 		outOfBounds,
@@ -24,7 +24,7 @@ class MultiRealIntervalAccessibleRealRandomAccessible<T>(
 
 	override fun getType() = outOfBounds
 
-	class MultiRealRaiRealRandomAccess<T>(
+	class MultiRealRealRandomAccess<T>(
 		numDimensions: Int,
 		val rrais: List<Pair<RealInterval, RealRandomAccess<T>>>,
 		val outOfBounds: T,
@@ -42,9 +42,6 @@ class MultiRealIntervalAccessibleRealRandomAccessible<T>(
 			return outOfBounds
 		}
 
-		override fun copy() = MultiRealRaiRealRandomAccess(numDimensions(), rrais, outOfBounds, filter)
-
+		override fun copy() = MultiRealRealRandomAccess(numDimensions(), rrais, outOfBounds, filter)
 	}
-
-
 }
