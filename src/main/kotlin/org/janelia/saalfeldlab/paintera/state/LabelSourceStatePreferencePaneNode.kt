@@ -68,11 +68,12 @@ class LabelSourceStatePreferencePaneNode(
 
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segements = selectedSegments.selectedSegments.toArray().toList()
-				observableSelectedSegmentsList.removeIf { it !in segements }
-				observableSelectedSegmentsList.addAll(segements.filter { it !in observableSelectedSegmentsList }.toList())
+				val segments = selectedSegments.selectedSegments.toArray().toList()
+				observableSelectedSegmentsList.removeIf { it !in segments }
+				observableSelectedSegmentsList.addAll(segments.filter { it !in observableSelectedSegmentsList }.toList())
 			}
 			selectedSegments.addListener(selectedSegmentUpdateListener)
+			selectedSegmentUpdateListener(selectedSegments) //run the first time manually, since it may not be invalidated yet
 			box.visibleProperty().addListener { _, _, visible ->
 				if (!visible) {
 					selectedSegments.removeListener(selectedSegmentUpdateListener)
