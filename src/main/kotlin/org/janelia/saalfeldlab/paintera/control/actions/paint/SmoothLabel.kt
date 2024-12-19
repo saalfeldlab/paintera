@@ -13,7 +13,6 @@ import javafx.beans.property.SimpleLongProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.ActionEvent
-import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
@@ -41,9 +40,11 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.util.Intervals
-import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.component1
+import org.janelia.saalfeldlab.fx.extensions.component2
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -51,20 +52,15 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
+import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction.activateReplacement
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothActionVerifiedState.Companion.verifyState
-import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
+import org.janelia.saalfeldlab.paintera.control.actions.onAction
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode.statePaintContext
-import org.janelia.saalfeldlab.paintera.control.tools.paint.StatePaintContext
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
-import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
@@ -72,62 +68,14 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import kotlin.collections.set
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToLong
-import kotlin.properties.Delegates
-import kotlin.reflect.KMutableProperty0
 import net.imglib2.type.label.Label as Imglib2Label
 
-open class MenuAction(val label: String) : Action<Event>(Event.ANY) {
 
-
-	init {
-		keysDown = null
-		name = label
-	}
-
-	val menuItem by LazyForeignValue( ::paintera ) {
-		MenuItem(label).also { item ->
-			item.onAction = EventHandler { this(it) }
-			item.isDisable = isValid(null)
-		}
-	}
-
-}
-
-
-//TODO Caleb: Separate Smooth UI from SmoothAction
-class SmoothActionVerifiedState {
-	internal lateinit var labelSource: ConnectomicsLabelState<*, *>
-	internal lateinit var paintContext: StatePaintContext<*, *>
-	internal var mipMapLevel by Delegates.notNull<Int>()
-
-
-	fun <E : Event> Action<E>.verifyState() {
-		verify(::labelSource, "Label Source is Active") { paintera.currentSource as? ConnectomicsLabelState<*, *> }
-		verify(::paintContext, "Paint Label Mode has StatePaintContext") { statePaintContext }
-		verify(::mipMapLevel, "Viewer is Focused") { paintera.activeViewer.get()?.state?.bestMipMapLevel }
-	}
-
-	fun <E : Event, T> Action<E>.verify(property: KMutableProperty0<T>, description: String, stateProvider: () -> T?) {
-		verify(description) { stateProvider()?.also { state -> property.set(state) } != null }
-	}
-
-	companion object {
-		fun <E : Event> Action<E>.verifyState(state: SmoothActionVerifiedState) {
-			state.run { verifyState() }
-			verify("Paint Label Mode is Active") { paintera.currentMode is PaintLabelMode }
-			verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
-			verify("Mask is in Use") { !state.paintContext.dataSource.isMaskInUseBinding().get() }
-
-		}
-	}
-}
-
-object SmoothAction : MenuAction("_Smooth...") {
+object SmoothLabel : MenuAction("_Smooth...") {
 
 	private fun newConvolutionExecutor(): ThreadPoolExecutor {
 		val threads = Runtime.getRuntime().availableProcessors()
@@ -173,29 +121,18 @@ object SmoothAction : MenuAction("_Smooth...") {
 
 	private lateinit var updateSmoothMask: suspend ((Boolean) -> List<RealInterval>)
 
-	private val state = SmoothActionVerifiedState()
-
-	private val SmoothActionVerifiedState.defaultKernelSize: Double
-		get() {
-			val levelResolution = getLevelResolution(mipMapLevel)
-			val min = levelResolution.min()
-			val max = levelResolution.max()
-			return min + (max - min) / 2.0
-		}
+	private val state = SmoothLabelState()
 
 	init {
-		verifyState(state)
 		verifyPermission(PaintActionType.Smooth, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
-		onAction {
+		onAction(state) {
 			finalizeSmoothing = false
 			/* Set lateinit values */
-			with(state) {
-				kernelSizeProperty.unbind()
-				kernelSizeProperty.set(defaultKernelSize)
-				progress = 0.0
-				startSmoothTask()
-				showSmoothDialog()
-			}
+			kernelSizeProperty.unbind()
+			kernelSizeProperty.set(defaultKernelSize)
+			progress = 0.0
+			startSmoothTask()
+			showSmoothDialog()
 		}
 	}
 
@@ -205,10 +142,6 @@ object SmoothAction : MenuAction("_Smooth...") {
 		Applying(" Applying... "),
 		Empty("             ")
 	}
-
-
-	private val AffineTransform3D.resolution
-		get() = doubleArrayOf(this[0, 0], this[1, 1], this[2, 2])
 
 	private fun activateReplacementLabel(current : Long, next : Long) {
 		val selectedIds = state.paintContext.selectedIds
@@ -221,7 +154,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		}
 	}
 
-	private fun SmoothActionVerifiedState.showSmoothDialog() {
+	private fun SmoothLabelState.showSmoothDialog() {
 		Dialog<Boolean>().apply {
 			Paintera.registerStylesheets(dialogPane)
 			dialogPane.buttonTypes += ButtonType.APPLY
@@ -392,16 +325,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		}.show()
 	}
 
-	private fun SmoothActionVerifiedState.getLevelResolution(level: Int): DoubleArray {
-		val metadataScales = ((labelSource.backend as? SourceStateBackendN5<*, *>)?.metadataState as? MultiScaleMetadataState)?.scaleTransforms?.get(level)
-		val resFromRai = (labelSource.backend as? RandomAccessibleIntervalBackend<*, *>)?.resolutions
-		return when {
-			level == 0 -> labelSource.resolution
-			metadataScales != null -> metadataScales.resolution
-			resFromRai != null -> resFromRai[level]
-			else -> doubleArrayOf(1.0, 1.0, 1.0)
-		}
-	}
+
 
 	private val smoothingProperty = SimpleBooleanProperty("Smoothing", "Smooth Action is Running", false)
 
@@ -414,7 +338,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 	private var smoothing by smoothingProperty.nonnull()
 
 	@OptIn(ExperimentalCoroutinesApi::class)
-	private fun SmoothActionVerifiedState.startSmoothTask() {
+	private fun SmoothLabelState.startSmoothTask() {
 		val prevScales = paintera.activeViewer.get()!!.screenScales
 		val smoothTriggerListener = { reason : String ->
 			{ _ : Any? ->
@@ -500,7 +424,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		progress = 0.0
 	}
 
-	private fun SmoothActionVerifiedState.initializeSmoothLabel() {
+	private fun SmoothLabelState.initializeSmoothLabel() {
 
 		val maskedSource = paintContext.dataSource as MaskedSource<*, *>
 		val labels = paintContext.selectedIds.activeIds
@@ -564,7 +488,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		return blocksFromSource + blocksFromCanvas
 	}
 
-	private fun SmoothActionVerifiedState.pruneBlock(blocksWithLabel: List<Interval>): List<RealInterval> {
+	private fun SmoothLabelState.pruneBlock(blocksWithLabel: List<Interval>): List<RealInterval> {
 		val viewsInSourceSpace = viewerIntervalsInSourceSpace()
 
 		/* remove any blocks that don't intersect with them*/
@@ -573,7 +497,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 			.toList()
 	}
 
-	private fun SmoothActionVerifiedState.viewerIntervalsInSourceSpace(): Array<FinalRealInterval> {
+	private fun SmoothLabelState.viewerIntervalsInSourceSpace(): Array<FinalRealInterval> {
 		/* get viewer screen intervals for each orthognal view in source space*/
 		val viewerAndTransforms = paintera.baseView.orthogonalViews().viewerAndTransforms()
 		val viewsInSourceSpace = viewerAndTransforms
@@ -591,7 +515,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		return viewsInSourceSpace
 	}
 
-	private suspend fun SmoothActionVerifiedState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, cellGrid: CellGrid, blocksWithLabel: List<Interval>, preview: Boolean = false): List<RealInterval> {
+	private suspend fun SmoothLabelState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, cellGrid: CellGrid, blocksWithLabel: List<Interval>, preview: Boolean = false): List<RealInterval> {
 
 		/* Just to show that smoothing has started */
 		progress = 0.0 // The listener only always reseting to zero if going backward, so do this first
@@ -616,7 +540,7 @@ object SmoothAction : MenuAction("_Smooth...") {
 		val smoothedImg = Lazy.generate(labelMask, cellGrid.cellDimensions, DoubleType(), AccessFlags.setOf()) {}
 
 		paintContext.dataSource.resetMasks()
-		setNewSourceMask(paintContext.dataSource, MaskInfo(0, scale0))
+		setNewSourceMask(paintContext.dataSource, MaskInfo(0, scale0)) { it >= 0 }
 		val mask = paintContext.dataSource.currentMask
 
 		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Job = { slice ->
@@ -691,9 +615,9 @@ object SmoothAction : MenuAction("_Smooth...") {
 		return intervalsToSmoothOver
 	}
 
-	private fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo) {
+	internal fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo, acceptMaskValue: (Long) -> Boolean = { it >= 0}) {
 		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(maskInfo.level)
 		val mask = SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
-		maskedSource.setMask(mask) { it >= 0 }
+		maskedSource.setMask(mask, acceptMaskValue)
 	}
 }
