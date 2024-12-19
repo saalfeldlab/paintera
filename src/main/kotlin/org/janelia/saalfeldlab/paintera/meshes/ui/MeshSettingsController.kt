@@ -13,6 +13,7 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.stage.Modality
+import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
@@ -278,7 +279,19 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 		progressBar.minWidth = Control.USE_PREF_SIZE
 		progressBar.maxWidth = Control.USE_PREF_SIZE
 		progressBar.text = "" + meshInfo.key
-		progressBar.bindTo(meshInfo.progressProperty)
+		InvokeOnJavaFXApplicationThread {
+			var progressState = meshInfo.progressState
+			var count = 20
+			while (progressState == null || count <= 0) {
+				awaitPulse()
+				progressState = meshInfo.progressState
+				count--
+			}
+			progressState?.let { (progressBar.bindTo(it)) }
+		}
+		meshInfo.progressState?.let {
+			progressBar.bindTo(it)
+		}
 		graphic = progressBar
 	}
 

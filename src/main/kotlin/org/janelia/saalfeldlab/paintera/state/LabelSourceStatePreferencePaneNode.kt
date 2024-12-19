@@ -68,7 +68,7 @@ class LabelSourceStatePreferencePaneNode(
 
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segments = selectedSegments.selectedSegments.toArray().toList()
+				val segments = selectedSegments.getSelectedSegments().toArray().toList()
 				observableSelectedSegmentsList.removeIf { it !in segments }
 				observableSelectedSegmentsList.addAll(segments.filter { it !in observableSelectedSegmentsList }.toList())
 			}
@@ -103,7 +103,7 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.selectedSegments.toArray().joinToString(",")
+				return selectedSegments.getSelectedSegments().toArray().joinToString(",")
 			}
 
 			override fun fromString(string: String?): SelectedSegments {
