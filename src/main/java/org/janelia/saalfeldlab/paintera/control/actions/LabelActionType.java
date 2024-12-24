@@ -9,7 +9,9 @@ public enum LabelActionType implements ActionType {
 	Lock(true),
 	Merge,
 	Split,
-	SelectAll(true);
+	SelectAll(true),
+	Replace,
+	Delete;
 
 	//TODO Caleb: consider moving this to ActionType. Maybe others too
 	private final boolean readOnly;

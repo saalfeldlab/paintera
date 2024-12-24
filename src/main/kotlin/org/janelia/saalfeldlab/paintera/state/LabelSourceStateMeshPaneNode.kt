@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.beans.property.ReadOnlyListProperty
-import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -28,8 +26,6 @@ import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.stream.Collectors
 
 typealias TPE = TitledPaneExtensions
 
@@ -63,7 +59,12 @@ class LabelSourceStateMeshPaneNode(
 	) : TitledPane("Mesh List", null) {
 
 		private val isMeshListEnabledCheckBox = CheckBox()
-		private val totalProgressBar = MeshProgressBar()
+		private val disabledMeshesBinding = isMeshListEnabledCheckBox.selectedProperty().not()
+		private val observableMeshProgresses = meshInfoList.meshInfos.readOnlyProperty
+		private val globalMeshProgress = GlobalMeshProgressState(observableMeshProgresses, disabledMeshesBinding)
+		private val totalProgressBar = MeshProgressBar().also {
+			it.bindTo(globalMeshProgress)
+		}
 
 		init {
 
@@ -119,32 +120,12 @@ class LabelSourceStateMeshPaneNode(
 				isFillHeight = true
 			}
 
-			meshInfoList.meshInfos.addListener(Listener(meshInfoList.meshInfos, totalProgressBar))
-
 			expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
 			graphicsOnly(tpGraphics)
 			alignment = Pos.CENTER_RIGHT
 			meshInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
 			content = meshesBox
 		}
-
-		private class Listener(
-			private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
-			private val totalProgressBar: MeshProgressBar,
-		) : ListChangeListener<SegmentMeshInfo> {
-
-			override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
-				updateTotalProgressBindings()
-			}
-
-			private fun updateTotalProgressBindings() {
-				val individualProgresses = meshInfos.stream().map { it.progressProperty }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-				val globalProgress = GlobalMeshProgress(individualProgresses)
-				this.totalProgressBar.bindTo(globalProgress)
-			}
-		}
-
-
 	}
 
 

@@ -4,9 +4,7 @@ import javafx.beans.property.SimpleIntegerProperty
 import kotlinx.coroutines.*
 import net.imglib2.cache.Cache
 import net.imglib2.cache.LoaderCache
-import org.checkerframework.checker.units.qual.K
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import java.util.concurrent.ExecutionException
 import java.util.function.Predicate
 
 open class AsyncCacheWithLoader<K : Any, V>(
@@ -14,12 +12,16 @@ open class AsyncCacheWithLoader<K : Any, V>(
 	private val loader: suspend (K) -> V
 ) : Cache<K, V> {
 
-	private val loaderScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-	private val loaderQueueScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	private val loaderSupervisor = SupervisorJob()
+	private val queueSupervisor = SupervisorJob()
+
+	private val loaderScope = CoroutineScope(Dispatchers.IO + loaderSupervisor)
+	private val loaderQueueScope = CoroutineScope(Dispatchers.IO + queueSupervisor)
 
 	val cacheSizeProperty = SimpleIntegerProperty()
 	var cacheSize by cacheSizeProperty.nonnull()
 		private set
+
 	val pendingJobsProperty = SimpleIntegerProperty()
 	var pendingJobs by pendingJobsProperty.nonnull()
 		private set
@@ -27,6 +29,9 @@ open class AsyncCacheWithLoader<K : Any, V>(
 	fun cancelUnsubmittedLoadRequests() {
 		loaderScope.coroutineContext.cancelChildren()
 	}
+
+	fun hasActiveJobs() = loaderSupervisor.children.any { it.isActive }
+	fun hasQueuedJobs() = queueSupervisor.children.count() > 0
 
 	override fun getIfPresent(key: K): V? {
 		return runBlocking {

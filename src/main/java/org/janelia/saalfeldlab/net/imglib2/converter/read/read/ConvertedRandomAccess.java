@@ -76,6 +76,6 @@ final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAc
 	@Override
 	public ConvertedRandomAccess<A, B> copy() {
 
-		return new ConvertedRandomAccess<>(source.copyRandomAccess(), converter, supplier);
+		return new ConvertedRandomAccess<>(source.copy(), converter, supplier);
 	}
 }

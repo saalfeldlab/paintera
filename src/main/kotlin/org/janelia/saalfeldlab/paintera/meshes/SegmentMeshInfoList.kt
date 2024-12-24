@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
+import com.sun.javafx.scene.control.MultipleAdditionAndRemovedChange
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
@@ -13,7 +14,7 @@ class SegmentMeshInfoList(
 ) : MeshInfoList<SegmentMeshInfo, Long>(FXCollections.observableArrayList(), manager) {
 
 	init {
-		selectedSegments.addListener(ListChangeListener {change ->
+		val listChangeListener = ListChangeListener<Long> { change ->
 			if (manager.managedSettings.isMeshListEnabledProperty.get()) {
 				val toRemove = mutableSetOf<Long>()
 				val toAdd = mutableSetOf<Long>()
@@ -32,7 +33,12 @@ class SegmentMeshInfoList(
 				meshInfoList.removeIf { toRemove.contains(it.key) }
 				meshInfoList += toAdd.map { SegmentMeshInfo(it, manager) }.toSet()
 			}
-		})
+		}
+		selectedSegments.addListener(listChangeListener)
+
+		/*Trigger change listener for current list state */
+		val currentListChange = MultipleAdditionAndRemovedChange<Long>(selectedSegments.toList(), emptyList<Long>(), selectedSegments)
+		listChangeListener.onChanged(currentListChange)
 	}
 
 	override fun meshNodeFactory(meshInfo: SegmentMeshInfo) = SegmentMeshInfoNode(meshInfo)

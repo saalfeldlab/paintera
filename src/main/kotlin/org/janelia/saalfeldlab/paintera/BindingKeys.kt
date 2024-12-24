@@ -109,6 +109,7 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SELECT_ALL_IN_CURRENT_VIEW                           ( CONTROL_DOWN + SHIFT_DOWN + A),
     LOCK_SEGMENT                                         ( L),
     NEXT_ID                                              ( N),
+    DELETE_ID                                             ( SHIFT_DOWN + BACK_SPACE),
     COMMIT_DIALOG                                        ( C + CONTROL_DOWN),
     MERGE_ALL_SELECTED                                   ( ENTER + CONTROL_DOWN),
     ARGB_STREAM__INCREMENT_SEED                          ( C),

@@ -32,7 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction.onAction
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
@@ -71,6 +71,7 @@ object PaintLabelMode : AbstractToolMode() {
 			*getToolTriggers().toTypedArray(),
 			enterShapeInterpolationMode,
 			getSelectNextIdActions(),
+			getDeleteReplaceIdActions(),
 			getResetMaskAction(),
 		)
 	}
@@ -147,6 +148,7 @@ object PaintLabelMode : AbstractToolMode() {
 						switchTool(null)
 						selectViewerBefore { switchModes() }
 					}
+
 					else -> switchModes()
 				}
 			}
@@ -184,7 +186,7 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
-	override fun switchTool(tool: Tool?) : Job? {
+	override fun switchTool(tool: Tool?): Job? {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
@@ -216,15 +218,16 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
+	private fun getDeleteReplaceIdActions() = painteraActionSet("delete_label", LabelActionType.Delete) {
+		KEY_PRESSED(DELETE_ID) {
+			verify("ReplaceLabel is valid") { ReplaceLabel.isValid(it) }
+			onAction { ReplaceLabel.showDialog() }
+		}
+	}
+
 	private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint, ignoreDisable = true) {
 		KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
-			verify {
-				statePaintContext?.let { state ->
-					(state.dataSource as? MaskedSource<*, *>)?.let { maskedSource ->
-						maskedSource.currentMask?.let { true } ?: false
-					} ?: false
-				} ?: false
-			}
+			verify("has current mask") { (statePaintContext as? MaskedSource<*, *>)?.currentMask != null }
 			onAction {
 				InvokeOnJavaFXApplicationThread {
 					PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {

@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -138,11 +138,11 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				interrupt()
 				unbindFromThis()
 				root?.visibleProperty()?.unbind()
-				let { releaseState.accept(key, state) }
+				releaseState.accept(key, state)
 				root
 			}
 		}
-		Platform.runLater {
+		InvokeOnJavaFXApplicationThread {
 			// The roots list has to be converted to array first and then passed as vararg
 			// to use the implementation in ObservableList instead of the Kotlin extension
 			// function.

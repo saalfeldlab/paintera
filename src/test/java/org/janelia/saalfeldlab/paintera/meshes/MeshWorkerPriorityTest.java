@@ -1,11 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class MeshWorkerPriorityTest {
 
@@ -24,6 +25,6 @@ public class MeshWorkerPriorityTest {
 		Collections.shuffle(priorities);
 		Collections.sort(priorities);
 
-		Assert.assertEquals(expected.toArray(), priorities.toArray());
+		assertArrayEquals(expected.toArray(), priorities.toArray());
 	}
 }

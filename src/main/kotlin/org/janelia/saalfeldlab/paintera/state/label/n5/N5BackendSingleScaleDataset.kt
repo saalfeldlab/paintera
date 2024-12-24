@@ -4,7 +4,6 @@ import bdv.cache.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -34,10 +33,9 @@ import java.util.function.IntFunction
 import java.util.function.Supplier
 
 class N5BackendSingleScaleDataset<D, T> constructor(
-	private val metadataState: MetadataState,
-	private val projectDirectory: Supplier<String>,
+	override val metadataState: MetadataState,
 	private val propagationExecutorService: ExecutorService,
-) : N5Backend<D, T>
+) : N5BackendLabel<D, T>
 		where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
 	override val container: N5Reader = metadataState.reader
@@ -152,11 +150,10 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 					val container: N5Reader = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
-					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
 
 					N5BackendSingleScaleDataset<D, T>(
 						metadataState,
-						projectDirectory,
 						propagationExecutorService
 					).also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
 				}
@@ -168,7 +165,5 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 				.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
 		}
 	}
-
-	override fun getMetadataState() = metadataState
 }
 

@@ -25,33 +25,35 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
+import javax.xml.transform.Source
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
+	val metadataState : MetadataState
 	val container: N5Reader
+		get() = metadataState.reader
 	val dataset: String
+		get() = metadataState.dataset
 	override val name: String
 		get() = dataset.split("/").last()
 
-	fun getMetadataState(): MetadataState
-
 	override val resolution: DoubleArray
-		get() = getMetadataState().resolution
+		get() = metadataState.resolution
 
 	override val translation: DoubleArray
-		get() = getMetadataState().translation
+		get() = metadataState.translation
 
 	override var virtualCrop: Interval?
-		get() = getMetadataState().virtualCrop
+		get() = metadataState.virtualCrop
 		set(value) {
-			getMetadataState().virtualCrop = value
+			metadataState.virtualCrop = value
 		}
 
-	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = getMetadataState().updateTransform(resolution, translation)
+	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = metadataState.updateTransform(resolution, translation)
 
-	override fun updateTransform(transform: AffineTransform3D) = getMetadataState().updateTransform(transform)
+	override fun updateTransform(transform: AffineTransform3D) = metadataState.updateTransform(transform)
 
 	override fun createMetaDataNode(): Node {
-		val metadataState = getMetadataState()
+		val metadataState = metadataState
 
 		return (metadataState as? MultiScaleMetadataState)?.let { multiScaleMetadataNode(it) } ?: singleScaleMetadataNode(metadataState)
 	}

@@ -10,7 +10,7 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -29,7 +29,7 @@ import java.lang.reflect.Type
 //         - paintera dataset
 
 class N5BackendChannel<D, T>(
-	@JvmField val metadataState: MetadataState,
+	override val metadataState: MetadataState,
 	override val channelSelection: IntArray,
 	override val channelIndex: Int,
 ) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
@@ -44,7 +44,7 @@ class N5BackendChannel<D, T>(
 		priority: Int,
 		name: String
 	): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
-		return N5ChannelDataSourceMetadata.valueExtended(
+		return N5ChannelDataSource.valueExtended(
 			metadataState,
 			name,
 			queue,
@@ -104,7 +104,7 @@ class N5BackendChannel<D, T>(
 					val container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
 					N5BackendChannel(
-						MetadataUtils.createMetadataState(container, dataset),
+						MetadataUtils.createMetadataState(container, dataset)!!,
 						context[json, CHANNELS]!!,
 						json[CHANNEL_INDEX] ?: SerializationDefaultValues.CHANNEL_INDEX
 					)
@@ -114,9 +114,5 @@ class N5BackendChannel<D, T>(
 
 		override fun getTargetClass() = N5BackendChannel::class.java as Class<N5BackendChannel<D, T>>
 
-	}
-
-	override fun getMetadataState(): MetadataState {
-		return metadataState
 	}
 }

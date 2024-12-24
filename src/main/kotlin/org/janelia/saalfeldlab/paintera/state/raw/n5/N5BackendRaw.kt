@@ -21,18 +21,11 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-class N5BackendRaw<D, T>(@JvmField val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T>(override val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
 		where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
-
-	override val container = metadataState.reader
-	override val dataset = metadataState.dataset
 
 	override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
 		return N5DataSource(metadataState, name, queue, priority)
-	}
-
-	override fun getMetadataState(): MetadataState {
-		return metadataState
 	}
 }
 
@@ -75,7 +68,7 @@ class Deserializer<D, T>() : PainteraSerialization.PainteraDeserializer<N5Backen
 			val container = N5Helpers.deserializeFrom(json.asJsonObject)
 			val dataset: String = json[DATASET]!!
 			val n5ContainerState = N5ContainerState(container)
-			val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+			val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
 			N5BackendRaw(metadataState)
 		}
 	}

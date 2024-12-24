@@ -244,8 +244,8 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		return super.load(sessionState)
 	}
 
-	override fun load(renderUnitState: RenderUnitState): Job {
-		val sessionState = (renderUnitState as? SessionRenderUnitState) ?: renderUnitState.withSessionId(getSessionId())
+	override fun load(key: RenderUnitState): Job {
+		val sessionState = (key as? SessionRenderUnitState) ?: key.withSessionId(getSessionId())
 
 		synchronized(currentSessions) {
 			currentSessions += sessionState.sessionId

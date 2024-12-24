@@ -67,4 +67,9 @@ public final class FinalRealRandomAccessibleRealInterval<T> extends AbstractReal
 
 		return src.realRandomAccess(interval);
 	}
+
+	@Override public T getType() {
+
+		return src.getType();
+	}
 }

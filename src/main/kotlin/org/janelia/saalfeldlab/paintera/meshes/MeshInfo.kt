@@ -4,7 +4,7 @@ import javafx.beans.property.BooleanProperty
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 
 open class MeshInfo<T>(val key: T, open val manager: MeshManager<T>) {
-	val progressProperty: ObservableMeshProgress?
+	val progressState: MeshProgressState?
 		get() = manager.getStateFor(key)?.progress
 
 

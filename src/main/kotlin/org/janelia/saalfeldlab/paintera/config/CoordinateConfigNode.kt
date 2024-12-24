@@ -6,8 +6,11 @@ import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.control.navigation.OrthogonalCrossSectionsIntersect
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
+import org.ojalgo.series.BasicSeries.coordinate
+import org.reactfx.value.Val.orElse
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.Consumer
@@ -54,7 +57,6 @@ class CoordinateConfigNode() {
 
 		setCenterButton.setOnAction { event ->
 
-			val transform = AffineTransform3D()
 			val gp = GridPane()
 			val d = Dialog<DoubleArray>()
 			val x = TextField()
@@ -80,7 +82,7 @@ class CoordinateConfigNode() {
 			d.dialogPane.content = gp
 			d.dialogPane.buttonTypes.setAll(ButtonType.OK, ButtonType.CANCEL)
 			d.setResultConverter { bt ->
-				if (ButtonType.OK == bt) {
+				bt.takeIf { it == ButtonType.OK }?.let {
 					try {
 						val coordinate = DoubleArray(3)
 						coordinate[0] = java.lang.Double.parseDouble(x.text)
@@ -90,13 +92,10 @@ class CoordinateConfigNode() {
 					} catch (e: Exception) {
 						null
 					}
-
-				} else null
+				}
 			}
 
-			val coordinate = d.showAndWait().orElse(null)
-
-			if (coordinate != null) {
+			d.showAndWait().nullable?.let { coordinate ->
 				val transformCopy = this.transform.copy()
 				OrthogonalCrossSectionsIntersect.centerAt(transformCopy, coordinate[0], coordinate[1], coordinate[2])
 				submitTransform.accept(transformCopy)

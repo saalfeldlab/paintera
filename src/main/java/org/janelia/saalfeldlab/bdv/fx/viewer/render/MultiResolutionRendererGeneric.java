@@ -960,10 +960,8 @@ public class MultiResolutionRendererGeneric<T> {
 				hints = new CacheHints(LoadingStrategy.VOLATILE, d.getQueuePriority(), false);
 			}
 			cellImg.setCacheHints(hints);
-			final int[] cellDimensions = new int[3];
-			cellImg.getCellGrid().cellDimensions(cellDimensions);
-			final long[] dimensions = new long[3];
-			cellImg.dimensions(dimensions);
+			final int[] cellDimensions = cellImg.getCellGrid().getCellDimensions();
+			final long[] dimensions = cellImg.dimensionsAsLongArray();
 			final RandomAccess<?> cellsRandomAccess = cellImg.getCells().randomAccess();
 
 			final AffineTransform3D sourceToScreen = viewerTransform.copy();

@@ -72,22 +72,19 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 					}
 				}
 			}
-			formatChoiceBox.setButtonCell(formatChoiceBox.cellFactory.call(null))
+			formatChoiceBox.buttonCell = formatChoiceBox.cellFactory.call(null)
 
 			val lastPath = config.lastPathProperty().get()
 			val path = TextField(null)
 			path.tooltip = Tooltip()
 			path.tooltip.textProperty().bind(path.textProperty())
-			path.textProperty().addListener { obs, oldv, newv ->
-				if (newv == null)
-					formatChoiceBox.setValue(null)
-				else {
-					val split = newv.split("\\.".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+			path.textProperty().subscribe { text ->
+				formatChoiceBox.value = text?.let {
+					val split = text.split("\\.".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
 					val extension = split[split.size - 1]
-					formatChoiceBox.setValue(Optional.ofNullable(extensionFormatMapping[extension]).map { l -> l[0] }.orElse(null))
+					extensionFormatMapping[extension]?.let { it[0] }
 				}
 			}
-			path.text = lastPath?.toAbsolutePath()?.toString()
 			val isNull = path.textProperty().isNull
 			dialog.dialogPane.lookupButton(ButtonType.OK).disableProperty().bind(isNull)
 			path.isEditable = false

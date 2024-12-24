@@ -88,6 +88,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.checkerframework.common.reflection.qual.Invoke;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.UtilityTask;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -637,10 +638,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						intervalOverCanvas,
 						acceptAsPainted);
 
-				synchronized (progressBinding) {
-					var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					final double progress = completedTasks.incrementAndGet() / (double)expectedTasks;
 					progressBinding.set(progress);
-				}
+				});
 
 				final Map<Long, TLongHashSet> blocksByLabelByLevel = this.affectedBlocksByLabel[maskInfo.level];
 				synchronized (blocksByLabelByLevel) {
@@ -669,10 +670,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 									acceptAsPainted,
 									propagationExecutor)
 					).get();
-					synchronized (progressBinding) {
-						var progress = completedTasks.incrementAndGet() / (double)expectedTasks;
+					InvokeOnJavaFXApplicationThread.invoke(() -> {
+						final double progress = completedTasks.incrementAndGet() / (double)expectedTasks;
 						progressBinding.set(progress);
-					}
+					});
 				} catch (InterruptedException | ExecutionException e) {
 					throw new RuntimeException(e);
 				}
@@ -687,9 +688,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				throw new RuntimeException(e);
 			}
 		}
-		synchronized (progressBinding) {
-			progressBinding.set(1.0);
-		}
+		InvokeOnJavaFXApplicationThread.invoke(() -> progressBinding.set(1.0));
 
 		synchronized (this) {
 			setCurrentMask(null);
