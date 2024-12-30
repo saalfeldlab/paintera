@@ -1,6 +1,9 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -29,6 +32,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
@@ -94,8 +98,11 @@ public class PainteraBaseView {
 
 	private final OrthogonalViews<Viewer3DFX> views;
 
-	public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> currentFocusHolder;
-	public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> lastFocusHolder;
+
+	public final ObservableObjectValue<ViewerAndTransforms> currentFocusHolder;
+	private final ReadOnlyObjectWrapper<ViewerAndTransforms> _lastFocusHolder;
+	public final ReadOnlyObjectProperty<ViewerAndTransforms> lastFocusHolder;
+
 
 	private final AllowedActionsProperty allowedActionsProperty;
 
@@ -180,11 +187,9 @@ public class PainteraBaseView {
 
 		this.currentFocusHolder = Bindings.createObjectBinding(
 				() -> {
-
 					final var visibleViewers = views.viewerAndTransforms().stream().filter(it -> it.viewer().isVisible()).toList();
-					if (visibleViewers.size() == 1) //If only one visible, and return it
+					if (visibleViewers.size() == 1) //If only one visible, return it
 						return visibleViewers.getFirst();
-
 
 					return views.viewerAndTransforms().stream()
 							.filter(it -> it.viewer().focusedProperty().get())
@@ -194,14 +199,13 @@ public class PainteraBaseView {
 				views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
 		);
 
-		final var previousFocusHolder = new SimpleObjectProperty<>(currentFocusHolder.get());
-		this.lastFocusHolder = Bindings.createObjectBinding(() -> {
-			final OrthogonalViews.ViewerAndTransforms focusedViewer = currentFocusHolder.get();
-			if (focusedViewer != null) {
-				previousFocusHolder.set(focusedViewer);
+		_lastFocusHolder = new ReadOnlyObjectWrapper<>(views.getTopLeft());
+		lastFocusHolder = _lastFocusHolder.getReadOnlyProperty();
+		currentFocusHolder.subscribe( (prev, cur) -> {
+			if (cur != null) {
+				_lastFocusHolder.set(cur);
 			}
-			return previousFocusHolder.get();
-		}, currentFocusHolder);
+		});
 
 		activeModeProperty.addListener((obs, oldv, newv) -> {
 			if (oldv != newv) {

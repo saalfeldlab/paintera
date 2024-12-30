@@ -17,7 +17,7 @@ open class AnimatedProgressBar : ProgressBar() {
 	private val timeline = Timeline()
 
 	var reversible = false
-	var baseDuration = Duration.seconds(1.0)
+	var baseDuration: Duration = Duration.seconds(1.0)
 
 	val progressTargetProperty: DoubleProperty = SimpleDoubleProperty().apply {
 		subscribe { progress ->
@@ -31,6 +31,7 @@ open class AnimatedProgressBar : ProgressBar() {
 
 	protected open fun updateTimeline(newTarget: Double) {
 
+		println("new Target: $newTarget")
 		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
 		runningAverageBetweenUpdates = runningAverageBetweenUpdates / 2.0 + thisPortion
 		lastUpdateTime = System.currentTimeMillis()

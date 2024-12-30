@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.LongProperty
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleLongProperty
+import javafx.beans.property.*
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
@@ -26,16 +23,18 @@ interface ReplaceLabelUIState {
 	val fragmentsForAllActiveSegments: LongArray
 
 	val fragmentsToReplace: ObservableList<Long>
-	val replacementLabel: LongProperty
-	val activeReplacementLabel: BooleanProperty
+	val replacementLabelProperty: ObjectProperty<Long>
+	val activateReplacementLabelProperty: BooleanProperty
+	val progressProperty: DoubleProperty
+	val progressTextProperty: StringProperty
 
 	fun fragmentsForSegment(segment: Long): LongArray
 	fun nextId(): Long
 
+	fun copyVerified(): ReplaceLabelUIState
 }
 
-class ReplaceLabelState<T>() : ActionState(), ReplaceLabelUIState
-		where T : IntegerType<T> {
+class ReplaceLabelState<T>() : ActionState, ReplaceLabelUIState where T : IntegerType<T> {
 	internal lateinit var sourceState: ConnectomicsLabelState<*, *>
 	internal lateinit var paintContext: StatePaintContext<T, *>
 
@@ -72,22 +71,58 @@ class ReplaceLabelState<T>() : ActionState(), ReplaceLabelUIState
 			.toSet()
 			.toLongArray()
 
+	override val progressProperty = SimpleDoubleProperty()
+	override val progressTextProperty = SimpleStringProperty()
+
+	override val fragmentsToReplace: ObservableList<Long> = FXCollections.observableArrayList()
+	override val replacementLabelProperty: ObjectProperty<Long> = SimpleObjectProperty(0L)
+	override val activateReplacementLabelProperty: BooleanProperty = SimpleBooleanProperty(false)
+
 	override fun fragmentsForSegment(segment: Long): LongArray {
 		return assignment.getFragments(segment).toArray()
 	}
-
-	override val fragmentsToReplace: ObservableList<Long> = FXCollections.observableArrayList()
-	override val replacementLabel: LongProperty = SimpleLongProperty(0L)
-	override val activeReplacementLabel = SimpleBooleanProperty(false)
 
 	override fun nextId() = sourceState.nextId()
 
 	override fun <E : Event> Action<E>.verifyState() {
 		verify(::sourceState, "Label Source is Active") { paintera.currentSource as? ConnectomicsLabelState<*, *> }
-		verify(::paintContext, "Paint Label Mode has StatePaintContext") { PaintLabelMode.statePaintContext as StatePaintContext<T, *> }
-
+		verify(::paintContext, "Paint Label Mode has StatePaintContext") {
+			val paintLabelModeActive = paintera.currentMode as? PaintLabelMode
+			paintLabelModeActive?.statePaintContext as? StatePaintContext<T, *>
+		}
 		verify("Paint Label Mode is Active") { paintera.currentMode is PaintLabelMode }
 		verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
 		verify("Mask not in use") { !paintContext.dataSource.isMaskInUseBinding().get() }
+	}
+
+	/**
+	 * Create a new instance of [ReplaceLabelState] with the verified fields copied from this instance.
+	 * Should be called only AFTER [verifyState] has been called.
+	 *
+	 * @return A copy of verified fields of [ReplaceLabelState], after verification
+	 */
+	override fun copyVerified() = ReplaceLabelState<T>().also {
+		it.sourceState = this@ReplaceLabelState.sourceState
+		it.paintContext = this@ReplaceLabelState.paintContext
+	}
+
+	internal fun initializeForMode(mode : Mode) {
+		when (mode) {
+			Mode.Delete -> {
+				replacementLabelProperty.value = 0L
+				activateReplacementLabelProperty.value = false
+			}
+			Mode.Replace -> {
+				activateReplacementLabelProperty.value = true
+				replacementLabelProperty.value = paintContext.selectedIds.lastSelection
+			}
+			Mode.All -> Unit // Defaults are fine
+		}
+	}
+
+	enum class Mode {
+		Replace,
+		Delete,
+		All;
 	}
 }
