@@ -13,11 +13,12 @@ import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.type.numeric.RealType
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
+import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
@@ -26,7 +27,8 @@ import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 
-class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, private val state: ConnectomicsRawState<out RealType<*>, *>) {
+class RawSourceStateConverterNode<T,V>(private val converter: ARGBColorConverter<*>, private val state: ConnectomicsRawState<T, V>)
+where T : RealType<T>, V : AbstractVolatileRealType<T, V> {
 
 	private val colorProperty = SimpleObjectProperty(Color.WHITE)
 
@@ -63,10 +65,12 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 				it.maxWidth = Double.MAX_VALUE
 			}
 
-			resetMinMax.onAction = EventHandler { RawSourceMode.resetIntensityMinMax(state) }
+			resetMinMax.onAction = EventHandler {
+				RawSourceMode.resetIntensityMinMax(state as SourceState<*, RealType<*>>)
+			}
 			autoMinMax.onAction = EventHandler {
 				paintera.baseView.lastFocusHolder.value?.viewer()?.let { viewer ->
-					RawSourceMode.autoIntensityMinMax(state, viewer)
+					RawSourceMode.autoIntensityMinMax(state as SourceState<*, RealType<*>>, viewer)
 				}
 			}
 			val thresholdHBox = HBox(resetMinMax, autoMinMax)

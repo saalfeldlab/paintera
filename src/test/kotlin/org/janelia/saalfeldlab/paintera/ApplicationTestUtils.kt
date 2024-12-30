@@ -10,10 +10,14 @@ import javafx.application.Preloader.ProgressNotification
 import javafx.application.Preloader.StateChangeNotification.Type.*
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.Companion.invokeAndWait
-import java.lang.AutoCloseable
+import org.janelia.saalfeldlab.paintera.ApplicationTestUtils.launchApplication
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.ArgumentsProvider
+import org.junit.jupiter.params.provider.ArgumentsSource
+import org.junit.jupiter.params.support.AnnotationConsumer
 import java.util.stream.Stream
-import kotlin.reflect.KFunction
-import kotlin.reflect.full.findAnnotation
 
 object ApplicationTestUtils {
 
@@ -92,15 +96,9 @@ object ApplicationTestUtils {
 
 
 	inline fun <reified T : Application, reified A : TestApplication<T>> launchApplication(args: Array<String> = emptyArray()) = launchApplication<T, A>(null, null, args)
-
-	@JvmStatic
-	fun painteraTestApp() : PainteraTestApplication = launchApplication<Paintera, PainteraTestApplication>()
-
-	@JvmStatic
-	fun painteraTestAppParameter(): Stream<PainteraTestApplication> = Stream.of(painteraTestApp())
 }
 
-open class TestApplication<T : Application>(val app : T, val stage : Stage) : AutoCloseable {
+open class TestApplication<T : Application>(val app : T, val stage : Stage) : AutoCloseable{
 	val preloader = (app as? LocalPreloader)?.preloader
 
 	operator fun component1() = app
@@ -114,12 +112,57 @@ open class TestApplication<T : Application>(val app : T, val stage : Stage) : Au
 }
 
 class PainteraTestApplication(paintera : Paintera, stage: Stage) : TestApplication<Paintera>(paintera, stage) {
+	internal var dontClose : Boolean = false
+
 	init {
 		paintera.mainWindow.wasQuit = true
+	}
+
+	override fun close() {
+		if (dontClose) return
+		super.close()
 	}
 }
 
 
 interface LocalPreloader {
 	var preloader: Preloader?
+}
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@ParameterizedTest
+@ArgumentsSource(PainteraTestAppProvider::class)
+annotation class PainteraApplicationTest(val reuseInstance : Boolean = false)
+
+class PainteraTestAppProvider : ArgumentsProvider, AnnotationConsumer<PainteraApplicationTest> {
+	var reuseInstance = false
+
+	override fun provideArguments(context: ExtensionContext?): Stream<out Arguments?>? {
+		val app = when {
+			reuseInstance && previousInstance != null -> previousInstance
+			reuseInstance -> launchPaintera().also {
+				it.dontClose = true
+				previousInstance = it
+			}
+			else -> let {
+				launchPaintera()
+				previousInstance?.dontClose = false
+				previousInstance?.close()
+				previousInstance = null
+			}
+		}
+		return Stream.of(Arguments.of(app))
+	}
+
+	override fun accept(t: PainteraApplicationTest) {
+		reuseInstance = t.reuseInstance
+	}
+
+	companion object {
+		private var previousInstance : PainteraTestApplication? = null
+
+		@JvmStatic
+		fun launchPaintera() = launchApplication<Paintera, PainteraTestApplication>()
+	}
 }

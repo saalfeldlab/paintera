@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
@@ -65,18 +64,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	private lateinit var paneWithStatus: BorderPaneWithStatusBars
 
 	val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
-
-	private val activeOrthoAxisBinding = activeViewer.createNullableValueBinding {
-		it?.let {
-			when (it) {
-				baseView.orthogonalViews().topLeft.viewer() -> 2
-				baseView.orthogonalViews().topRight.viewer() -> 0
-				else -> 1
-			}
-		} ?: -1
-	}
-
-	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
 
 	internal val currentSource: SourceState<*, *>?
 		get() = baseView.sourceInfo().currentState().get()

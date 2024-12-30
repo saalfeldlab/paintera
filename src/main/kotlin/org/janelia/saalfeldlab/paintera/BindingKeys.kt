@@ -7,6 +7,8 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyCombination.*
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.entries
+import org.janelia.saalfeldlab.paintera.RawSourceStateKeys.entries
 
 private fun KeyCode.asCombination() = KeyCodeCombination(this)
 private fun Modifier.asCombination() = NamedKeyCombination.OnlyModifierKeyCombination(this)
@@ -109,7 +111,7 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SELECT_ALL_IN_CURRENT_VIEW                           ( CONTROL_DOWN + SHIFT_DOWN + A),
     LOCK_SEGMENT                                         ( L),
     NEXT_ID                                              ( N),
-    DELETE_ID                                             ( SHIFT_DOWN + BACK_SPACE),
+    DELETE_ID                                            ( SHIFT_DOWN + BACK_SPACE),
     COMMIT_DIALOG                                        ( C + CONTROL_DOWN),
     MERGE_ALL_SELECTED                                   ( ENTER + CONTROL_DOWN),
     ARGB_STREAM__INCREMENT_SEED                          ( C),
@@ -139,6 +141,7 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL ( SHIFT_DOWN + QUOTE, "shape interpolation: auto SAM: new slice between all slices" ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT       ( CLOSE_BRACKET, "shape interpolation: auto SAM: new slice right"   ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE        ( SHIFT_DOWN + A, "shape interpolation: auto SAM: new slice at current location"   ),
+    GO_TO_LABEL                                          (L + CONTROL_DOWN, "go-to-label")
     ;
 
 
@@ -182,47 +185,42 @@ enum class RawSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinatio
     }
 }
 
-object NavigationKeys {
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD       = "translate along normal forward"
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST  = "translate along normal forward fast"
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW  = "translate along normal forward slow"
-    const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD      = "translate along normal backward"
-	const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST = "translate along normal backward fast"
-	const val BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW = "translate along normal backward slow"
-    const val BUTTON_ZOOM_OUT                             = "zoom out"
-    const val BUTTON_ZOOM_OUT2                            = "zoom out (alternative)"
-    const val BUTTON_ZOOM_IN                              = "zoom in"
-    const val BUTTON_ZOOM_IN2                             = "zoom in (alternative)"
-    const val SET_ROTATION_AXIS_X                         = "set rotation axis x"
-    const val SET_ROTATION_AXIS_Y                         = "set rotation axis y"
-    const val SET_ROTATION_AXIS_Z                         = "set rotation axis z"
-    const val KEY_ROTATE_LEFT                             = "rotate left"
-    const val KEY_ROTATE_RIGHT                            = "rotate right"
-    const val REMOVE_ROTATION                             = "remove rotation"
-    const val KEY_MODIFIER_FAST                           = "fast-modifier"
-    const val KEY_MODIFIER_SLOW                           = "slow-modifier"
+enum class NavigationKeys(lateInitNamedKeyCombo: LateInitNamedKeyCombination) : NamedKeyBinding by lateInitNamedKeyCombo { TEST (A, "test"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD       (COMMA, "translate along normal forward"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST  (COMMA + SHIFT_DOWN, "translate along normal forward fast"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW  (COMMA + CONTROL_DOWN, "translate along normal forward slow"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD        (PERIOD, "translate along normal backward"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST   (PERIOD + SHIFT_DOWN, "translate along normal backward fast"),
+    BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW   (PERIOD + CONTROL_DOWN, "translate along normal backward slow"),
+    BUTTON_ZOOM_OUT                              (MINUS + SHIFT_ANY, "zoom out"),
+    BUTTON_ZOOM_OUT2                             (DOWN, "zoom out (alternative)"),
+    BUTTON_ZOOM_IN                               (EQUALS + SHIFT_ANY, "zoom in"),
+    BUTTON_ZOOM_IN2                              (UP, "zoom in (alternative)"),
+    SET_ROTATION_AXIS_X                          (X, "set rotation axis x"),
+    SET_ROTATION_AXIS_Y                          (Y, "set rotation axis y"),
+    SET_ROTATION_AXIS_Z                          (Z, "set rotation axis z"),
+    KEY_ROTATE_LEFT                              (LEFT, "rotate left"),
+    KEY_ROTATE_RIGHT                             (RIGHT, "rotate right"),
+    KEY_MODIFIER_FAST                            (SHIFT_DOWN, "remove rotation"),
+    KEY_MODIFIER_SLOW                            (CONTROL_DOWN, "fast-modifier"),
+    REMOVE_ROTATION                              (Z + SHIFT_DOWN, "slow-modifier"),
+    GO_TO_COORDINATE                             (G + CONTROL_DOWN, "go-to-coordinate")
+    ;
 
-	private val namedComboMap = NamedKeyCombination.CombinationMap(
-        BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD      byKeyCombo COMMA,
-		BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST byKeyCombo COMMA + SHIFT_DOWN,
-		BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW byKeyCombo COMMA + CONTROL_DOWN,
-        BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD       byKeyCombo PERIOD,
-        BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST  byKeyCombo PERIOD + SHIFT_DOWN,
-        BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW  byKeyCombo PERIOD + CONTROL_DOWN,
-        BUTTON_ZOOM_OUT                             byKeyCombo MINUS + SHIFT_ANY,
-        BUTTON_ZOOM_OUT2                            byKeyCombo DOWN,
-        BUTTON_ZOOM_IN                              byKeyCombo EQUALS + SHIFT_ANY,
-        BUTTON_ZOOM_IN2                             byKeyCombo UP,
-        SET_ROTATION_AXIS_X                         byKeyCombo X,
-        SET_ROTATION_AXIS_Y                         byKeyCombo Y,
-        SET_ROTATION_AXIS_Z                         byKeyCombo Z,
-        KEY_ROTATE_LEFT                             byKeyCombo LEFT,
-        KEY_ROTATE_RIGHT                            byKeyCombo RIGHT,
-        KEY_MODIFIER_FAST                           byKeyCombo SHIFT_DOWN,
-        KEY_MODIFIER_SLOW                           byKeyCombo CONTROL_DOWN,
-        REMOVE_ROTATION                             byKeyCombo Z + SHIFT_DOWN
-	)
+    private val formattedName = name.lowercase()
+        .replace("__", ": ")
+        .replace("_", " ")
 
-	fun namedCombinationsCopy() = namedComboMap.deepCopy
+    constructor(keys : KeyCombination, name : String? = null) : this(LateInitNamedKeyCombination(keys, name))
+    constructor(key : KeyCode, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+    constructor(key : Modifier, name : String? = null) : this(LateInitNamedKeyCombination(key.asCombination(), name))
+
+    init {
+        lateInitNamedKeyCombo.setName(formattedName)
+    }
+
+    companion object {
+        fun namedCombinationsCopy() = NamedKeyCombination.CombinationMap(*LabelSourceStateKeys.entries.map { it.deepCopy }.toTypedArray())
+    }
 }
 //@formatter:on

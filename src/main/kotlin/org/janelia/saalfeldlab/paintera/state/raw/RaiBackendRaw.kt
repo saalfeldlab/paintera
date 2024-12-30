@@ -17,11 +17,4 @@ class RaiBackendRaw<D, T>(
 	sources,
 	resolutions,
 	translations
-), ConnectomicsRawBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
-	constructor(
-		source: RandomAccessibleInterval<D>,
-		resolution: DoubleArray,
-		translation: DoubleArray,
-		name: String
-	) : this(arrayOf(source), arrayOf(resolution), arrayOf(translation), name)
-}
+), ConnectomicsRawBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T>

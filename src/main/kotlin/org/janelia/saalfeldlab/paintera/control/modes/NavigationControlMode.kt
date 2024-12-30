@@ -6,47 +6,38 @@ import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
-import javafx.geometry.HPos
-import javafx.scene.control.ButtonType
-import javafx.scene.control.Label
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.ScrollEvent
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.util.Duration
-import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.control.VPotControl.DisplayType
 import org.janelia.saalfeldlab.fx.ObservablePosition
 import org.janelia.saalfeldlab.fx.actions.*
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.extensions.invoke
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
-import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
-import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
-import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_MODIFIER_FAST
-import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_MODIFIER_SLOW
-import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_ROTATE_LEFT
-import org.janelia.saalfeldlab.paintera.NavigationKeys.KEY_ROTATE_RIGHT
+import org.janelia.saalfeldlab.paintera.NavigationKeys.*
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
+import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.navigation.*
 import org.janelia.saalfeldlab.paintera.control.navigation.Rotate.Axis
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.sign
@@ -61,7 +52,9 @@ object NavigationControlMode : AbstractToolMode() {
 	 * Intentianally empty. [NavigationControlMode] has only one tool, which contains all the Navigation actions.
 	 * It will always be active when [NavigationControlMode] is the active mode.
 	 */
-	override val activeViewerActions = emptyList<ActionSet>()
+	override val modeActions = listOf<ActionSet>(
+
+	)
 
 	override val allowedActions = AllowedActions.NAVIGATION
 
@@ -166,7 +159,7 @@ object NavigationTool : ViewerTool() {
 			actionSets += zoomActions(zoomController, targetPositionObservable!!)
 
 			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, resetRotationController)
-			actionSets += goToPositionAction(translationController!!)
+			actionSets += goToPositionAction()
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
 	}
@@ -175,15 +168,15 @@ object NavigationTool : ViewerTool() {
 		mapOf(
 			KEY_MODIFIER_FAST to buttonRotationSpeedConfig.fast,
 			KEY_MODIFIER_SLOW to buttonRotationSpeedConfig.slow
-		).forEach { (keys, speed) ->
-			KEY_PRESSED(keyBindings, keys, keysExclusive = false) {
+		).forEach { (namedKey, speed) ->
+			KEY_PRESSED(namedKey, keysExclusive = false) {
 				consume = false
 				onAction {
 					speedProperty.unbind()
 					speedProperty.bind(speed)
 				}
 			}
-			KEY_RELEASED(keyBindings, keys, keysExclusive = false) {
+			KEY_RELEASED(namedKey, keysExclusive = false) {
 				consume = false
 				onAction {
 					speedProperty.unbind()
@@ -217,7 +210,7 @@ object NavigationTool : ViewerTool() {
 		}
 
 		fun keyActions(translationController: TranslationController): ActionSet {
-			data class TranslateNormalStruct(val step: Double, val speed: Double, val keyName: String)
+			data class TranslateNormalStruct(val step: Double, val speed: Double, val keyName: NamedKeyBinding)
 			return painteraActionSet("key translate along normal", NavigationActionType.Slice) {
 				listOf(
 					TranslateNormalStruct(1.0, DEFAULT, NavigationKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD),
@@ -226,9 +219,8 @@ object NavigationTool : ViewerTool() {
 					TranslateNormalStruct(-1.0, DEFAULT, NavigationKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD),
 					TranslateNormalStruct(-1.0, FAST, NavigationKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST),
 					TranslateNormalStruct(-1.0, SLOW, NavigationKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW)
-				).map { (step, speed, keyName) ->
-					KEY_PRESSED {
-						keyMatchesBinding(keyBindings, keyName)
+				).map { (step, speed, namedKey) ->
+					KEY_PRESSED(namedKey) {
 						onAction {
 							translationController.translate(0.0, 0.0, step * speed)
 						}
@@ -340,8 +332,8 @@ object NavigationTool : ViewerTool() {
 					1.0 to NavigationKeys.BUTTON_ZOOM_OUT2,
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN,
 					-1.0 to NavigationKeys.BUTTON_ZOOM_IN2
-				).map { (direction, key) ->
-					KEY_PRESSED(keyBindings, key, keysExclusive = true) {
+				).map { (direction, namedKey) ->
+					KEY_PRESSED(namedKey) {
 						onAction {
 							val delta = speed / 100
 							val scale = 1 - direction * delta
@@ -391,8 +383,7 @@ object NavigationTool : ViewerTool() {
 			val removeRotation = { resetRotationController.removeRotationCenteredAt(targetPositionObservable.x, targetPositionObservable.y) }
 			listOf(
 				painteraActionSet(NavigationKeys.REMOVE_ROTATION, NavigationActionType.Rotate) {
-					KEY_PRESSED {
-						keyMatchesBinding(keyBindings, NavigationKeys.REMOVE_ROTATION)
+					KEY_PRESSED(NavigationKeys.REMOVE_ROTATION) {
 						onAction { removeRotation() }
 					}
 				},
@@ -401,14 +392,14 @@ object NavigationTool : ViewerTool() {
 		}
 
 		val setRotationAxis = painteraActionSet("set rotation axis", NavigationActionType.Rotate) {
-			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_X) { onAction { keyRotationAxis.set(Axis.X) } }
-			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Y) { onAction { keyRotationAxis.set(Axis.Y) } }
-			KEY_PRESSED(keyBindings, NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
+			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_X) { onAction { keyRotationAxis.set(Axis.X) } }
+			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_Y) { onAction { keyRotationAxis.set(Axis.Y) } }
+			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
 		}
 
 		val mouseRotation = painteraDragActionSet("mouse-drag-rotate", NavigationActionType.Rotate) {
 			verify { it.isPrimaryButtonDown }
-			dragDetectedAction.verify { NavigationTool.allowRotationsProperty() }
+			dragDetectedAction.verify { allowRotationsProperty() }
 			onDragDetected {
 				rotationController.initialize(targetPositionObservable.x, targetPositionObservable.y)
 			}
@@ -422,7 +413,7 @@ object NavigationTool : ViewerTool() {
 		val keyRotation = painteraActionSet("key-rotate", NavigationActionType.Rotate) {
 			mapOf(-1 to KEY_ROTATE_LEFT, 1 to KEY_ROTATE_RIGHT).forEach { (direction, key) ->
 
-				KEY_PRESSED(keyBindings, key, keysExclusive = false) {
+				KEY_PRESSED(key, keysExclusive = false) {
 					verify { allowRotationsProperty() }
 					onAction {
 						rotationController.setSpeed(direction * speed)
@@ -448,7 +439,7 @@ object NavigationTool : ViewerTool() {
 		return activeViewer?.let { target ->
 			DeviceManager.xTouchMini?.let { device ->
 				targetPositionObservable?.let { targetPos ->
-					painteraMidiActionSet(NavigationKeys.REMOVE_ROTATION, device, target, NavigationActionType.Rotate) {
+					painteraMidiActionSet(NavigationKeys.REMOVE_ROTATION.name, device, target, NavigationActionType.Rotate) {
 						MidiButtonEvent.BUTTON_PRESSED(18) {
 							name = "midi_remove_rotation"
 							verifyEventNotNull()
@@ -506,65 +497,10 @@ object NavigationTool : ViewerTool() {
 		if (resetRotation) midiResetRotationAction()?.let { midiActions -> it.add(midiActions) }
 	}
 
-	private fun goToPositionAction(translateXYController: TranslationController) =
+	private fun goToPositionAction() =
 		painteraActionSet("center on position", NavigationActionType.Pan) {
-			KEY_PRESSED(KeyCode.CONTROL, KeyCode.G) {
-				verify { paintera.baseView.sourceInfo().currentSourceProperty().get() != null }
-				verify { paintera.baseView.sourceInfo().currentState().get() != null }
-				onAction {
-					activeViewer?.let { viewer ->
-						val source = paintera.baseView.sourceInfo().currentSourceProperty().get()!!
-						val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
-						val currentSourceCoordinate =
-							RealPoint(3).also { viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it) }
-
-						val positionField =
-							SpatialField.doubleField(0.0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
-								x.value = currentSourceCoordinate.getDoublePosition(0)
-								y.value = currentSourceCoordinate.getDoublePosition(1)
-								z.value = currentSourceCoordinate.getDoublePosition(2)
-							}
-						PainteraAlerts.confirmation("Go", "Cancel", true).apply {
-							dialogPane.headerText = "Center On Position?"
-							dialogPane.content = GridPane().apply {
-								mapOf("x" to 1, "y" to 2, "z" to 3).forEach { (axis, col) ->
-									val label = Label(axis)
-									add(label, col, 0)
-									GridPane.setHalignment(label, HPos.CENTER)
-									GridPane.setHgrow(label, Priority.ALWAYS)
-								}
-								add(Label("Position: "), 0, 1)
-
-								add(positionField.node, 1, 1, 3, 1)
-							}
-						}.showAndWait().takeIf { it.nullable == ButtonType.OK }?.let {
-							positionField.apply {
-								val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0)
-								val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1)
-								val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2)
-
-								val viewerCenterInSource = RealPoint(3)
-								viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, viewerCenterInSource)
-
-								val newViewerCenter = RealPoint(3)
-								viewer.sourceToDisplayCoordinates(
-									viewerCenterInSource.getDoublePosition(0) + sourceDeltaX,
-									viewerCenterInSource.getDoublePosition(1) + sourceDeltaY,
-									viewerCenterInSource.getDoublePosition(2) + sourceDeltaZ,
-									sourceToGlobalTransform,
-									newViewerCenter
-								)
-
-
-								val deltaX = viewer.width / 2.0 - newViewerCenter.getDoublePosition(0)
-								val deltaY = viewer.height / 2.0 - newViewerCenter.getDoublePosition(1)
-								val deltaZ = 0 - newViewerCenter.getDoublePosition(2)
-
-								translateXYController.translate(deltaX, deltaY, deltaZ, Duration(300.0))
-							}
-						}
-					}
-				}
+			KEY_PRESSED(GO_TO_COORDINATE) {
+				onAction { GoToCoordinate(it) }
 			}
 		}
 }

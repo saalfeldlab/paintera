@@ -20,25 +20,16 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 public class PainteraBaseViewTest {
 
-	public static Stream<PainteraTestApplication> painteraProvider() {
-		return ApplicationTestUtils.painteraTestAppParameter();
-	}
-
-	@ParameterizedTest
-	@MethodSource("painteraProvider")
+	@PainteraApplicationTest(reuseInstance = true)
 	public void testAddSingleScaleLabelSource(final PainteraTestApplication app) {
 
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
@@ -51,8 +42,7 @@ public class PainteraBaseViewTest {
 				"singleScaleLabelSource", new LabelBlockLookupNoBlocks());
 	}
 
-	@ParameterizedTest
-	@MethodSource("painteraProvider")
+	@PainteraApplicationTest(reuseInstance = true)
 	public void testAddSingleScaleConnectomicsRawSource(final PainteraTestApplication app) {
 
 		final Random random = new Random();
@@ -74,8 +64,7 @@ public class PainteraBaseViewTest {
 		);
 	}
 
-	@ParameterizedTest
-	@MethodSource("painteraProvider")
+	@PainteraApplicationTest(reuseInstance = true)
 	public void testAddMultiScaleConnectomicsRawSource(final PainteraTestApplication app) {
 
 		var random = new Random();
@@ -119,9 +108,8 @@ public class PainteraBaseViewTest {
 		});
 	}
 
-	@ParameterizedTest
-	@MethodSource("painteraProvider")
-	public void testAddMultiScaleConnectomicsLabelSource(final PainteraTestApplication app) {
+	@PainteraApplicationTest(reuseInstance = true)
+	public void testAddMultiScaleConnectomicsLabelSource(final PainteraTestApplication app) throws InterruptedException {
 
 		final Random random = new Random();
 
@@ -145,12 +133,9 @@ public class PainteraBaseViewTest {
 	}
 
 	public static void main(String[] args) {
-		final AtomicReference<PainteraTestApplication> app = new AtomicReference<>();
-		Paintera.whenPaintable(() -> {
-			new PainteraBaseViewTest().testAddSingleScaleConnectomicsRawSource(app.get());
-		});
 
-		app.set(ApplicationTestUtils.painteraTestApp());
+		final var painteraTestApp = PainteraTestAppProvider.launchPaintera();
+		new PainteraBaseViewTest().testAddSingleScaleConnectomicsRawSource(painteraTestApp);
 	}
 
 	private static class GeneratedMultiscaleImage<T> {

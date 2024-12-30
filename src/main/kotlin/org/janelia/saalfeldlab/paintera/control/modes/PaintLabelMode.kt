@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
@@ -14,7 +13,6 @@ import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
@@ -22,7 +20,6 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
@@ -43,7 +40,7 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 
-object PaintLabelMode : AbstractToolMode() {
+open class PaintLabelMode : ViewLabelMode() {
 
 	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
@@ -65,8 +62,9 @@ object PaintLabelMode : AbstractToolMode() {
 		)
 	}
 
-	override val activeViewerActions: List<ActionSet> by lazy {
+	override val modeActions: List<ActionSet> by lazy {
 		listOf(
+			*super.modeActions.toTypedArray(),
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
 			enterShapeInterpolationMode,
@@ -77,6 +75,15 @@ object PaintLabelMode : AbstractToolMode() {
 	}
 
 	override val allowedActions = AllowedActions.PAINT
+
+	override fun exit() {
+		activeViewerProperty.get()?.let {
+			modeActions.forEach { actionSet ->
+				it.viewer()?.removeActionSet(actionSet)
+			}
+		}
+		super.exit()
+	}
 
 	private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
 		KEY_PRESSED(FILL_3D) {
@@ -167,6 +174,11 @@ object PaintLabelMode : AbstractToolMode() {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
+		if (activeTool is SamTool)
+			activeViewerProperty.unbind()
+		else if (!activeViewerProperty.isBound)
+			activeViewerProperty.bind(paintera.baseView.currentFocusHolder)
+
 		return switchToolJob
 	}
 
@@ -191,9 +203,8 @@ object PaintLabelMode : AbstractToolMode() {
 	}
 
 	private fun getDeleteReplaceIdActions() = painteraActionSet("delete_label", LabelActionType.Delete) {
-		KEY_PRESSED(DELETE_ID) {
-			verify("ReplaceLabel is valid") { ReplaceLabel.isValid(it) }
-			onAction { ReplaceLabel.showDialog() }
+		KEY_PRESSED ( DELETE_ID) {
+			onAction { ReplaceLabel.deleteMenu()(it) }
 		}
 	}
 
@@ -202,7 +213,7 @@ object PaintLabelMode : AbstractToolMode() {
 			verify("has current mask") { (statePaintContext as? MaskedSource<*, *>)?.currentMask != null }
 			onAction {
 				InvokeOnJavaFXApplicationThread {
-					PainteraAlerts.confirmation("Yes", "No", false).apply {
+					PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {
 						headerText = "Force Reset the Active Mask?"
 						contentText = """
                             This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".

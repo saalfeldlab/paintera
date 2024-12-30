@@ -24,11 +24,11 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.namedCombinationsCopy
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
@@ -77,15 +77,15 @@ object ExportSourceDialog {
 			maxWidth = Double.MAX_VALUE
 		}
 
-		choiceBox.selectionModel.selectedItemProperty().subscribe { (_, _, backend) ->
-			backend.metadataState.apply {
+		choiceBox.selectionModel.selectedItemProperty().subscribe { sourceState ->
+
+			val backend = sourceState.backend as? SourceStateBackendN5<*, *>
+			backend?.metadataState?.apply {
 				state.maxIdProperty.value = reader[dataset, MAX_ID_KEY] ?: -1
 			}
 		}
 
-		state.sourceProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.first })
-		state.sourceStateProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.second })
-		state.backendProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.third })
+		state.sourceStateProperty.bind(choiceBox.selectionModel.selectedItemProperty())
 
 		headerText = DIALOG_HEADER
 		dialogPane.content = GridPane().apply {
@@ -157,12 +157,13 @@ object ExportSourceDialog {
 
 
 			var prevScaleLevels: ObservableList<Int>? = null
-			val scaleLevelsBinding = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { (source, _, _) ->
-				if (prevScaleLevels != null && prevScaleLevels!!.size == source.numMipmapLevels)
+			val scaleLevelsBinding = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { state ->
+				val numMipmapLevels = state.dataSource.numMipmapLevels
+				if (prevScaleLevels != null && prevScaleLevels!!.size == numMipmapLevels)
 					return@createNonNullValueBinding prevScaleLevels
 
 				FXCollections.observableArrayList<Int>().also {
-					for (i in 0 until source.numMipmapLevels) {
+					for (i in 0 until numMipmapLevels) {
 						it.add(i)
 					}
 					prevScaleLevels = it
@@ -198,37 +199,29 @@ object ExportSourceDialog {
 		}
 	}
 
-	private fun createSourceChoiceBox(): ChoiceBox<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>> {
+	private fun createSourceChoiceBox(): ChoiceBox<ConnectomicsLabelState<*, *>> {
 		val choices = getValidExportSources()
 
 		return ChoiceBox(choices).apply {
-			val curChoiceIdx = choices.indexOfFirst { it.second == paintera.currentSource }
+			val curChoiceIdx = choices.indexOfFirst { it == paintera.baseView.sourceInfo().currentState() }
 			if (curChoiceIdx != -1)
 				selectionModel.select(curChoiceIdx)
 			else
 				selectionModel.selectFirst()
 			maxWidth = Double.MAX_VALUE
-			converter = object : StringConverter<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>>() {
-				override fun toString(`object`: Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>?): String = `object`?.second?.nameProperty()?.get() ?: "Select a Source..."
-				override fun fromString(string: String?) = choices.first { it.second.nameProperty().get() == string }
+			converter = object : StringConverter<ConnectomicsLabelState<*, *>>() {
+				override fun toString(`object`: ConnectomicsLabelState<*, *>?): String = `object`?.nameProperty()?.get() ?: "Select a Source..."
+				override fun fromString(string: String?) = choices.first { it.nameProperty().get() == string }
 			}
 		}
 	}
 
-	internal fun getValidExportSources(): ObservableList<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>> {
+	internal fun getValidExportSources(): ObservableList<ConnectomicsLabelState<*, *>> {
 		return paintera.baseView.sourceInfo().trackSources()
 			.asSequence()
-			.filterIsInstance<MaskedSource<*, *>>()
-			.mapNotNull { source ->
-				(paintera.baseView.sourceInfo().getState(source) as? ConnectomicsLabelState<*, *>)?.let { state ->
-					source to state
-				}
-			}
-			.mapNotNull { (source, state) ->
-				(state.backend as? N5BackendLabel<*, *>)?.let { backend ->
-					Triple(source, state, backend)
-				}
-			}.toCollection(FXCollections.observableArrayList())
+			.filterIsInstance<DataSource<*, *>>()
+			.mapNotNull { source -> (paintera.baseView.sourceInfo().getState(source) as? ConnectomicsLabelState<*, *>) }
+			.toCollection(FXCollections.observableArrayList())
 	}
 
 	fun exportSourceDialogAction(

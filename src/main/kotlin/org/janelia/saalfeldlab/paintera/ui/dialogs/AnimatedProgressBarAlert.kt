@@ -56,7 +56,7 @@ class AnimatedProgressBarAlert(
 		val doneLabel = Label("Done!")
 		doneLabel.visibleProperty().bind(progressBar.progressProperty().greaterThanOrEqualTo(1.0))
 		dialogPane.content = VBox(10.0, createProgressLabel(), progressBar, HBox(doneLabel))
-		isResizable = true
+		isResizable = false
 	}
 
 	private fun createProgressLabel() = Label().apply {
@@ -68,8 +68,7 @@ class AnimatedProgressBarAlert(
 	 * Show Dialog and wait for it to finish. Should be called on the JavaFx Thread.
 	 *
 	 */
-	fun showAndWait() = InvokeOnJavaFXApplicationThread{
-		canCloseBinding.set(false)
+	fun showAndStart() = InvokeOnJavaFXApplicationThread{
 		when (progressAlert.showAndWait().nullable) {
 			ButtonType.OK -> Unit
 			ButtonType.CANCEL -> throw CancellationException("Progress Dialog was Cancelled")
@@ -83,7 +82,6 @@ class AnimatedProgressBarAlert(
 	 */
 	fun finish() = InvokeOnJavaFXApplicationThread {
 		progressBar.finish()
-		canCloseBinding.set(true)
 	}
 
 	/**
@@ -92,7 +90,6 @@ class AnimatedProgressBarAlert(
 	 */
 	fun stopAndClose() = InvokeOnJavaFXApplicationThread {
 		progressBar.stop()
-		canCloseBinding.set(true)
 		progressAlert.close()
 	}
 
