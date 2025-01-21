@@ -7,9 +7,12 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.scene.control.ProgressBar
 import javafx.util.Duration
-import org.janelia.saalfeldlab.fx.extensions.nonnull
 
 open class AnimatedProgressBar : ProgressBar() {
+
+	companion object {
+		private const val END_CUE = "END"
+	}
 
 	private val timeline = Timeline()
 
@@ -18,16 +21,17 @@ open class AnimatedProgressBar : ProgressBar() {
 
 	val progressTargetProperty: DoubleProperty = SimpleDoubleProperty().apply {
 		subscribe { progress ->
-			updateTimeline(value)
+			updateTimeline(progress.toDouble())
 		}
 	}
-	var progressTarget by progressTargetProperty.nonnull()
 
 	private var lastUpdateTime : Long? = null
 	private var runningAverageBetweenUpdates = 0.0
 
 
 	protected open fun updateTimeline(newTarget: Double) {
+
+		println("new Target: $newTarget")
 		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
 		runningAverageBetweenUpdates = runningAverageBetweenUpdates / 2.0 + thisPortion
 		lastUpdateTime = System.currentTimeMillis()
@@ -50,7 +54,15 @@ open class AnimatedProgressBar : ProgressBar() {
 			KeyFrame(Duration.ZERO, KeyValue(progressProperty, progressProperty.value)),
 			KeyFrame(resultDuration, KeyValue(progressProperty, newTarget))
 		)
+		timeline.cuePoints[END_CUE] = resultDuration
 		timeline.play()
+	}
+
+	fun finish() {
+		timeline.stop()
+		progressProperty().unbind()
+		progressProperty().value = 1.0
+		timeline.jumpTo(END_CUE)
 	}
 
 	fun stop() = timeline.stop()
