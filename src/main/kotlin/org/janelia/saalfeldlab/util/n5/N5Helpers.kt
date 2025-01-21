@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.util.n5
 
 import com.google.gson.JsonObject
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.IntegerProperty
 import javafx.event.EventHandler
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
@@ -25,6 +26,7 @@ import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -45,13 +47,12 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.P
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
-import java.util.List
 import java.util.Optional
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
+import kotlin.Throws
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -69,7 +70,7 @@ object N5Helpers {
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
 	private val LOG = KotlinLogging.logger { }
 
-	val GROUP_PARSERS = List.of<N5MetadataParser<*>>(
+	val GROUP_PARSERS = listOf<N5MetadataParser<*>>(
 		OmeNgffMetadataParser(),
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
@@ -77,7 +78,7 @@ object N5Helpers {
 		N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
 		N5MultiScaleMetadata.MultiScaleParser()
 	)
-	val METADATA_PARSERS = List.of<N5MetadataParser<*>>(
+	val METADATA_PARSERS = listOf<N5MetadataParser<*>>(
 		N5CosemMetadataParser(),
 		N5SingleScaleMetadataParser(),
 		N5GenericSingleScaleMetadataParser()
@@ -772,21 +773,19 @@ object N5Helpers {
 	}
 
 	/**
-	 * Iterates through each block in the specified dataset that exists at the given scale level and performs an action using the provided lambda function.
+	 * Iterates through each block in the specified dataset that exists and performs an action using the provided lambda function.
 	 * `withBlock` is called asynchronously for each block that exists, and the overall call will return only
 	 * when all blocks are processed.
 	 *
-	 * @param source The source from which to generate the grid and intervals corresponding to blocks.
-	 * @param scaleLevel The scale level to consider when generating the grid of blocks.
 	 * @param n5 The N5 reader used to check for the existence of blocks.
 	 * @param dataset The dataset path to check within the N5 container.
-	 * @param processedCount An optional AtomicInteger to track the number of processed blocks.
+	 * @param processedCount An optional IntegerProperty to track the number of processed blocks.
 	 * @param withBlock A lambda function to execute for each existing block's interval.
 	 */
 	suspend fun forEachBlockExists(
 		n5: GsonKeyValueN5Reader,
 		dataset: String,
-		processedCount: AtomicInteger? = null,
+		processedCount: IntegerProperty? = null,
 		withBlock: (Interval) -> Unit
 	) {
 
@@ -794,26 +793,65 @@ object N5Helpers {
 			CellGrid(dimensions, blockSize)
 		}
 
-		//TODO Caleb: Use Streams.localizable over `cellIntervals()` after bumping to the newest imglib2 version
 		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
 		val curBlock = LongArray(gridIterable.numDimensions())
-		val cellMin = LongArray(gridIterable.numDimensions())
 		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
+		val cellMin = LongArray(gridIterable.numDimensions())
 
 		coroutineScope {
 			while (gridIterable.hasNext()) {
 				gridIterable.fwd()
 				gridIterable.localize(curBlock)
-				if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(dataset, *curBlock))) {
+
+				//FIXME Caleb: revert when https://github.com/saalfeldlab/n5-zarr/pull/58 is merged
+				val sep = (n5 as? ZarrKeyValueReader)?.getDatasetAttributes(dataset)?.dimensionSeparator ?: "/"
+				val blockPath = curBlock.joinToString(sep)
+				if (n5.keyValueAccess.exists(n5.absoluteGroupPath("$dataset/$blockPath"))) {
 					for (i in cellMin.indices)
 						cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
 					val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
 					launch {
 						withBlock(cellInterval)
-						processedCount?.getAndIncrement()
+						processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
 					}
 				} else
-					processedCount?.getAndIncrement()
+					processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
+			}
+		}
+	}
+
+
+	/**
+	 * Iterates through each block in the specified dataset and performs an action using the provided lambda function.
+	 * `withBlock` is called asynchronously for each block, and the overall call will return only
+	 * when all blocks are processed.
+	 *
+	 * @param blockGrid to iterate over
+	 * @param processedCount An optional IntegerProperty to track the number of processed blocks.
+	 * @param withBlock A lambda function to execute for each existing block's interval.
+	 */
+	suspend fun forEachBlock(
+		blockGrid: CellGrid,
+		processedCount: IntegerProperty? = null,
+		withBlock: (Interval) -> Unit
+	) {
+
+		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
+		val curBlock = LongArray(gridIterable.numDimensions())
+		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
+		val cellMin = LongArray(gridIterable.numDimensions())
+
+		coroutineScope {
+			while (gridIterable.hasNext()) {
+				gridIterable.fwd()
+				gridIterable.localize(curBlock)
+				for (i in cellMin.indices)
+					cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
+				val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
+				launch {
+					withBlock(cellInterval)
+					processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
+				}
 			}
 		}
 	}
