@@ -32,6 +32,8 @@ import net.imglib2.RealInterval
 import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
 import net.imglib2.algorithm.lazy.Lazy
 import net.imglib2.cache.img.CachedCellImg
+import net.imglib2.cache.img.DiskCachedCellImgFactory
+import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.img.basictypeaccess.AccessFlags
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.loops.LoopBuilder
@@ -442,7 +444,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		val bundleSourceImg = BundleView(sourceImg.convert(UnsignedLongType(Imglib2Label.INVALID)) { input, output -> output.set(input.realDouble.toLong()) }.interval(sourceImg)).interval(sourceImg)
 
 		val cellGrid = maskedSource.getCellGrid(0, scale0)
-		val labelMask = Lazy.generate(bundleSourceImg, cellGrid.cellDimensions, DoubleType(0.0), AccessFlags.setOf()) { labelMaskChunk ->
+		val labelMask = DiskCachedCellImgFactory(DoubleType(0.0)).create(bundleSourceImg, { labelMaskChunk ->
 			val sourceChunk = bundleSourceImg.interval(labelMaskChunk)
 			val canvasChunk = canvasImg.interval(labelMaskChunk)
 
@@ -458,8 +460,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 				}
 				hasLabel?.let { maskVal.set(it) }
 			}
-		}
-
+		}, DiskCachedCellImgOptions().cellDimensions(*cellGrid.cellDimensions))
 		var labelRoi: Interval = FinalInterval(blocksWithLabel[0])
 		blocksWithLabel.forEach { labelRoi = labelRoi union it }
 
