@@ -80,7 +80,7 @@
 		<n5-google-cloud.version>4.1.2</n5-google-cloud.version>
 		<n5-aws-s3.version>4.2.2</n5-aws-s3.version>
 		<n5-zarr.version>1.4.0</n5-zarr.version>
-		<n5.version>3.3.1-SNAPSHOT</n5.version>
+		<n5.version>3.3.1</n5.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
