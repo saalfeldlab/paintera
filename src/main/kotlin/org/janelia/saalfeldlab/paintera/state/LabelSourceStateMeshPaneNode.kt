@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -18,14 +19,16 @@ import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.expa
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgressState
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
+import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 
 typealias TPE = TitledPaneExtensions
 
@@ -73,10 +76,12 @@ class LabelSourceStateMeshPaneNode(
 				val exportDialog = MeshExporterDialog(meshInfoList.meshInfos as ObservableList<MeshInfo<Long>>)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
+					manager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
+						if (meshExporter.isCancelled()) return@run
+
 						val ids = meshKeys.toTypedArray()
 						val meshSettings = ids.map { manager.getSettings(it) }.toTypedArray()
-
 						(meshExporter as? MeshExporterObj<*>)?.run {
 							val colors: Array<Color> = ids.mapIndexed { idx, it ->
 								val color = manager.getStateFor(it)?.color ?: Color.WHITE
@@ -84,14 +89,6 @@ class LabelSourceStateMeshPaneNode(
 							}.toTypedArray()
 							exportMaterial(filePath, ids.map { it.toString() }.toTypedArray(), colors)
 						}
-						meshExporter.exportMesh(
-							manager.getBlockListForSegment,
-							manager.getMeshForLongKey,
-							meshSettings,
-							ids,
-							scale,
-							filePath
-						)
 					}
 				}
 			}
@@ -131,7 +128,7 @@ class LabelSourceStateMeshPaneNode(
 
 	companion object {
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger { }
 
 		private fun Node.asVBox() = if (this is VBox) this else VBox(this)
 

@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.ui
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -13,22 +14,33 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.stage.Modality
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshInfoPane.Companion.LOG
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
+import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExportResult
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
+import java.util.concurrent.CancellationException
 import kotlin.math.max
 import kotlin.math.min
 
@@ -190,7 +202,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			// min label ratio slider only makes sense for sources of label multiset type
 			if (addMinLabelratioSlider) {
 				val tooltipText = "Min label percentage for a pixel to be filled." + System.lineSeparator() +
-					"0.0 means that a pixel will always be filled if it contains the given label."
+						"0.0 means that a pixel will always be filled if it contains the given label."
 				addGridOption("Min label ratio", minLabelRatioSlider, tooltipText)
 			}
 
@@ -318,14 +330,14 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 			val result = exportDialog.showAndWait()
 			if (!result.isPresent) return@setOnAction
 
+			val manager: MeshManager<T> = meshInfo.manager
 			val parameters = result.get()
+			manager.exportMeshWithProgressPopup(parameters)
+
 			val meshExporter = parameters.meshExporter
 
 			val ids = parameters.meshKeys
-			if (ids.isEmpty()) return@setOnAction
-
 			val filePath = parameters.filePath
-			val scale = parameters.scale
 
 			if (meshExporter is MeshExporterObj) {
 				meshExporter.exportMaterial(
@@ -334,18 +346,71 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 					arrayOf(meshInfo.manager.getStateFor(ids[0])?.color ?: Color.WHITE)
 				)
 			}
-
-			meshExporter.exportMesh(
-				meshInfo.manager.getBlockListFor,
-				meshInfo.manager.getMeshFor,
-				meshInfo.meshSettings,
-				ids[0],
-				scale,
-				filePath,
-				false
-			)
 		}
 		return exportMeshButton
+	}
+
+	companion object {
+		private val LOG = KotlinLogging.logger { }
+	}
+}
+
+fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>) {
+	val log = KotlinLogging.logger { }
+	val meshExporter = result.meshExporter
+	val blocksProcessed = meshExporter.blocksProcessed
+	val ids = result.meshKeys
+	if (ids.isEmpty()) return
+	val (getBlocks, getMesh) = when(this) {
+		is MeshManagerWithAssignmentForSegments -> getBlockListForSegment as GetBlockListFor<T> to getMeshForLongKey as GetMeshFor<T>
+		else -> getBlockListFor to getMeshFor
+	}
+	val totalBlocks = ids.sumOf { getBlocks.getBlocksFor(result.scale, it).count() }
+	val labelProp = SimpleStringProperty().apply {
+		bind(blocksProcessed.createNonNullValueBinding { "Blocks processed: ${it}/$totalBlocks" })
+	}
+	val progressProp = SimpleDoubleProperty(0.0).apply {
+		bind(blocksProcessed.createNonNullValueBinding { it.toDouble() / totalBlocks })
+	}
+	val progressUpdater = AnimatedProgressBarAlert(
+		"Export Mesh",
+		"Exporting Mesh",
+		labelProp,
+		progressProp
+	)
+	val exportJob = CoroutineScope(Dispatchers.IO).async {
+		meshExporter.exportMesh(
+			getBlocks,
+			getMesh,
+			ids.map { getSettings(it) }.toTypedArray(),
+			ids,
+			result.scale,
+			result.filePath
+		)
+	}
+	exportJob.invokeOnCompletion { cause ->
+		cause?.let {
+			if (it is CancellationException) {
+				log.info { "Export Mesh Cancelled by User" }
+				progressUpdater.stopAndClose()
+				return@invokeOnCompletion
+			}
+			log.error(it) { "Error exporting meshes" }
+			progressUpdater.stopAndClose()
+			InvokeOnJavaFXApplicationThread {
+				PainteraAlerts.alert(Alert.AlertType.ERROR, true).apply {
+					contentText = "Error exporting meshes\n${it.message}"
+				}.showAndWait()
+			}
+		} ?: progressUpdater.finish()
+	}
+	InvokeOnJavaFXApplicationThread {
+		if (exportJob.isActive) {
+			progressUpdater.showAndWait()
+			if (progressUpdater.cancelled)
+				meshExporter.cancel()
+		}
+
 	}
 }
 

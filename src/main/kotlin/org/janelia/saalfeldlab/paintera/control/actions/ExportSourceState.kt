@@ -10,6 +10,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
@@ -32,7 +33,6 @@ import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
-import java.util.concurrent.atomic.AtomicInteger
 
 class ExportSourceState {
 
@@ -127,7 +127,7 @@ class ExportSourceState {
 		}
 		progressUpdater?.apply {
 			exportJob.invokeOnCompletion { finish() }
-			showAndStart()
+			InvokeOnJavaFXApplicationThread { showAndWait() }
 		}
 	}
 }
