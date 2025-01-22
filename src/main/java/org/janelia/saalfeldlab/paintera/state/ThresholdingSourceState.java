@@ -155,7 +155,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			}
 		}
 
-		affectedBlocskByLevel.put(level, growingIntervalSet.toArray(new Interval[1]));
+		affectedBlocskByLevel.put(level, growingIntervalSet.toArray(new Interval[0]));
 		return affectedBlocskByLevel.get(level);
 	}
 
