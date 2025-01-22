@@ -9,6 +9,7 @@ import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
@@ -95,14 +96,19 @@ class ExportSourceState {
 		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, sourceAttributes.compression)
 
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
+		val count = SimpleIntegerProperty(0)
+		val labelProp = SimpleStringProperty("Blocks Written 0 / $totalBlocks").apply {
+			bind(count.createObservableBinding { "Blocks Written ${it.value} / $totalBlocks" })
+		}
+		val progressProp = SimpleDoubleProperty(0.0).apply {
+			bind(count.createObservableBinding { it.get().toDouble() / totalBlocks })
+		}
 		val (processedBlocks, progressUpdater) = if (showProgressAlert) {
-			val count = AtomicInteger()
 			count to  AnimatedProgressBarAlert(
 				"Export Label Source",
 				"Exporting data...",
-				"Blocks Written",
-				count::get,
-				totalBlocks.toInt()
+				labelProp,
+				progressProp
 			)
 		} else null to null
 
