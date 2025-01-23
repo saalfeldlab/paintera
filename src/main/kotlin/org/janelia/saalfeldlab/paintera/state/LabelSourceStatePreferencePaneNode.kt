@@ -280,7 +280,6 @@ class LabelSourceStatePreferencePaneNode(
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-					initModality(Modality.NONE)
 					headerText = "Fragment Selection"
 					dialogPane.content = TextArea().also {
 						it.isWrapText = true
@@ -402,7 +401,6 @@ class LabelSourceStatePreferencePaneNode(
 					}
 
 					val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-						initModality(Modality.NONE)
 						headerText = "Canvas"
 						contentText = "TODO" /* TODO */
 					}

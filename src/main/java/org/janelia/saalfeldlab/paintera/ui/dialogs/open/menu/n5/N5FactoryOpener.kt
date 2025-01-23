@@ -7,7 +7,6 @@ import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
-import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -32,7 +31,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 		}
 	}
 
-	fun backendDialog() = OpenSourceDialog(paintera.baseView, openSourceState, selectionProperty)
+	fun backendDialog() = OpenSourceDialog(openSourceState, selectionProperty, )
 
 	private fun cacheAsRecent(n5ContainerLocation: String) {
 		PainteraCache.RECENT_CONTAINERS.appendLine(n5ContainerLocation, 50)

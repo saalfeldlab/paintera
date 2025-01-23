@@ -223,7 +223,7 @@ class PaintClickOrDragController(
 					release()
 					InvokeOnJavaFXApplicationThread {
 						if (e.offerReset()) {
-							PainteraAlerts.confirmation("Yes", "No", true, paintera.node.scene.window).apply {
+							PainteraAlerts.confirmation("Yes", "No", true).apply {
 								headerText = "Unable to paint."
 
 								contentText = """

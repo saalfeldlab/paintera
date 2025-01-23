@@ -102,11 +102,11 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 				Menus.menuItem("Value Range") { e -> setAllMinMax() })
 			setButton.tooltip = Tooltip("Change channels globally.")
 
-			val helpDialog = PainteraAlerts
-				.alert(Alert.AlertType.INFORMATION, true)
-				.also { it.initModality(Modality.NONE) }
-				.also { it.headerText = "Conversion of channel data into ARGB color space." }
-				.also { it.contentText = DESCRIPTION }
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+				PainteraAlerts.initOwner(this)
+				headerText = "Conversion of channel data into ARGB color space."
+				contentText = DESCRIPTION
+			}
 
 			val tpGraphics = HBox(
 				Label("Color Conversion"),

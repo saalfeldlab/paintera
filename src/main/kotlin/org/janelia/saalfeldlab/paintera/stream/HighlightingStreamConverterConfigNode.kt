@@ -185,9 +185,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			contents.children.add(colorPane)
 
 
-			val helpDialog = PainteraAlerts
-				.alert(Alert.AlertType.INFORMATION, true).apply {
-					initModality(Modality.NONE)
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
 					headerText = "Conversion of label data into ARGB color space."
 					contentText = COLOR_CONVERSION_DESCRIPTION
 				}

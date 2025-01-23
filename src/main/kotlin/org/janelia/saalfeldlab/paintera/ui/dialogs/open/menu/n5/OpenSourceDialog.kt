@@ -20,7 +20,6 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.DirectoryChooser
 import javafx.stage.FileChooser
-import javafx.stage.Modality
 import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
@@ -35,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.NameField
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
@@ -51,7 +51,6 @@ import java.util.function.Consumer
 import java.util.function.Supplier
 
 class OpenSourceDialog(
-	val paintera: PainteraBaseView,
 	val state: OpenSourceState,
 	val containerSelectionProperty: StringProperty
 ) : Dialog<OpenSourceState>(), CombinesErrorMessages {
@@ -161,8 +160,7 @@ class OpenSourceDialog(
 
 		}
 		isResizable = true
-		initModality(Modality.APPLICATION_MODAL)
-		paintera.node.scene?.window?.also { initOwner(it) }
+		PainteraAlerts.initAppDialog(this)
 		dialogPane.scene.window.sizeToScene()
 	}
 
@@ -239,6 +237,7 @@ class OpenSourceDialog(
 				var openSourceState = OpenSourceState()
 				try {
 					N5FactoryOpener(openSourceState).backendDialog().apply {
+						PainteraAlerts.initAppDialog(this)
 						headerText = "Open Source Dataset"
 						val openSourceState = showAndWait().nullable ?: return@BiConsumer
 
@@ -253,7 +252,7 @@ class OpenSourceDialog(
 					}
 
 					Exceptions.exceptionAlert(Constants.NAME, "Unable to add source", e).apply {
-						initModality(Modality.APPLICATION_MODAL)
+						PainteraAlerts.initAppDialog(this)
 						paintera.node.scene?.window?.also { initOwner(it) }
 						show()
 					}

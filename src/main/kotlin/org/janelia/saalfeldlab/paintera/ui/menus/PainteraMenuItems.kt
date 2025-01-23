@@ -71,7 +71,7 @@ enum class PainteraMenuItems(
 			onAction().accept(pbv, projectDir)
 		}
 
-		private val replDialog = ReplDialog(paintera.gateway.context, { paintera.pane.scene.window }, "paintera" to this)
+		private val replDialog = ReplDialog(paintera.gateway.context, "paintera" to this)
 
 		private fun PainteraMainWindow.namedEventHandlers(): Map<PainteraMenuItems, EventHandler<ActionEvent>> {
 			val getProjectDirectory = { projectDirectory.actualDirectory.absolutePath }

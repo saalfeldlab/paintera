@@ -21,7 +21,7 @@ internal object KeyBindingsDialog {
 	}
 	val dialog: Alert by lazy {
 		PainteraAlerts.information("_Close", true).apply {
-			initModality(Modality.NONE)
+			PainteraAlerts.initAppDialog(this, Modality.NONE)
 			dialogPane.content = keyBindingsPane
 			graphic = null
 			headerText = null

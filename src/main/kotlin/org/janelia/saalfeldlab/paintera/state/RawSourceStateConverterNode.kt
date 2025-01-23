@@ -127,7 +127,6 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
 				headerText = "Conversion of raw data into ARGB color space."
 				contentText = DESCRIPTION
 			}

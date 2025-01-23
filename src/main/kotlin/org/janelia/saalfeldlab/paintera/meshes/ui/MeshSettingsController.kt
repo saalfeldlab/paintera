@@ -13,7 +13,6 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
-import javafx.stage.Modality
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -33,7 +32,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshInfoPane.Companion.LOG
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
@@ -112,9 +110,7 @@ class MeshSettingsController @JvmOverloads constructor(
 		val contents = createContents(addMinLabelRatioSlider)
 		withGridPane.invoke(contents) /* Used to add costume components to the GridPane */
 
-		val helpDialog = PainteraAlerts
-			.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
+		val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
 				headerText = helpDialogSettings.headerText
 				contentText = helpDialogSettings.contentText
 			}
@@ -355,8 +351,8 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 	}
 }
 
+private val LOG = KotlinLogging.logger { }
 fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>) {
-	val log = KotlinLogging.logger { }
 	val meshExporter = result.meshExporter
 	val blocksProcessed = meshExporter.blocksProcessed
 	val ids = result.meshKeys
@@ -391,11 +387,11 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 	exportJob.invokeOnCompletion { cause ->
 		cause?.let {
 			if (it is CancellationException) {
-				log.info { "Export Mesh Cancelled by User" }
+				LOG.info { "Export Mesh Cancelled by User" }
 				progressUpdater.stopAndClose()
 				return@invokeOnCompletion
 			}
-			log.error(it) { "Error exporting meshes" }
+			LOG.error(it) { "Error exporting meshes" }
 			progressUpdater.stopAndClose()
 			InvokeOnJavaFXApplicationThread {
 				PainteraAlerts.alert(Alert.AlertType.ERROR, true).apply {

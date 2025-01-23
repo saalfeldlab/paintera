@@ -60,7 +60,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
 		val helpDialog = PainteraAlerts
 			.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
+				PainteraAlerts.initAppDialog(this, Modality.NONE)
 				headerText = "Threshold"
 				contentText = "TODO" /* TODO */
 			}

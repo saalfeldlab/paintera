@@ -230,7 +230,7 @@ object PaintLabelMode : AbstractToolMode() {
 			verify("has current mask") { (statePaintContext as? MaskedSource<*, *>)?.currentMask != null }
 			onAction {
 				InvokeOnJavaFXApplicationThread {
-					PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {
+					PainteraAlerts.confirmation("Yes", "No", false).apply {
 						headerText = "Force Reset the Active Mask?"
 						contentText = """
                             This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".

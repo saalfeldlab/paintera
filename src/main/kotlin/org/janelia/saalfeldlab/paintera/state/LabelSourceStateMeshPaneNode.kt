@@ -100,7 +100,6 @@ class LabelSourceStateMeshPaneNode(
 			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(manager.managedSettings.isMeshListEnabledProperty) }
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
 				headerText = "Mesh List."
 				contentText = "TODO"
 			}

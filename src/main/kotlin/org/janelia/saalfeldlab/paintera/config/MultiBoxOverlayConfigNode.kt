@@ -33,7 +33,6 @@ class MultiBoxOverlayConfigNode() {
 			}
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
 				headerText = "Multi-Box Overlay"
 				contentText = "Draw overlays of the current screen and all sources in world space to " +
 						"indicate orientation and position of current cross-section in world and relative to data. " +
