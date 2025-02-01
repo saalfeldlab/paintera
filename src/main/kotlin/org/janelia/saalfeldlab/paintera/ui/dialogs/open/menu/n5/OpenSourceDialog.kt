@@ -67,7 +67,7 @@ class OpenSourceDialog(
 
 			minWidth = 0.0
 			maxWidth = Double.POSITIVE_INFINITY
-			promptText = "N5 container"
+			promptText = "Source location (N5/Zarr/HDF5)"
 			tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
 			textProperty().subscribe { _, new -> containerSelection = new }
 			focusedProperty().subscribe { _, focus ->
@@ -92,9 +92,7 @@ class OpenSourceDialog(
 		state.sourceNameProperty.subscribe { name -> textField().text = name }
 	}
 
-	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isOpeningContainer).apply {
-		visibleProperty().bind(isOpeningContainer.not())
-	}
+	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isOpeningContainer)
 
 	val metaPanel = MetaPanel(state)
 

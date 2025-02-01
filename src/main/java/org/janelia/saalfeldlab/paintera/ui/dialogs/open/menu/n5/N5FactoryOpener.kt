@@ -23,7 +23,10 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 
 	init {
 		containerStateProperty.subscribe { containerState ->
-			openSourceState.parseContainer(containerState)
+			openSourceState.parseContainer(containerState)?.apply {
+				isOpeningContainer.value = true
+				invokeOnCompletion { isOpeningContainer.value = false }
+			}
 		}
 		selectionProperty.subscribe { _, new -> selectionChanged(new) }
 		DEFAULT_DIRECTORY?.let {
@@ -31,7 +34,9 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 		}
 	}
 
-	fun backendDialog() = OpenSourceDialog(openSourceState, selectionProperty, )
+	fun backendDialog() = OpenSourceDialog(openSourceState, selectionProperty).also {
+		it.isOpeningContainer.bindBidirectional(isOpeningContainer)
+	}
 
 	private fun cacheAsRecent(n5ContainerLocation: String) {
 		PainteraCache.RECENT_CONTAINERS.appendLine(n5ContainerLocation, 50)
