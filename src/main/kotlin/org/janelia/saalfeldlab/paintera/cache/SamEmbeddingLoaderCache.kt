@@ -12,6 +12,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.animation.AnimationTimer
 import javafx.embed.swing.SwingFXUtils
 import kotlinx.coroutines.*
+import net.imglib2.cache.LoaderCache
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
@@ -52,19 +53,19 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTensor>(
-	SoftRefLoaderCache(),
-	{
-		fun getEmbedding(): OnnxTensor {
-			return try {
-				SamEmbeddingLoaderCache.getImageEmbedding(it)
-			} catch (e: SocketTimeoutException) {
-				getEmbedding()
+object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTensor>() {
+
+	override val cache: LoaderCache<RenderUnitState, Deferred<OnnxTensor>> = SoftRefLoaderCache()
+
+	override tailrec suspend fun loader(key: RenderUnitState): OnnxTensor {
+		runCatching { getImageEmbedding(key) }
+			.onSuccess { return it }
+			.onFailure {
+				if (it !is SocketTimeoutException)
+					throw it
 			}
-		}
-		getEmbedding()
+		return loader(key)
 	}
-) {
 
 	//TODO Caleb: May want to be smarter about this, server side health check maybe
 	val canReachServer by LazyForeignValue({ paintera.properties.segmentAnythingConfig.serviceUrl }) {
