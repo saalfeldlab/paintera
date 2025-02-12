@@ -190,11 +190,6 @@ object PaintLabelMode : AbstractToolMode() {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
-		if (activeTool is SamTool)
-			activeViewerProperty.unbind()
-		else if (!activeViewerProperty.isBound)
-			activeViewerProperty.bind(paintera.baseView.currentFocusHolder)
-
 		return switchToolJob
 	}
 
