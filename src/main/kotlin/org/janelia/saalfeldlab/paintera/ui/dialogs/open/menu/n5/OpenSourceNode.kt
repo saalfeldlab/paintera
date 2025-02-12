@@ -1,7 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
-import javafx.beans.property.BooleanProperty
+import javafx.beans.binding.BooleanExpression
 import javafx.collections.FXCollections
+import javafx.collections.MapChangeListener
 import javafx.collections.ObservableList
 import javafx.scene.Node
 import javafx.scene.control.MenuButton
@@ -19,7 +20,7 @@ class OpenSourceNode(
 	openSourceState: OpenSourceState,
 	containerLocationNode: Node,
 	browseNode: Node,
-	isOpeningContainer: BooleanProperty
+	isBusy: BooleanExpression
 ) : GridPane() {
 
 	init {
@@ -36,13 +37,13 @@ class OpenSourceNode(
 		add(browseNode, 2, 0)
 
 		val progressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS)
-		progressIndicator.setScaleX(.75)
-		progressIndicator.setScaleY(.75)
+		progressIndicator.scaleX = .75
+		progressIndicator.scaleY = .75
 
 		add(progressIndicator, 2, 1)
 		setHgrow(progressIndicator, Priority.NEVER)
 		setVgrow(progressIndicator, Priority.NEVER)
-		progressIndicator.visibleProperty().bind(isOpeningContainer)
+		progressIndicator.visibleProperty().bind(isBusy)
 	}
 
 
@@ -51,17 +52,25 @@ class OpenSourceNode(
 
 		private fun OpenSourceState.createDatasetDropdownMenu(): MenuButton {
 
-			val choices: ObservableList<String> = FXCollections.observableArrayList()
+			fun trimValidDatasetChoices(): List<String> {
+				var prev = 0
+				val sortedDatasets = validDatasets.keys.sortedWith(AlphanumericComparator()).toMutableList()
+				val trimmedDatasets = sortedDatasets.filterIndexed { idx, dataset ->
+					if (idx == prev)
+						return@filterIndexed true
 
-			/* If the dataset choices are changed, create new menuItems, and update*/
-			validDatasets.subscribe { datasets ->
-				val sortedDatasets = datasets.keys.sortedWith(AlphanumericComparator())
-				InvokeOnJavaFXApplicationThread {
-					choices.setAll(sortedDatasets)
-				}
+					var prefixExists = dataset.startsWith(sortedDatasets[prev])
+					if (!prefixExists)
+						prev = idx
+					!prefixExists
+				}.filterNotNull().toList()
+				return trimmedDatasets
 			}
 
-			return MatchSelectionMenuButton(choices, null, null) { selection ->
+			val choices: ObservableList<String> = FXCollections.observableArrayList()
+
+
+			val dropDownMenuButton = MatchSelectionMenuButton(choices, null, null) { selection ->
 				activeNodeProperty.set(validDatasets.get()[selection])
 			}.apply {
 				cutoff = 50
@@ -77,7 +86,24 @@ class OpenSourceNode(
 					else "$DATASET_PROMPT: $datasetPath"
 				}
 				textProperty().bind(datasetDropDownText)
+
+				val prevOnShowing = onShowing
+				setOnShowing {
+					choices.setAll(trimValidDatasetChoices())
+					prevOnShowing.handle(it)
+				}
 			}
+
+			/* If the dataset choices are changed, create new menuItems, and update*/
+			validDatasets.addListener(MapChangeListener {
+				val trimmedDatasets = trimValidDatasetChoices()
+				InvokeOnJavaFXApplicationThread {
+					if (!dropDownMenuButton.isShowing)
+						choices.setAll(trimmedDatasets)
+				}
+			})
+
+			return dropDownMenuButton
 		}
 	}
 }

@@ -14,7 +14,10 @@ import javafx.scene.effect.InnerShadow
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.layout.Background
+import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.GridPane
+import javafx.scene.layout.GridPane.REMAINING
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
@@ -33,12 +36,12 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.cache.SHARED_PARSED_N5_CACHE
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.NameField
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState.Companion.ContainerLoaderCache
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.OpenDialogMenuEntry
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener.Companion.H5_EXTENSIONS
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.MetaPanel
@@ -85,14 +88,14 @@ class OpenSourceDialog(
 		EventHandler { updateFromFileChooser() }
 	) { containerSelection = it }
 
-	val isOpeningContainer = SimpleBooleanProperty(false)
+	val isBusy = SimpleBooleanProperty(false)
 
 	val nameField = NameField("Source name", "Specify source name (required)", InnerShadow(10.0, Color.ORANGE)).apply {
 		errorMessageProperty().subscribe { _, _ -> combineErrorMessages() }
 		state.sourceNameProperty.subscribe { name -> textField().text = name }
 	}
 
-	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isOpeningContainer)
+	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isBusy)
 
 	val metaPanel = MetaPanel(state)
 
@@ -114,6 +117,8 @@ class OpenSourceDialog(
 				else -> MetaPanel.TYPE.RAW
 			}
 		}
+
+
 
 		title = Constants.NAME
 		dialogPane.buttonTypes += arrayOf(ButtonType.CANCEL, ButtonType.OK)
@@ -145,6 +150,14 @@ class OpenSourceDialog(
 		GridPane.setMargin(openSourceNode, Insets(0.0, 0.0, 0.0, 30.0))
 		GridPane.setHgrow(openSourceNode, Priority.ALWAYS)
 		grid.add(openSourceNode, 1, 0)
+
+		val statusBar = TextField().apply {
+			background = Background(BackgroundFill(Color.TRANSPARENT, null, null))
+		}
+		grid.add(statusBar, 0, 1, REMAINING, 1)
+		GridPane.setHgrow(statusBar, Priority.ALWAYS)
+		statusBar.isEditable = false
+		statusBar.textProperty().bind(state.statusProperty)
 
 
 		metaPanel.bindDataTypeTo(typeProperty)
@@ -221,7 +234,7 @@ class OpenSourceDialog(
 				return@EventHandler
 
 			val uri = containerSelection
-			N5FactoryOpener.n5ContainerStateCache.remove(uri)?.also { ContainerLoaderCache.invalidate(it) }
+			N5FactoryOpener.n5ContainerStateCache.remove(uri)?.also { SHARED_PARSED_N5_CACHE.invalidate(it.reader) }
 			revalidateContainer()
 		}
 

@@ -3,10 +3,12 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.open
 import bdv.cache.SharedQueue
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
+import javafx.collections.FXCollections.observableMap
+import javafx.collections.FXCollections.synchronizedObservableMap
 import javafx.scene.Group
 import kotlinx.coroutines.*
+import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.Volatile
-import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
@@ -21,7 +23,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
+import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -35,9 +37,8 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import org.janelia.saalfeldlab.util.n5.discoverAndParseRecursive
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
-import kotlin.coroutines.coroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpenSourceState {
@@ -94,41 +95,55 @@ class OpenSourceState {
 			prop.value = datasetPath?.split("/")?.last()
 		}
 	}
-	var sourceName by sourceNameProperty.nonnull()
+	var sourceName: String by sourceNameProperty.nonnull()
 
-	val validDatasets = SimpleObjectProperty<Map<String, N5TreeNode>>(emptyMap())
+	val validDatasets = SimpleMapProperty<String, N5TreeNode>(synchronizedObservableMap(observableMap(ConcurrentHashMap())))
+	val statusProperty = SimpleStringProperty()
 
 	private var parseJob: Deferred<Map<String, N5TreeNode>?>? = null
 
-	fun parseContainer(state: N5ContainerState?): Deferred<Map<String, N5TreeNode>?>? {
+	fun parseContainer(state: N5ContainerState?, cache: ParsedN5LoaderCache): Deferred<Map<String, N5TreeNode>?>? {
 		writableContainerState = state
 		InvokeOnJavaFXApplicationThread { activeNode = null }
-		parseJob?.cancel("Cancelled by new request")
-		parseJob = state?.let { container ->
-			ContainerLoaderCache.request(container).apply {
-				invokeOnCompletion { cause ->
-					when (cause) {
-						null -> Unit
-						is CancellationException -> {
-							validDatasets.set(emptyMap<String, N5TreeNode>())
-							LOG.trace(cause) {}
-							return@invokeOnCompletion
-						}
-
-						else -> {
-							validDatasets.set(emptyMap<String, N5TreeNode>())
-							throw cause
-						}
+		state ?: let {
+			statusProperty.unbind()
+			statusProperty.value = "Container not found"
+			validDatasets.clear()
+			parseJob = null
+			return null
+		}
+		val ( observableMap, statusCallback, job) = cache.observableRequest(state.reader)
+		validDatasets.bindContent(observableMap)
+		val statusUpdateJob = InvokeOnJavaFXApplicationThread {
+			delay(250)
+			while (job.isActive) {
+				ensureActive()
+				statusProperty.set(statusCallback())
+				awaitPulse()
+			}
+		}
+		parseJob = job.apply {
+			invokeOnCompletion { cause ->
+				/* unbind regardless */
+				validDatasets.unbindContent(observableMap)
+				statusUpdateJob.cancel()
+				statusProperty.value = ""
+				when (cause) {
+					null -> Unit
+					is CancellationException -> {
+						LOG.trace(cause) {}
+						return@invokeOnCompletion
 					}
-					getCompleted()?.let {
-						LOG.trace { "Found ${it.size} valid datasets at ${container.uri}" }
-						validDatasets.set(it)
+					else -> {
+						validDatasets.clear()
+						throw cause
 					}
 				}
+				getCompleted()?.let {
+					LOG.trace { "Found ${it.size} valid datasets at ${state.uri}" }
+					validDatasets.putAll(it)
+				}
 			}
-		} ?: let {
-			validDatasets.set(emptyMap())
-			null
 		}
 		return parseJob
 	}
@@ -142,39 +157,6 @@ class OpenSourceState {
 			val translation: DoubleArray = DoubleArray(3),
 			val min: Double = Double.NaN,
 			val max: Double = Double.NaN
-		)
-
-		@JvmStatic
-		fun N5ContainerState.name() = uri.path.split("/").filter { it.isNotBlank() }.last()
-
-		private fun getValidDatasets(node: N5TreeNode): MutableMap<String, N5TreeNode> {
-			val map = mutableMapOf<String, N5TreeNode>()
-			getValidDatasets(node, map)
-			return map
-		}
-
-		private fun getValidDatasets(node: N5TreeNode, datasets: MutableMap<String, N5TreeNode>) {
-			if (MetadataUtils.metadataIsValid(node.metadata))
-				datasets[node.path] = node
-			else
-				node.childrenList().forEach { getValidDatasets(it, datasets) }
-
-		}
-
-		val ContainerLoaderCache = AsyncCacheWithLoader<N5ContainerState, Map<String, N5TreeNode>?>(
-			SoftRefLoaderCache(),
-			{ state ->
-				val rootNode = discoverAndParseRecursive(state.reader, "/")
-				coroutineContext.ensureActive()
-				val datasets = getValidDatasets(rootNode).run {
-					remove("/")?.let { node -> put(state.name(), node) }
-
-					isEmpty() && return@run null
-					this
-				}
-				coroutineContext.ensureActive()
-				datasets
-			}
 		)
 
 		@JvmStatic
@@ -278,11 +260,12 @@ class OpenSourceState {
 fun main() {
 	val opener = OpenSourceState()
 
-	opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!))
-	opener.parseContainer(null)
-	opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!))
-	opener.parseContainer(null)
-	var job = opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!))
+	val containerLoaderCache = ParsedN5LoaderCache()
+	opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!), containerLoaderCache)
+	opener.parseContainer(null, containerLoaderCache)
+	opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!), containerLoaderCache)
+	opener.parseContainer(null, containerLoaderCache)
+	var job = opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!), containerLoaderCache)
 	opener.validDatasets.subscribe { map ->
 		map.keys.forEach { key -> println(key) }
 		println("\n")
@@ -291,7 +274,7 @@ fun main() {
 		job?.await()
 	}
 
-	job = opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!))
+	job = opener.parseContainer(N5ContainerState(Paintera.n5Factory.openReaderOrNull("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")!!), containerLoaderCache)
 	runBlocking {
 		job?.await()
 	}
