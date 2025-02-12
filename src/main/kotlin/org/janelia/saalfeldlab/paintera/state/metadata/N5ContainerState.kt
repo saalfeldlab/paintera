@@ -12,13 +12,6 @@ data class N5ContainerState(val reader: N5Reader) {
 
 	val uri by lazy { reader.uri!! }
 
-	override fun equals(other: Any?): Boolean {
-		return if (other is N5ContainerState) {
-			uri == other.uri
-		} else {
-			super.equals(other)
-		}
-	}
-
+	override fun equals(other: Any?) = (other as? N5ContainerState)?.uri == uri || super.equals(other)
 	override fun hashCode() = uri.hashCode()
 }

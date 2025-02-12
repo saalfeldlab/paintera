@@ -693,6 +693,9 @@ object N5Helpers {
 		}
 	}
 
+	internal fun N5Reader.name() = uri.path.split("/").lastOrNull { it.isNotBlank() } ?: uri.path
+
+
 	internal fun deserializeFrom(json: JsonObject): N5Reader {
 		/* `fromClassInfo is the old style. Support both when deserializing, at least for now. Should be replaced on next save */
 		val fromClassInfo = json[SerializationKeys.CONTAINER]
