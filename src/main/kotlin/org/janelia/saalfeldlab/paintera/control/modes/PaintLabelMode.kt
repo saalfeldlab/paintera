@@ -65,7 +65,7 @@ object PaintLabelMode : AbstractToolMode() {
 		)
 	}
 
-	override val modeActions: List<ActionSet> by lazy {
+	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
@@ -77,29 +77,6 @@ object PaintLabelMode : AbstractToolMode() {
 	}
 
 	override val allowedActions = AllowedActions.PAINT
-
-	private val moveModeActionsToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-		/* remove the mode actions from the deactivated viewer, add to the activated viewer */
-		modeActions.forEach { actionSet ->
-			old?.viewer()?.removeActionSet(actionSet)
-			new?.viewer()?.installActionSet(actionSet)
-		}
-	}
-
-	override fun enter() {
-		activeViewerProperty.addListener(moveModeActionsToActiveViewer)
-		super.enter()
-	}
-
-	override fun exit() {
-		activeViewerProperty.removeListener(moveModeActionsToActiveViewer)
-		activeViewerProperty.get()?.let {
-			modeActions.forEach { actionSet ->
-				it.viewer()?.removeActionSet(actionSet)
-			}
-		}
-		super.exit()
-	}
 
 	private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
 		KEY_PRESSED(FILL_3D) {

@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.scene.input.KeyEvent.KEY_PRESSED
@@ -21,10 +20,7 @@ import net.imglib2.util.Util
 import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
@@ -62,6 +58,8 @@ object RawSourceMode : AbstractToolMode() {
 			}
 		}
 	}
+
+	override val activeViewerActions: List<ActionSet> = listOf(minMaxIntensityThreshold)
 
 	fun autoIntensityMinMax(rawSource: ConnectomicsRawState<*, *>, viewer: ViewerPanelFX) {
 		val globalToViewerTransform = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
@@ -120,7 +118,7 @@ object RawSourceMode : AbstractToolMode() {
 
 	private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: ConnectomicsRawState<*, *>, converter: ARGBColorConverter<out AbstractVolatileRealType<*, *>>) {
 		val numSamples = Intervals.numElements(screenSource)
-		val numBins = numSamples.coerceIn(100,  1000)
+		val numBins = numSamples.coerceIn(100, 1000)
 		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, numBins, false)
 		val histogram = Histogram1d(binMapper)
 		val img = screenSource.convertRAI(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
@@ -204,26 +202,6 @@ object RawSourceMode : AbstractToolMode() {
 
 		rawSource.converter().minProperty().set(extension.minValue)
 		rawSource.converter().maxProperty().set(extension.maxValue)
-	}
-
-	override val modeActions: List<ActionSet> = listOf(minMaxIntensityThreshold)
-
-	private val moveToolTriggersToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-		/* remove the tool triggers from old, add to new */
-		modeActions.forEach { actionSet ->
-			old?.viewer()?.removeActionSet(actionSet)
-			new?.viewer()?.installActionSet(actionSet)
-		}
-	}
-
-	override fun enter() {
-		activeViewerProperty.addListener(moveToolTriggersToActiveViewer)
-		super.enter()
-	}
-
-	override fun exit() {
-		activeViewerProperty.removeListener(moveToolTriggersToActiveViewer)
-		super.exit()
 	}
 
 }

@@ -61,9 +61,7 @@ object NavigationControlMode : AbstractToolMode() {
 	 * Intentianally empty. [NavigationControlMode] has only one tool, which contains all the Navigation actions.
 	 * It will always be active when [NavigationControlMode] is the active mode.
 	 */
-	override val modeActions = listOf<ActionSet>(
-
-	)
+	override val activeViewerActions = emptyList<ActionSet>()
 
 	override val allowedActions = AllowedActions.NAVIGATION
 

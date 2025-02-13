@@ -18,6 +18,8 @@ import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 interface Tool {
 
@@ -94,20 +96,19 @@ const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
 
 abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
 
-	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
-	private var subscriptions : Subscription? = null
+	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = ConcurrentHashMap()
+	private var subscriptions: Subscription? = null
 	override val isValidProperty = SimpleBooleanProperty(true)
 
 	override fun activate() {
 		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
+		/* this handles installing into the currently active viewer */
+		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
 		/* This handles viewer changes while  activated */
-		val viewerPropSubscription = activeViewerProperty.subscribe { old, new ->
+		subscriptions = activeViewerProperty.subscribe { old, new ->
 			old?.viewer()?.let { removeFrom(it) }
 			new?.viewer()?.let { installInto(it) }
 		}
-		/* this handles installing into the currently active viewer */
-		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
-		subscriptions = subscriptions?.and(viewerPropSubscription) ?: viewerPropSubscription
 	}
 
 	override fun deactivate() {
@@ -125,41 +126,35 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
 	fun installInto(node: Node) {
-		synchronized(this) {
-			if (!installedInto.containsKey(node)) {
-				LOG.debug { "installing $this" }
-				installedInto.putIfAbsent(node, mutableListOf())
-				actionSets.forEach {
-					node.installActionSet(it)
-					installedInto[node]?.add(it)
-				}
+		installedInto.computeIfAbsent(node) {
+			LOG.debug { "installing $this" }
+			actionSets.map { actionSet ->
+				node.installActionSet(actionSet)
+				actionSet
 			}
+				.toMutableList()
+				.let { Collections.synchronizedList(it) }
 		}
 	}
 
 	fun removeFromAll() {
-		synchronized(this) {
+		installedInto.keys.toSet().forEach { node ->
 			LOG.debug { "removing $this from all nodes" }
-			installedInto.forEach { (node, actions) ->
-				actions.removeIf { actionSet ->
-					node.removeActionSet(actionSet)
-					true
-				}
-			}
+			removeFrom(node)
+		}
+		synchronized(this) {
 			installedInto.clear()
 		}
 	}
 
 	fun removeFrom(node: Node) {
-		synchronized(this) {
-			installedInto[node]?.let { actions ->
-				LOG.debug { "removing $this from node $node" }
-				actions.removeIf { actionSet ->
-					node.removeActionSet(actionSet)
-					true
-				}
-				if (actions.isEmpty()) installedInto -= node
+		installedInto[node]?.let { actions ->
+			LOG.debug { "removing $this from node $node" }
+			actions.removeAll { actionSet ->
+				node.removeActionSet(actionSet)
+				true
 			}
+			if (actions.isEmpty()) installedInto -= node
 		}
 	}
 
