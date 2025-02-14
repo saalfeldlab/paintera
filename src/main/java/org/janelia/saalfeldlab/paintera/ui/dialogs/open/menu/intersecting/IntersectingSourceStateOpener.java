@@ -18,9 +18,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.janelia.saalfeldlab.fx.Labels;
@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.Colors;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,31 +187,16 @@ public class IntersectingSourceStateOpener {
 		grid.add(nameField, 1, 2);
 		grid.add(colorPicker, 1, 3);
 
-		final var infoPane = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
+		final var infoPane = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true);
 		final var view = new ImageView("PainteraIntersectionInfo.png");
-		final var richText = new InlineCssTextArea();
+		view.setFitHeight(400.0);
+		view.preserveRatioProperty().setValue(true);
+		view.setSmooth(true);
 
-		richText.setEditable(false);
-		richText.append("To create a ", "");
-		richText.append("connected component source ", CONNECTED_COMPONENT_STYLE);
-		richText.append("select a", "");
-		richText.append(" seed source ", SEED_SOURCE_STYLE);
-		richText.append("and a", "");
-		richText.append(" fill source", FILL_SOURCE_STYLE);
-		richText.append(".\n\nThe", "");
-		richText.append(" seed source ", SEED_SOURCE_STYLE);
-		richText.append("is used to detect intersection with the", "");
-		richText.append(" fill source", FILL_SOURCE_STYLE);
-		richText.append(".\n\nAll components in the", "");
-		richText.append(" fill source ", FILL_SOURCE_STYLE);
-		richText.append("that overlap with the", "");
-		richText.append(" seed source ", SEED_SOURCE_STYLE);
-		richText.append("are filled into to create", "");
-		richText.append(" connected component source", CONNECTED_COMPONENT_STYLE);
-		richText.append(".", "");
-		final var vbox = new VBox(view, richText);
-		infoPane.getDialogPane().setContent(vbox);
-
+		final var richText = getTextHelpNode();
+		final BorderPane pane = new BorderPane(view, richText, null, null, null);
+		infoPane.getDialogPane().setContent(pane);
+		infoPane.setWidth(800.0);
 		GridPane.setHgrow(seedSourceSelection, Priority.ALWAYS);
 		GridPane.setHgrow(fillSourceSelection, Priority.ALWAYS);
 
@@ -240,6 +226,32 @@ public class IntersectingSourceStateOpener {
 		});
 
 		return dialog;
+	}
+
+	@NotNull
+	private static InlineCssTextArea getTextHelpNode() {
+
+		final var richText = new InlineCssTextArea();
+
+		richText.setEditable(false);
+		richText.append("To create a ", "");
+		richText.append(" connected component source ", CONNECTED_COMPONENT_STYLE);
+		richText.append(" select a ", "");
+		richText.append(" seed source ", SEED_SOURCE_STYLE);
+		richText.append(" and a ", "");
+		richText.append(" fill source", FILL_SOURCE_STYLE);
+		richText.append(".\n\nThe ", "");
+		richText.append(" seed source ", SEED_SOURCE_STYLE);
+		richText.append(" is used to detect intersection with the", "");
+		richText.append(" fill source ", FILL_SOURCE_STYLE);
+		richText.append(".\n\nAll components in the", "");
+		richText.append(" fill source ", FILL_SOURCE_STYLE);
+		richText.append(" that overlap with the", "");
+		richText.append(" seed source ", SEED_SOURCE_STYLE);
+		richText.append(" are filled into to create", "");
+		richText.append(" connected component source ", CONNECTED_COMPONENT_STYLE);
+		richText.append(".", "");
+		return richText;
 	}
 
 }
