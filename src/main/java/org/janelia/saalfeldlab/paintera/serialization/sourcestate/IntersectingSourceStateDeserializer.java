@@ -9,6 +9,7 @@ import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
@@ -125,6 +126,10 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					queue,
 					priority,
 					viewer);
+
+			if (map.has(ManagedMeshSettings.MESH_SETTINGS_KEY)) {
+				state.getMeshManager().getManagedSettings().set(context.deserialize(map.get(ManagedMeshSettings.MESH_SETTINGS_KEY), ManagedMeshSettings.class));
+			}
 
 			if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
 				final JsonObject meshesMap = map.get(MESHES_KEY).getAsJsonObject();
