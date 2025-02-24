@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5;
 
-import javafx.scene.control.Dialog;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
@@ -19,7 +18,7 @@ import java.util.Objects;
 
 import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
-public class N5OpenSourceDialog extends Dialog<OpenSourceNode> {
+public class N5OpenSourceHelper {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 

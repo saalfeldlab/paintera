@@ -12,7 +12,6 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.name
 import org.janelia.saalfeldlab.util.n5.asyncDiscoverAndParseRecursive
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 
 
@@ -52,9 +51,6 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 		return map.takeIf { it.isNotEmpty() }
 	}
 
-	private var started = AtomicInteger();
-	private var stopped = AtomicInteger();
-
 	fun observableRequest(reader: N5Reader, path: String = "/"): ParseRequest {
 		val backingMap = ConcurrentHashMap<String, N5TreeNode>()
 		val observableMap = observableMap(backingMap)
@@ -65,14 +61,11 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 			path,
 			synchronizedMap
 		) { status = it }
-		val job = request(wrappedKey).also {
-			val start = started.incrementAndGet()
-			it.invokeOnCompletion {
-				val stop = stopped.incrementAndGet()
-				println("$start/$stop")
-			}
-		}
-		return ParseRequest(synchronizedMap, { status }, job)
+		return ParseRequest(synchronizedMap, { status }, request(wrappedKey))
+	}
+
+	override fun invalidate(key: N5Reader) {
+		super.invalidate(HashableN5Reader(key))
 	}
 
 	companion object {
@@ -84,17 +77,30 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 		)
 
 		private data class ParseN5Wrapper(
-			val reader: N5Reader,
+			val reader: HashableN5Reader,
 			val path: String = "/",
 			val list: ObservableMap<String, N5TreeNode>,
 			val statusCallback: ((String) -> Unit)? = null
 		) : N5Reader by reader {
-			override fun equals(other: Any?) = reader == ((other as? ParseN5Wrapper)?.reader ?: other)
+			override fun equals(other: Any?): Boolean {
+				return when (other) {
+					is ParseN5Wrapper -> reader == other.reader
+					is HashableN5Reader -> reader == other
+					is N5Reader -> uri == other.uri
+					else -> super.equals(other)
+				}
+			}
+
 			override fun hashCode() = reader.hashCode()
 		}
 
 		private data class HashableN5Reader(val reader: N5Reader, val uri: URI = reader.uri) : N5Reader by reader {
-			override fun equals(other: Any?) = ((other as? HashableN5Reader)?.uri == uri) || super.equals(other)
+			override fun equals(other: Any?) =
+				when (other) {
+					is N5Reader -> uri == other.uri
+					else -> super.equals(other)
+				}
+
 			override fun hashCode() = uri.hashCode()
 		}
 

@@ -38,6 +38,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	}
 
 	fun backendDialog() = OpenSourceDialog(openSourceState, selectionProperty).also {
+		it.openSourceNode.resetAction = { reparseSelection(it) }
 		it.isBusy.bind(isBusyProperty)
 		it.onCloseRequest = EventHandler {
 			if (isBusyProperty.get()) {
@@ -60,6 +61,20 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	}
 
 	private val parseN5LoaderCache = ParsedN5LoaderCache()
+
+	/**
+	 * If the selection was previously parsed, clear the caches, and reparse
+	 *
+	 * @param selection to invalidate and parse
+	 */
+	fun reparseSelection(selection : String) {
+		n5Factory.clearKey(selection)
+		openSourceState.containerState?.reader?.let {
+			n5ContainerStateCache -= selection
+			parseN5LoaderCache.invalidate(it)
+		}
+		selectionChanged(selection)
+	}
 
 	private fun selectionChanged(newSelection: String?) {
 		if (newSelection.isNullOrBlank()) {

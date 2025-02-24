@@ -11,8 +11,6 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.scene.control.*
 import javafx.scene.effect.InnerShadow
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.Background
 import javafx.scene.layout.BackgroundFill
@@ -34,9 +32,9 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
-import org.janelia.saalfeldlab.paintera.cache.SHARED_PARSED_N5_CACHE
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages
@@ -66,8 +64,6 @@ class OpenSourceDialog(
 	val containerField = stringField(containerSelection, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
 		valueProperty().bindBidirectional(containerSelectionProperty)
 		with(textField) {
-			addEventFilter(KEY_PRESSED, resetContainerHandler())
-
 			minWidth = 0.0
 			maxWidth = Double.POSITIVE_INFINITY
 			promptText = "Source location (N5/Zarr/HDF5)"
@@ -108,6 +104,8 @@ class OpenSourceDialog(
 
 
 	init {
+
+		Paintera.registerStylesheets(dialogPane)
 
 		resultConverter = Callback { if (it == ButtonType.OK) state else null }
 		state.metadataStateBinding.subscribe { it ->
@@ -180,10 +178,7 @@ class OpenSourceDialog(
 		val newSelection = file.absolutePath
 		val curSelection = containerSelection
 		LOG.trace { "Updating container to $newSelection (was $curSelection)" }
-		when (newSelection) {
-			curSelection -> revalidateContainer()
-			else -> containerSelection = newSelection
-		}
+		containerSelection = newSelection
 	}
 
 
@@ -229,15 +224,6 @@ class OpenSourceDialog(
 
 		private val LOG = KotlinLogging.logger { }
 
-		private fun OpenSourceDialog.resetContainerHandler() = EventHandler<KeyEvent> { event ->
-			if (event.code != KeyCode.ENTER)
-				return@EventHandler
-
-			val uri = containerSelection
-			N5FactoryOpener.n5ContainerStateCache.remove(uri)?.also { SHARED_PARSED_N5_CACHE.invalidate(it.reader) }
-			revalidateContainer()
-		}
-
 		private fun OpenSourceDialog.startDirFromSelection() = containerSelection
 			?.let { path -> File(path).takeIf { it.exists() } }
 			?: File(UserDirectories.get().homeDir)
@@ -252,7 +238,7 @@ class OpenSourceDialog(
 						headerText = "Open Source Dataset"
 						val openSourceState = showAndWait().nullable ?: return@BiConsumer
 
-						N5OpenSourceDialog.addSource(type, openSourceState, metaPanel.channelInformation().channelSelectionCopy, paintera)
+						N5OpenSourceHelper.addSource(type, openSourceState, metaPanel.channelInformation().channelSelectionCopy, paintera)
 					}
 				} catch (e: Exception) {
 					LOG.warn(e) {

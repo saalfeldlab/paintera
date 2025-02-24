@@ -206,7 +206,7 @@ object N5Helpers {
 	@JvmStatic
 	@JvmOverloads
 	fun parseMetadata(n5: N5Reader, ignoreCache: Boolean = false): Optional<N5TreeNode> {
-		//TODO Caleb: make [OpenSourceState.ParserContainerCache] a static loader, and use it here
+		//TODO Caleb: use [OpenSourceState.ParserContainerCache] here
 		val uri = n5.uri.toString()
 		if (!ignoreCache && N5_METADATA_CACHE.containsKey(uri)) {
 			return Optional.ofNullable(N5_METADATA_CACHE[uri])

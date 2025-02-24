@@ -143,7 +143,6 @@ fun main() {
 			asyncDiscoverAndParseRecursive(n5, "/", { println("deeplist: $it")}) {
 				if (paths.add(it.path))
 					println("parse: ${it.path}")
-				waiting--
 			}
 	}
 	runBlocking {

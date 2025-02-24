@@ -1,27 +1,33 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.binding.BooleanExpression
 import javafx.collections.FXCollections
 import javafx.collections.MapChangeListener
 import javafx.collections.ObservableList
 import javafx.scene.Node
+import javafx.scene.control.Button
 import javafx.scene.control.MenuButton
 import javafx.scene.control.ProgressIndicator
+import javafx.scene.control.TextField
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
-import se.sawano.java.text.AlphanumericComparator
 
 class OpenSourceNode(
 	openSourceState: OpenSourceState,
-	containerLocationNode: Node,
+	containerLocationNode: TextField,
 	browseNode: Node,
 	isBusy: BooleanExpression
 ) : GridPane() {
+
+	var resetAction : ((String) -> Unit)? = null
 
 	init {
 		/* Create the grid and add the root node */
@@ -31,8 +37,17 @@ class OpenSourceNode(
 
 		/* create and add the datasetDropdown Menu*/
 		val datasetDropDown = openSourceState.createDatasetDropdownMenu()
-		add(datasetDropDown, 1, 1)
+		add(datasetDropDown, 0, 1)
 		setHgrow(datasetDropDown, Priority.ALWAYS)
+
+		val reparseContainer = Button("", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "refresh" }))
+		reparseContainer.tooltip = Tooltip("Search for Datasets again at the current selection")
+		reparseContainer.setOnAction {
+			containerLocationNode.text?.let { resetAction?.invoke(it) }
+		}
+		add(reparseContainer, 1, 1)
+		setHalignment(reparseContainer, javafx.geometry.HPos.LEFT)
+
 
 		add(browseNode, 2, 0)
 
@@ -53,18 +68,10 @@ class OpenSourceNode(
 		private fun OpenSourceState.createDatasetDropdownMenu(): MenuButton {
 
 			fun trimValidDatasetChoices(): List<String> {
-				var prev = 0
-				val sortedDatasets = validDatasets.keys.sortedWith(AlphanumericComparator()).toMutableList()
-				val trimmedDatasets = sortedDatasets.filterIndexed { idx, dataset ->
-					if (idx == prev)
-						return@filterIndexed true
 
-					var prefixExists = dataset.startsWith(sortedDatasets[prev])
-					if (!prefixExists)
-						prev = idx
-					!prefixExists
-				}.filterNotNull().toList()
-				return trimmedDatasets
+				val nodes = validDatasets.values.toMutableList()
+				nodes.removeAll(nodes.flatMap { it.childrenList() })
+				return nodes.map { it.path }
 			}
 
 			val choices: ObservableList<String> = FXCollections.observableArrayList()
