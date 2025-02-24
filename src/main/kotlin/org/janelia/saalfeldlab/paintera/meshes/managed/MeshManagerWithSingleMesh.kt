@@ -9,6 +9,8 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
 import javafx.scene.paint.Color
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.cache.Invalidate
@@ -78,6 +80,12 @@ abstract class MeshManager<Key>(
 
 	fun getSettings(key: Key): MeshSettings {
 		return managedSettings.getMeshSettings(key)
+	}
+
+	fun submitMeshJob(key : Key) : Job {
+		return runBlocking {
+			async { createMeshFor(key) }
+		}
 	}
 
 	open suspend fun createMeshFor(key: Key) {
