@@ -299,12 +299,6 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 			copy.setPosition(this);
 			return copy;
 		}
-
-		@Override
-		public RealRandomAccess copyRealRandomAccess() {
-
-			return copy();
-		}
 	}
 
 	public RealRandomAccessibleTriple(
@@ -315,6 +309,11 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 		this.sourceA = sourceA;
 		this.sourceB = sourceB;
 		this.sourceC = sourceC;
+	}
+
+	@Override public Triple<A, B, C> getType() {
+
+		return realRandomAccess();
 	}
 
 	@Override

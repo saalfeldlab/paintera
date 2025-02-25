@@ -126,7 +126,7 @@ class MeshManagerWithAssignmentForSegments(
 		yield()
 
 		val (selectedSegments, presentSegments) = synchronized(this) {
-			val selectedSegments = Segments(selectedSegments.selectedSegments)
+			val selectedSegments = Segments(selectedSegments.getSelectedSegments())
 			val presentSegments = Segments().also { set -> segmentFragmentBiMap.keys.forEach { set.add(it) } }
 			selectedSegments to presentSegments
 		}

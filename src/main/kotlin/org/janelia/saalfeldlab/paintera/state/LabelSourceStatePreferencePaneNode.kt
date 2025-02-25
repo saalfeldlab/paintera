@@ -68,11 +68,12 @@ class LabelSourceStatePreferencePaneNode(
 
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segements = selectedSegments.selectedSegments.toArray().toList()
-				observableSelectedSegmentsList.removeIf { it !in segements }
-				observableSelectedSegmentsList.addAll(segements.filter { it !in observableSelectedSegmentsList }.toList())
+				val segments = selectedSegments.getSelectedSegments().toArray().toList()
+				observableSelectedSegmentsList.removeIf { it !in segments }
+				observableSelectedSegmentsList.addAll(segments.filter { it !in observableSelectedSegmentsList }.toList())
 			}
 			selectedSegments.addListener(selectedSegmentUpdateListener)
+			selectedSegmentUpdateListener(selectedSegments) //run the first time manually, since it may not be invalidated yet
 			box.visibleProperty().addListener { _, _, visible ->
 				if (!visible) {
 					selectedSegments.removeListener(selectedSegmentUpdateListener)
@@ -102,7 +103,7 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.selectedSegments.toArray().joinToString(",")
+				return selectedSegments.getSelectedSegments().toArray().joinToString(",")
 			}
 
 			override fun fromString(string: String?): SelectedSegments {
@@ -279,7 +280,6 @@ class LabelSourceStatePreferencePaneNode(
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-					initModality(Modality.NONE)
 					headerText = "Fragment Selection"
 					dialogPane.content = TextArea().also {
 						it.isWrapText = true
@@ -401,7 +401,6 @@ class LabelSourceStatePreferencePaneNode(
 					}
 
 					val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-						initModality(Modality.NONE)
 						headerText = "Canvas"
 						contentText = "TODO" /* TODO */
 					}

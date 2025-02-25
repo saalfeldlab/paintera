@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui
 
+import bdv.viewer.Interpolation
 import javafx.beans.property.ObjectProperty
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableDoubleValue
@@ -162,7 +163,9 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 					val vdl2 = OrthogonalViewsValueDisplayListener(
 						{ status -> it.statusValue = status },
 						currentSource
-					) { sourceInfo.getState(it).interpolationProperty().get() }
+					) {
+						sourceInfo.getState(it)?.interpolationProperty()?.get() ?: Interpolation.NEARESTNEIGHBOR
+					}
 					vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
 
 					val cdl2 = OrthoViewCoordinateDisplayListener(

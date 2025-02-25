@@ -32,7 +32,6 @@ import bdv.viewer.render.VolatileProjector;
 import io.github.oshai.kotlinlogging.KLogger;
 import io.github.oshai.kotlinlogging.KotlinLogging;
 import net.imglib2.FinalInterval;
-import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -115,12 +114,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	protected final FinalInterval sourceInterval;
 
 	/**
-	 * A reference to the target image as an iterable. Used for source-less
-	 * operations such as clearing its content.
-	 */
-	protected final IterableInterval<B> iterableTarget;
-
-	/**
 	 * Executor service to be used for rendering
 	 */
 	protected final TaskExecutor taskExecutor;
@@ -168,8 +161,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		this.sources = new ArrayList<>(sources);
 		numInvalidLevels = sources.size();
 		this.mask = mask;
-
-		this.iterableTarget = Views.iterable(target);
 
 		final int n = Math.max(2, sources.get(0).numDimensions());
 		final long[] min = new long[n];
@@ -248,15 +239,12 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	public boolean map(final boolean clearUntouchedTargetPixels) {
 
 		canceled.set(false);
-
 		valid = false;
 
 		final StopWatch stopWatch = StopWatch.createAndStart();
 		final IoStatistics iostat = CacheIoTiming.getIoStatistics();
 		final long startTimeIo = iostat.getIoNanoTime();
 		final long startTimeIoCumulative = iostat.getCumulativeIoNanoTime();
-
-		valid = false;
 
 		int resolutionLevel;
 		/*

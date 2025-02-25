@@ -244,7 +244,6 @@ public class Mesh {
 		final double[] vertexQ = new double[3];
 
 		final float[] smoothedVertices = new float[vertices.length];
-		final double lambda1 = 1.0 - lambda;
 		for (int i = 0; i < iterations; ++i) {
 			int curVertexIdx = 0;
 			for (int[] triangles : trianglesPerVertex) {
@@ -270,6 +269,8 @@ public class Mesh {
 						vertexQ[1] = vertices[vertex + 1];
 						vertexQ[2] = vertices[vertex + 2];
 						final var distWeight = 1.0 / LinAlgHelpers.distance(vertexP, vertexQ);
+						if (Float.isInfinite((float)distWeight))
+							continue;
 						vertexQ[0] *= distWeight;
 						vertexQ[1] *= distWeight;
 						vertexQ[2] *= distWeight;
@@ -278,6 +279,10 @@ public class Mesh {
 						distanceWeightSum += distWeight;
 					}
 				}
+
+				/* This ensures that in the case where there are no adjacent vertices that are Float.isFinite,
+				 *	we safely just don't smooth the vertex*/
+				distanceWeightSum = distanceWeightSum == 0.0 ? 1.0 : distanceWeightSum;
 
 				newP[0] *= 1.0 / distanceWeightSum;
 				newP[1] *= 1.0 / distanceWeightSum;

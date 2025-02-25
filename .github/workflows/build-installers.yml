@@ -16,7 +16,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-14]
+        # currently macos-14 is M1 and macos-13 is intel
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -52,13 +53,13 @@ jobs:
           java-package: jdk+fx
           cache: 'maven'
       - name: "Build with Maven"
-        if: matrix.os != 'macos-latest' && matrix.os != 'macos-14'
+        if: matrix.os != 'macos-13' && matrix.os != 'macos-14'
         run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
       - name: "Build with Maven (macOS No Signing)"
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-latest' || matrix.os == 'macos-14') }}
+        if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-13' || matrix.os == 'macos-14') }}
         run: mvn -B clean install -DskipTests -Pbuild-installer -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
 
       - name: Upload Installers

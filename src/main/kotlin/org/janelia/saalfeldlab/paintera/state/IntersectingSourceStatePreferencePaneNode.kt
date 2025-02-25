@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController.Companion.addGridOption
+import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.util.Colors
 
@@ -46,19 +47,12 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 							val exportDialog = MeshExporterDialog(MeshInfo(key, manager))
 							val result = exportDialog.showAndWait()
 							if (result.isPresent) {
+								manager.exportMeshWithProgressPopup(result.get())
 								result.get().run {
+									if (meshExporter.isCancelled()) return@run
 									(meshExporter as? MeshExporterObj<*>)?.run {
 										exportMaterial(filePath, arrayOf(""), arrayOf(Colors.toColor(state.converter().color)))
 									}
-									meshExporter.exportMesh(
-										manager.getBlockListFor,
-										manager.getMeshFor,
-										manager.getSettings(key),
-										key,
-										scale,
-										filePath,
-										false
-									)
 								}
 							}
 						}

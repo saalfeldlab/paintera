@@ -61,9 +61,7 @@ object NavigationControlMode : AbstractToolMode() {
 	 * Intentianally empty. [NavigationControlMode] has only one tool, which contains all the Navigation actions.
 	 * It will always be active when [NavigationControlMode] is the active mode.
 	 */
-	override val modeActions = listOf<ActionSet>(
-
-	)
+	override val activeViewerActions = emptyList<ActionSet>()
 
 	override val allowedActions = AllowedActions.NAVIGATION
 
@@ -526,7 +524,7 @@ object NavigationTool : ViewerTool() {
 								y.value = currentSourceCoordinate.getDoublePosition(1)
 								z.value = currentSourceCoordinate.getDoublePosition(2)
 							}
-						PainteraAlerts.confirmation("Go", "Cancel", true, paintera.pane.scene.window).apply {
+						PainteraAlerts.confirmation("Go", "Cancel", true).apply {
 							dialogPane.headerText = "Center On Position?"
 							dialogPane.content = GridPane().apply {
 								mapOf("x" to 1, "y" to 2, "z" to 3).forEach { (axis, col) ->

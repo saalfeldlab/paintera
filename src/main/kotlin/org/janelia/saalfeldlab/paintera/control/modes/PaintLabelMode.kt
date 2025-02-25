@@ -32,7 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction.onAction
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
@@ -65,40 +65,18 @@ object PaintLabelMode : AbstractToolMode() {
 		)
 	}
 
-	override val modeActions: List<ActionSet> by lazy {
+	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
 			enterShapeInterpolationMode,
 			getSelectNextIdActions(),
+			getDeleteReplaceIdActions(),
 			getResetMaskAction(),
 		)
 	}
 
 	override val allowedActions = AllowedActions.PAINT
-
-	private val moveModeActionsToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-		/* remove the mode actions from the deactivated viewer, add to the activated viewer */
-		modeActions.forEach { actionSet ->
-			old?.viewer()?.removeActionSet(actionSet)
-			new?.viewer()?.installActionSet(actionSet)
-		}
-	}
-
-	override fun enter() {
-		activeViewerProperty.addListener(moveModeActionsToActiveViewer)
-		super.enter()
-	}
-
-	override fun exit() {
-		activeViewerProperty.removeListener(moveModeActionsToActiveViewer)
-		activeViewerProperty.get()?.let {
-			modeActions.forEach { actionSet ->
-				it.viewer()?.removeActionSet(actionSet)
-			}
-		}
-		super.exit()
-	}
 
 	private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
 		KEY_PRESSED(FILL_3D) {
@@ -147,6 +125,7 @@ object PaintLabelMode : AbstractToolMode() {
 						switchTool(null)
 						selectViewerBefore { switchModes() }
 					}
+
 					else -> switchModes()
 				}
 			}
@@ -184,15 +163,10 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
-	override fun switchTool(tool: Tool?) : Job? {
+	override fun switchTool(tool: Tool?): Job? {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
-		if (activeTool is SamTool)
-			activeViewerProperty.unbind()
-		else if (!activeViewerProperty.isBound)
-			activeViewerProperty.bind(paintera.baseView.currentFocusHolder)
-
 		return switchToolJob
 	}
 
@@ -216,18 +190,19 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
+	private fun getDeleteReplaceIdActions() = painteraActionSet("delete_label", LabelActionType.Delete) {
+		KEY_PRESSED(DELETE_ID) {
+			verify("ReplaceLabel is valid") { ReplaceLabel.isValid(it) }
+			onAction { ReplaceLabel.showDialog() }
+		}
+	}
+
 	private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint, ignoreDisable = true) {
 		KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
-			verify {
-				statePaintContext?.let { state ->
-					(state.dataSource as? MaskedSource<*, *>)?.let { maskedSource ->
-						maskedSource.currentMask?.let { true } ?: false
-					} ?: false
-				} ?: false
-			}
+			verify("has current mask") { (statePaintContext as? MaskedSource<*, *>)?.currentMask != null }
 			onAction {
 				InvokeOnJavaFXApplicationThread {
-					PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {
+					PainteraAlerts.confirmation("Yes", "No", false).apply {
 						headerText = "Force Reset the Active Mask?"
 						contentText = """
                             This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".

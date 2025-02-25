@@ -132,6 +132,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 	private val interpolationSupervisor = SupervisorJob()
+	@OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 	private val interpolationScope = CoroutineScope(newSingleThreadContext("Slice Interpolation Context") + interpolationSupervisor)
 
 	private var requestRepaintUpdaterJob: Job = Job().apply { complete() }

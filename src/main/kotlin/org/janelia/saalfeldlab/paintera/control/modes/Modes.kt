@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
@@ -59,12 +60,23 @@ interface ControlMode {
 interface SourceMode : ControlMode {
 	val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>
 	val activeViewerProperty: SimpleObjectProperty<ViewerAndTransforms?>
+
+	override fun exit() {
+		activeSourceStateProperty.unbind()
+		activeViewerProperty.unbind()
+		activeSourceStateProperty.set(null)
+		activeViewerProperty.set(null)
+	}
 }
 
 interface ToolMode : SourceMode {
 
 	val tools: ObservableList<Tool>
-	val modeActions: List<ActionSet>
+	/**
+	 * Actions that will be added to the active viewer when [enter]ing this mode and removed when [exit]ing the mode.
+	 * Will move automatically when the active viewer changes.
+	 */
+	val activeViewerActions: List<ActionSet>
 
 	val defaultTool: Tool?
 		get() = NavigationTool
@@ -76,12 +88,35 @@ interface ToolMode : SourceMode {
 	val modeActionsBar: ActionBar
 	val toolActionsBar: ActionBar
 
+	/**
+	 * Subscriptions that should be unsubscribed from when [exit] is called.
+	 */
+	var subscriptions : Subscription
+
 	override fun enter() {
-		super.enter()
-		/* Keep deafult tool selected if nothing else */
-		activeToolProperty.addListener { _, _, new ->
-			if (new == null && defaultTool != null) switchTool(defaultTool)
+		/* Keep default tool selected if nothing else */
+		val activeToolSubscription = activeToolProperty.subscribe { activeTool ->
+			(activeTool ?: defaultTool)?.let { switchTool(it) }
 		}
+		val activeViewerSubscription = activeViewerProperty.subscribe { old, new ->
+			/* remove the actions from old, add to new */
+			activeViewerActions.forEach { actionSet ->
+				old?.viewer()?.removeActionSet(actionSet)
+				new?.viewer()?.installActionSet(actionSet)
+			}
+		}
+
+		subscriptions = subscriptions
+			.and(activeToolSubscription)
+			.and(activeViewerSubscription)
+		super.enter()
+	}
+
+	override fun exit() {
+		runBlocking { switchTool(null)?.join() }
+		super.exit()
+		subscriptions.unsubscribe()
+		subscriptions = Subscription.EMPTY
 	}
 
 	fun switchTool(tool: Tool?): Job? {
@@ -125,7 +160,7 @@ interface ToolMode : SourceMode {
 			modeToolsBar.set(*tools.filterIsInstance<ToolBarItem>().toTypedArray())
 			addColumn(col++, modeToolsBar)
 
-			modeActionsBar.set(*modeActions.toTypedArray())
+			modeActionsBar.set(*activeViewerActions.toTypedArray())
 			addColumn(col++, modeActionsBar)
 
 			addColumn(col, toolActionsBar)
@@ -314,44 +349,57 @@ abstract class AbstractSourceMode : SourceMode {
 	}
 	protected val keyBindings by keyBindingsProperty.nullableVal()
 
+	private var sourceAndViewerSub = subscribeToSourceActions()
+
 	/* This will add and remove the state specific actions from:
 	 *  - the correct viewers when the active viewer changes
 	 *  - the global action set when the active source changes */
-	private val sourceSpecificActionListener = ChangeListener<SourceState<*, *>?> { _, old, new ->
-		val viewer = activeViewerProperty.get()?.viewer()
-		old?.apply {
-			viewer?.let { viewer -> viewerActionSets.forEach { viewer.removeActionSet(it) } }
-			paintera.defaultHandlers.globalActionHandlers.removeAll(globalActionSets)
-		}
-		new?.apply {
-			viewer?.let { viewer -> viewerActionSets.forEach { viewer.installActionSet(it) } }
-			paintera.defaultHandlers.globalActionHandlers.addAll(globalActionSets)
-		}
-	}
-
 	/* This will add and remove the state specific actions from the correct viewers when the active viewer changes */
-	private val sourceSpecificViewerActionListener = ChangeListener<ViewerAndTransforms?> { _, old, new ->
-		activeSourceStateProperty.get()?.let { state ->
-			state.viewerActionSets.forEach { actionSet ->
-				old?.viewer()?.removeActionSet(actionSet)
-				new?.viewer()?.installActionSet(actionSet)
+	private fun subscribeToSourceActions(): Subscription = activeViewerProperty.createObservableBinding(activeSourceStateProperty) {
+			activeViewerProperty.get() to activeSourceStateProperty.get()
+		}.subscribe { (prevViewer, prevSource), (viewer, source) ->
+			/* if the source changed, handle the global actions*/
+			if (prevSource != source) {
+				prevSource?.apply { paintera.defaultHandlers.globalActionHandlers.removeAll(globalActionSets) }
+				source?.apply { paintera.defaultHandlers.globalActionHandlers.addAll(globalActionSets) }
 			}
+
+			/* if the viewer changed ( or the source), remove the old ones */
+			if (prevViewer != viewer || prevSource != source) {
+				prevViewer?.let { viewer ->
+					prevSource?.let { source ->
+						source.viewerActionSets.forEach { actionSet ->
+							viewer.viewer().removeActionSet(actionSet)
+						}
+					}
+				}
+
+				/* if we have a new viewer, install the actions */
+				viewer?.let { viewer ->
+					source?.let { source ->
+						source.viewerActionSets.forEach { actionSet ->
+							viewer.viewer().installActionSet(actionSet)
+						}
+					}
+				}
+			}
+
 		}
-	}
 
 	override fun enter() {
-		activeSourceStateProperty.addListener(sourceSpecificActionListener)
+		sourceAndViewerSub = subscribeToSourceActions()
 		activeSourceStateProperty.bind(currentStateObservable)
-		activeViewerProperty.addListener(sourceSpecificViewerActionListener)
 		activeViewerProperty.bind(currentViewerObservable)
+		super.enter()
 	}
 
 	override fun exit() {
+		super.exit()
 		activeSourceStateProperty.unbind()
 		activeViewerProperty.unbind()
 		activeSourceStateProperty.set(null)
 		activeViewerProperty.set(null)
-		activeViewerProperty.removeListener(sourceSpecificViewerActionListener)
+		sourceAndViewerSub.unsubscribe()
 	}
 }
 
@@ -371,6 +419,8 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	override val modeToolsBar: ActionBar = ActionBar()
 	override val toolActionsBar: ActionBar = ActionBar()
 
+	override var subscriptions: Subscription = Subscription.EMPTY
+
 	override val statusProperty: StringProperty = SimpleStringProperty()
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
 		KEY_PRESSED(KeyCode.ESCAPE) {
@@ -383,22 +433,23 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	}
 
 	override fun enter() {
+		super<ToolMode>.enter()
 		super<AbstractSourceMode>.enter()
-		var statusSubscription: Subscription? = null
-		activeToolProperty.subscribe { tool ->
-			statusSubscription?.unsubscribe()
-			statusSubscription = tool?.statusProperty?.subscribe { status ->
+		var toolStatusSub: Subscription? = null
+		val activeToolStatusSub = activeToolProperty.subscribe { tool ->
+			toolStatusSub?.unsubscribe()
+			toolStatusSub = tool?.statusProperty?.subscribe { toolStatus ->
 				InvokeOnJavaFXApplicationThread {
-					this@AbstractToolMode.statusProperty.set(status)
+					this@AbstractToolMode.statusProperty.set(toolStatus)
 				}
 			}
 		}
-		switchTool(activeTool ?: defaultTool)
+		subscriptions = subscriptions.and(activeToolStatusSub)
 	}
 
 	override fun exit() {
-		runBlocking { switchTool(null)?.join() }
 		super<AbstractSourceMode>.exit()
+		super<ToolMode>.exit()
 	}
 }
 

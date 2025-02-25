@@ -55,12 +55,18 @@ public interface SourceState<D, T> {
 		return new SourceAndConverter<>(getDataSource(), converter());
 	}
 
+	/**
+	 * @return list of actions to install to the active viewer when this SourceState is active
+	 */
 	default List<ActionSet> getViewerActionSets() {
 
 		LOG.trace("Default Viewer Action Sets; Not handling anything. ");
 		return List.of();
 	}
 
+	/**
+	 * @return @return list of actions to install to the application pane when this SourceState is active
+	 */
 	default List<ActionSet> getGlobalActionSets() {
 
 		LOG.trace("Default Global Action Sets; Not handling anything. ");

@@ -75,7 +75,7 @@ open class ConnectomicsRawState<D, T>(
 	where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 
 	private val converter = ARGBColorConverter.InvertingImp0<T>().apply {
-		(backend as? SourceStateBackendN5<*, *>)?.getMetadataState()?.let {
+		(backend as? SourceStateBackendN5<*, *>)?.metadataState?.let {
 			min = it.minIntensity
 			max = it.maxIntensity
 		}
@@ -212,7 +212,7 @@ open class ConnectomicsRawState<D, T>(
 	) : PainteraSerialization.PainteraDeserializer<ConnectomicsRawState<*, *>> {
 
 		override fun isHierarchyAdapter(): Boolean {
-			return true;
+			return true
 		}
 
 		@Plugin(type = DeserializerFactory::class)
@@ -280,7 +280,7 @@ open class ConnectomicsRawState<D, T>(
 					val meta: JsonElement = source["meta"]!!
 					val n5: String = meta["n5"]!!
 					val dataset: String = meta["dataset"]!!
-					val metadata = MetadataUtils.createMetadataState(n5, dataset).getOrNull()!!
+					val metadata = MetadataUtils.createMetadataState(n5, dataset)!!
 
 					source.get<JsonArray>("transform") { array ->
 						val transform = gson.fromJson(array, DoubleArray::class.java)

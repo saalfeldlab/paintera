@@ -81,18 +81,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	private val shapeInterpolationTool by lazy { ShapeInterpolationTool(controller, previousMode, this@ShapeInterpolationMode, this@ShapeInterpolationMode.fill2DTool) }
 
 	override val defaultTool: Tool? by lazy { shapeInterpolationTool }
-	override val modeActions by lazy { modeActions() }
+	override val activeViewerActions by lazy { modeActions() }
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
 		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
 		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer, MenuActionType.ResizeViewers, MenuActionType.ToggleSidePanel, MenuActionType.ResizePanel)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
-
-	private val toolTriggerListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-		new?.viewer()?.apply { modeActions.forEach { installActionSet(it) } }
-		old?.viewer()?.apply { modeActions.forEach { removeActionSet(it) } }
-	}
 
 	private val samNavigationRequestListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, _, curViewer ->
 		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
@@ -116,7 +111,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	}
 
 	override fun enter() {
-		activeViewerProperty.addListener(toolTriggerListener)
 		paintera.baseView.disabledPropertyBindings[controller] = controller.isBusyProperty
 		super.enter()
 		/* unbind the activeViewerProperty, since we disabled other viewers during ShapeInterpolation mode*/
@@ -142,7 +136,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		SamEmbeddingLoaderCache.invalidateAll()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
 		controller.resetFragmentAlpha()
-		activeViewerProperty.removeListener(toolTriggerListener)
 		activeViewerProperty.removeListener(samNavigationRequestListener)
 		synchronized(samSliceCache) {
 			samSliceCache.clear()

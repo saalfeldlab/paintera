@@ -12,14 +12,15 @@ import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.util.Colors;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
 import org.janelia.saalfeldlab.net.imglib2.converter.TypeVolatileConverter;
 
 import java.lang.invoke.MethodHandles;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ARGBCompositeColorConverterTest {
 
@@ -76,7 +77,7 @@ public class ARGBCompositeColorConverterTest {
 
 		Views
 				.interval(Views.pair(groundTruth, asColor), asColor)
-				.forEach(p -> Assert.assertEquals(p.getA().get(), p.getB().get()));
+				.forEach(p -> assertEquals(p.getA().get(), p.getB().get()));
 	}
 
 }

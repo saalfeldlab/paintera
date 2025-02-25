@@ -1,10 +1,13 @@
 package org.janelia.saalfeldlab.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
 import java.util.TreeSet;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class HashPriorityQueueTest {
 
@@ -20,34 +23,34 @@ public class HashPriorityQueueTest {
 
 		final HashPriorityQueue<Integer, String> pqOther = new HashPriorityQueue<>(pq);
 
-		Assert.assertEquals(5, pq.size());
-		Assert.assertArrayEquals(
+		assertEquals(5, pq.size());
+		assertArrayEquals(
 				new String[]{"123", "r", "abc", "q", "xyz"},
 				pq.poll(5).toArray(new String[0])
 		);
-		Assert.assertTrue(pq.isEmpty());
+		assertTrue(pq.isEmpty());
 
 		pqOther.addOrUpdate(12, "q");
 		pqOther.addOrUpdate(5, "www");
 		pqOther.addOrUpdate(7, "xyz");
 
-		Assert.assertEquals(6, pqOther.size());
-		Assert.assertTrue(pq.isEmpty());
+		assertEquals(6, pqOther.size());
+		assertTrue(pq.isEmpty());
 
-		Assert.assertEquals("q", pqOther.peek());
-		Assert.assertEquals("q", pqOther.peek());
-		Assert.assertEquals(6, pqOther.size());
+		assertEquals("q", pqOther.peek());
+		assertEquals("q", pqOther.peek());
+		assertEquals(6, pqOther.size());
 
-		Assert.assertEquals("q", pqOther.poll());
-		Assert.assertEquals("123", pqOther.poll());
-		Assert.assertEquals(
+		assertEquals("q", pqOther.poll());
+		assertEquals("123", pqOther.poll());
+		assertArrayEquals(
 				new String[]{"r", "xyz"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
 		);
-		Assert.assertEquals(
+		assertArrayEquals(
 				new String[]{"abc", "www"},
 				new TreeSet<>(pqOther.poll(2)).toArray(new String[0]) // sort next two entries which should have equal priority
 		);
-		Assert.assertTrue(pqOther.isEmpty());
+		assertTrue(pqOther.isEmpty());
 	}
 }

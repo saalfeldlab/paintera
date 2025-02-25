@@ -80,7 +80,6 @@ class SourceStateCompositePane {
 		): TitledPane {
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
 				headerText = title
 				contentText = description
 			}

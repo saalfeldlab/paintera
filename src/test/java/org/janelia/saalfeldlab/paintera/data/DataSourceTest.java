@@ -7,8 +7,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.ByteType;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +15,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.function.Predicate;
 
+import static org.junit.jupiter.api.Assertions.*;
 public class DataSourceTest {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -139,15 +139,15 @@ public class DataSourceTest {
 				.toArray(AffineTransform3D[]::new);
 
 		DummyDataSource source = new DummyDataSource(transforms);
-		Assert.assertEquals(resolutions.length, source.getNumMipmapLevels());
+		assertEquals(resolutions.length, source.getNumMipmapLevels());
 		for (int level = 0; level < source.getNumMipmapLevels(); ++level) {
-			Assert.assertArrayEquals(resolutions[level], DataSource.getScale(source, 0, level), 0.0);
+			assertArrayEquals(resolutions[level], DataSource.getScale(source, 0, level), 0.0);
 			for (int targetLevel = 0; targetLevel < source.getNumMipmapLevels(); ++targetLevel) {
 				ratio[0] = resolutions[targetLevel][0] / resolutions[level][0];
 				ratio[1] = resolutions[targetLevel][1] / resolutions[level][1];
 				ratio[2] = resolutions[targetLevel][2] / resolutions[level][2];
 				LOG.debug("Ratio for {} {} is {}", level, targetLevel, ratio);
-				Assert.assertArrayEquals(ratio, DataSource.getRelativeScales(source, 0, level, targetLevel), 0.0);
+				assertArrayEquals(ratio, DataSource.getRelativeScales(source, 0, level, targetLevel), 0.0);
 			}
 		}
 

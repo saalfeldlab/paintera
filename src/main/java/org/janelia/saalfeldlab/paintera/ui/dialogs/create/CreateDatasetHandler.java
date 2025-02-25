@@ -10,7 +10,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
@@ -80,9 +80,8 @@ public class CreateDatasetHandler {
 		final Optional<Pair<MetadataState, String>> metaAndName = cd.showDialog(projectDirectory.get());
 		if (metaAndName.isPresent()) {
 			final var metadataState = metaAndName.get().getKey();
-			final var backend = N5Backend.createFrom(
+			final var backend = N5BackendLabel.createFrom(
 					metadataState,
-					projectDirectory,
 					pbv.getPropagationQueue());
 			//noinspection rawtypes
 			pbv.addState(new ConnectomicsLabelState(

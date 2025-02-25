@@ -246,10 +246,4 @@ public class AccessBoxRandomAccessibleOnGet<T> implements RandomAccessible<T>, R
 		updateAccessBox();
 		return sourceAccess.get();
 	}
-
-	@Override
-	public AccessBoxRandomAccessibleOnGet<T> copyRandomAccess() {
-
-		return copy();
-	}
 }

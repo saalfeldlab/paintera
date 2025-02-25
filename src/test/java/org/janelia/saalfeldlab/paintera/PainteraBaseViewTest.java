@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera;
 
 // TODO uncomment imports and tests once #243 is fixed
 
-import javafx.application.Application;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
@@ -15,49 +14,33 @@ import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.jetbrains.annotations.NotNull;
-import org.testfx.api.FxRobot;
-import org.testfx.api.FxToolkit;
-import org.testfx.framework.junit.ApplicationTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
+public class PainteraBaseViewTest {
 
-public class PainteraBaseViewTest extends FxRobot {
-
-//	@BeforeClass
-	public static void setup() throws Exception {
-
-		System.setProperty("headless.geometry", "1600x1200-32");
-
-		/* With default log level of INFO we get a flod of WARNINGs that the ConditionalSupport.SCENE3D is not available in the headless testing.
-		 * 	Since we are not relying on that here, just set log to ERROR to ignore that message. */
-		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
+	public static Stream<PainteraTestApplication> painteraProvider() {
+		return ApplicationTestUtils.painteraTestAppParameter();
 	}
 
-//	@AfterClass
-	public static void cleanup() throws InterruptedException, TimeoutException {
-		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
-			Paintera.getPaintera().getBaseView().stop();
-			Paintera.getPaintera().getProjectDirectory().close();
-		});
-		FxToolkit.cleanupApplication(Paintera.getApplication());
-	}
+	@ParameterizedTest
+	@MethodSource("painteraProvider")
+	public void testAddSingleScaleLabelSource(final PainteraTestApplication app) {
 
-
-	//	@Test
-	public void testAddSingleScaleLabelSource() {
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 		viewer.addConnectomicsLabelSource(
@@ -68,8 +51,10 @@ public class PainteraBaseViewTest extends FxRobot {
 				"singleScaleLabelSource", new LabelBlockLookupNoBlocks());
 	}
 
-	//	@Test
-	public void testAddSingleScaleConnectomicsRawSource() {
+	@ParameterizedTest
+	@MethodSource("painteraProvider")
+	public void testAddSingleScaleConnectomicsRawSource(final PainteraTestApplication app) {
+
 		final Random random = new Random();
 		final RandomAccessibleInterval<UnsignedLongType> rawData =
 				Lazy.generate(
@@ -89,8 +74,10 @@ public class PainteraBaseViewTest extends FxRobot {
 		);
 	}
 
-	//	@Test
-	public void testAddMultiScaleConnectomicsRawSource() {
+	@ParameterizedTest
+	@MethodSource("painteraProvider")
+	public void testAddMultiScaleConnectomicsRawSource(final PainteraTestApplication app) {
+
 		var random = new Random();
 		final double[] center2D = new double[]{500, 500};
 		final var multiscale = generateMultiscaleLabels(
@@ -132,8 +119,10 @@ public class PainteraBaseViewTest extends FxRobot {
 		});
 	}
 
-//	@Test
-	public void testAddMultiScaleConnectomicsLabelSource() {
+	@ParameterizedTest
+	@MethodSource("painteraProvider")
+	public void testAddMultiScaleConnectomicsLabelSource(final PainteraTestApplication app) {
+
 		final Random random = new Random();
 
 		final var multiscale = generateMultiscaleLabels(4,
@@ -156,99 +145,12 @@ public class PainteraBaseViewTest extends FxRobot {
 	}
 
 	public static void main(String[] args) {
-
+		final AtomicReference<PainteraTestApplication> app = new AtomicReference<>();
 		Paintera.whenPaintable(() -> {
-
-
-//			final Random random = new Random();
-//			final RandomAccessibleInterval<UnsignedLongType> rawData =
-//					Lazy.generate(
-//							Intervals.createMinSize(0, 0, 0, 100, 100, 100),
-//							new int[]{10, 10, 10},
-//							new UnsignedLongType(),
-//							AccessFlags.setOf(AccessFlags.VOLATILE),
-//							rai -> Views.flatIterable(rai).forEach(val -> val.set(random.nextInt(255)))
-//					);
-//			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-//			var raw = viewer.addConnectomicsRawSource(
-//					rawData,
-//					new double[]{1.0, 1.0, 1.0},
-//					new double[]{0.0, 0.0, 0.0},
-//					0, 255,
-//					"singleScaleRawSource"
-//			);
-//			final Random random = new Random();
-//
-//			final double[] center2D = new double[]{500, 500};
-//			final var multiscale = generateMultiscaleLabels(4,
-//					Intervals.createMinSize(0, 0, 0, 1000, 1000, 1000),
-//					new int[]{64, 64, 64},
-//					new double[]{500, 500, 0},
-//					(scale, chunk) -> {
-//						fillCylinderChunk(center2D, scale, chunk, () -> random.nextInt(3));
-//						return null;
-//					});
-
-//			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-//			final var raw2 = viewer.addConnectomicsLabelSource(
-//					multiscale.images,
-//					multiscale.resolutions,
-//					multiscale.translations,
-//					0, 2,
-//					"multiscale"
-//			);
-
-//			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 100, 100, 100);
-//			final int[] blockSize = {25, 25, 25};
-//			int radius = 50;
-//			double[] center = new double[]{50, 50, 50};
-//			center2D[0] = 50;
-//			center2D[1] = 50;
-//			final var generatedMultiscaleCylinder = generateMultiscaleLabels(
-//					4,
-//					interval,
-//					blockSize,
-//					center,
-//					(scale, chunk) -> {
-//						fillCylinderChunk(center, scale, chunk);
-//						return null;
-//					});
-//
-//			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-//
-//			final var raw = viewer.addConnectomicsRawSource(
-//					generatedMultiscaleCylinder.images,
-//					generatedMultiscaleCylinder.resolutions,
-//					generatedMultiscaleCylinder.translations,
-//					0,
-//					10,
-//					"raw"
-//			);
-//			final var converter = raw.converter();
-//			converter.setMin(0.0);
-//			converter.setMax(255.0);
-//
-//			final var labels = viewer.addConnectomicsLabelSource(
-//					generatedMultiscaleCylinder.images,
-//					generatedMultiscaleCylinder.resolutions,
-//					generatedMultiscaleCylinder.translations,
-//					10,
-//					"labels",
-//					new LabelBlockLookupAllBlocks(generatedMultiscaleCylinder.dims, generatedMultiscaleCylinder.blocks)
-//			);
-//			labels.getSelectedIds().activate(2);
-//
-//			final MeshSettings meshSettings = labels.getMeshManager().getSettings();
-//			meshSettings.setCoarsestScaleLevel(generatedMultiscaleCylinder.images.length - 1);
-//			meshSettings.setFinestScaleLevel(0);
-//			meshSettings.setLevelOfDetail(5);
-
-
- 			new PainteraBaseViewTest().testAddMultiScaleConnectomicsLabelSource();
-
+			new PainteraBaseViewTest().testAddSingleScaleConnectomicsRawSource(app.get());
 		});
-		Application.launch(Paintera.class);
 
+		app.set(ApplicationTestUtils.painteraTestApp());
 	}
 
 	private static class GeneratedMultiscaleImage<T> {

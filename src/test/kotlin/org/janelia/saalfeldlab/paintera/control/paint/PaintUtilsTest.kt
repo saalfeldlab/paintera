@@ -1,12 +1,13 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import net.imglib2.realtransform.AffineTransform3D
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import kotlin.math.cos
 import kotlin.math.sin
+
 import kotlin.math.sqrt
 
 class PaintUtilsTest {
@@ -31,14 +32,14 @@ class PaintUtilsTest {
 //        val viewerTransform = AffineTransform3D().also { it.scale(23.0) }
 //
 //        // check x axis
-//        Assert.fail()
+//        fail()
 //        viewerTransform.copy().let {
 //            it.rotate(1, smallestRotationInRadians)
 //            it.rotate(0, largestRotationInRadians)
-//            Assert.assertEquals(
+//            assertEquals(
 //                0,
 //                PaintUtils.labelAxisCorrespondingToViewerAxis(labelToGlobalTransform, it, 0, tolerance))
-//            Assert.assertEquals(
+//            assertEquals(
 //                -1,
 //                PaintUtils.labelAxisCorrespondingToViewerAxis(labelToGlobalTransform, it, 0, tolerance / 2.0))
 //
@@ -68,21 +69,21 @@ class PaintUtilsTest {
 				// invert both to get correctly scaled vector, i.e. length / scale / labelTransform[i, i]
 
 				// x axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(length / scale / transform[0, 0], 0.0, 0.0),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform, 0, length),
 					1e-8
 				)
 
 				// y axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(0.0, length / scale / transform[1, 1], 0.0),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform, 1, length),
 					1e-8
 				)
 
 				// z axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(0.0, 0.0, length / scale / transform[2, 2]),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform, 2, length),
 					1e-8
@@ -100,36 +101,36 @@ class PaintUtilsTest {
 				val angle = Math.PI / 3.0 // 60°
 
 				// rotate around z axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(length / scale / transform[0, 0] * cos(angle), length / scale / transform[1, 1] * -sin(angle), 0.0),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(2, angle) }, 0, length),
 					1e-8
 				)
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(0.0, 0.0, length / scale / transform[2, 2]),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(2, angle) }, 2, length),
 					1e-8
 				)
 
 				// rotate around x axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(0.0, length / scale / transform[1, 1] * cos(angle), length / scale / transform[2, 2] * -sin(angle)),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(0, angle) }, 1, length),
 					1e-8
 				)
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(length / scale / transform[0, 0], 0.0, 0.0),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(0, angle) }, 0, length),
 					1e-8
 				)
 
 				// rotate around y axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(length / scale / transform[0, 0] * -sin(angle), 0.0, length / scale / transform[2, 2] * cos(angle)),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(1, angle) }, 2, length),
 					1e-8
 				)
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					doubleArrayOf(0.0, length / scale / transform[1, 1], 0.0),
 					PaintUtils.viewerAxisInLabelCoordinates(transform, viewerTransform.copy().also { it.rotate(1, angle) }, 1, length),
 					1e-8
@@ -157,7 +158,7 @@ class PaintUtilsTest {
 			.also { it.scale(scale) }
 			.also { it.setTranslation(*arbitraryTranslation) }
 			.let { viewerTransform ->
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					DoubleArray(3) { transform[it, it] * scale },
 					PaintUtils.maximumVoxelDiagonalLengthPerDimension(transform, viewerTransform),
 					0.0
@@ -171,7 +172,7 @@ class PaintUtilsTest {
 			.let { viewerTransform ->
 
 				// rotate around z axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					// maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
 					doubleArrayOf(
 						scale * sqrt((cos(angle) * transform[0, 0]).square() + (-sin(angle) * transform[1, 1]).square()),
@@ -188,7 +189,7 @@ class PaintUtilsTest {
 				)
 
 				// rotate around x axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					// maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
 					doubleArrayOf(
 						scale * transform[0, 0],
@@ -205,7 +206,7 @@ class PaintUtilsTest {
 				)
 
 				// rotate around y axis
-				Assert.assertArrayEquals(
+				assertArrayEquals(
 					// maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
 					doubleArrayOf(
 						scale * sqrt((cos(angle) * transform[0, 0]).square() + (-sin(angle) * transform[2, 2]).square()),
@@ -230,13 +231,13 @@ class PaintUtilsTest {
 		LOG.debug("wihTranslation={}", withTranslation)
 		LOG.debug("groundTruth=   {}", groundTruth)
 		val withoutTranslation = PaintUtils.duplicateWithoutTranslation(withTranslation)
-		Assert.assertArrayEquals(groundTruth.rowPackedCopy, withoutTranslation.rowPackedCopy, 0.0)
-		Assert.assertArrayEquals(groundTruth.rowPackedCopy, PaintUtils.duplicateWithoutTranslation(withoutTranslation).rowPackedCopy, 0.0)
+		assertArrayEquals(groundTruth.rowPackedCopy, withoutTranslation.rowPackedCopy, 0.0)
+		assertArrayEquals(groundTruth.rowPackedCopy, PaintUtils.duplicateWithoutTranslation(withoutTranslation).rowPackedCopy, 0.0)
 	}
 
 	@Test
 	fun testRemoveTranslation() {
-		Assert.assertArrayEquals(
+		assertArrayEquals(
 			nonSingularMatrixWithoutTranslation().rowPackedCopy,
 			nonSingularMatrixWithTranslation().also { PaintUtils.removeTranslation(it) }.rowPackedCopy,
 			0.0

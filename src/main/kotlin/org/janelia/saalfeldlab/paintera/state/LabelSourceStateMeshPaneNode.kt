@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.beans.property.ReadOnlyListProperty
-import javafx.collections.ListChangeListener
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -20,16 +19,16 @@ import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.expa
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgressState
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
+import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.stream.Collectors
 
 typealias TPE = TitledPaneExtensions
 
@@ -63,7 +62,12 @@ class LabelSourceStateMeshPaneNode(
 	) : TitledPane("Mesh List", null) {
 
 		private val isMeshListEnabledCheckBox = CheckBox()
-		private val totalProgressBar = MeshProgressBar()
+		private val disabledMeshesBinding = isMeshListEnabledCheckBox.selectedProperty().not()
+		private val observableMeshProgresses = meshInfoList.meshInfos.readOnlyProperty
+		private val globalMeshProgress = GlobalMeshProgressState(observableMeshProgresses, disabledMeshesBinding)
+		private val totalProgressBar = MeshProgressBar().also {
+			it.bindTo(globalMeshProgress)
+		}
 
 		init {
 
@@ -72,10 +76,12 @@ class LabelSourceStateMeshPaneNode(
 				val exportDialog = MeshExporterDialog(meshInfoList.meshInfos as ObservableList<MeshInfo<Long>>)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
+					manager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
+						if (meshExporter.isCancelled()) return@run
+
 						val ids = meshKeys.toTypedArray()
 						val meshSettings = ids.map { manager.getSettings(it) }.toTypedArray()
-
 						(meshExporter as? MeshExporterObj<*>)?.run {
 							val colors: Array<Color> = ids.mapIndexed { idx, it ->
 								val color = manager.getStateFor(it)?.color ?: Color.WHITE
@@ -83,14 +89,6 @@ class LabelSourceStateMeshPaneNode(
 							}.toTypedArray()
 							exportMaterial(filePath, ids.map { it.toString() }.toTypedArray(), colors)
 						}
-						meshExporter.exportMesh(
-							manager.getBlockListForSegment,
-							manager.getMeshForLongKey,
-							meshSettings,
-							ids,
-							scale,
-							filePath
-						)
 					}
 				}
 			}
@@ -102,7 +100,6 @@ class LabelSourceStateMeshPaneNode(
 			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(manager.managedSettings.isMeshListEnabledProperty) }
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
 				headerText = "Mesh List."
 				contentText = "TODO"
 			}
@@ -119,38 +116,18 @@ class LabelSourceStateMeshPaneNode(
 				isFillHeight = true
 			}
 
-			meshInfoList.meshInfos.addListener(Listener(meshInfoList.meshInfos, totalProgressBar))
-
 			expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
 			graphicsOnly(tpGraphics)
 			alignment = Pos.CENTER_RIGHT
 			meshInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
 			content = meshesBox
 		}
-
-		private class Listener(
-			private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
-			private val totalProgressBar: MeshProgressBar,
-		) : ListChangeListener<SegmentMeshInfo> {
-
-			override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
-				updateTotalProgressBindings()
-			}
-
-			private fun updateTotalProgressBindings() {
-				val individualProgresses = meshInfos.stream().map { it.progressProperty }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-				val globalProgress = GlobalMeshProgress(individualProgresses)
-				this.totalProgressBar.bindTo(globalProgress)
-			}
-		}
-
-
 	}
 
 
 	companion object {
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger { }
 
 		private fun Node.asVBox() = if (this is VBox) this else VBox(this)
 

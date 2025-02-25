@@ -10,7 +10,6 @@ import javafx.scene.control.ButtonType
 import javafx.scene.control.TitledPane
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.VBox
-import javafx.stage.Modality
 import javafx.stage.Window
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -21,8 +20,8 @@ import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.stream.Collectors
+import kotlin.jvm.optionals.getOrNull
 
-typealias OnJFXAppThread = InvokeOnJavaFXApplicationThread
 
 class SourceTabs(private val info: SourceInfo) {
 
@@ -40,7 +39,7 @@ class SourceTabs(private val info: SourceInfo) {
 
 	private val statePanes = FXCollections.observableArrayList<StatePane>().also { p ->
 		p.addListener(ListChangeListener {
-			OnJFXAppThread { this@SourceTabs.contents.children.setAll(p.map { it.pane }) }
+			InvokeOnJavaFXApplicationThread { this@SourceTabs.contents.children.setAll(p.map { it.pane }) }
 		})
 	}
 	private val activeSourceToggleGroup = ToggleGroup()
@@ -79,21 +78,19 @@ class SourceTabs(private val info: SourceInfo) {
 		private fun removeDialog(info: SourceInfo, source: Source<*>, window: Window?) {
 			val name = info.getState(source)?.nameProperty()?.get() ?: source.name
 			val index = info.indexOf(source)
-			val confirmRemoval = PainteraAlerts
-				.confirmation("_Remove", "_Cancel", true)
-				.also { it.contentText = "Remove source #$index `$name?'" }
-			confirmRemoval.headerText = null
-			confirmRemoval.initModality(Modality.APPLICATION_MODAL)
-			val buttonClicked = confirmRemoval.showAndWait()
-			if (buttonClicked.filter { ButtonType.OK == it }.isPresent) {
-				try {
-					info.removeSource(source)
-				} catch (e: Exception) {
-					Exceptions.exceptionAlert(
-						Constants.NAME,
-						"Unable to remove source #$index `$name': ${e.message}",
-						e, owner = window
-					)
+			PainteraAlerts.confirmation("_Remove", "_Cancel", true).apply {
+				contentText = "Remove source #$index `$name?'"
+				headerText = null
+			}.showAndWait().filter { it -> ButtonType.OK == it }.getOrNull()?.let {
+				runCatching { info.removeSource(source) }.exceptionOrNull()?.let { e ->
+					(e as? Exception)?.let {
+						Exceptions.exceptionAlert(
+							Constants.NAME,
+							"Unable to remove source #$index `$name': ${e.message}",
+							it,
+							owner = window
+						)
+					}
 				}
 			}
 		}

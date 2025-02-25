@@ -41,8 +41,9 @@ jobs:
       - name: Rename Artifacts
         run: |
           mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
-          mv Paintera-ubuntu-latest-*/*.deb Paintera-${{ env.VERSION }}_x86_64.deb
-          mv Paintera-macos-latest-*/*.dmg Paintera-${{ env.VERSION }}-MacOS.dmg
+          mv Paintera-ubuntu-22.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
+          mv Paintera-ubuntu-24.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
+          mv Paintera-macos-13-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
           mv Paintera-macos-14-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -52,6 +53,7 @@ jobs:
           prerelease: ${{ env.PRERELEASE }}
           files: |
             Paintera-${{ env.VERSION }}-Windows.msi
-            Paintera-${{ env.VERSION }}_x86_64.deb
-            Paintera-${{ env.VERSION }}-MacOS.dmg
+            Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
+            Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
+            Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
             Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg

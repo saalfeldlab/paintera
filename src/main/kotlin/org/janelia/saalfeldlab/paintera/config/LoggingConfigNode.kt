@@ -49,10 +49,9 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 				loggerLevelGrid
 			)
 
-			val helpDialog = PainteraAlerts
-				.alert(Alert.AlertType.INFORMATION, true)
-				.also { it.initModality(Modality.NONE) }
-				.also { it.headerText = "Configure Paintera logging." }
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+				headerText = "Configure Paintera logging."
+			}
 
 			val tpGraphics = HBox(
 				Label("Logging"),

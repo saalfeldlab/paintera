@@ -28,7 +28,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 			final Predicate<M> pickThird,
 			final BiPredicate<M, M> pickSecond) {
 
-		this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType(), 1);
+		this(pickThird, pickSecond, LabelMultisetType.singleEntryWithSingleOccurrence(), 1);
 	}
 
 	public PickOneLabelMultisetType(

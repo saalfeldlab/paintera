@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
 import com.pivovarit.function.ThrowingConsumer;
-import com.sun.javafx.application.PlatformImpl;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
@@ -21,6 +20,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -29,7 +29,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
@@ -60,6 +59,8 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -74,8 +75,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.LongConsumer;
-
-import static java.util.function.Predicate.not;
 
 public class PainteraAlerts {
 
@@ -110,12 +109,74 @@ public class PainteraAlerts {
 		alert.setResizable(isResizable);
 
 		/* Keep the alert on top */
-		Optional.of(Window.getWindows()).filter(not(List::isEmpty)).map(windows -> windows.get(0)).ifPresent(window -> {
-			alert.initOwner(window);
-			alert.initModality(Modality.APPLICATION_MODAL);
-		});
-
+		initAppDialog(alert);
 		return alert;
+	}
+
+	/**
+	 * Default app Owner and Modality as described by {@link #initAppDialog(Dialog, Window, Modality)}
+	 *
+	 * @param dialog top initOwner and initModality for
+	 */
+	public static void initAppDialog(Dialog<?> dialog) {
+
+		initAppDialog(dialog, null, Modality.APPLICATION_MODAL);
+	}
+
+
+
+	/**
+	 * initOwner as specified by {@link #initOwnerWithDefault(Dialog, Window)}.
+	 * <br>
+	 * initModality with {@link Modality}.
+	 *
+	 * @param dialog to init owner and modality for
+	 * @param modality to initModality with
+	 */
+	public static void initAppDialog(Dialog<?> dialog, @Nonnull Modality modality) {
+
+		initOwner(dialog);
+		dialog.initModality(modality);
+	}
+
+	/**
+	 * initOwner as specified by {@link #initOwnerWithDefault(Dialog, Window)}.
+	 * <br>
+	 * initModality with {@link Modality#APPLICATION_MODAL}.
+	 *
+	 * @param dialog to init owner and modality for
+	 * @param owner  to init owner and modality with
+	 * @param modality to initModality with
+	 */
+	public static void initAppDialog(Dialog<?> dialog, @Nullable Window owner, Modality modality) {
+
+		initOwnerWithDefault(dialog, owner);
+		dialog.initModality(modality);
+	}
+
+	/**
+	 * try to grab a default Owner from the list of available windows
+	 *
+	 * @param dialog to initOwner for
+	 */
+	public static void initOwner(Dialog<?> dialog) {
+		initOwnerWithDefault(dialog, null);
+	}
+
+	/**
+	 * If owner is provided, use it. Otherwise, fallback vai {@link #initOwner(Dialog)}
+	 *
+	 * @param dialog to init owner for
+	 * @param owner to initOwner with
+	 */
+	public static void initOwnerWithDefault(Dialog<?> dialog, @Nullable Window owner) {
+
+		final Window window;
+		if (owner == null && !Window.getWindows().isEmpty())
+			window = Window.getWindows().getFirst();
+		else
+			window = owner;
+		Optional.ofNullable(window).ifPresent(dialog::initOwner);
 	}
 
 	public static Alert confirmationWithMnemonics(final boolean isResizable) {
@@ -131,8 +192,7 @@ public class PainteraAlerts {
 	) {
 
 		final var alert = confirmation(okButtonText, cancelButtonText, isResizable);
-		alert.initModality(Modality.APPLICATION_MODAL);
-		alert.initOwner(window);
+		initAppDialog(alert, window, Modality.APPLICATION_MODAL);
 		return alert;
 	}
 
@@ -400,10 +460,9 @@ public class PainteraAlerts {
 		final HBox versionBox = new HBox(new Label("Paintera Version"), versionField);
 		HBox.setHgrow(versionField, Priority.ALWAYS);
 		versionBox.setAlignment(Pos.CENTER);
-		final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true);
+		final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
 		alert.getDialogPane().setContent(versionBox);
 		alert.setHeaderText("Paintera Version");
-		alert.initModality(Modality.NONE);
 		return alert;
 	}
 
@@ -489,7 +548,7 @@ public class PainteraAlerts {
 	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
 
 		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
-		for (final IntegerType<?> t : Views.iterable(rai)) {
+		for (final IntegerType<?> t : rai) {
 			final long id = t.getIntegerLong();
 			if (id > maxId)
 				maxId = id;

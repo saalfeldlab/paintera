@@ -2,50 +2,56 @@ package org.janelia.saalfeldlab.paintera.ui
 
 import javafx.application.Application
 import javafx.application.Preloader
+import javafx.application.Preloader.StateChangeNotification.Type.BEFORE_START
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.fx.Tasks
-import org.janelia.saalfeldlab.paintera.PainteraSplashScreen
-import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNotification
-import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification
-import org.junit.Test
-import org.testfx.api.FxRobot
-import org.testfx.api.FxToolkit
+import org.janelia.saalfeldlab.paintera.*
+import org.janelia.saalfeldlab.paintera.ApplicationTestUtils.launchApplicationWithPreloader
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
+import kotlin.test.assertEquals
 
 
-class SplashScreenTest : FxRobot() {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class SplashScreenTest {
 
-	@Test
-	fun `Test Splash Screen`() {
-		/* Simple test, just ensure the application doesn't crash. Should take a few seconds */
-		System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
+	class SplashScreenApp : Application(),  LocalPreloader {
 
-		FxToolkit.registerPrimaryStage()
-		val app = FxToolkit.setupApplication(SplashScreenApp::class.java, *arrayOf())
+		override var preloader: Preloader? = null
 
-		FxToolkit.cleanupApplication(app)
-	}
-}
-
-fun main(args: Array<String>) {
-	System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
-	Application.launch(SplashScreenApp::class.java, *args)
-}
-
-class SplashScreenApp : Application() {
-
-	override fun init() {
-		Tasks.createTask {
-			notifyPreloader(SplashScreenUpdateNumItemsNotification(10))
-			for (i in 0..10) {
-				Thread.sleep(250)
-				notifyPreloader(SplashScreenUpdateNotification("$i / 10"))
+		override fun init() {
+			ApplicationTestUtils.run {
+				Tasks.createTask {
+					preloader!!.handleApplicationNotification(SplashScreenUpdateNumItemsNotification(10))
+					for (i in 0..10) {
+						Thread.sleep(100)
+						preloader!!.handleApplicationNotification(SplashScreenUpdateNotification("$i / 10"))
+					}
+					"Done!"
+				}.onEnd { _, _ ->
+					preloader!!.notifyStateChange(BEFORE_START)
+				}.get()
 			}
-			"Done!"
-		}.onEnd { _, _ ->
-			notifyPreloader(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_START))
-		}.get()
+		}
+
+		override fun start(primaryStage: Stage) {}
 	}
 
-	override fun start(primaryStage: Stage) {
+	@ParameterizedTest
+	@MethodSource
+	fun `Test Splash Screen`(app : SplashScreenTestApp) {
+		assertEquals(app.preloader.curItemNum, 10, "process 10 progress notifications")
+		assertEquals(app.preloader.numItems, 10, "num items 10")
+	}
+
+
+	fun `Test Splash Screen`() : Stream<SplashScreenTestApp> {
+		return Stream.of( SplashScreenTestApp() )
+	}
+
+	class SplashScreenTestApp(val testApp : TestApplication<SplashScreenApp> = launchApplicationWithPreloader<SplashScreenApp, PainteraSplashScreen, TestApplication<SplashScreenApp>>()) {
+		val preloader = testApp.preloader as PainteraSplashScreen
 	}
 }

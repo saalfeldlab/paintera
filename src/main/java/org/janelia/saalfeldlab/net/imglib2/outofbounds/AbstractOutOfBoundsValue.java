@@ -61,7 +61,7 @@ public abstract class AbstractOutOfBoundsValue<T> extends AbstractLocalizable im
 	protected AbstractOutOfBoundsValue(final AbstractOutOfBoundsValue<T> outOfBounds) {
 
 		super(outOfBounds.numDimensions());
-		this.sampler = outOfBounds.sampler.copyRandomAccess();
+		this.sampler = outOfBounds.sampler.copy();
 		dimension = new long[n];
 		min = new long[n];
 		max = new long[n];

@@ -29,7 +29,7 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 			final Predicate<M> pickThird,
 			final BiPredicate<M, M> pickSecond) {
 
-		this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateVolatileType());
+		this(pickThird, pickSecond, VolatileLabelMultisetType.singleEntryWithSingleOccurrence());
 	}
 
 	public PickOneVolatileLabelMultisetType(

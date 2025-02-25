@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -87,6 +88,7 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 		colorMap.addProperty(CONVERTER_ALPHA, state.converter().alphaProperty().get());
 		colorMap.addProperty(CONVERTER_COLOR, Colors.toHTML(state.converter().getColor()));
 		map.add(CONVERTER, colorMap);
+		map.add(ManagedMeshSettings.MESH_SETTINGS_KEY, context.serialize(state.getMeshManager().getManagedSettings()));
 		map.addProperty(IS_VISIBLE_KEY, state.isVisibleProperty().get());
 
 		final JsonObject meshesMap = new JsonObject();

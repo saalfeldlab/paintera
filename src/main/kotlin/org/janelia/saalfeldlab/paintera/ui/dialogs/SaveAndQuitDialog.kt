@@ -21,7 +21,7 @@ internal object SaveAndQuitDialog {
 	private val save = ButtonType(SAVE_AND_QUIT, ButtonBar.ButtonData.APPLY)
 
 	private val dialog: Alert by lazy {
-		PainteraAlerts.confirmation(OK_BUTTON_TEXT, CANCEL_LABEL, true, paintera.pane.scene?.window).apply {
+		PainteraAlerts.confirmation(OK_BUTTON_TEXT, CANCEL_LABEL, true).apply {
 			headerText = DIALOG_HEADER
 			dialogPane.buttonTypes.addAll(save, saveAs)
 			dialogPane.buttonTypes.map { dialogPane.lookupButton(it) as Button }.forEach { it.isDefaultButton = false }

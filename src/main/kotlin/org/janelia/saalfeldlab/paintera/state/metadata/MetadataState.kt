@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
 import bdv.cache.SharedQueue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
@@ -16,18 +16,23 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.channelAxis
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.isLabelMultiset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
-import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
-import org.janelia.saalfeldlab.util.n5.N5Data
-import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.spatialAxes
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.timeAxis
+import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
-import java.util.Optional
+import java.util.stream.Stream
+import kotlin.streams.asSequence
 
 interface MetadataState {
 
@@ -42,7 +47,10 @@ interface MetadataState {
 	var maxIntensity: Double
 	var resolution: DoubleArray
 	var translation: DoubleArray
-	var virtualCrop : Interval?
+	var spatialAxes: Map<Axis, Int>
+	var channelAxis: Pair<Axis, Int>?
+	var timeAxis: Pair<Axis, Int>?
+	var virtualCrop: Interval?
 	var unit: String
 	var reader: N5Reader
 
@@ -98,6 +106,9 @@ open class SingleScaleMetadataState(
 	override var maxIntensity = metadata.maxIntensity()
 	override var resolution = metadata.resolution
 	override var translation = metadata.offset
+	override var spatialAxes = metadata.spatialAxes
+	override var channelAxis: Pair<Axis, Int>? = metadata.channelAxis
+	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
 	override var virtualCrop: Interval? = null
 	override var unit: String = metadata.unit()
 	override var reader = n5ContainerState.reader
@@ -137,7 +148,7 @@ open class SingleScaleMetadataState(
 }
 
 
-open class MultiScaleMetadataState (
+open class MultiScaleMetadataState(
 	override val n5ContainerState: N5ContainerState,
 	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
@@ -191,7 +202,7 @@ open class MultiScaleMetadataState (
 	}
 }
 
-class PainteraDataMultiscaleMetadataState (
+class PainteraDataMultiscaleMetadataState(
 	n5ContainerState: N5ContainerState,
 	var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup
 ) : MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
@@ -227,7 +238,21 @@ operator fun <T> SpatialMultiscaleMetadata<T>.get(index: Int): T where T : N5Spa
 
 class MetadataUtils {
 
+	enum class SpatialAxes(val label: String) {
+		X("x"),
+		Y("y"),
+		Z("z");
+
+		companion object {
+			val labels = SpatialAxes.entries.map { it.label }
+			val default = SpatialAxes.entries.associate { Axis(Axis.SPACE, it.name, null) to it.ordinal }
+		}
+	}
+
 	companion object {
+
+		private val LOG = KotlinLogging.logger {}
+
 		val N5SpatialDatasetMetadata.isLabelMultiset
 			get() = when (this) {
 				is N5SingleScaleMetadata -> isLabelMultiset
@@ -249,8 +274,99 @@ class MetadataUtils {
 			}
 
 		@JvmStatic
+		fun MetadataState.getAxes(): Array<Axis>? {
+			val axesMetadata = when (this) {
+				is SingleScaleMetadataState -> metadata
+				is MultiScaleMetadataState -> highestResMetadata
+				else -> null
+			}
+
+			return when (axesMetadata) {
+				is NgffSingleScaleAxesMetadata -> axesMetadata.axes
+				else -> null
+			}
+		}
+
+		val N5SpatialDatasetMetadata.spatialAxes: Map<Axis, Int>
+			get() = when (this) {
+				is NgffSingleScaleAxesMetadata -> {
+					axes.mapIndexed { idx, axis -> axis to idx }
+						.filter { (axis, _) -> axis.type == Axis.SPACE && axis.name in SpatialAxes.labels }
+						.associate { (axis, idx) -> axis to idx }
+				}
+
+				else -> mapOf(
+					Axis("spatial", "x", unit()) to 0,
+					Axis("spatial", "y", unit()) to 1,
+					Axis("spatial", "z", unit()) to 2
+				)
+			}
+
+		val N5SpatialDatasetMetadata.channelAxis: Pair<Axis, Int>?
+			get() = when (this) {
+				is NgffSingleScaleAxesMetadata -> {
+					axes.mapIndexed { idx, axis -> axis to idx }
+						.firstOrNull() { (axis, _) -> axis.type == Axis.CHANNEL }
+				}
+
+				else -> null
+			}
+
+		val N5SpatialDatasetMetadata.timeAxis: Pair<Axis, Int>?
+			get() = when (this) {
+				is NgffSingleScaleAxesMetadata -> {
+					axes.mapIndexed { idx, axis -> axis to idx }
+						.firstOrNull() { (axis, _) -> axis.type == Axis.TIME }
+				}
+
+				else -> null
+			}
+
+		/**
+		 * If the MetadataState has [N5PainteraLabelMultiScaleGroup], create a [FragmentSegmentAssignmentOnlyLocal]
+		 * used for fragment-segment lookups and persisting.
+		 *
+		 * If the group does not exist, but is otherwise valid, this will create it.
+		 * If the N5Container is read-only, the existing LUT will be used if found, but no
+		 *  new persisting can occur.
+		 */
+		@JvmStatic
+		val MetadataState.fragmentSegmentAssignmentState: FragmentSegmentAssignmentOnlyLocal
+			get() {
+
+				val (lut, persist) = (metadata as? N5PainteraLabelMultiScaleGroup)?.let { painteraLabels ->
+					val lut = painteraLabels.fragmentSegmentAssignmentMetadata?.let { initialLutMetadata ->
+						if (reader.exists(initialLutMetadata.path))
+							N5FragmentSegmentAssignmentInitialLut(reader, initialLutMetadata.path)
+						else null
+					} ?: NO_INITIAL_LUT_AVAILABLE
+					val persist = runCatching {
+						N5FragmentSegmentAssignmentPersister(writer, "${painteraLabels.path}/${N5Helpers.PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET}")
+					}.getOrElse {
+						LOG.error(it) {}
+						FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Cannot Persist: $it")
+					}
+					lut to persist
+				} ?: let {
+					val reason = "Persisting assignments not supported for non Paintera group/dataset $group"
+					NO_INITIAL_LUT_AVAILABLE to FragmentSegmentAssignmentOnlyLocal.doesNotPersist(reason)
+				}
+
+				return FragmentSegmentAssignmentOnlyLocal(lut, persist)
+
+			}
+
+
+		/**
+		 * Checks if the given metadata is valid. The metadata is considered valid if it is either
+		 * a SpatialMultiscaleMetadata with children of type N5SpatialDatasetMetadata, or it is
+		 * a single scale N5SpatialDatasetMetadata.
+		 *
+		 * @param metadata The metadata to validate.
+		 * @return True if the metadata is valid, false otherwise.
+		 */
+		@JvmStatic
 		fun metadataIsValid(metadata: N5Metadata?): Boolean {
-			/* Valid if we are SpatialMultiscaleMetadata whose children are single scale, or we are SingleScale ourselves. */
 			return (metadata as? SpatialMultiscaleMetadata<*>)?.let {
 				it.childrenMetadata[0] is N5SpatialDatasetMetadata
 			} ?: run {
@@ -259,65 +375,52 @@ class MetadataUtils {
 		}
 
 		@JvmStatic
-		fun createMetadataState(n5ContainerState: N5ContainerState, metadata: N5Metadata?): Optional<MetadataState> {
+		fun createMetadataState(n5ContainerState: N5ContainerState, metadata: N5Metadata?): MetadataState? {
 			@Suppress("UNCHECKED_CAST")
-			return Optional.ofNullable(
-				(metadata as? N5PainteraDataMultiScaleGroup)?.let { PainteraDataMultiscaleMetadataState(n5ContainerState, it) }
-					?: (metadata as? SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>)?.let { MultiScaleMetadataState(n5ContainerState, it) }
-					?: (metadata as? N5SpatialDatasetMetadata)?.let { SingleScaleMetadataState(n5ContainerState, it) }
-			)
+			return when {
+				metadata is N5PainteraDataMultiScaleGroup -> PainteraDataMultiscaleMetadataState(n5ContainerState, metadata)
+				(metadata as? SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>) != null -> MultiScaleMetadataState(n5ContainerState, metadata)
+				metadata is N5SpatialDatasetMetadata -> SingleScaleMetadataState(n5ContainerState, metadata)
+				else -> null
+			}
 		}
 
 		@JvmStatic
-		fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
+		fun createMetadataState(n5containerAndDataset: String): MetadataState? {
 
 			val reader = with(Paintera.n5Factory) {
-				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset) ?: return Optional.empty()
+				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset) ?: return null
 			}
 
 			val n5ContainerState = N5ContainerState(reader)
-			return N5Helpers.parseMetadata(reader).map { treeNode ->
-				if (treeNode.isDataset && metadataIsValid(treeNode.metadata) && treeNode.metadata is N5Metadata) {
-					createMetadataState(n5ContainerState, treeNode.metadata).get()
-				} else {
-					null
-				}
+			return discoverAndParseRecursive(reader, n5containerAndDataset).run {
+				if (isDataset && metadataIsValid(metadata))
+					createMetadataState(n5ContainerState, metadata)
+				else null
 			}
 		}
 
 		@JvmStatic
-		fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-			val reader = Paintera.n5Factory.openReader(n5container) ?: return Optional.empty()
+		fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
+			val n5 = Paintera.n5Factory.openWriterOrReaderOrNull(n5container) ?: return null
+			return createMetadataState(n5, dataset)
+		}
 
-			val n5ContainerState = N5ContainerState(reader)
-			val metadataRoot = N5Helpers.parseMetadata(reader)
-			if (metadataRoot.isEmpty) return Optional.empty()
-			val metadataState = N5TreeNode.flattenN5Tree(metadataRoot.get())
+		@JvmStatic
+		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState? {
+			return createMetadataState(N5ContainerState(reader), dataset)!!
+		}
+
+		@JvmStatic
+		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
+			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
+
+			return N5TreeNode.flattenN5Tree(metadataRoot)
+				.asSequence()
 				.filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
-				.findFirst()
 				.map { obj: N5TreeNode -> obj.metadata }
 				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
-				.get()
-
-			return metadataState
-		}
-
-		@JvmStatic
-		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String?): Optional<MetadataState> {
-			return N5Helpers.parseMetadata(n5ContainerState.reader)
-				.flatMap { tree: N5TreeNode? ->
-					N5TreeNode.flattenN5Tree(tree).filter { node: N5TreeNode -> node.path == dataset || node.path == "/$dataset" }.findFirst()
-				}
-				.filter { node: N5TreeNode -> metadataIsValid(node.metadata) }
-				.map { obj: N5TreeNode -> obj.metadata }
-				.flatMap { md: N5Metadata? -> createMetadataState(n5ContainerState, md) }
-		}
-
-		@JvmStatic
-		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState {
-			val n5ContainerState = N5ContainerState(reader)
-			val createMetadataState = createMetadataState(n5ContainerState, dataset)
-			return createMetadataState.nullable!!
+				.firstOrNull()
 		}
 
 		fun transformFromResolutionOffset(resolution: DoubleArray, offset: DoubleArray): AffineTransform3D {

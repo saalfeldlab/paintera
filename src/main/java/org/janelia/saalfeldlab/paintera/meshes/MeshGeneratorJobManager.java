@@ -244,7 +244,7 @@ public class MeshGeneratorJobManager<T> {
 
 	private final int numScaleLevels;
 
-	private final IndividualMeshProgress meshProgress;
+	private final IndividualMeshProgressState meshProgress;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -276,7 +276,7 @@ public class MeshGeneratorJobManager<T> {
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
-			final IndividualMeshProgress meshProgress) {
+			final IndividualMeshProgressState meshProgress) {
 
 		this.identifier = identifier;
 		this.meshesAndBlocks = meshesAndBlocks;
@@ -736,9 +736,9 @@ public class MeshGeneratorJobManager<T> {
 
 		if (tasks.isEmpty()) {
 			LOG.debug("All tasks are finished");
-			assert meshProgress.getNumTasks() == meshProgress.getNumCompletedTasks() : String
+			assert meshProgress.getNumTotalTasks() == meshProgress.getNumCompletedTasks() : String
 					.format("All tasks are finished, but number of total tasks (%d) is different from the number of completed tasks (%d)",
-							meshProgress.getNumTasks(),
+							meshProgress.getNumTotalTasks(),
 							meshProgress.getNumCompletedTasks());
 			assert assertBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
 			assert blockTree.nodes.keySet().containsAll(requestedBlockTree.nodes.keySet()) :

@@ -46,7 +46,7 @@ public class MeshGenerator<T> {
 
 		// TODO what to use for numScaleLevels? Should MeshSettings not know about the number of scale levels?
 		private final MeshSettings settings = new MeshSettings(Integer.MAX_VALUE);
-		private final IndividualMeshProgress progress = new IndividualMeshProgress();
+		private final IndividualMeshProgressState progress = new IndividualMeshProgressState();
 		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 		private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 		private final ObjectBinding<Color> premultipliedColor = Bindings.createObjectBinding(
@@ -59,7 +59,7 @@ public class MeshGenerator<T> {
 			return settings;
 		}
 
-		public IndividualMeshProgress getProgress() {
+		public IndividualMeshProgressState getProgress() {
 
 			return progress;
 		}

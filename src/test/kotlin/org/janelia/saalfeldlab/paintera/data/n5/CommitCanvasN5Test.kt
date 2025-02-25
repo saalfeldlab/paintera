@@ -1,54 +1,64 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import bdv.cache.SharedQueue
+import com.google.gson.GsonBuilder
 import gnu.trove.map.TLongObjectMap
 import gnu.trove.map.hash.TLongObjectHashMap
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.Volatile
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.cache.img.*
 import net.imglib2.img.cell.CellGrid
-import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.type.NativeType
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.janelia.saalfeldlab.util.n5.N5TestUtil
-import org.junit.Assert
-import org.junit.BeforeClass
-import org.junit.Test
-import org.testfx.util.WaitForAsyncUtils
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import java.util.Random
 import java.util.stream.IntStream
 import java.util.stream.Stream
+import kotlin.io.path.absolutePathString
 
+@TestInstance(PER_CLASS)
 class CommitCanvasN5Test {
 
 	@JvmRecord
 	private data class CanvasAndContainer(val canvas: CachedCellImg<UnsignedLongType, *>, val container: N5ContainerState)
 
+	@BeforeAll
+	fun setupN5Factory() {
+
+		val builder = GsonBuilder()
+		builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter());
+		Paintera.n5Factory.gsonBuilder(builder)
+	}
+
 	@Test
-	fun testSingleScaleLabelMultisetCommit() = testSingleScale(
-		getTmpCanvasAndContainer(),
+	fun testSingleScaleLabelMultisetCommit(@TempDir tmp: Path) = testSingleScale(
+		getTmpCanvasAndContainer(tmp),
 		"single-scale-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -57,8 +67,8 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testMultiScaleScaleLabelMultisetCommit() = testMultiScale(
-		getTmpCanvasAndContainer(),
+	fun testMultiScaleScaleLabelMultisetCommit(@TempDir tmp: Path) = testMultiScale(
+		getTmpCanvasAndContainer(tmp),
 		"multi-scale-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -67,8 +77,8 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testPainteraLabelMultisetCommit() = testPainteraData(
-		getTmpCanvasAndContainer(),
+	fun testPainteraLabelMultisetCommit(@TempDir tmp: Path) = testPainteraData(
+		getTmpCanvasAndContainer(tmp),
 		"paintera-label-multisets",
 		DataType.UINT8,
 		{ n5, dataset -> N5LabelMultisets.openLabelMultiset(n5, dataset) },
@@ -78,28 +88,30 @@ class CommitCanvasN5Test {
 	)
 
 	@Test
-	fun testSingleScaleUint64Commit() = testSingleScale(getTmpCanvasAndContainer(),
+	fun testSingleScaleUint64Commit(@TempDir tmp: Path) = testSingleScale(
+		getTmpCanvasAndContainer(tmp),
 		"single-scale-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap())
-
-	@Test
-	fun testMultiScaleUint64Commit() = testMultiScale(
-		getTmpCanvasAndContainer(),
-		"multi-scale-uint64",
-		DataType.UINT64,
-		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c: UnsignedLongType, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }, HashMap()
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }
 	)
 
 	@Test
-	fun testPainteraUint64Commit() = testPainteraData(
-		getTmpCanvasAndContainer(),
+	fun testMultiScaleUint64Commit(@TempDir tmp: Path) = testMultiScale(
+		getTmpCanvasAndContainer(tmp),
+		"multi-scale-uint64",
+		DataType.UINT64,
+		{ n5, dataset -> N5Utils.open(n5, dataset) },
+		{ c: UnsignedLongType, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) }
+	)
+
+	@Test
+	fun testPainteraUint64Commit(@TempDir tmp: Path) = testPainteraData(
+		getTmpCanvasAndContainer(tmp),
 		"paintera-uint64",
 		DataType.UINT64,
 		{ n5, dataset -> N5Utils.open(n5, dataset) },
-		{ c, l: UnsignedLongType -> Assert.assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) },
+		{ c, l: UnsignedLongType -> assertEquals(if (isInvalid(c)) 0 else c.integerLong, l.integerLong) },
 		HashMap(),
 		intArrayOf(2, 2, 3)
 	)
@@ -110,17 +122,6 @@ class CommitCanvasN5Test {
 		private val INVALID = UnsignedLongType(Label.INVALID)
 		private val MULTISET_ATTRIBUTE: Map<String, Any> = mapOf(N5Helpers.LABEL_MULTISETTYPE_KEY to true)
 		private val PAINTERA_DATA_ATTRIBUTE: Map<String, Any> = mapOf("type" to "label")
-
-		@JvmStatic
-		@BeforeClass
-		fun startJavaFx() {
-			try {
-				Platform.startup {}
-				WaitForAsyncUtils.waitForFxEvents()
-			} catch (e: IllegalStateException) {
-				/* This happens if the JavaFx thread is already running, which is what we want.*/
-			}
-		}
 
 		private fun isInvalid(pixel: UnsignedLongType): Boolean {
 			val isInvalid = INVALID.valueEquals(pixel)
@@ -140,23 +141,26 @@ class CommitCanvasN5Test {
 			}
 		}
 
-		private fun getTmpCanvasAndContainer(): CanvasAndContainer {
+		private fun getTmpCanvasAndContainer(tmp: Path): CanvasAndContainer {
 			val canvas = newTestCanvas()
-			val writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled())
+
+			val writer = Paintera.n5Factory.newWriter(tmp.absolutePathString())
 			val container = N5ContainerState(writer)
 			LOG.debug { "Created temporary N5 container $writer" }
+
+
 			return CanvasAndContainer(canvas, container)
 		}
 
 		private fun assertMultisetType(c: UnsignedLongType, l: LabelMultisetType) {
-			Assert.assertEquals(1, l.entrySet().size)
+			assertEquals(1, l.entrySet().size)
 			val entry = l.entrySet().iterator().next()
-			Assert.assertEquals(1, entry.count)
+			assertEquals(1, entry.count)
 			val isInvalid = isInvalid(c)
 			if (isInvalid) {
-				Assert.assertEquals(0, l.integerLong)
+				assertEquals(0, l.integerLong)
 			} else {
-				Assert.assertEquals(c.integerLong, entry.element.id())
+				assertEquals(c.integerLong, entry.element.id())
 			}
 		}
 
@@ -166,7 +170,7 @@ class CommitCanvasN5Test {
 			dataType: DataType,
 			openLabels: (N5Reader, String) -> RandomAccessibleInterval<T>,
 			asserts: (UnsignedLongType, T) -> Unit,
-			additionalAttributes: Map<String, Any>,
+			additionalAttributes: Map<String, Any> = emptyMap(),
 			vararg scaleFactors: IntArray
 		) {
 			val (canvas, container) = canvasAndContainer
@@ -198,7 +202,7 @@ class CommitCanvasN5Test {
 			}
 
 			for ((idx, factors) in scaleFactors.withIndex()) {
-				val scaleNum = idx+1
+				val scaleNum = idx + 1
 				val scaleDims = dims / factors
 				val scaleAttributes = DatasetAttributes(scaleDims, blockSize, dataType, GzipCompression())
 				val uniqueScaleAttributes = DatasetAttributes(scaleDims, blockSize, DataType.UINT64, GzipCompression())
@@ -237,7 +241,7 @@ class CommitCanvasN5Test {
 				}
 
 				val uniqueBlock = writer.readBlock(uniqueBlock0Group, uniqueBlockAttributes, *blockPos)
-				Assert.assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
+				assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
 			}
 
 			val lookup = LabelBlockLookupFromN5Relative(scaleMappingPattern)
@@ -247,14 +251,14 @@ class CommitCanvasN5Test {
 				val key = LabelBlockLookupKey(0, id)
 				val lookupFor = lookup.read(key)
 				LOG.trace { "Found mapping $lookupFor for id $id" }
-				Assert.assertEquals(labelToBlockMapping[id].size().toLong(), lookupFor.size.toLong())
+				assertEquals(labelToBlockMapping[id].size().toLong(), lookupFor.size.toLong())
 				val blockIndices = Stream
 					.of(*lookupFor)
 					.map { interval: Interval? -> Intervals.minAsLongArray(interval) }
 					.mapToLong { m: LongArray -> toBlockIndex(m, canvas.cellGrid) }
 					.toArray()
 				LOG.trace { "Block indices for id $id: $blockIndices" }
-				Assert.assertEquals(labelToBlockMapping[id], TLongHashSet(blockIndices))
+				assertEquals(labelToBlockMapping[id], TLongHashSet(blockIndices))
 				true
 			}
 		}
@@ -265,7 +269,7 @@ class CommitCanvasN5Test {
 			dataType: DataType,
 			openLabels: (N5Reader, String) -> RandomAccessibleInterval<T>,
 			asserts: (UnsignedLongType, T) -> Unit,
-			additionalAttributes: Map<String, Any>
+			additionalAttributes: Map<String, Any> = emptyMap()
 		) {
 			val (canvas, container) = canvasAndContainer
 			val s0 = container.writer!!.run {
@@ -309,12 +313,12 @@ class CommitCanvasN5Test {
 		) {
 
 			val (canvas, container) = canvasAndContainer
-			val metadataState = createMetadataState(container, dataset).orElseGet { DummyMetadataState(dataset, container) }
+			val metadataState = createMetadataState(container, dataset)!!
 
 			writeAll(metadataState, canvas)
 
 			val labels = openLabels(metadataState.writer!!, labelsDataset)
-			Assert.assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels))
+			assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels))
 
 			for (pair in Views.interval(Views.pair(canvas, labels), labels)) {
 				LOG.trace { "Comparing canvas ${pair.a} and background ${pair.b}" }
@@ -346,31 +350,5 @@ class CommitCanvasN5Test {
 			grid.getCellPosition(intervalMin, intervalMin)
 			return IntervalIndexer.positionToIndex(intervalMin, grid.gridDimensions)
 		}
-	}
-}
-
-private class DummyMetadataState(override val dataset: String, override val n5ContainerState: N5ContainerState) : MetadataState {
-
-	override var group: String = dataset
-	override val writer: N5Writer = n5ContainerState.writer!!
-	override var reader: N5Reader = n5ContainerState.reader
-	override var unit: String = "pixel"
-	override var translation: DoubleArray = DoubleArray(0)
-	override var virtualCrop: Interval? = null
-	override var resolution: DoubleArray = DoubleArray(0)
-	override var maxIntensity: Double = 0.0
-	override var minIntensity: Double = 0.0
-	override var isLabelMultiset: Boolean = true
-	override var isLabel: Boolean = true
-	override var transform: AffineTransform3D = error("not necessary for test")
-	override var datasetAttributes: DatasetAttributes = error("not necessary for test")
-	override val metadata: N5Metadata = N5Metadata { "TEST" }
-
-	override fun copy(): MetadataState = this
-	override fun updateTransform(newTransform: AffineTransform3D) = Unit
-	override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) = Unit
-
-	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
-		error("not necessary for test")
 	}
 }

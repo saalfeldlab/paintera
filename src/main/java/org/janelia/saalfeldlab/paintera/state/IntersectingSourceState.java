@@ -180,29 +180,22 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		this.seedSourceMeshCacheKeyProperty.bind(seedSourceChangeListener);
 		this.getGetUnionBlockListFor = getGetUnionBlockListFor(fillBlockListFor, seedBlockListFor);
 		this.meshManager = createMeshManager(viewer, getGetUnionBlockListFor);
-		this.intersectionMeshCacheKeyBinding.addListener((obs, oldv, newv) -> {
-			if (newv != null && oldv != newv) {
-				INTERSECTION_FILL_SERVICE.submit(() -> {
-					getDataSource().invalidateAll();
-					requestRepaint();
-					try {
-						BuildersKt.runBlocking(
-								EmptyCoroutineContext.INSTANCE,
-								(scope, continuation) -> getMeshManager().createMeshFor(newv, continuation)
-						);
-					} catch (InterruptedException e) {
-						LOG.debug("create mesh interrupted");
-					}
-				});
-			}
+		this.intersectionMeshCacheKeyBinding.subscribe(key -> {
+			if (key == null)
+				return;
+			INTERSECTION_FILL_SERVICE.submit(() -> {
+				getDataSource().invalidateAll();
+				requestRepaint();
+				getMeshManager().submitMeshJob(key);
+			});
 		});
 
-		this.meshManager.getRendererSettings().getMeshesEnabledProperty().addListener((obs, oldv, newv) -> {
-			if (newv)
+		this.meshManager.getRendererSettings().getMeshesEnabledProperty().subscribe(enabled -> {
+			if (enabled)
 				refreshMeshes();
 		});
-		intersectSource.getProperty().addListener((obs, oldv, newv) -> {
-			if (newv) {
+		intersectSource.getProperty().subscribe(intersect -> {
+			if (intersect) {
 				requestRepaint();
 				intersectSource.getProperty().set(false);
 			}

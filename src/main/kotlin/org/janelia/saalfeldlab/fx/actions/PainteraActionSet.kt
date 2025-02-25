@@ -24,7 +24,7 @@ fun Action<*>.verifyPermission(vararg actionType: ActionType) {
 }
 
 fun ActionSet.verifyPainteraNotDisabled() {
-	verifyAll(Event.ANY, "Paintera is Disabled") { !paintera.baseView.isDisabledProperty.get() }
+	verifyAll(Event.ANY, "Paintera is Disabled") {  !paintera.baseView.isDisabledProperty.get() }
 }
 
 fun Action<*>.verifyPainteraNotDisabled() {

@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
-import com.google.common.collect.Lists
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
@@ -14,7 +13,8 @@ import javafx.scene.control.SeparatorMenuItem
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenu
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -55,7 +55,7 @@ private val openRecentMenu by LazyForeignValue(::paintera) {
 private val fileMenu by LazyForeignValue(::paintera) {
 	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
 		it.setOnShowing {
-			recentProjects.setAll(Lists.reverse(PainteraCache.readLines(Paintera::class.java, "recent_projects")))
+			recentProjects.setAll(PainteraCache.RECENT_PROJECTS.readLines().reversed())
 		}
 	}
 }
@@ -81,7 +81,7 @@ private val viewMenu by LazyForeignValue(::paintera) {
 		viewer3DMenu
 	)
 }
-private val actionMenu by LazyForeignValue(::paintera) { Menu("_Actions", null, SmoothAction.menuItem) } //, DilateAction.menuItem) }
+private val actionMenu by LazyForeignValue(::paintera) { Menu("_Actions", null, SmoothLabel.menuItem, ReplaceLabel.menuItem) }
 private val helpMenu by LazyForeignValue(::paintera) { Menu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
 val menuBar by LazyForeignValue(::paintera) {

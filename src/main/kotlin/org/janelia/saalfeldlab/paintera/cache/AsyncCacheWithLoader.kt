@@ -1,31 +1,23 @@
 package org.janelia.saalfeldlab.paintera.cache
 
-import javafx.beans.property.SimpleIntegerProperty
 import kotlinx.coroutines.*
 import net.imglib2.cache.Cache
 import net.imglib2.cache.LoaderCache
-import org.checkerframework.checker.units.qual.K
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import java.util.concurrent.ExecutionException
 import java.util.function.Predicate
 
-open class AsyncCacheWithLoader<K : Any, V>(
-	private val cache: LoaderCache<K, Deferred<V>>,
-	private val loader: suspend (K) -> V
+abstract class AsyncCacheWithLoader<K : Any, V>(
+	val loaderScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+	protected val loaderQueueScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) : Cache<K, V> {
 
-	private val loaderScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-	private val loaderQueueScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	protected abstract val cache: LoaderCache<K, Deferred<V>>
 
-	val cacheSizeProperty = SimpleIntegerProperty()
-	var cacheSize by cacheSizeProperty.nonnull()
-		private set
-	val pendingJobsProperty = SimpleIntegerProperty()
-	var pendingJobs by pendingJobsProperty.nonnull()
-		private set
+	protected abstract suspend fun loader(key : K): V
 
-	fun cancelUnsubmittedLoadRequests() {
-		loaderScope.coroutineContext.cancelChildren()
+	fun cancelUnfinishedRequests() {
+		val reason = CancellationException("Unfinished Requests Cancelled")
+		loaderQueueScope.coroutineContext.cancelChildren(reason)
+		loaderScope.coroutineContext.cancelChildren(reason)
 	}
 
 	override fun getIfPresent(key: K): V? {
@@ -43,24 +35,27 @@ open class AsyncCacheWithLoader<K : Any, V>(
 
 	fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
 		cache.get(key) {
-			if (clear) cancelUnsubmittedLoadRequests()
+			if (clear) cancelUnfinishedRequests()
 			loaderScope.async { loader(key) }
-		}.also { if (it.isCancelled) cache.invalidate(key) }
+		}.invalidateOnException(key)
+	}
+
+	private fun Deferred<V>.invalidateOnException(key: K) : Deferred<V> {
+		invokeOnCompletion { cause ->
+			cause?.let { cache.invalidate(key) }
+		}
+		return this
 	}
 
 	open fun load(key: K) : Job {
-		/* If it's already in the cache, deferred or not, just return a completed job and skip the loader queue */
-		cache.getIfPresent(key)?.let {
-			if (it.isCancelled)
-				cache.invalidate(key)
-			else return Job().apply { complete() }
-		}
-
-		return runBlocking {
-			loaderQueueScope.async {
-				if (!isActive) invalidate(key)
-				else request(key)
-			}
+		/*check invalidate an existing value if it has finished excepptionally */
+		cache.getIfPresent(key)?.invalidateOnException(key)
+		/* If it's already in the cache, return it */
+		cache.getIfPresent(key)?.let { return it }
+		/* otherwise, trigger a new non-blocking request */
+		return loaderQueueScope.async {
+			if (!isActive) invalidate(key)
+			else request(key)
 		}
 	}
 

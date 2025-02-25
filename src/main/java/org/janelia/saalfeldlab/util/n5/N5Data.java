@@ -45,7 +45,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.VolatileHelpers;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
@@ -440,9 +440,14 @@ public class N5Data {
 			final AffineTransform3D transform,
 			final SharedQueue queue,
 			final int priority,
-			final String name) throws IOException, ReflectionException {
+			final String name) throws IOException {
 
-		return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
+		return openLabelMultisetAsSource(
+				Objects.requireNonNull(MetadataUtils.createMetadataState(reader, dataset)),
+				queue,
+				priority,
+				name,
+				null);
 	}
 
 	/**

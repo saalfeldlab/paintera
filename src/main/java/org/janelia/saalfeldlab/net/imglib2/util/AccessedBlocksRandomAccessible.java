@@ -124,7 +124,7 @@ public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<R
 		@Override
 		public AbstractConvertedRandomAccess<T, T> copy() {
 
-			return new TrackingRandomAccess(source.copyRandomAccess());
+			return new TrackingRandomAccess(source.copy());
 		}
 
 	}

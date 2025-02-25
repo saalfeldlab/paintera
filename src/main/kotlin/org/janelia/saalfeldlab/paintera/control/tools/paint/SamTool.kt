@@ -258,7 +258,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		super.activate()
 		if (mode is PaintLabelMode) {
 			PaintLabelMode.disableUnfocusedViewers()
-			mode.activeViewerProperty.unbind()
 		}
 		primaryClickLabel = null
 		initializeSam()
