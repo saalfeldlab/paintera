@@ -6,13 +6,14 @@ import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
-import javafx.stage.Modality
 import javafx.util.Callback
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaCopy
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
+import org.janelia.saalfeldlab.paintera.composition.AlphaCopy
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -29,14 +30,16 @@ class SourceStateCompositePane {
 		val composite: ARGBComposite,
 	) {
 
-		ALPHA_ADD("Alpha add", "TODO: long description", ARGBCompositeAlphaAdd()),
-		ALPHA_YCBCR("Alpha YCbCr", "TODO: long description", ARGBCompositeAlphaYCbCr()),
-		COPY("Copy", "TODO: long description", CompositeCopy());
+		ALPHA_ADD("Alpha Add", "Add the alpha-weighted colors from this source and the underlying source ", ARGBCompositeAlphaAdd()),
+		ALPHA_YCBCR("Alpha YCbCr", "YCbCr composition weighted by this source's alpha ", ARGBCompositeAlphaYCbCr()),
+		ALPHA_COPY("Alpha Copy", "Add the alpha-weight colors from this source to the underlying source, but use this source's alpha directly", ARGBCompositeAlphaCopy()),
+		ALPHA_ONLY("Alpha Only", "Use the underlying source colors with this source's alpha", AlphaCopy()),
+		COPY("Copy", "No Composition with the underlying sources. Use this source directly. ", CompositeCopy());
 
 		override fun toString() = shortDescription
 
 		companion object {
-			val MAPPING = mapOf(*values().map { Pair(it.composite::class.java, it) }.toTypedArray())
+			val MAPPING = mapOf(*AvailableComposites.entries.map { Pair(it.composite::class.java, it) }.toTypedArray())
 		}
 
 	}
@@ -51,7 +54,7 @@ class SourceStateCompositePane {
 			promptText = prompt
 		}
 
-		private fun createComboBoxAndBindBidrectionalImpl(
+		private fun createComboBoxAndBindBidirectionalImpl(
 			composite: ObjectProperty<ARGBComposite?>,
 			promptText: String? = null,
 		) = createComboBox(promptText).apply {
@@ -66,7 +69,7 @@ class SourceStateCompositePane {
 			composite: ObjectProperty<ARGBComposite?>?,
 			promptText: String? = null,
 		) = composite
-			?.let { createComboBoxAndBindBidrectionalImpl(it, promptText) }
+			?.let { createComboBoxAndBindBidirectionalImpl(it, promptText) }
 			?: createComboBox(promptText)
 
 		@JvmStatic
@@ -76,7 +79,7 @@ class SourceStateCompositePane {
 			title: String = "ARGB Composition Mode",
 			promptText: String? = "Select composition mode",
 			description: String? = DEFAULT_DESCRIPTION,
-			expanded: Boolean = false,
+			expanded: Boolean = true,
 		): TitledPane {
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
@@ -94,6 +97,7 @@ class SourceStateCompositePane {
 			return with(TitledPaneExtensions) {
 				TitledPane().apply {
 					isExpanded = expanded
+					isCollapsible = false
 					graphicsOnly(tpGraphics)
 					alignment = Pos.CENTER_RIGHT
 					tooltip = Tooltip(description)
