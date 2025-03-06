@@ -16,11 +16,10 @@ package org.janelia.saalfeldlab.paintera.composition;
 import net.imglib2.type.numeric.ARGBType;
 
 /**
- * Multiplies b by b's alpha value and adds it to a.
- *
- * @author Stephan Saalfeld
+ * Composes the RGB from A, and uses the Alpha from B
  */
-public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType> {
+public class AlphaCopy implements Composite<ARGBType, ARGBType> {
+
 
 	@Override
 	public void compose(final ARGBType a, final ARGBType b) {
@@ -28,22 +27,12 @@ public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType> {
 		final int argbA = a.get();
 		final int argbB = b.get();
 
-		final int rA = ARGBType.red(argbA);
-		final int rB = ARGBType.red(argbB);
-		final int gA = ARGBType.green(argbA);
-		final int gB = ARGBType.green(argbB);
-		final int bA = ARGBType.blue(argbA);
-		final int bB = ARGBType.blue(argbB);
+		final int redA = ARGBType.red(argbA);
+		final int greenA = ARGBType.green(argbA);
+		final int blueA = ARGBType.blue(argbA);
 
-		final double aA = ARGBType.alpha(argbA) / 255.0;
-		final double aB = ARGBType.alpha(argbB) / 255.0;
+		final double alphaB = ARGBType.alpha(argbB);
 
-		final double aTarget = aA + aB - aA * aB;
-
-		final int rTarget = Math.min(255, (int)Math.round(rA + rB * aB));
-		final int gTarget = Math.min(255, (int)Math.round(gA + gB * aB));
-		final int bTarget = Math.min(255, (int)Math.round(bA + bB * aB));
-
-		a.set(ARGBType.rgba(rTarget, gTarget, bTarget, (int)(aTarget * 255)));
+		a.set(ARGBType.rgba(redA, greenA, blueA, alphaB));
 	}
 }
