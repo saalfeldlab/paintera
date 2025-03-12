@@ -1,10 +1,8 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
+import bdv.tools.boundingbox.IntervalCorners
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.animation.KeyFrame
-import javafx.animation.KeyValue
 import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
@@ -22,22 +20,20 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import javafx.util.Duration
 import javafx.util.Subscription
 import kotlinx.coroutines.*
-import net.imglib2.FinalInterval
-import net.imglib2.FinalRealInterval
-import net.imglib2.Interval
-import net.imglib2.RealInterval
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.shareIn
+import net.imglib2.*
 import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
-import net.imglib2.algorithm.lazy.Lazy
+import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.cache.img.CachedCellImg
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.img.basictypeaccess.AccessFlags
-import net.imglib2.img.cell.CellGrid
-import net.imglib2.loops.LoopBuilder
-import net.imglib2.parallel.Parallelization
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.DoubleType
@@ -47,6 +43,7 @@ import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -58,18 +55,18 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.onAction
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode.statePaintContext
+import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
+import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
@@ -79,24 +76,18 @@ import net.imglib2.type.label.Label as Imglib2Label
 
 object SmoothLabel : MenuAction("_Smooth...") {
 
-	private fun newConvolutionExecutor(): ThreadPoolExecutor {
-		val threads = Runtime.getRuntime().availableProcessors()
-		return ThreadPoolExecutor(threads, threads, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue(), ThreadFactoryBuilder().setNameFormat("gaussian-smoothing-%d").build())
-	}
-
-	private val LOG = KotlinLogging.logger {  }
+	private val LOG = KotlinLogging.logger { }
 
 	private var scopeJob: Job? = null
 	private var smoothScope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 	private var smoothJob: Deferred<List<Interval>?>? = null
-	private var convolutionExecutor = newConvolutionExecutor()
 
 	private val replacementLabelProperty = SimpleLongProperty(0).apply {
 		subscribe { prev, next -> activateReplacementLabel(prev.toLong(), next.toLong()) }
 	}
 	private val replacementLabel by replacementLabelProperty.nonnullVal()
 
-	private val activateReplacementProperty = SimpleBooleanProperty(true).apply {
+	private val activateReplacementProperty = SimpleBooleanProperty(false).apply {
 		subscribe { _, activate ->
 			if (activate)
 				activateReplacementLabel(0L, replacementLabel)
@@ -109,11 +100,8 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	private val kernelSizeProperty = SimpleDoubleProperty()
 	private val kernelSize by kernelSizeProperty.nonnullVal()
 
-	private val progressBarProperty = SimpleDoubleProperty()
-	private val currentProgressBar by progressBarProperty.nonnull()
-
-	private val progressProperty = SimpleDoubleProperty()
-	private var progress by progressProperty.nonnull()
+	private val smoothLabelProgressProperty = SimpleDoubleProperty()
+	private var progress by smoothLabelProgressProperty.nonnull()
 
 	private val progressStatusProperty = SimpleObjectProperty(ProgressStatus.Empty)
 	private var progressStatus by progressStatusProperty.nonnull()
@@ -145,7 +133,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		Empty("             ")
 	}
 
-	private fun activateReplacementLabel(current : Long, next : Long) {
+	private fun activateReplacementLabel(current: Long, next: Long) {
 		val selectedIds = state.paintContext.selectedIds
 		if (current != selectedIds.lastSelection) {
 			selectedIds.deactivate(current)
@@ -206,6 +194,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 
 			val timeline = Timeline()
 
+			PainteraAlerts.initAppDialog(this)
 			dialogPane.content = VBox(10.0).apply {
 				isFillWidth = true
 				val replacementIdLabel = Label("Replacement Label")
@@ -213,7 +202,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 				val activateLabel = CheckBox("").apply {
 					tooltip = Tooltip("Select Replacement ID")
 					selectedProperty().bindBidirectional(activateReplacementProperty)
-					selectedProperty().set(true)
+					selectedProperty().set(false)
 				}
 				replacementIdLabel.alignment = Pos.BOTTOM_RIGHT
 				kernelSizeLabel.alignment = Pos.BOTTOM_RIGHT
@@ -234,17 +223,12 @@ object SmoothLabel : MenuAction("_Smooth...") {
 							}
 						}
 					}
-					hbox.children += ProgressBar().also { progressBar ->
-						progressBarProperty.unbind()
-						progressBarProperty.bind(progressBar.progressProperty())
-						HBox.setHgrow(progressBar, Priority.ALWAYS)
-						progressBar.maxWidth = Double.MAX_VALUE
-						timeline.keyFrames.setAll(
-							KeyFrame(Duration.ZERO, KeyValue(progressBar.progressProperty(), 0.0)),
-							KeyFrame(Duration.seconds(1.0), KeyValue(progressBar.progressProperty(), progressProperty.get()))
-						)
-						timeline.play()
-						progressBar.progressProperty().addListener { _, _, progress ->
+					hbox.children += AnimatedProgressBar().apply {
+						progressTargetProperty.unbind()
+						progressTargetProperty.bind(smoothLabelProgressProperty)
+						HBox.setHgrow(this, Priority.ALWAYS)
+						maxWidth = Double.MAX_VALUE
+						progressProperty().subscribe { progress ->
 							val progress = progress.toDouble()
 							val isApplyMask = paintContext.dataSource.isApplyingMaskProperty()
 							progressStatus = when {
@@ -254,27 +238,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 								scopeJob?.isActive == true -> ProgressStatus.Smoothing
 								else -> ProgressStatus.Empty
 							}
-						}
-						progressProperty.addListener { _, _, progress ->
-							timeline.stop()
-							if (progress == 0.0) {
-								progressBar.progressProperty().set(0.0)
-								return@addListener
-							}
-
-							/* Don't move backwards while actively smoothing */
-							if (progress.toDouble() <= progressBar.progressProperty().get()) return@addListener
-
-							/* If done, move fast. If not done, move slower if kernel size is larger */
-							val duration = if (progress == 1.0) Duration.seconds(.25) else {
-								val adjustment = (kernelSize - minKernelSize) / (maxKernelSize - minKernelSize)
-								Duration.seconds(1.0 + adjustment)
-							}
-							timeline.keyFrames.setAll(
-								KeyFrame(Duration.ZERO, KeyValue(progressBar.progressProperty(), progressBar.progressProperty().get())),
-								KeyFrame(duration, KeyValue(progressBar.progressProperty(), progress.toDouble()))
-							)
-							timeline.play()
 						}
 					}
 				}
@@ -328,7 +291,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	}
 
 
-
 	private val smoothingProperty = SimpleBooleanProperty("Smoothing", "Smooth Action is Running", false)
 
 	/**
@@ -342,8 +304,8 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun SmoothLabelState.startSmoothTask() {
 		val prevScales = paintera.activeViewer.get()!!.screenScales
-		val smoothTriggerListener = { reason : String ->
-			{ _ : Any? ->
+		val smoothTriggerListener = { reason: String ->
+			{ _: Any? ->
 				if (scopeJob?.isActive == true)
 					cancelActiveSmoothing(reason)
 				resmooth = true
@@ -367,16 +329,15 @@ object SmoothLabel : MenuAction("_Smooth...") {
 					try {
 						smoothing = true
 						intervals = updateSmoothMask(preview).map { it.smallestContainingInterval }
-						if (!preview) break
-						else requestRepaintOverIntervals(intervals)
-					} catch (c: CancellationException) {
+						scopeJob?.join()
+						if (!preview)
+							break
+					} catch (_: CancellationException) {
 						intervals = null
 						paintContext.dataSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 					} finally {
 						smoothing = false
-						/* If any remain on the queue, shut it down */
-						convolutionExecutor.queue.peek()?.let { convolutionExecutor.shutdown() }
 						/* reset for the next loop */
 						resmooth = false
 						finalizeSmoothing = false
@@ -403,9 +364,8 @@ object SmoothLabel : MenuAction("_Smooth...") {
 				}
 
 				paintera.baseView.disabledPropertyBindings -= task
-				smoothTriggerSubscription?.unsubscribe()
+				smoothTriggerSubscription.unsubscribe()
 				paintera.baseView.orthogonalViews().setScreenScales(prevScales)
-				convolutionExecutor.shutdown()
 			}
 		}
 	}
@@ -421,7 +381,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	}
 
 	private fun cancelActiveSmoothing(reason: String) {
-		convolutionExecutor.shutdown()
 		scopeJob?.cancel(CancellationException(reason))
 		progress = 0.0
 	}
@@ -435,39 +394,105 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		/* Read from the labelBlockLookup (if already persisted) */
 		val scale0 = 0
 
-		val blocksWithLabel= maskedSource.blocksForLabels(scale0, labels.toArray())
+		val blocksWithLabel = maskedSource.blocksForLabels(scale0, labels.toArray())
 		if (blocksWithLabel.isEmpty()) return
 
 		val sourceImg = maskedSource.getReadOnlyDataBackground(0, scale0)
 		val canvasImg = maskedSource.getReadOnlyDataCanvas(0, scale0)
 
-		val bundleSourceImg = BundleView(sourceImg.convert(UnsignedLongType(Imglib2Label.INVALID)) { input, output -> output.set(input.realDouble.toLong()) }.interval(sourceImg)).interval(sourceImg)
-
 		val cellGrid = maskedSource.getCellGrid(0, scale0)
-		val labelMask = DiskCachedCellImgFactory(DoubleType(0.0)).create(bundleSourceImg, { labelMaskChunk ->
-			val sourceChunk = bundleSourceImg.interval(labelMaskChunk)
-			val canvasChunk = canvasImg.interval(labelMaskChunk)
 
-			LoopBuilder.setImages(canvasChunk, sourceChunk, labelMaskChunk).multiThreaded().forEachPixel { canvasLabel, sourceBundle, maskVal ->
-				val hasLabel = canvasLabel.get().let { label ->
-					if (label != Imglib2Label.INVALID && label in labels)
-						1.0
-					else null
-				} ?: sourceBundle.get().get().let { label ->
-					if (label != Imglib2Label.INVALID && label in labels)
-						1.0
-					else null
-				}
-				hasLabel?.let { maskVal.set(it) }
+		val labelMask = DiskCachedCellImgFactory(DoubleType(0.0)).create(sourceImg) { labelMaskChunk ->
+			val sourceChunk = sourceImg.interval(labelMaskChunk).cursor()
+			val canvasChunk = canvasImg.interval(labelMaskChunk).cursor()
+			val maskCursor = labelMaskChunk.cursor()
+
+			while (sourceChunk.hasNext() && canvasChunk.hasNext()) {
+				val canvasLabel = canvasChunk.next()
+				val sourceLabel = sourceChunk.next()
+				val maskVal = maskCursor.next()
+				val label = canvasLabel.get().takeIf { it != Imglib2Label.INVALID }
+					?: sourceLabel.realDouble.toLong().takeIf { it != Imglib2Label.INVALID }
+				label?.takeIf { it in labels }?.let { maskVal.set(1.0) }
 			}
-		}, DiskCachedCellImgOptions().cellDimensions(*cellGrid.cellDimensions))
-		var labelRoi: Interval = FinalInterval(blocksWithLabel[0])
-		blocksWithLabel.forEach { labelRoi = labelRoi union it }
+		}
 
-		updateSmoothMask = { preview -> smoothMask(labelMask, cellGrid, blocksWithLabel, preview) }
+		val voronoiBackgroundLabel = IdService.randomTemporaryId()
+		val sqWeights = DataSource.getScale(maskedSource, 0, 0).also {
+			for ((index, weight) in it.withIndex()) {
+				it[index] = weight * weight
+			}
+		}
+
+
+		fun nearestLabelImgs(cellDimensions: IntArray): Pair<CachedCellImg<UnsignedLongType, *>, CachedCellImg<DoubleType, *>> {
+
+			val options = DiskCachedCellImgOptions.options()
+				.accessFlags(setOf(AccessFlags.VOLATILE))
+				.cellDimensions(*cellDimensions)
+
+			val distances = DiskCachedCellImgFactory(DoubleType(), options).create(sourceImg)
+
+			val labelsImg = DiskCachedCellImgFactory(UnsignedLongType(Imglib2Label.INVALID), options).create(sourceImg) { nearestLabelCell ->
+
+				if (!blocksWithLabel.any { (it intersect nearestLabelCell).isNotEmpty() }) {
+					return@create
+				}
+
+				val canvasCursor = canvasImg.interval(nearestLabelCell).cursor()
+				val sourceCursor = sourceImg.interval(nearestLabelCell).cursor()
+				val voronoiCursor = nearestLabelCell.cursor()
+				val distanceRa = distances.randomAccess(nearestLabelCell)
+
+				while (canvasCursor.hasNext() && sourceCursor.hasNext()) {
+					val canvasLabel = canvasCursor.next()
+					val sourceLabel = sourceCursor.next()
+					val label = canvasLabel.get().takeIf { it != Imglib2Label.INVALID } ?: sourceLabel.realDouble.toLong()
+
+					val finalLabel = if (label in labels) {
+						distanceRa.setPositionAndGet(canvasCursor).set(Double.MAX_VALUE)
+						voronoiBackgroundLabel
+					} else label
+					voronoiCursor.next().set(finalLabel)
+				}
+
+				DistanceTransform.voronoiDistanceTransform(nearestLabelCell, distances.interval(nearestLabelCell), *sqWeights)
+			}
+			return labelsImg to distances
+		}
+
+		val smallGrid = cellGrid.cellDimensions.also { it.forEachIndexed { idx, value -> it[idx] = (value * .75).toInt() } }
+		val (nearestLabelsSmallGrid, distancesSmallGrid) = nearestLabelImgs(smallGrid)
+		val (nearestLabelsFullGrid, distancesFullGrid) = nearestLabelImgs(cellGrid.cellDimensions)
+
+
+		val nearestLabels = DiskCachedCellImgFactory(
+			UnsignedLongType(Imglib2Label.INVALID),
+			DiskCachedCellImgOptions.options().cellDimensions(*cellGrid.cellDimensions)
+		).create(sourceImg) { nearestLabelCell ->
+
+			val nearestLabelCursor = nearestLabelCell.cursor()
+			val labelSmallGridRa = nearestLabelsSmallGrid.randomAccess()
+			val labelFullGridRa = nearestLabelsFullGrid.randomAccess()
+			/* ensure the necessary cells have been processed before we use the distances */
+
+			labelFullGridRa.setPositionAndGet(*nearestLabelCell.minAsLongArray())
+			IntervalCorners.corners(nearestLabelCell).forEach { corner -> labelSmallGridRa.setPositionAndGet(*corner.map { it.toLong() }.toLongArray()) }
+
+			for (nearestLabel in nearestLabelCursor) {
+				val distFullGrid = distancesFullGrid.getAt(nearestLabelCursor).realDouble
+				if (distFullGrid == 0.0) //If either is 0.0, they should both be 0.0, so only need to check one
+					continue
+
+				val distSmallGrid = distancesSmallGrid.getAt(nearestLabelCursor).realDouble
+				val labelRa = if (distFullGrid < distSmallGrid) labelFullGridRa else labelSmallGridRa
+				val label = labelRa.setPositionAndGet(nearestLabelCursor)
+				nearestLabel.set(label)
+			}
+		}
+		updateSmoothMask = { preview -> smoothMask(labelMask, nearestLabels, blocksWithLabel, preview) }
 		resmooth = true
 	}
-
 
 
 	@JvmStatic
@@ -494,8 +519,9 @@ object SmoothLabel : MenuAction("_Smooth...") {
 
 		/* remove any blocks that don't intersect with them*/
 		return blocksWithLabel
-			.mapNotNull { block -> viewsInSourceSpace.firstOrNull { viewer -> !Intervals.isEmpty(viewer.intersect(block)) } }
+			.mapNotNull { it.takeIf { viewsInSourceSpace.any { viewer -> !Intervals.isEmpty(viewer.intersect(it)) } } }
 			.toList()
+
 	}
 
 	private fun SmoothLabelState.viewerIntervalsInSourceSpace(): Array<FinalRealInterval> {
@@ -516,7 +542,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		return viewsInSourceSpace
 	}
 
-	private suspend fun SmoothLabelState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, cellGrid: CellGrid, blocksWithLabel: List<Interval>, preview: Boolean = false): List<RealInterval> {
+	private fun SmoothLabelState.smoothMask(labelMask: CachedCellImg<DoubleType, *>, nearestLabels: RandomAccessibleInterval<UnsignedLongType>, blocksWithLabel: List<Interval>, preview: Boolean = false): List<RealInterval> {
 
 		/* Just to show that smoothing has started */
 		progress = 0.0 // The listener only always reseting to zero if going backward, so do this first
@@ -528,52 +554,56 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		val levelResolution = getLevelResolution(scale0)
 		val sigma = DoubleArray(3) { kernelSize / levelResolution[it] }
 
-		if (convolutionExecutor.isShutdown) {
-			convolutionExecutor = newConvolutionExecutor()
-		}
-
 		val convolution = FastGauss.convolution(sigma)
-		if (convolutionExecutor.isShutdown) {
-			convolutionExecutor = newConvolutionExecutor()
-		}
-
-
-		val smoothedImg = Lazy.generate(labelMask, cellGrid.cellDimensions, DoubleType(), AccessFlags.setOf()) {}
+		val smoothedImg = DiskCachedCellImgFactory(DoubleType(0.0)).create(labelMask)
 
 		paintContext.dataSource.resetMasks()
 		setNewSourceMask(paintContext.dataSource, MaskInfo(0, scale0)) { it >= 0 }
 		val mask = paintContext.dataSource.currentMask
 
-		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Job = { slice ->
-			launch {
+		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
+			flow {
 				val smoothedSlice = smoothedImg.interval(slice)
-				try {
-					Parallelization.runWithExecutor(convolutionExecutor) { convolution.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice) }
-				} catch (e : RejectedExecutionException) {
-					if (isActive) {
-						throw e
-					}
-				}
+				runCatching {
+					convolution.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
+				}.exceptionOrNull()
+					?.takeIf { it is RejectedExecutionException && isActive }
+					?.let { throw it }
+				emit(0)
 
 				val labels = BundleView(labelMask).interval(slice).cursor()
 				val smoothed = smoothedSlice.cursor()
 				val maskBundle = BundleView(mask.rai.extendValue(Imglib2Label.INVALID)).interval(slice).cursor()
-
+				val nearestLabelsSlice = nearestLabels.extendValue(Imglib2Label.INVALID).interval(slice).cursor()
 
 				ensureActive()
+				val useReplacementLabel = activateReplacement
+				val replaceLabel = replacementLabel
+				val sendAfter = slice.smallestContainingInterval.numElements() / 5
+				var count = 0L
 				while (smoothed.hasNext()) {
+					(++count).takeIf { it % sendAfter == 0L }?.let { emit(0) }
+
 					//This is the slow one, check cancellation immediately before and after
 					val smoothness: Double
 					try {
 						smoothness = smoothed.next().get()
 					} catch (e: Exception) {
-						throw CancellationException("Gaussian Convolution Shutdown", e).also { cancel(it) }
+						val cancellation = CancellationException("Gaussian Convolution Shutdown", e)
+						cancel(cancellation)
+						throw cancellation
 					}
+
 					val labelVal = labels.next().get()
-					val maskVal = maskBundle.next().get()
+					val nearest = nearestLabelsSlice.next()
+					val maskPos = maskBundle.next()
+					val maskVal = maskPos.get()
 					if (smoothness < 0.5 && labelVal.get() == 1.0) {
-						maskVal.setInteger(replacementLabel)
-					} else if (maskVal.get() == replacementLabel) {
+						if (useReplacementLabel)
+							maskVal.setInteger(replaceLabel)
+						else
+							maskVal.set(nearest.get())
+					} else if (maskVal.get() == replaceLabel) {
 						maskVal.setInteger(Imglib2Label.INVALID)
 					}
 				}
@@ -584,39 +614,39 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		/*Start smoothing */
 		if (!smoothScope.isActive)
 			smoothScope = CoroutineScope(Dispatchers.Default)
-		scopeJob = smoothScope.launch {
-			intervalsToSmoothOver.forEach { smoothOverInterval(it) }
-		}
 
-		/* wait and update progress */
-		val progressUpdateJob = CoroutineScope(Dispatchers.Default).launch {
-			while (scopeJob?.isActive == true) {
-				with(convolutionExecutor) {
-					progress = currentProgressBar.let { currentProgress ->
-						val remaining = 1.0 - currentProgress
-						val numTasksModifier = 1 / log10(taskCount + 10.0)
-						/* Max quarter remaining increments*/
-						currentProgress + (remaining * numTasksModifier).coerceAtMost(.25)
+		scopeJob = smoothScope.launch {
+			progress = .1
+			val increment = (.99 - .1) / intervalsToSmoothOver.size
+			intervalsToSmoothOver.forEach {
+				launch {
+					var approachTotal = 0.0
+					smoothOverInterval(it).apply {
+						collect { it ->
+							val addProgress = (increment - approachTotal) * .25
+							approachTotal += addProgress
+							InvokeOnJavaFXApplicationThread {
+								progress = (progress + addProgress).coerceAtMost(1.0)
+							}
+						}
 					}
 				}
-				delay(200)
+			}
+		}.apply {
+			invokeOnCompletion { cause ->
+				requestRepaintOverIntervals(intervalsToSmoothOver.map { it.smallestContainingInterval })
+				progress = when (cause) {
+					null -> 1.0
+					is CancellationException -> 0.0
+					else -> throw cause
+				}
 			}
 		}
 
-		while (scopeJob?.isActive == true) {
-			delay(50)
-			if (scopeJob?.isCancelled == true) {
-				progress = 0.0
-				progressUpdateJob.cancelAndJoin()
-				throw CancellationException("Smoothing Cancelled")
-			}
-		}
-		progressUpdateJob.cancelAndJoin()
-		progress = 1.0
 		return intervalsToSmoothOver
 	}
 
-	internal fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo, acceptMaskValue: (Long) -> Boolean = { it >= 0}) {
+	internal fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo, acceptMaskValue: (Long) -> Boolean = { it >= 0 }) {
 		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(maskInfo.level)
 		val mask = SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
 		maskedSource.setMask(mask, acceptMaskValue)
