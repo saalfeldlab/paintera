@@ -17,6 +17,7 @@ import kotlin.math.min
 //TODO Look into using ntakt instead
 class IntervalHelpers {
 	companion object {
+
 		@JvmStatic
 		fun transformBoundingBox(boundingBox: RealInterval, transform: RealTransform): RealInterval {
 			val nDim = boundingBox.numDimensions()
