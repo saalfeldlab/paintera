@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.convert
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.interval
@@ -141,6 +142,7 @@ object ReplaceLabel : MenuAction("_Replace or Delete Label...") {
 	private fun ReplaceLabelState<*>.showDialog() {
 		Dialog<Boolean>().apply {
 			isResizable = true
+			PainteraAlerts.initAppDialog(this)
 			Paintera.registerStylesheets(dialogPane)
 			dialogPane.buttonTypes += ButtonType.APPLY
 			dialogPane.buttonTypes += ButtonType.CANCEL
