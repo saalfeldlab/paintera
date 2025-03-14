@@ -31,12 +31,11 @@ interface ReplaceLabelUIState {
 	fun fragmentsForSegment(segment: Long): LongArray
 	fun nextId(): Long
 
-	fun copyVerified(): ReplaceLabelUIState
 }
 
-class ReplaceLabelState<T>() : ActionState, ReplaceLabelUIState where T : IntegerType<T> {
+class ReplaceLabelState : ActionState<ReplaceLabelState>, ReplaceLabelUIState {
 	internal lateinit var sourceState: ConnectomicsLabelState<*, *>
-	internal lateinit var paintContext: StatePaintContext<T, *>
+	internal lateinit var paintContext: StatePaintContext<*, *>
 
 	internal val maskedSource
 		get() = paintContext.dataSource
@@ -87,23 +86,17 @@ class ReplaceLabelState<T>() : ActionState, ReplaceLabelUIState where T : Intege
 	override fun <E : Event> Action<E>.verifyState() {
 		verify(::sourceState, "Label Source is Active") { paintera.currentSource as? ConnectomicsLabelState<*, *> }
 		verify(::paintContext, "Paint Label Mode has StatePaintContext") {
-			val paintLabelModeActive = paintera.currentMode as? PaintLabelMode
-			paintLabelModeActive?.statePaintContext as? StatePaintContext<T, *>
+			(paintera.currentMode as? PaintLabelMode)
+				?.statePaintContext as? StatePaintContext<*, *>
 		}
 		verify("Paint Label Mode is Active") { paintera.currentMode is PaintLabelMode }
 		verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
 		verify("Mask not in use") { !paintContext.dataSource.isMaskInUseBinding().get() }
 	}
 
-	/**
-	 * Create a new instance of [ReplaceLabelState] with the verified fields copied from this instance.
-	 * Should be called only AFTER [verifyState] has been called.
-	 *
-	 * @return A copy of verified fields of [ReplaceLabelState], after verification
-	 */
-	override fun copyVerified() = ReplaceLabelState<T>().also {
-		it.sourceState = this@ReplaceLabelState.sourceState
-		it.paintContext = this@ReplaceLabelState.paintContext
+	override fun copyVerified() = ReplaceLabelState().also {
+		it.sourceState = sourceState
+		it.paintContext = paintContext
 	}
 
 	internal fun initializeForMode(mode : Mode) {

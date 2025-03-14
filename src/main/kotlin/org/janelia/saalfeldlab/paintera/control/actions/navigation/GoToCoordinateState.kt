@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-internal class GoToCoordinateState : ActionState, GoToCoordinateUIState {
+internal class GoToCoordinateState : ActionState<GoToCoordinateState>, GoToCoordinateUIState {
 
 	internal lateinit var sourceState: SourceState<*, *>
 	internal lateinit var source: Source<*>
@@ -35,10 +35,10 @@ internal class GoToCoordinateState : ActionState, GoToCoordinateUIState {
 	}
 
 	override fun copyVerified() = GoToCoordinateState().also {
-		it.source = this@GoToCoordinateState.source
-		it.sourceState = this@GoToCoordinateState.sourceState
-		it.viewer = this@GoToCoordinateState.viewer
-		it.translationController = this@GoToCoordinateState.translationController
+		it.source = source
+		it.sourceState = sourceState
+		it.viewer = viewer
+		it.translationController = translationController
 	}
 
 	internal fun initializeWithCurrentCoordinates() {

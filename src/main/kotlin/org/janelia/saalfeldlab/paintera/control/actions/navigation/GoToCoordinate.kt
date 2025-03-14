@@ -28,7 +28,7 @@ object GoToCoordinate : MenuAction("_Go to Coordinate...") {
 
 	init {
 		verifyPermission(NavigationActionType.Pan)
-		onAction(::GoToCoordinateState) { showDialog(it) }
+		onAction<GoToCoordinateState> { showDialog(it) }
 	}
 
 	private fun GoToCoordinateState.showDialog(event: Event?) {

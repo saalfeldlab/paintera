@@ -63,25 +63,7 @@ open class RawSourceMode : AbstractToolMode() {
 		}
 	}
 
-	override val modeActions: List<ActionSet> = listOf(minMaxIntensityThreshold)
-
-	private val moveToolTriggersToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-		/* remove the tool triggers from old, add to new */
-		modeActions.forEach { actionSet ->
-			old?.viewer()?.removeActionSet(actionSet)
-			new?.viewer()?.installActionSet(actionSet)
-		}
-	}
-
-	override fun enter() {
-		activeViewerProperty.addListener(moveToolTriggersToActiveViewer)
-		super.enter()
-	}
-
-	override fun exit() {
-		activeViewerProperty.removeListener(moveToolTriggersToActiveViewer)
-		super.exit()
-	}
+	override val activeViewerActions: List<ActionSet> = listOf(minMaxIntensityThreshold)
 
 	companion object {
 		fun autoIntensityMinMax(rawSource: SourceState<*, RealType<*>>, viewer: ViewerPanelFX) {

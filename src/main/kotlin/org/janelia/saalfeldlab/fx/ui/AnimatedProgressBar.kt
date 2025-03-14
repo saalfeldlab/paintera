@@ -7,6 +7,7 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.scene.control.ProgressBar
 import javafx.util.Duration
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
 open class AnimatedProgressBar : ProgressBar() {
 
@@ -25,11 +26,11 @@ open class AnimatedProgressBar : ProgressBar() {
 		}
 	}
 
-	private var lastUpdateTime : Long? = null
+	private var lastUpdateTime: Long? = null
 	private var runningAverageBetweenUpdates = 0.0
 
 
-	protected open fun updateTimeline(newTarget: Double) {
+	protected open fun updateTimeline(newTarget: Double) = InvokeOnJavaFXApplicationThread {
 
 		println("new Target: $newTarget")
 		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
@@ -40,15 +41,16 @@ open class AnimatedProgressBar : ProgressBar() {
 		val progressProperty = progressProperty()
 		if (newTarget == 0.0) {
 			progressProperty.value = 0.0
-			return
+			return@InvokeOnJavaFXApplicationThread
 		}
 
 
-		if (!reversible && newTarget <= progressProperty.get()) return
+		if (!reversible && newTarget <= progressProperty.get()) return@InvokeOnJavaFXApplicationThread
 
 		val resultDuration =
 			if (newTarget >= 1.0) Duration.seconds(.25)
 			else baseDuration.add(Duration.millis(runningAverageBetweenUpdates))
+
 
 		timeline.keyFrames.setAll(
 			KeyFrame(Duration.ZERO, KeyValue(progressProperty, progressProperty.value)),
@@ -58,7 +60,7 @@ open class AnimatedProgressBar : ProgressBar() {
 		timeline.play()
 	}
 
-	fun finish() {
+	fun finish() = InvokeOnJavaFXApplicationThread {
 		timeline.stop()
 		progressProperty().unbind()
 		progressProperty().value = 1.0

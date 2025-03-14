@@ -64,7 +64,7 @@ open class PaintLabelMode : ViewLabelMode() {
 
 	override val modeActions: List<ActionSet> by lazy {
 		listOf(
-			*super.modeActions.toTypedArray(),
+			*super.activeViewerActions.toTypedArray(),
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
 			enterShapeInterpolationMode,
