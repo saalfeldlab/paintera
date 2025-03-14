@@ -39,7 +39,7 @@ object GoToLabel : MenuAction("Go to _Label...") {
 
 	init {
 		verifyPermission(NavigationActionType.Pan, LabelActionType.View)
-		onAction(::GoToLabelState) { showDialog(it) }
+		onAction<GoToLabelState> { showDialog(it) }
 	}
 
 	private fun GoToLabelState.showDialog(event: Event?) {

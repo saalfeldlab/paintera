@@ -14,7 +14,7 @@ class AnimatedProgressBarTest {
 		InvokeOnJavaFXApplicationThread {
 			val progressStringBinding = SimpleStringProperty("Another test " )
 			val dialog = AnimatedProgressBarAlert("test", "this is a test", progressStringBinding, progressBinding)
-			dialog.showAndStart()
+			dialog.showAndWait()
 
 		}
 		InvokeOnJavaFXApplicationThread {

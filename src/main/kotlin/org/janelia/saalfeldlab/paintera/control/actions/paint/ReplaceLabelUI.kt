@@ -28,15 +28,15 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdS
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.entries
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.Companion.getReplaceTargetSelectionButtons
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.entries
+
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.hvGrow
-
 private const val ACTIVE_FRAGMENT_TOOLTIP = "%s the last selected Fragment"
 private const val ACTIVE_FRAGMENTS_TOOLTIP = "%s all currently selected Fragments"
 private const val ACTIVE_SEGMENT_TOOLTIP = "%s all fragments for the currently active Segment"
 private const val ACTIVE_SEGMENTS_TOOLTIP = "%s all fragments from all currently active Segments"
-private const val RESET_SELECTION_TOOLTIP = "Clear Fragment and Segment Replacement Lists"
+private const val CLEAR_SELECTION_TOOLTIP = "Clear All Fragment and Segment ID Selections"
 
 class ReplaceLabelUI(initialState: ReplaceLabelUIState, val mode: Mode) : VBox() {
 
@@ -111,9 +111,9 @@ class ReplaceLabelUI(initialState: ReplaceLabelUIState, val mode: Mode) : VBox()
 			{ fragmentsForAllActiveSegments },
 			{ allActiveSegments }
 		),
-		RESET(
-			"Reset",
-			{ RESET_SELECTION_TOOLTIP },
+		CLEAR(
+			"Clear Selections",
+			{ CLEAR_SELECTION_TOOLTIP.format(mode.name) },
 			{ longArrayOf() },
 			{ longArrayOf() }
 		);
@@ -134,7 +134,7 @@ class ReplaceLabelUI(initialState: ReplaceLabelUIState, val mode: Mode) : VBox()
 		}
 
 		companion object {
-			fun ReplaceLabelUI.getReplaceIdSelectionButtons() = entries.filter { it != RESET }.map { it.button(this) }
+			fun ReplaceLabelUI.getReplaceIdSelectionButtons() = entries.filter { it != CLEAR }.map { it.button(this) }
 		}
 	}
 
@@ -289,15 +289,7 @@ class ReplaceLabelUI(initialState: ReplaceLabelUIState, val mode: Mode) : VBox()
 					alignment = Pos.CENTER
 					children += Label("Select Labels")
 					children += Pane().hGrow()
-					children += IdSelection.RESET.button(this@ReplaceLabelUI).apply {
-						onAction = onAction?.let { oldAction ->
-							// wrap to also set the target value to 0L on reset
-							EventHandler {
-								oldAction.handle(it)
-								state = state.copyVerified()
-							}
-						}
-					}
+					children += IdSelection.CLEAR.button(this@ReplaceLabelUI)
 				}
 				content = idSelectionButtonBar.hGrow()
 			}
@@ -453,8 +445,6 @@ fun main() {
 			override fun nextId(): Long {
 				return ++next
 			}
-
-			override fun copyVerified() = UIState()
 		}
 
 		val simulateProgress = { state: ReplaceLabelUIState ->

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.navigation
 
 import bdv.viewer.Source
-import javafx.beans.property.BooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.event.Event
@@ -15,7 +14,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
-internal class GoToLabelState : ActionState, GoToLabelUIState {
+internal class GoToLabelState : ActionState<GoToLabelState>, GoToLabelUIState {
 
 	internal lateinit var sourceState: ConnectomicsLabelState<*, *>
 	internal lateinit var source: Source<out IntegerType<*>>
@@ -36,10 +35,10 @@ internal class GoToLabelState : ActionState, GoToLabelUIState {
 	}
 
 	override fun copyVerified() = GoToLabelState().also {
-		it.source = this@GoToLabelState.source
-		it.sourceState = this@GoToLabelState.sourceState
-		it.viewer = this@GoToLabelState.viewer
-		it.translationController = this@GoToLabelState.translationController
+		it.source = source
+		it.sourceState = sourceState
+		it.viewer = viewer
+		it.translationController = translationController
 	}
 
 	internal fun initializeWithCurrentLabel() {
