@@ -67,7 +67,7 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.9.0</app.version>
+		<app.version>1.9.1</app.version>
 
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -76,7 +76,7 @@
 		<macos.sign.identity />
 
 		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
-		<n5-universe.version>2.0.1</n5-universe.version>
+		<n5-universe.version>2.0.2-SNAPSHOT</n5-universe.version>
 		<n5-google-cloud.version>4.1.2</n5-google-cloud.version>
 		<n5-aws-s3.version>4.2.2</n5-aws-s3.version>
 		<n5-zarr.version>1.4.0</n5-zarr.version>
@@ -849,6 +849,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
+								<option>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
@@ -888,6 +889,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
+								<option>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
@@ -928,6 +930,24 @@
 			</properties>
 			<build>
 				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>properties-maven-plugin</artifactId>
+						<version>1.2.1</version>
+						<executions>
+							<execution>
+								<phase>initialize</phase>
+								<goals>
+									<goal>read-project-properties</goal>
+								</goals>
+								<configuration>
+									<files>
+										<file>${basedir}/src/packaging/mvn-jpackage.properties</file>
+									</files>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
 					<plugin>
 						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
 						<groupId>io.github.wiverson</groupId>
