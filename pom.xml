@@ -76,7 +76,7 @@
 		<macos.sign.identity />
 
 		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
-		<n5-universe.version>2.0.2-SNAPSHOT</n5-universe.version>
+		<n5-universe.version>2.0.1</n5-universe.version>
 		<n5-google-cloud.version>4.1.2</n5-google-cloud.version>
 		<n5-aws-s3.version>4.2.2</n5-aws-s3.version>
 		<n5-zarr.version>1.4.0</n5-zarr.version>
