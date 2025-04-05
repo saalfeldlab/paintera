@@ -1,17 +1,10 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs
 
-import javafx.event.EventHandler
-import javafx.scene.control.Button
-import javafx.scene.control.TextField
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.VBox
-import javafx.scene.web.WebView
+
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Version
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.slf4j.LoggerFactory
+import kotlin.jvm.java
 
 internal object ReadMeDialog {
 
@@ -33,32 +26,6 @@ internal object ReadMeDialog {
 	}
 
 	internal fun showReadme() {
-		this::class.java.getResource("/README.html")?.toExternalForm()?.let { res ->
-			PainteraAlerts.information("_Close", true).apply {
-				/* Only load if the button is clicked */
-				val webview by lazy {
-					WebView().also {
-						it.engine.load(res)
-						it.maxHeight = Double.POSITIVE_INFINITY
-						VBox.setVgrow(it, Priority.ALWAYS)
-					}
-				}
-				dialogPane.content = VBox(
-					HBox(
-						TextField(README_URL).also {
-							HBox.setHgrow(it, Priority.ALWAYS)
-							it.tooltip = Tooltip(README_URL)
-							it.isEditable = false
-						},
-						Button(null, RefreshButton.createFontAwesome(2.0)).apply {
-							onAction = EventHandler { webview.engine.load(res) }
-						}),
-					webview
-				)
-				graphic = null
-				headerText = null
-				show()
-			}
-		} ?: LOG.info("Resource '/README.html' not available")
+		Paintera.application.hostServices?.showDocument(README_URL)
 	}
 }
