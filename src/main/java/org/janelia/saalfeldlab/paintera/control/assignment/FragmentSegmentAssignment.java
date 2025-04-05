@@ -38,10 +38,21 @@ public interface FragmentSegmentAssignment {
 
 	void apply(Collection<? extends AssignmentAction> actions);
 
+	/**
+	 *  Merge fragment1 and fragment2 into the same segmentId. 3 possible cases
+	 *  1. If neither belong to a segment assignment already, create a new one and add both
+	 *  2. If both belong to the same segment already, do nothing
+	 *  3. If one belongs to a segment already, add the other to the existing segment
+	 *  4. If both belong to segment already, merge into the segmentId with the larger numerical value.
+	 * @param fragment1 to merge
+	 * @param fragment2 to merge
+	 * @param newSegmentId generator if a new segment ID is needed
+	 * @return the Merge action, or empty
+	 */
 	// TODO should get<TYPE>Action be part of interface?
 	default Optional<Merge> getMergeAction(
-			final long from,
-			final long into,
+			final long fragment1,
+			final long fragment2,
 			final LongSupplier newSegmentId) {
 
 		return Optional.empty();
@@ -83,13 +94,14 @@ public interface FragmentSegmentAssignment {
 			into = lastSelection;
 		} else {
 			// last selection does not belong to an assignment or is empty, go over all selected fragments to see if there is one that belongs to an assignment
-			// (it uses the first such found fragment, so if there are several, one of them will be picked arbitrarily because the order of the ids is not defined)
+			// 	If multiple fragments are found, use the fragment with the largest associated segmentID
+			long maxSegmentId = Label.INVALID;
 			long idWithAssignment = Label.INVALID;
 			for (final long id : ids) {
 				final long segmentId = assignment.getSegment(id);
-				if (segmentId != id) {
+				if (segmentId != id && segmentId > maxSegmentId) {
+					maxSegmentId = segmentId;
 					idWithAssignment = id;
-					break;
 				}
 			}
 			if (idWithAssignment != Label.INVALID) {
