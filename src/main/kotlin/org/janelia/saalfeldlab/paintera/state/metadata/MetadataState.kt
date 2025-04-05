@@ -10,6 +10,7 @@ import net.imglib2.type.NativeType
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
@@ -415,9 +416,10 @@ class MetadataUtils {
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String): MetadataState? {
 			val metadataRoot = discoverAndParseRecursive(n5ContainerState.reader)
 
+			val normalizedPath = N5URI.normalizeGroupPath(dataset)
 			return N5TreeNode.flattenN5Tree(metadataRoot)
 				.asSequence()
-				.filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
+				.filter { node: N5TreeNode -> (normalizedPath == N5URI.normalizeGroupPath(node.path) || normalizedPath == node.nodeName) && metadataIsValid(node.metadata) }
 				.map { obj: N5TreeNode -> obj.metadata }
 				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
 				.firstOrNull()
