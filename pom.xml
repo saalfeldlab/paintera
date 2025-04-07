@@ -67,7 +67,7 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.9.1</app.version>
+		<app.version>1.10.0</app.version>
 
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
