@@ -1,8 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.actions
 
 import javafx.beans.property.*
+import javafx.scene.control.TitledPane
+import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
@@ -10,6 +14,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.ui.ExceptionNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
@@ -28,11 +33,13 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.o
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.get
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
+import kotlin.coroutines.cancellation.CancellationException
 
 class ExportSourceState {
 
@@ -75,7 +82,7 @@ class ExportSourceState {
 	//  - Export multiscale pyramid
 	//  - Export interval of label source
 	//  - custom fragment to segment mapping
-	fun exportSource(showProgressAlert : Boolean = false) {
+	fun exportSource(showProgressAlert: Boolean = false) {
 
 		val backend = backendProperty.value ?: return
 		val source = sourceProperty.value ?: return
@@ -104,7 +111,7 @@ class ExportSourceState {
 			bind(count.createObservableBinding { it.get().toDouble() / totalBlocks })
 		}
 		val (processedBlocks, progressUpdater) = if (showProgressAlert) {
-			count to  AnimatedProgressBarAlert(
+			count to AnimatedProgressBarAlert(
 				"Export Label Source",
 				"Exporting data...",
 				labelProp,
@@ -113,7 +120,7 @@ class ExportSourceState {
 		} else null to null
 
 		val exportJob = CoroutineScope(Dispatchers.IO).launch {
-			val writer = Paintera.n5Factory.openWriter(exportLocation)
+			val writer = Paintera.n5Factory.newWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, MAX_ID_KEY, maxIdProperty.value)
@@ -126,39 +133,73 @@ class ExportSourceState {
 			Paintera.n5Factory.clearKey(exportLocation)
 		}
 		progressUpdater?.apply {
-			exportJob.invokeOnCompletion { finish() }
-			InvokeOnJavaFXApplicationThread { showAndWait() }
+			exportJob.invokeOnCompletion {
+				/* no error, just finish*/
+				if (it == null) {
+					finish()
+					return@invokeOnCompletion
+				}
+
+				/* If we are here, there was an error.
+				 *  If it was cancellation, just close .
+				 *  Otherwise, show an exception dialog */
+				stopAndClose()
+				it.takeIf { it !is CancellationException }?.let { t ->
+					(t as? Exception)?.let {
+						InvokeOnJavaFXApplicationThread {
+							/* hack until the dialog is improved in saalfx*/
+							val content = ExceptionNode(it).pane.apply {
+								children.firstNotNullOfOrNull { it as? TitledPane }?.apply {
+									VBox.setVgrow(this, Priority.ALWAYS)
+									isExpanded = true
+								}
+							}
+							PainteraAlerts.information("_Ok", true).apply {
+								title = "Caught Exception"
+								dialogPane.content = content
+							}.showAndWait()
+						}
+					}
+				}
+			}
+			showAndWait().invokeOnCompletion {
+				when (it) {
+					null -> Unit
+					is CancellationException -> exportJob.cancel(it)
+					else -> exportJob.cancel("Error with ProgressAlert", it)
+				}
+			}
 		}
 	}
-}
 
-internal fun exportOmeNGFFMetadata(
-	writer: N5Writer,
-	dataset: String,
-	scaleLevel: Int,
-	datasetAttributes: DatasetAttributes,
-	sourceMetadata: N5SpatialDatasetMetadata
-) {
-	val scaleLevelDataset = "$dataset/s$scaleLevel"
-	writer.createGroup(dataset)
-	writer.createDataset(scaleLevelDataset, datasetAttributes)
+	internal fun exportOmeNGFFMetadata(
+		writer: N5Writer,
+		dataset: String,
+		scaleLevel: Int,
+		datasetAttributes: DatasetAttributes,
+		sourceMetadata: N5SpatialDatasetMetadata,
+	) {
+		val scaleLevelDataset = "$dataset/s$scaleLevel"
+		writer.createGroup(dataset)
+		writer.createDataset(scaleLevelDataset, datasetAttributes)
 
-	val exportMetadata = OmeNgffMetadata.buildForWriting(
-		datasetAttributes.numDimensions,
-		dataset,
-		arrayOf(
-			Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
-			Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
-			Axis(Axis.SPACE, "z", sourceMetadata.unit(), false)
-		),
-		arrayOf("s$scaleLevel"),
-		arrayOf(sourceMetadata.resolution),
-		arrayOf(sourceMetadata.offset)
-	)
+		val exportMetadata = OmeNgffMetadata.buildForWriting(
+			datasetAttributes.numDimensions,
+			dataset,
+			arrayOf(
+				Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
+				Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
+				Axis(Axis.SPACE, "z", sourceMetadata.unit(), false)
+			),
+			arrayOf("s$scaleLevel"),
+			arrayOf(sourceMetadata.resolution),
+			arrayOf(sourceMetadata.offset)
+		)
 
-	OmeNgffMetadataParser().writeMetadata(
-		exportMetadata,
-		writer,
-		dataset
-	)
+		OmeNgffMetadataParser().writeMetadata(
+			exportMetadata,
+			writer,
+			dataset
+		)
+	}
 }
