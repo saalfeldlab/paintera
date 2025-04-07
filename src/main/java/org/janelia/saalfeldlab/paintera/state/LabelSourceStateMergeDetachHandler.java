@@ -184,7 +184,17 @@ public class LabelSourceStateMergeDetachHandler {
 
 			if (FOREGROUND_CHECK.test(id)) {
 				final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
-				detach.ifPresent(assignment::apply);
+				detach.ifPresent(action -> {
+							final long previousSegment = assignment.getSegment(lastSelection);
+							if (id == lastSelection && previousSegment != id && previousSegment != Label.INVALID) {
+								/* Special case where we detach the current active fragment from its own segment.
+								 * In that case, we want the previous segment to still be active.*/
+								selectedIds.activateAlso(previousSegment);
+							}
+							assignment.apply(action);
+
+						}
+				);
 			}
 		}
 
