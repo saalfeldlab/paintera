@@ -65,20 +65,6 @@ public interface FragmentSegmentAssignment {
 		return Optional.empty();
 	}
 
-	default Optional<AssignmentAction> getConfirmGroupingAction(
-			final long[] fragmentsWithin,
-			final long[] fragmentsWithout) {
-
-		return Optional.empty();
-	}
-
-	default Optional<AssignmentAction> getConfirmTwoSegmentsAction(
-			final long[] segment1,
-			final long[] segment2) {
-
-		return Optional.empty();
-	}
-
 	boolean isSegmentConsistent(final long segmentId, final TLongSet containedFragments);
 
 	static void mergeAllSelected(final FragmentSegmentAssignment assignment, final SelectedIds selectedIds, final IdService idService) {
