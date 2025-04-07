@@ -91,17 +91,16 @@ public class LabelSourceStateIdSelectorHandler {
 
 		final IdSelector selector = new IdSelector(source, selectedIds, getActiveViewer, FOREGROUND_CHECK);
 
-		final var toggleLabelActions = painteraActionSet("toggle single id", LabelActionType.Toggle, actionSet -> {
+		final var toggleLabelActions = painteraActionSet("ToggleSingleId", LabelActionType.Toggle, actionSet -> {
 			final var selectMaxCount = selector.selectFragmentWithMaximumCountAction();
-			/* May need to revist this constraint; for now, ONLY allow selection of labels when the active tool is the NavigationTool */
+			/* May need to revisit this constraint; for now, ONLY allow selection of labels when the active tool is the NavigationTool */
 			selectMaxCount.verify(activeToolIsNavigationTool());
 			selectMaxCount.verify(event -> keyTracker.areOnlyTheseKeysDown(KeyCode.ALT) || keyTracker.noKeysActive());
 			selectMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
-			selectMaxCount.verifyButtonTrigger(MouseButton.PRIMARY);
 			actionSet.addAction(selectMaxCount);
 		});
 
-		final var appendLabelActions = painteraActionSet("append id", LabelActionType.Append, actionSet -> {
+		final var appendLabelActions = painteraActionSet("AppendId", LabelActionType.Append, actionSet -> {
 			final var appendMaxCount = selector.appendFragmentWithMaximumCountAction();
 			appendMaxCount.verify(activeToolIsNavigationTool());
 			appendMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
@@ -114,7 +113,7 @@ public class LabelSourceStateIdSelectorHandler {
 			actionSet.addAction(appendMaxCount);
 		});
 
-		final var selectAllActions = painteraActionSet("Select All", LabelActionType.SelectAll, true, actionSet -> {
+		final var selectAllActions = painteraActionSet("SelectAll", LabelActionType.SelectAll, true, actionSet -> {
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
@@ -156,7 +155,7 @@ public class LabelSourceStateIdSelectorHandler {
 			});
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				keyAction.verify(activeToolIsNavigationTool());
-				keyAction.setName("Cancel Select All");
+				keyAction.setName("CancelSelectAll");
 				keyAction.keysDown(KeyCode.ESCAPE);
 				keyAction.verify(keyEvent -> selectAllTask != null);
 				keyAction.onAction(keyEvent -> {
@@ -166,7 +165,7 @@ public class LabelSourceStateIdSelectorHandler {
 				});
 			});
 		});
-		final var lockSegmentActions = painteraActionSet("Toggle Segment Lock", LabelActionType.Lock, actionSet -> {
+		final var lockSegmentActions = painteraActionSet("ToggleSegmentLock", LabelActionType.Lock, actionSet -> {
 			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				keyAction.keyMatchesBinding(LabelSourceStateKeys.LOCK_SEGMENT);
 				keyAction.onAction(keyEvent -> selector.toggleLock(assignment, lockedSegments));
