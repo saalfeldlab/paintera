@@ -177,7 +177,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		if (fragments != null) {
 			fragments.remove(fragmentId);
 			LOG.debug("Removed {} from {}", fragmentId, fragments);
-			if (fragments.size() == 1) {
+			if (fragments.isEmpty()) {
 				this.fragmentToSegmentMap.remove(fragmentFrom);
 				this.segmentToFragmentsMap.remove(segmentFrom);
 			}
