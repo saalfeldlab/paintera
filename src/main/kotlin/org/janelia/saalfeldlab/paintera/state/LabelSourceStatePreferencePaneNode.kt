@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable
@@ -13,7 +14,6 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.*
-import javafx.stage.Modality
 import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.type.numeric.ARGBType
@@ -128,7 +128,18 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.selectedIds.activeIds.toArray().joinToString(",")
+				var activeIds = selectedSegments.selectedIds.activeIds
+				var fragmentIds = TLongHashSet()
+				activeIds.forEach { id ->
+					val fragmentsForId = selectedSegments.assignment.getFragments(id)
+					if (fragmentsForId.contains(id)) {
+						// ID is segment and fragment ID; Fragment/Segment may or may not exist
+						fragmentIds.add(id)
+
+					}
+					true
+				}
+				return fragmentIds.toArray().joinToString(",")
 			}
 
 			override fun fromString(string: String?): SelectedSegments {

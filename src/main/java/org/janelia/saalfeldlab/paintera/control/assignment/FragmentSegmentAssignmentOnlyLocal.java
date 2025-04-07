@@ -177,7 +177,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		if (fragments != null) {
 			fragments.remove(fragmentId);
 			LOG.debug("Removed {} from {}", fragmentId, fragments);
-			if (fragments.size() == 1) {
+			if (fragments.isEmpty()) {
 				this.fragmentToSegmentMap.remove(fragmentFrom);
 				this.segmentToFragmentsMap.remove(segmentFrom);
 			}
@@ -298,42 +298,56 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	@Override
 	public Optional<Merge> getMergeAction(
-			final long from,
-			final long into,
+			final long fragment1,
+			final long fragment2,
 			final LongSupplier newSegmentId) {
 
-		if (from == into) {
-			LOG.debug("fragments {} {} are the same -- no action necessary", from, into);
+		if (fragment1 == fragment2) {
+			LOG.debug("fragments {} {} are the same -- no action necessary", fragment1, fragment2);
 			return Optional.empty();
 		}
 
-		if (getSegment(from) == getSegment(into)) {
+		if (getSegment(fragment1) == getSegment(fragment2)) {
 			LOG.debug(
 					"fragments {} {} are in the same segment {} {} -- no action necessary",
-					from,
-					into,
-					getSegment(from),
-					getSegment(into)
+					fragment1,
+					fragment2,
+					getSegment(fragment1),
+					getSegment(fragment2)
 			);
 			return Optional.empty();
 		}
 
-		// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take care of it instead.
-		if (getSegment(into) == into) {
-			fragmentToSegmentMap.put(into, newSegmentId.getAsLong());
+		final long fromFragmentId;
+		final long intoFragmentId;
+		{
+			long fromSegment = getSegment(fragment1);
+			if (fromSegment == fragment1)
+				fromSegment = Label.INVALID;
+			long intoSegment = getSegment(fragment2);
+			if (intoSegment == fragment2)
+				intoSegment = Label.INVALID;
+
+			if (intoSegment >= fromSegment) {
+				intoFragmentId = fragment2;
+				fromFragmentId = fragment1;
+			} else {
+				intoFragmentId = fragment1;
+				fromFragmentId = fragment2;
+			}
 		}
 
-		final Merge merge = new Merge(from, into, fragmentToSegmentMap.get(into));
+		// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take care of it instead.
+		if (getSegment(intoFragmentId) == intoFragmentId) {
+			fragmentToSegmentMap.put(intoFragmentId, newSegmentId.getAsLong());
+		}
+
+		final Merge merge = new Merge(fromFragmentId, intoFragmentId, fragmentToSegmentMap.get(intoFragmentId));
 		return Optional.of(merge);
 	}
 
 	@Override
 	public Optional<Detach> getDetachAction(final long fragmentId, final long from) {
-
-		if (fragmentId == from) {
-			LOG.debug("{} and {} ar the same -- no action necessary", fragmentId, from);
-			return Optional.empty();
-		}
 
 		return Optional.of(new Detach(fragmentId, from));
 

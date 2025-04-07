@@ -1,10 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -15,7 +14,8 @@ import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState;
 import org.janelia.saalfeldlab.fx.actions.MouseAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
@@ -57,13 +57,18 @@ public class IdSelector {
 
 	public MouseAction selectFragmentWithMaximumCountAction() {
 
-		return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new SelectFragmentWithMaximumCount(!event.isAltDown()).accept(event));
+		final var action = MouseAction.onAction(MouseEvent.MOUSE_CLICKED, event -> new SelectFragmentWithMaximumCount(!event.isAltDown()).accept(event));
+		action.setName(SelectFragmentWithMaximumCount.class.getSimpleName());
+		action.verifyButtonTrigger(MouseButton.PRIMARY);
+		return action;
 
 	}
 
 	public MouseAction appendFragmentWithMaximumCountAction() {
 
-		return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new AppendFragmentWithMaximumCount().accept(event));
+		final MouseAction action = MouseAction.onAction(MouseEvent.MOUSE_CLICKED, event -> new AppendFragmentWithMaximumCount().accept(event));
+		action.setName(AppendFragmentWithMaximumCount.class.getSimpleName());
+		return action;
 	}
 
 	// TODO: use unique labels to collect all ids; caching

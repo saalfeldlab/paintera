@@ -77,7 +77,7 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 			if (newAccess == null)
 				return;
 			synchronized (viewer) {
-				getInfo();
+				getInfo(newAccess);
 			}
 		});
 	}
@@ -91,8 +91,11 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 		x = e.getX();
 		y = e.getY();
 
+		final RealRandomAccess<T> access = accessBinding.getValue();
+		if (access == null) return;
+
 		synchronized (viewer) {
-			getInfo();
+			getInfo(access);
 		}
 	}
 
@@ -107,9 +110,8 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 		}
 	}
 
-	private T getVal() {
+	private T getVal(RealRandomAccess<T> access) {
 
-		final var access = accessBinding.getValue();
 		access.setPosition(x, 0);
 		access.setPosition(y, 1);
 		access.setPosition(0L, 2);
@@ -119,12 +121,12 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 
 	private final Map<Source<T>, Deferred<?>> taskMap = new HashMap<>();
 
-	private void getInfo() {
+	private void getInfo(RealRandomAccess<T> access) {
 
 		final Source<T> source = this.source.getValue();
 		if (source == null) return;
 
-		final var job = Tasks.createTask(() -> stringConverterFromSource(source).apply(getVal()))
+		final var job = Tasks.createTask(() -> stringConverterFromSource(source).apply(getVal(access)))
 				.onSuccess(result -> Platform.runLater(() -> submitValue.accept(result)))
 				.onEnd((result, cause) -> {
 
