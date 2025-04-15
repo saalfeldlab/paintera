@@ -28,7 +28,7 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
+import org.janelia.saalfeldlab.util.n5.universe.PainteraN5Factory
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -223,7 +223,7 @@ class Paintera : Application() {
 		}
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
-		n5Factory.clearCache()
+		n5Factory.clear()
 
 		paintera.pane.scene.window.let { window ->
 			Platform.setImplicitExit(false)
@@ -245,7 +245,7 @@ class Paintera : Application() {
 		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
 
 		@JvmStatic
-		val n5Factory = N5FactoryWithCache()
+		val n5Factory = PainteraN5Factory()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
