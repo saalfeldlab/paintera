@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.10.4-SNAPSHOT</version>
+	<version>1.11.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -30,6 +30,8 @@
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
 		<paintera.commandline.args />
 
+		<!--package properties -->
+		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
@@ -46,47 +48,39 @@
 		<kotlin.version>1.9.24</kotlin.version>
 		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
-		<!-- NB: Convert README.md to html during compilation. -->
-		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
-
+		<!-- maven config -->
+		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+		<enforcer.skip>true</enforcer.skip>
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
-
-		<janino.version>3.0.7</janino.version>
-		<logback.version>1.4.12</logback.version>
-		<slf4j.version>2.0.0</slf4j.version>
-
-		<!-- JavaFx Version-->
-		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.2.0</saalfx.version>
-
-		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
-		<dokka.version>1.4.30</dokka.version>
-
-
-		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
-		<app.name>Paintera</app.name>
-		<app.package>paintera</app.package>
-		<app.version>1.10.3</app.version>
-
-		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>
-		<macos.sign />
-		<macos.sign.identity />
+		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
+		<!-- ### Dependency Versions ### -->
+
+		<!-- JavaFx Versions -->
+		<javafx.version>22.0.1</javafx.version>
 		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
 		<n5-universe.version>2.3.0</n5-universe.version>
-		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
+		<n5.version>3.5.0</n5.version>
 		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
+		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
 		<n5-zarr.version>1.5.1</n5-zarr.version>
 		<n5-hdf5.version>2.2.1</n5-hdf5.version>
 		<n5.version>3.5.1</n5.version>
 
+		<!-- Imglib2 Versions -->
 		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
 
-		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-		<enforcer.skip>true</enforcer.skip>
+		<!-- Saalfx Versions -->
+		<saalfx.version>2.3.0-SNAPSHOT</saalfx.version>
+
+		<!-- Misc Versions -->
+		<janino.version>3.0.7</janino.version>
+		<logback.version>1.4.12</logback.version>
+		<slf4j.version>2.0.0</slf4j.version>
+		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
+		<dokka.version>1.4.30</dokka.version>
 	</properties>
 
 
