@@ -2,9 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.actions
 
 import javafx.beans.property.*
 import javafx.scene.control.Alert
-import javafx.scene.control.TitledPane
-import javafx.scene.layout.Priority
-import javafx.scene.layout.VBox
 import kotlinx.coroutines.*
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
@@ -27,12 +24,9 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.get
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
@@ -182,7 +176,7 @@ class ExportSourceState {
 				val cellRai = exportRAI.interval(cellInterval)
 				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
 			}
-			Paintera.n5Factory.clearKey(exportLocation)
+			Paintera.n5Factory.remove(exportLocation)
 		}
 		progressUpdater?.apply {
 			exportJob.invokeOnCompletion {
@@ -218,17 +212,7 @@ class ExportSourceState {
 
 					it is Exception -> {
 						InvokeOnJavaFXApplicationThread {
-							/* hack until the dialog is improved in saalfx*/
-							val content = ExceptionNode(it).pane.apply {
-								children.firstNotNullOfOrNull { it as? TitledPane }?.apply {
-									VBox.setVgrow(this, Priority.ALWAYS)
-									isExpanded = true
-								}
-							}
-							PainteraAlerts.information("_Ok", true).apply {
-								title = "Caught Exception"
-								dialogPane.content = content
-							}.showAndWait()
+							ExceptionNode.exceptionDialog(it).showAndWait()
 						}
 					}
 				}
