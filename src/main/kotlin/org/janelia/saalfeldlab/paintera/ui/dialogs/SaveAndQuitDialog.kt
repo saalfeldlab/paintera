@@ -6,9 +6,9 @@ import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonBar
 import javafx.scene.control.ButtonType
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import kotlin.jvm.optionals.getOrNull
 
 internal object SaveAndQuitDialog {
 	private const val DIALOG_HEADER = "Save project state before exiting?"
@@ -51,8 +51,7 @@ internal object SaveAndQuitDialog {
 				okButton.fire()
 			}
 		}
-		val buttonType = dialog.showAndWait()
-		return buttonType.nullable?.let { ButtonType.OK == it } ?: false
+		return dialog.showAndWait().getOrNull() == ButtonType.OK
 	}
 
 }

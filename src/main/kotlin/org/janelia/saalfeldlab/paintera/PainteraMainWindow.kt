@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
@@ -42,6 +41,7 @@ import java.lang.reflect.Type
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlin.jvm.optionals.getOrNull
 import kotlin.system.exitProcess
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
@@ -143,7 +143,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	fun save(notify: Boolean = true) {
 
 		/* Not allowed to save if any source is RAI */
-		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
+		baseView.sourceInfo().canSourcesBeSerialized().getOrNull()?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 			alert.title = "Cannot Serialize All Sources"
 			alert.contentText = reasonSoureInfoCannotBeSerialized
