@@ -121,8 +121,8 @@ class KeyAndMouseConfigNode(
 			val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
 			val sortedNames = sortedStates.map { it.nameProperty().value }
 
-			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				PainteraAlerts.initAppDialog(this, Modality.NONE)
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION).apply {
+				initModality(Modality.NONE)
 				headerText = "Bindings for sources of type ${sourceClass.simpleName}"
 				dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) })).apply {
 					columns.add(indexColumn)
@@ -160,8 +160,8 @@ class KeyAndMouseConfigNode(
 			val titleLabel = Label(title)
 			if (description.isNotEmpty() && description.trim().uppercase(Locale.getDefault()) != "TODO") {
 
-				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-					PainteraAlerts.initAppDialog(this, Modality.NONE)
+				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION).apply {
+					initModality(Modality.NONE)
 					headerText = title
 					contentText = description
 				}

@@ -348,7 +348,7 @@ class PaintClickOrDragController(
 		private val LOG = KotlinLogging.logger { }
 
 		private fun busyMaskResetPrompt(currentSource: MaskedSource<*, *>) {
-			PainteraAlerts.confirmation("Yes", "No", true).apply {
+			PainteraAlerts.confirmation("Yes", "No").apply {
 				headerText = "Unable to paint."
 
 				contentText = """

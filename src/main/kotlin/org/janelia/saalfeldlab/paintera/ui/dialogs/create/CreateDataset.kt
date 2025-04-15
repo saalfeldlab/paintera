@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 import bdv.viewer.Source
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.LongProperty
@@ -252,7 +251,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 	fun showDialog(projectDirectory: String?): Optional<Pair<MetadataState, String>> {
 		val metadataStateProp = SimpleObjectProperty<MetadataState>()
 		n5Container.directoryProperty().value = Path.of(projectDirectory!!).toFile()
-		PainteraAlerts.confirmation("C_reate", "_Cancel", true).apply {
+		PainteraAlerts.confirmation("C_reate", "_Cancel").apply {
 			Paintera.registerStylesheets(pane)
 			headerText = "Create new Label dataset"
 			dialogPane.content = pane
@@ -260,8 +259,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				val container = n5Container.directoryProperty().value!!
 				val dataset = dataset.value ?: ""
 				val name = nameField.text
-				LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'"}
-				var invalidCause : String? = null
+				LOG.debug { "Trying to create empty label dataset `$dataset' in container `$container'" }
+				var invalidCause: String? = null
 				if (dataset.isNullOrEmpty()) invalidCause = "Dataset not specified"
 				if (name.isNullOrEmpty()) invalidCause = invalidCause?.let { "$it, Name not specified" } ?: "Name not specified"
 				invalidCause?.let {
@@ -301,7 +300,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						val containerState = N5ContainerState(writer)
 						createMetadataState(containerState, dataset)?.also { metadataStateProp.set(it) }
 					}
-				} catch (ex : Exception) {
+				} catch (ex: Exception) {
 					alertIfError(ex)
 					e.consume()
 					return@addEventFilter

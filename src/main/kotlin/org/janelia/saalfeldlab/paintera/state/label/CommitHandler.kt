@@ -6,7 +6,6 @@ import javafx.scene.control.ButtonType
 import javafx.scene.control.CheckBox
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -55,7 +54,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 				val contents = VBox()
 				if (assignmentsCanBeCommitted) contents.children.add(commitAssignmentCheckbox)
 				if (canvasCanBeCommitted) contents.children.add(commitCanvasCheckbox)
-				PainteraAlerts.confirmation(okButtonText, cancelButtonText, true).also {
+				PainteraAlerts.confirmation(okButtonText, cancelButtonText).also {
 					(it.dialogPane.lookupButton(ButtonType.CANCEL) as? Button)?.let { closeButton ->
 						closeButton.isVisible = false
 						closeButton.isManaged = false

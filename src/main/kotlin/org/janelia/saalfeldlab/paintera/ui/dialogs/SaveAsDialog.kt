@@ -70,7 +70,7 @@ internal object SaveAsDialog {
 
 
 	private val dialog: Alert by lazy {
-		PainteraAlerts.confirmation(SAVE_LABEL, CANCEL_LABEL, true).apply {
+		PainteraAlerts.confirmation(SAVE_LABEL, CANCEL_LABEL).apply {
 			headerText = DIALOG_HEADER
 			dialogPane.apply {
 				content = HBox(directoryField, browseButton).apply { alignment = Pos.CENTER }
@@ -114,7 +114,7 @@ internal object SaveAsDialog {
 				} else {
 					val attributes = dir!!.toPath().toAbsolutePath().resolve("attributes.json").toFile()
 					if (attributes.exists()) {
-						useIt = useIt && PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true).apply {
+						useIt = useIt && PainteraAlerts.alert(Alert.AlertType.CONFIRMATION).apply {
 							headerText = CONTAINER_EXISTS
 							contentText = "$CONTAINER_EXISTS_AT '$dir'. $ASK_OVERWRITE"
 							(dialogPane.lookupButton(ButtonType.OK) as Button).text = OVERWRITE_LABEL
