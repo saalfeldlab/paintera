@@ -52,9 +52,7 @@ object NavigationControlMode : AbstractToolMode() {
 	 * Intentianally empty. [NavigationControlMode] has only one tool, which contains all the Navigation actions.
 	 * It will always be active when [NavigationControlMode] is the active mode.
 	 */
-	override val modeActions = listOf<ActionSet>(
-
-	)
+	override val activeViewerActions = emptyList<ActionSet>()
 
 	override val allowedActions = AllowedActions.NAVIGATION
 
@@ -69,8 +67,6 @@ object NavigationTool : ViewerTool() {
 	private const val SLOW = 0.1
 
 	internal val keyAndMouseBindings = KeyAndMouseBindings(NavigationKeys.namedCombinationsCopy())
-
-	private val keyBindings = keyAndMouseBindings.keyCombinations
 
 	private val globalTransformManager by LazyForeignValue({ paintera }) {
 		paintera.baseView.manager()
