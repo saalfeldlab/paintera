@@ -117,7 +117,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private fun updateStatus() = InvokeOnJavaFXApplicationThread {
 		val labelNum = currentLabelToPaint
-		if (IdService.isTemporary(labelNum)) return@InvokeOnJavaFXApplicationThread
+   		if (IdService.isTemporary(labelNum)) return@InvokeOnJavaFXApplicationThread
 		val labelText = when (labelNum) {
 			Label.BACKGROUND -> "BACKGROUND"
 			Label.TRANSPARENT -> "TRANSPARENT"
