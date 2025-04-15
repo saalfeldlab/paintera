@@ -12,6 +12,7 @@ import javafx.stage.DirectoryChooser
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.iterator.IntervalIterator
@@ -49,11 +50,9 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.Pai
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
 import java.util.Optional
-import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
-import kotlin.Throws
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -728,52 +727,55 @@ object N5Helpers {
 
 	internal fun promptForNewLocationOrRemove(uri: String, cause: Throwable, header: String? = null, contentText: String? = null): N5Reader {
 		var exception: () -> Throwable = { cause }
-		val n5Container = AtomicReference<N5Reader?>()
-		InvokeOnJavaFXApplicationThread.invokeAndWait {
-			PainteraAlerts.confirmation("Accept", "Quit", true).also { alert ->
-				alert.headerText = header ?: "Error Opening N5 Container"
-				alert.buttonTypes.add(ButtonType.FINISH)
-				(alert.dialogPane.lookupButton(ButtonType.FINISH) as Button).apply {
-					text = "Remove Source"
-					onAction = EventHandler {
-						it.consume()
-						alert.close()
-						exception = { RemoveSourceException(uri) }
+		val n5Container = runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				PainteraAlerts.confirmation("Accept", "Quit").let { alert ->
+					alert.headerText = header ?: "Error Opening N5 Container"
+					alert.buttonTypes.add(ButtonType.FINISH)
+					(alert.dialogPane.lookupButton(ButtonType.FINISH) as Button).apply {
+						text = "Remove Source"
+						onAction = EventHandler {
+							it.consume()
+							alert.close()
+							exception = { RemoveSourceException(uri) }
+						}
 					}
-				}
 
-				val newLocationField = TextField()
-				(alert.dialogPane.lookupButton(ButtonType.OK) as Button).apply {
-					disableProperty().bind(newLocationField.textProperty().isEmpty)
-					onAction = EventHandler {
-						it.consume()
-						alert.close()
-						n5Container.set(getN5ContainerWithRetryPrompt(newLocationField.textProperty().get()))
+					val newLocationField = TextField()
+					var n5: N5Reader? = null
+					(alert.dialogPane.lookupButton(ButtonType.OK) as Button).apply {
+						disableProperty().bind(newLocationField.textProperty().isEmpty)
+						onAction = EventHandler {
+							n5 = getN5ContainerWithRetryPrompt(newLocationField.textProperty().get())
+							it.consume()
+							alert.close()
+						}
 					}
-				}
 
 
-				alert.dialogPane.content = VBox().apply {
-					children += HBox().apply {
-						children += TextArea(contentText ?: "Error accessing container at $uri").also { it.editableProperty().set(false) }
-					}
-					children += HBox().apply {
-						children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }
-						children += newLocationField
-						newLocationField.maxWidth = Double.MAX_VALUE
-						HBox.setHgrow(newLocationField, Priority.ALWAYS)
-						children += Button("Browse").also {
-							HBox.setHgrow(it, Priority.NEVER)
-							it.onAction = EventHandler {
-								DirectoryChooser().showDialog(alert.owner)?.let { newLocationField.textProperty().set(it.canonicalPath) }
+					alert.dialogPane.content = VBox().apply {
+						children += HBox().apply {
+							children += TextArea(contentText ?: "Error accessing container at $uri").also { it.editableProperty().set(false) }
+						}
+						children += HBox().apply {
+							children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }
+							children += newLocationField
+							newLocationField.maxWidth = Double.MAX_VALUE
+							HBox.setHgrow(newLocationField, Priority.ALWAYS)
+							children += Button("Browse").also {
+								HBox.setHgrow(it, Priority.NEVER)
+								it.onAction = EventHandler {
+									DirectoryChooser().showDialog(alert.owner)?.let { newLocationField.textProperty().set(it.canonicalPath) }
+								}
 							}
 						}
 					}
+					alert.showAndWait()
+					n5
 				}
-				alert.showAndWait()
-			}
+			}.await()
 		}
-		return n5Container.get() ?: throw exception()
+		return n5Container ?: throw exception()
 	}
 
 	/**
