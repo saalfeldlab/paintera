@@ -72,7 +72,7 @@ object ExportSourceDialog {
 		return smallestType
 	}
 
-	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL, true).apply {
+	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL).apply {
 		val choiceBox = createSourceChoiceBox().apply {
 			maxWidth = Double.MAX_VALUE
 		}

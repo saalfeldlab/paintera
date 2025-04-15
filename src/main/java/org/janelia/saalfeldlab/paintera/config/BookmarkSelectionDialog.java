@@ -43,7 +43,7 @@ public class BookmarkSelectionDialog  {
 
 	private final ObjectProperty<BookmarkConfig.Bookmark> selectedBookmark = new SimpleObjectProperty<>();
 
-	private final Alert dialog = PainteraAlerts.confirmation("_Ok", "_Cancel", true);
+	private final Alert dialog = PainteraAlerts.confirmation("_Ok", "_Cancel");
 
 	public BookmarkSelectionDialog(final Collection<? extends BookmarkConfig.Bookmark> bookmarks) {
 

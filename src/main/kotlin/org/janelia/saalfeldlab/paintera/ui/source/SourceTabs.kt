@@ -78,7 +78,7 @@ class SourceTabs(private val info: SourceInfo) {
 		private fun removeDialog(info: SourceInfo, source: Source<*>, window: Window?) {
 			val name = info.getState(source)?.nameProperty()?.get() ?: source.name
 			val index = info.indexOf(source)
-			PainteraAlerts.confirmation("_Remove", "_Cancel", true).apply {
+			PainteraAlerts.confirmation("_Remove", "_Cancel").apply {
 				contentText = "Remove source #$index `$name?'"
 				headerText = null
 			}.showAndWait().filter { it -> ButtonType.OK == it }.getOrNull()?.let {
