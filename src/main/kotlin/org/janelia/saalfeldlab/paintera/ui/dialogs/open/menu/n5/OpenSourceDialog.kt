@@ -50,6 +50,7 @@ import java.util.UUID
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.function.Supplier
+import kotlin.jvm.optionals.getOrNull
 
 class OpenSourceDialog(
 	val state: OpenSourceState,
@@ -240,7 +241,7 @@ class OpenSourceDialog(
 					N5FactoryOpener(openSourceState).backendDialog().apply {
 						initAppDialog()
 						headerText = "Open Source Dataset"
-						val openSourceState = showAndWait().nullable ?: return@BiConsumer
+						val openSourceState = showAndWait().getOrNull() ?: return@BiConsumer
 
 						N5OpenSourceHelper.addSource(type, openSourceState, metaPanel.channelInformation().channelSelectionCopy, paintera)
 					}

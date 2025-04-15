@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.io.File
 import java.nio.file.Paths
+import kotlin.jvm.optionals.getOrNull
 
 internal object SaveAsDialog {
 	private const val DIALOG_HEADER = "Save project directory at location"
@@ -131,8 +132,7 @@ internal object SaveAsDialog {
 	}
 
 	internal fun showAndWaitForResponse(): Boolean {
-		val buttonType = dialog.showAndWait()
-		return directory?.let { buttonType.nullable == ButtonType.OK } ?: false
+		return dialog.showAndWait().getOrNull() == ButtonType.OK
 	}
 
 }

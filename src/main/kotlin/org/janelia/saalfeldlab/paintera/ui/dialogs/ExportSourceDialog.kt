@@ -14,7 +14,6 @@ import javafx.util.StringConverter
 import net.imglib2.type.numeric.RealType
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -32,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
+import kotlin.jvm.optionals.getOrNull
 
 object ExportSourceDialog {
 
@@ -46,8 +46,8 @@ object ExportSourceDialog {
 			return
 
 		val state = ExportSourceState()
-		if (newDialog(state).showAndWait().nullable == ButtonType.OK) {
-			state.exportSource(true)
+		when (newDialog(state).showAndWait().getOrNull()) {
+			ButtonType.OK -> state.exportSource(false)
 		}
 	}
 

@@ -6,14 +6,12 @@ import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.control.navigation.OrthogonalCrossSectionsIntersect
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
-import org.ojalgo.series.BasicSeries.coordinate
-import org.reactfx.value.Val.orElse
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.Consumer
+import kotlin.jvm.optionals.getOrNull
 
 class CoordinateConfigNode() {
 
@@ -95,7 +93,7 @@ class CoordinateConfigNode() {
 				}
 			}
 
-			d.showAndWait().nullable?.let { coordinate ->
+			d.showAndWait().getOrNull()?.let { coordinate ->
 				val transformCopy = this.transform.copy()
 				OrthogonalCrossSectionsIntersect.centerAt(transformCopy, coordinate[0], coordinate[1], coordinate[2])
 				submitTransform.accept(transformCopy)
