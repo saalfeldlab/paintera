@@ -20,7 +20,7 @@ open class ViewLabelMode : AbstractToolMode() {
 
 	override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
 
-	override val modeActions: List<ActionSet> by lazy {
+	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			goToLabelAction
 		)
@@ -28,21 +28,21 @@ open class ViewLabelMode : AbstractToolMode() {
 
 	override val allowedActions = AllowedActions.VIEW_LABELS
 
-	protected val moveModeActionsToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
+	protected val moveActiveViewerActions = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
 		/* remove the tool triggers from old, add to new */
-		modeActions.forEach { actionSet ->
+		activeViewerActions.forEach { actionSet ->
 			old?.viewer()?.removeActionSet(actionSet)
 			new?.viewer()?.installActionSet(actionSet)
 		}
 	}
 
 	override fun enter() {
-		activeViewerProperty.addListener(moveModeActionsToActiveViewer)
+		activeViewerProperty.addListener(moveActiveViewerActions)
 		super.enter()
 	}
 
 	override fun exit() {
-		activeViewerProperty.removeListener(moveModeActionsToActiveViewer)
+		activeViewerProperty.removeListener(moveActiveViewerActions)
 		super.exit()
 	}
 

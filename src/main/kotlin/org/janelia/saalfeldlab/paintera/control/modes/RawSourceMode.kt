@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.scene.input.KeyEvent.KEY_PRESSED
@@ -18,10 +17,7 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
@@ -119,12 +115,12 @@ open class RawSourceMode : AbstractToolMode() {
 
 		//TODO Caleb: Render histogram, let users select based on slider
 		private fun <T : RealType<T>> estimateWithHistogram(type: T, screenSource: IntervalView<RealType<*>>, rawSource: SourceState<*, RealType<*>>, converter: ARGBColorConverter<*>) {
-			val numSamples = Intervals.numElements(screenSource)
-			val numBins = numSamples.coerceIn(100, 1000)
-			val binMapper = Real1dBinMapper<T>(converter.min, converter.max, numBins, false)
-			val histogram = Histogram1d(binMapper)
-			val img = screenSource.convertRAI(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
-			histogram.countData(img)
+		val numSamples = Intervals.numElements(screenSource)
+		val numBins = numSamples.coerceIn(100, 1000)
+		val binMapper = Real1dBinMapper<T>(converter.min, converter.max, numBins, false)
+		val histogram = Histogram1d(binMapper)
+		val img = screenSource.convertRAI(type) { src, target -> target.setReal(src.realDouble) }.asIterable()
+		histogram.countData(img)
 
 			val counts = histogram.toLongArray()
 			var runningSumMin = 0L

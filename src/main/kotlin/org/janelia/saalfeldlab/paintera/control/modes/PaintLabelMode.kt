@@ -13,7 +13,6 @@ import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
@@ -62,7 +61,7 @@ open class PaintLabelMode : ViewLabelMode() {
 		)
 	}
 
-	override val modeActions: List<ActionSet> by lazy {
+	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			*super.activeViewerActions.toTypedArray(),
 			escapeToDefault(),
@@ -75,15 +74,6 @@ open class PaintLabelMode : ViewLabelMode() {
 	}
 
 	override val allowedActions = AllowedActions.PAINT
-
-	override fun exit() {
-		activeViewerProperty.get()?.let {
-			modeActions.forEach { actionSet ->
-				it.viewer()?.removeActionSet(actionSet)
-			}
-		}
-		super.exit()
-	}
 
 	private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
 		KEY_PRESSED(FILL_3D) {
@@ -170,11 +160,6 @@ open class PaintLabelMode : ViewLabelMode() {
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }
-		if (activeTool is SamTool)
-			activeViewerProperty.unbind()
-		else if (!activeViewerProperty.isBound)
-			activeViewerProperty.bind(paintera.baseView.currentFocusHolder)
-
 		return switchToolJob
 	}
 
@@ -209,7 +194,7 @@ open class PaintLabelMode : ViewLabelMode() {
 			verify("has current mask") { (statePaintContext as? MaskedSource<*, *>)?.currentMask != null }
 			onAction {
 				InvokeOnJavaFXApplicationThread {
-					PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {
+					PainteraAlerts.confirmation("Yes", "No", false, null).apply {
 						headerText = "Force Reset the Active Mask?"
 						contentText = """
                             This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".
