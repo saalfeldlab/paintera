@@ -103,7 +103,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
 import org.janelia.saalfeldlab.paintera.util.IntervalIterable;
 import org.janelia.saalfeldlab.paintera.util.ReusableIntervalIterator;

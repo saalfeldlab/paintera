@@ -14,7 +14,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts.initAppDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import java.util.concurrent.CancellationException
 import kotlin.jvm.optionals.getOrNull
 

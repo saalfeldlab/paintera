@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import kotlin.math.floor
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt

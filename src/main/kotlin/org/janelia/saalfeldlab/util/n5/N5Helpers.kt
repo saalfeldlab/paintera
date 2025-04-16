@@ -42,7 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.f
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser

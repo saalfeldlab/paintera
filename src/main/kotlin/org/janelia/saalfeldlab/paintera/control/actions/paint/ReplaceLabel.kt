@@ -31,7 +31,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.util.convert
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.interval

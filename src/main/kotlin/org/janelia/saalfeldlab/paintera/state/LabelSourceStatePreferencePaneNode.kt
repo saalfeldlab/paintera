@@ -45,7 +45,7 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignment
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.text.DecimalFormat
 import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
 

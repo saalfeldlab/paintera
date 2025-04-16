@@ -20,7 +20,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
 

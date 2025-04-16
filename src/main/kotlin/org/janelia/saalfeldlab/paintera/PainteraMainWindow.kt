@@ -29,7 +29,7 @@ import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache

@@ -6,7 +6,7 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.paintera.Constants
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts.initAppDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.scijava.Context
 import org.scijava.scripting.fx.SciJavaReplFXDialog
 
