@@ -16,7 +16,7 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts.initAppDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import org.janelia.saalfeldlab.util.PainteraCache
 import java.nio.file.Paths

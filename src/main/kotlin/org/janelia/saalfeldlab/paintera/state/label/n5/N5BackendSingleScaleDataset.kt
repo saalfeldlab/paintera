@@ -21,7 +21,8 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.DataSourceDialogs
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
@@ -62,14 +63,14 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 
 	override fun createIdService(source: DataSource<D, T>): IdService {
 		return metadataState.writer?.let {
-			N5Helpers.idService(it, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })
+			N5Helpers.idService(it, dataset, Supplier { DataSourceDialogs.getN5IdServiceFromData(it, dataset, source) })
 		} ?: let {
 			IdService.IdServiceNotProvided()
 		}
 	}
 
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = DataSourceDialogs.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
 
 	companion object {
 

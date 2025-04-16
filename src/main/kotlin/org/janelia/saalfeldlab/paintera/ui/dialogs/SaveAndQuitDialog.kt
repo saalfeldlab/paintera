@@ -7,7 +7,6 @@ import javafx.scene.control.Button
 import javafx.scene.control.ButtonBar
 import javafx.scene.control.ButtonType
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import kotlin.jvm.optionals.getOrNull
 
 internal object SaveAndQuitDialog {

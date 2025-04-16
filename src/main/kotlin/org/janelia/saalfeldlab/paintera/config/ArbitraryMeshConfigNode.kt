@@ -26,9 +26,8 @@ import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.nio.file.Path
-import java.util.Optional
 import java.util.function.Consumer
 import java.util.stream.Collectors
 

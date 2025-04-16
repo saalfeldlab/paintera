@@ -14,7 +14,6 @@ import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.homeToTilde
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.tildeToHome
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.io.File
 import java.nio.file.Paths
 import kotlin.jvm.optionals.getOrNull

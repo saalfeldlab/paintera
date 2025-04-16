@@ -36,7 +36,7 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts.initAppDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.NameField
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState

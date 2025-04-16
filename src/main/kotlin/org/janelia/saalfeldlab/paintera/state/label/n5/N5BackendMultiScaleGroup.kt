@@ -22,7 +22,8 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.DataSourceDialogs
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
@@ -88,11 +89,11 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 			N5Helpers.idService(
 				it,
 				dataset,
-				Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })
+				Supplier { DataSourceDialogs.getN5IdServiceFromData(it, dataset, source) })
 		} ?: LocalIdService(metadataState.reader.getAttribute(dataset, "maxId", Long::class.java) ?: 1L)
 	}
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = DataSourceDialogs.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
 
 	private object SerializationKeys {
 		const val CONTAINER = "container"

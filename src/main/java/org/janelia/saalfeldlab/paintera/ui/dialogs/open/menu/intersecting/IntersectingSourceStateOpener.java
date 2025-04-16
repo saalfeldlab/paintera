@@ -33,7 +33,7 @@ import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.janelia.saalfeldlab.util.Colors;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;

@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.ui.PositiveDoubleTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.hvGrow
 import org.janelia.saalfeldlab.paintera.ui.vGrow
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 
 interface GoToCoordinateUIState {
 
