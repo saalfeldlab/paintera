@@ -76,11 +76,12 @@
 		<macos.sign.identity />
 
 		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
-		<n5-universe.version>2.0.1</n5-universe.version>
-		<n5-google-cloud.version>4.1.2</n5-google-cloud.version>
-		<n5-aws-s3.version>4.2.2</n5-aws-s3.version>
-		<n5-zarr.version>1.4.0</n5-zarr.version>
-		<n5.version>3.3.1</n5.version>
+		<n5-universe.version>2.3.0</n5-universe.version>
+		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
+		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
+		<n5-zarr.version>1.5.1</n5-zarr.version>
+		<n5-hdf5.version>2.2.1</n5-hdf5.version>
+		<n5.version>3.5.0</n5.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
