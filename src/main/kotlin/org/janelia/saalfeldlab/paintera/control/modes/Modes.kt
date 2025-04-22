@@ -19,6 +19,7 @@ import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
 import javafx.util.Subscription
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -71,7 +72,24 @@ interface SourceMode : ControlMode {
 
 interface ToolMode : SourceMode {
 
+	private object ToolChange {
+		val channel = Channel<Job>()
+		val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+		init {
+			scope.launch {
+				for (msg in channel) {
+					runCatching {
+						msg.start()
+						msg.join()
+					}
+				}
+			}
+		}
+	}
+
 	val tools: ObservableList<Tool>
+
 	/**
 	 * Actions that will be added to the active viewer when [enter]ing this mode and removed when [exit]ing the mode.
 	 * Will move automatically when the active viewer changes.
@@ -91,7 +109,7 @@ interface ToolMode : SourceMode {
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
 	 */
-	var subscriptions : Subscription
+	var subscriptions: Subscription
 
 	override fun enter() {
 		/* Keep default tool selected if nothing else */
@@ -113,10 +131,12 @@ interface ToolMode : SourceMode {
 	}
 
 	override fun exit() {
-		runBlocking { switchTool(null)?.join() }
 		super.exit()
 		subscriptions.unsubscribe()
 		subscriptions = Subscription.EMPTY
+		runBlocking {
+			switchTool(null)?.join()
+		}
 	}
 
 	fun switchTool(tool: Tool?): Job? {
@@ -125,9 +145,9 @@ interface ToolMode : SourceMode {
 
 		LOG.debug { "Switch from $activeTool to $tool" }
 
-		/* deactivate/activate off the main thread */
-		val switchToolJob = CoroutineScope(Dispatchers.Default).launch {
-			LOG.trace { "Deactivated $activeTool" }
+
+		val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
+			LOG.debug { "Deactivated $activeTool" }
 			activeTool?.deactivate()
 			(activeTool as? ViewerTool)?.removeFromAll()
 
@@ -137,12 +157,24 @@ interface ToolMode : SourceMode {
 			activeTool = when {
 				activeMode != this@ToolMode -> null // wrong mode
 				tool?.isValidProperty?.value == false -> null // tool is not currently valid
-				else -> tool?.apply { activate() } // try to activate
+				else -> tool?.apply {
+					activate()
+					LOG.debug { "Activated $activeTool" }
+				} // try to activate
 			}
-			LOG.trace { "Activated $activeTool" }
+		}
+		switchToolJob.invokeOnCompletion { cause ->
+			when (cause) {
+				null -> InvokeOnJavaFXApplicationThread { showToolBars() }
+				is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
+				else -> LOG.error(cause) { "Switch to $tool failed" }
+			}
 		}
 
-		switchToolJob.invokeOnCompletion { InvokeOnJavaFXApplicationThread { showToolBars() } }
+		runBlocking {
+			ToolChange.channel.send(switchToolJob)
+		}
+
 		return switchToolJob
 	}
 
@@ -356,35 +388,35 @@ abstract class AbstractSourceMode : SourceMode {
 	 *  - the global action set when the active source changes */
 	/* This will add and remove the state specific actions from the correct viewers when the active viewer changes */
 	private fun subscribeToSourceActions(): Subscription = activeViewerProperty.createObservableBinding(activeSourceStateProperty) {
-			activeViewerProperty.get() to activeSourceStateProperty.get()
-		}.subscribe { (prevViewer, prevSource), (viewer, source) ->
-			/* if the source changed, handle the global actions*/
-			if (prevSource != source) {
-				prevSource?.apply { paintera.defaultHandlers.globalActionHandlers.removeAll(globalActionSets) }
-				source?.apply { paintera.defaultHandlers.globalActionHandlers.addAll(globalActionSets) }
-			}
-
-			/* if the viewer changed ( or the source), remove the old ones */
-			if (prevViewer != viewer || prevSource != source) {
-				prevViewer?.let { viewer ->
-					prevSource?.let { source ->
-						source.viewerActionSets.forEach { actionSet ->
-							viewer.viewer().removeActionSet(actionSet)
-						}
-					}
-				}
-
-				/* if we have a new viewer, install the actions */
-				viewer?.let { viewer ->
-					source?.let { source ->
-						source.viewerActionSets.forEach { actionSet ->
-							viewer.viewer().installActionSet(actionSet)
-						}
-					}
-				}
-			}
-
+		activeViewerProperty.get() to activeSourceStateProperty.get()
+	}.subscribe { (prevViewer, prevSource), (viewer, source) ->
+		/* if the source changed, handle the global actions*/
+		if (prevSource != source) {
+			prevSource?.apply { paintera.defaultHandlers.globalActionHandlers.removeAll(globalActionSets) }
+			source?.apply { paintera.defaultHandlers.globalActionHandlers.addAll(globalActionSets) }
 		}
+
+		/* if the viewer changed ( or the source), remove the old ones */
+		if (prevViewer != viewer || prevSource != source) {
+			prevViewer?.let { viewer ->
+				prevSource?.let { source ->
+					source.viewerActionSets.forEach { actionSet ->
+						viewer.viewer().removeActionSet(actionSet)
+					}
+				}
+			}
+
+			/* if we have a new viewer, install the actions */
+			viewer?.let { viewer ->
+				source?.let { source ->
+					source.viewerActionSets.forEach { actionSet ->
+						viewer.viewer().installActionSet(actionSet)
+					}
+				}
+			}
+		}
+
+	}
 
 	override fun enter() {
 		sourceAndViewerSub = subscribeToSourceActions()

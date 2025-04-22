@@ -222,9 +222,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
 			},
 			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
-				onDragDetected {
-					verify("primary click drag only ") { it.isPrimaryButtonDown && !it.isSecondaryButtonDown && !it.isMiddleButtonDown }
+				dragDetectedAction.apply {
+					verify("primary click drag only ") { it != null && it.isPrimaryButtonDown && !it.isSecondaryButtonDown && !it.isMiddleButtonDown }
 					verify("can't trigger box prompt with active tool") { activeTool in listOf(NavigationTool, shapeInterpolationTool, samTool) }
+				}
+				onDragDetected {
 					switchTool(samTool)
 				}
 				onDrag {
