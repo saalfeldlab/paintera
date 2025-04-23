@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.jvm.Throws
 
 interface ControlMode {
 

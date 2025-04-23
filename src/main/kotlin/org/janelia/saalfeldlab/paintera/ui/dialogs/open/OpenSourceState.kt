@@ -15,6 +15,7 @@ import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
@@ -51,9 +52,7 @@ class OpenSourceState {
 
 	val activeNodeProperty = SimpleObjectProperty<N5TreeNode?>()
 	var activeNode by activeNodeProperty.nullable()
-	val activeMetadataProperty = activeNodeProperty.createObservableBinding {
-		it.get()?.let { node -> node.metadata as? SpatialMetadata }
-	}
+	val activeMetadataProperty = activeNodeProperty.map {it as? SpatialMetadata }!!
 
 	val resolutionProperty = SimpleObjectProperty<DoubleArray?>()
 	var resolution by resolutionProperty.nullable()
@@ -68,8 +67,8 @@ class OpenSourceState {
 	var maxIntensity by maxIntensityProperty.nonnull()
 
 	val metadataStateBinding = activeMetadataProperty.createObservableBinding {
-		val metadata = activeMetadataProperty.get() ?: return@createObservableBinding null
-		val container = containerStateProperty.get() ?: return@createObservableBinding null
+		val metadata = activeMetadataProperty.value ?: return@createObservableBinding null
+		val container = containerStateProperty.value ?: return@createObservableBinding null
 
 		MetadataUtils.createMetadataState(container, metadata)
 	}.apply {
@@ -87,7 +86,7 @@ class OpenSourceState {
 	val metadataState by metadataStateBinding.nullableVal()
 
 	val datasetAttributes get() = metadataState?.datasetAttributes
-	val dimensionsBinding = metadataStateBinding.createObservableBinding { it.value?.datasetAttributes?.dimensions }
+	val dimensionsBinding = metadataStateBinding.createNullableValueBinding { it?.datasetAttributes?.dimensions }
 
 	val datasetPath get() = activeNodeProperty.get()?.path
 	val sourceNameProperty = SimpleStringProperty().also { prop ->

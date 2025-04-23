@@ -16,10 +16,12 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.actionSets
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 interface Tool {
 
@@ -56,7 +58,7 @@ interface ToolBarItem {
 
 				btn.apply {
 					onAction = EventHandler {
-						action(null)
+						action()
 					}
 				}
 			} ?: ToggleButton(null, node)
@@ -100,18 +102,36 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	private var subscriptions: Subscription? = null
 	override val isValidProperty = SimpleBooleanProperty(true)
 
+	private class SubImp(sub : Subscription) : Subscription by sub {
+
+		val id = count.getAndIncrement()
+
+		override fun toString(): String {
+			return super.toString() + "_$id"
+		}
+
+		companion object {
+			private var count = AtomicInteger(1)
+		}
+	}
+
 	override fun activate() {
+		println("Activate: $this")
 		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
 		/* this handles installing into the currently active viewer */
 		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
 		/* This handles viewer changes while  activated */
-		subscriptions = activeViewerProperty.subscribe { old, new ->
+		if (subscriptions != null)
+			println("?")
+		subscriptions = SubImp(activeViewerProperty.subscribe { old, new ->
 			old?.viewer()?.let { removeFrom(it) }
 			new?.viewer()?.let { installInto(it) }
-		}
+		})
+		val t = subscriptions
 	}
 
 	override fun deactivate() {
+		println("Deactivate: $this")
 		subscriptions?.let {
 			it.unsubscribe()
 			subscriptions = null

@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.Event
 import javafx.scene.Node
@@ -22,10 +21,8 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
-import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.state.BrushProperties
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -136,7 +133,6 @@ abstract class PaintTool(
 						ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
 					}
 				}
-
 				else -> null
 			}
 		}
@@ -146,9 +142,7 @@ abstract class PaintTool(
 interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val dataSource: MaskedSource<D, T>
 	val assignment: FragmentSegmentAssignment
-	val isVisibleProperty: SimpleBooleanProperty
 	val selectedIds: SelectedIds
-	val idService: IdService
 	val paintSelection: () -> Long?
 	val brushProperties: BrushProperties
 	val refreshMeshes: () -> Unit
@@ -165,9 +159,7 @@ private data class ConnectomicsLabelStatePaintContext<D, T>(val state: Connectom
 
 	override val dataSource: MaskedSource<D, T> = state.dataSource as MaskedSource<D, T>
 	override val assignment = state.fragmentSegmentAssignment
-	override val isVisibleProperty = SimpleBooleanProperty().apply { bind(state.isVisibleProperty) }
 	override val selectedIds = state.selectedIds
-	override val idService = state.idService
 	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
 	override val brushProperties: BrushProperties = state.brushProperties
 	override val refreshMeshes: () -> Unit = state::refreshMeshes

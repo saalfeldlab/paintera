@@ -8,6 +8,7 @@ import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.confirmation
 import kotlin.jvm.optionals.getOrNull
 
+@Deprecated("")
 internal object DeprecatedSourceDialogs {
 
 	@Deprecated("")

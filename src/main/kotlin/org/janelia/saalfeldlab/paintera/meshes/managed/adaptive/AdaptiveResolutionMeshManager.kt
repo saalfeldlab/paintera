@@ -186,6 +186,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		// interrupted generators will be replaced appropriately.
 		if (!isMeshesAndViewerEnabled)
 			meshGenerator.interrupt()
+
 		InvokeOnJavaFXApplicationThread {
 			meshesGroup.children += meshGenerator.root
 			// TODO is this cancelAndUpdate necessary?

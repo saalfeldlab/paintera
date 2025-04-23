@@ -10,8 +10,6 @@ import org.slf4j.LoggerFactory
 
 internal object KeyBindingsDialog {
 
-	private val LOG = LoggerFactory.getLogger(this::class.java)
-
 	val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, paintera.baseView.sourceInfo()).makeNode()
 
 	val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog).also {

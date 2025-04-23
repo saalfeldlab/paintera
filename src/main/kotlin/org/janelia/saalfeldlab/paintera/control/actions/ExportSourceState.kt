@@ -8,6 +8,7 @@ import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -143,10 +144,10 @@ class ExportSourceState {
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
 		val labelProp = SimpleStringProperty("Blocks Written 0 / $totalBlocks").apply {
-			bind(count.createObservableBinding { "Blocks Written ${it.value} / $totalBlocks" })
+			bind(count.createNonNullValueBinding { "Blocks Written $it / $totalBlocks" })
 		}
 		val progressProp = SimpleDoubleProperty(0.0).apply {
-			bind(count.createObservableBinding { it.get().toDouble() / totalBlocks })
+			bind(count.createObservableBinding { it.value / totalBlocks })
 		}
 
 		val (processedBlocks, progressUpdater) = if (showProgressAlert) {
@@ -212,6 +213,7 @@ class ExportSourceState {
 
 					it is Exception -> {
 						InvokeOnJavaFXApplicationThread {
+							/* hack until the dialog is improved in saalfx*/
 							ExceptionNode.exceptionDialog(it).showAndWait()
 						}
 					}

@@ -97,6 +97,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
+
 	override fun getDataSource(): DataSource<D, T> = source
 
 	internal val maskForLabel = equalsMaskForType(source.dataType)!!

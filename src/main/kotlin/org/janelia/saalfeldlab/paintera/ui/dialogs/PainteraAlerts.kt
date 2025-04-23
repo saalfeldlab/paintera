@@ -62,7 +62,7 @@ object PainteraAlerts {
 	fun Dialog<*>.initAppDialog(owner: Window? = null, modality: Modality? = Modality.APPLICATION_MODAL) {
 		initOwnerWithDefault(owner)
 		initModality(modality)
-		Paintera.Companion.registerStylesheets(dialogPane.scene)
+		Paintera.registerStylesheets(dialogPane.scene)
 	}
 
 
@@ -101,10 +101,15 @@ object PainteraAlerts {
 		initAppDialog(window)
 	}
 
+	@JvmStatic
+	fun warning( warning : String) = alert(Alert.AlertType.WARNING, true).apply {
+		headerText = warning
+	}
+
 	internal fun Dialog<*>.setButtonText(vararg buttonToText: Pair<ButtonType, String?>) = buttonToText.toMap()
 		.filterValues { it != null }
 		.forEach { (buttonType, text) ->
-			(dialogPane.lookupButton(buttonType) as Button).setText(text)
+			(dialogPane.lookupButton(buttonType) as Button).text = text
 		}
 
 	@JvmOverloads
@@ -158,6 +163,5 @@ object PainteraAlerts {
 			dialogPane.content = versionBox
 			headerText = "Paintera Version"
 		}
-
 	}
 }

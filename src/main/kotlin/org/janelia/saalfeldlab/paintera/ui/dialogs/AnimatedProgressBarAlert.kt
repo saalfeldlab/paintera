@@ -30,7 +30,9 @@ class AnimatedProgressBarAlert(
 		prefWidth = 300.0
 	}
 
-	private val canCloseBinding = SimpleBooleanProperty(true)
+	val canCancelProperty = SimpleBooleanProperty(true)
+	private val inProgressBinding = progressBar.progressProperty().greaterThanOrEqualTo(1.0).not()
+	private val canCloseBinding = inProgressBinding.not().or(canCancelProperty)
 	var cancelled = false
 		private set
 
@@ -44,12 +46,20 @@ class AnimatedProgressBarAlert(
 			stop()
 		}
 		(dialogPane.lookupButton(ButtonType.OK) as Button).apply {
-			disableProperty().bind(canCloseBinding.not())
+			disableProperty().bind(inProgressBinding)
 		}
 
-		(dialogPane.lookupButton(ButtonType.CANCEL) as Button).onAction = EventHandler {
-			cancelled = true
-			stopAndClose()
+		onCloseRequest = EventHandler {
+			if (!canCloseBinding.get())
+				it.consume()
+		}
+
+		(dialogPane.lookupButton(ButtonType.CANCEL) as Button).apply {
+			disableProperty().bind(canCancelProperty.not())
+			onAction = EventHandler {
+				cancelled = true
+				stopAndClose()
+			}
 		}
 
 		val doneLabel = Label("Done!")
@@ -60,7 +70,6 @@ class AnimatedProgressBarAlert(
 				it.consume()
 		}
 		isResizable = true
-		canCloseBinding.set(false)
 	}
 
 	private fun createProgressLabel() = Label().apply {
@@ -88,7 +97,6 @@ class AnimatedProgressBarAlert(
 	 */
 	fun finish() = InvokeOnJavaFXApplicationThread {
 		progressBar.finish()
-		canCloseBinding.set(true)
 	}
 
 	/**
@@ -97,7 +105,6 @@ class AnimatedProgressBarAlert(
 	 */
 	fun stopAndClose() = InvokeOnJavaFXApplicationThread {
 		progressBar.stop()
-		canCloseBinding.set(true)
 		close()
 	}
 
@@ -107,6 +114,5 @@ class AnimatedProgressBarAlert(
 	 */
 	fun stop() = InvokeOnJavaFXApplicationThread {
 		progressBar.stop()
-		canCloseBinding.set(true)
 	}
 }
