@@ -863,6 +863,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		HBox.setHgrow(progressBar, Priority.ALWAYS);
 		VBox.setVgrow(statesText, Priority.ALWAYS);
 		VBox.setVgrow(progressBar, Priority.ALWAYS);
+
 		InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
 		states.addListener((ListChangeListener<String>)change -> statesText.setText(String.join("\n", states)));
 		synchronized (this) {

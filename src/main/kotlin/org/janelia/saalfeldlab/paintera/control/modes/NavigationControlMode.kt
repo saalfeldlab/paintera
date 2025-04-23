@@ -268,7 +268,7 @@ object NavigationTool : ViewerTool() {
 			painteraDragActionSet("drag translate xy", NavigationActionType.Pan) {
 				relative = true
 				verify { it.isSecondaryButtonDown }
-				onDrag { translateXYController.translate(it.x - startX, it.y - startY) }
+				onDrag {  translateXYController.translate(it.x - startX, it.y - startY) }
 			}
 
 		return listOf(
@@ -396,9 +396,9 @@ object NavigationTool : ViewerTool() {
 		}
 
 		val setRotationAxis = painteraActionSet("set rotation axis", NavigationActionType.Rotate) {
-			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_X) { onAction { keyRotationAxis.set(Axis.X) } }
-			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_Y) { onAction { keyRotationAxis.set(Axis.Y) } }
-			KEY_PRESSED(NavigationKeys.SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
+			KEY_PRESSED(SET_ROTATION_AXIS_X) { onAction { keyRotationAxis.set(Axis.X) } }
+			KEY_PRESSED(SET_ROTATION_AXIS_Y) { onAction { keyRotationAxis.set(Axis.Y) } }
+			KEY_PRESSED(SET_ROTATION_AXIS_Z) { onAction { keyRotationAxis.set(Axis.Z) } }
 		}
 
 		val mouseRotation = painteraDragActionSet("mouse-drag-rotate", NavigationActionType.Rotate) {

@@ -4,39 +4,61 @@ import javafx.beans.property.BooleanProperty
 import javafx.beans.property.LongProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleLongProperty
-import javafx.event.EventHandler
+import javafx.event.ActionEvent
 import javafx.geometry.Insets
 import javafx.geometry.Pos
-import javafx.scene.Scene
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
-import javafx.stage.Stage
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.hGrow
-import org.janelia.saalfeldlab.paintera.ui.hvGrow
+import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 
-interface GoToLabelUIState {
-	val labelProperty: LongProperty
-	val activateLabelProperty: BooleanProperty
-}
+class GoToLabelUI(val model: Model) : VBox(5.0) {
 
-class GoToLabelUI(val state: GoToLabelUIState) : VBox(5.0) {
+	interface Model {
+		val labelProperty: LongProperty
+		val activateLabelProperty: BooleanProperty
+
+		fun getDialog(dialogTitle: String = "Go To Label"): Alert {
+			return PainteraAlerts.confirmation("_Go", "_Cancel").apply {
+				title = dialogTitle
+				headerText = "Go to Label"
+				bindDialog(this)
+			}
+		}
+
+		fun bindDialog(dialog: Dialog<ButtonType>)= dialog.apply {
+			dialogPane.content = GoToLabelUI(this@Model)
+			(dialogPane.lookupButton(ButtonType.OK) as Button).apply {
+				val modelInvalid = labelProperty.map { it.toLong() < 0 }
+				disableProperty().unbind()
+				disableProperty().bind(modelInvalid)
+			}
+		}
+	}
+
+	class Default : Model {
+		override val labelProperty = SimpleLongProperty(-1L)
+		override val activateLabelProperty = SimpleBooleanProperty(true)
+	}
 
 	init {
-		hvGrow()
 		padding = Insets(5.0)
 		alignment = Pos.CENTER_RIGHT
 		children += HBox(5.0).apply {
 			alignment = Pos.BOTTOM_RIGHT
 			children += Label("Label ID:")
 			children += TextField().hGrow {
-				textFormatter = PositiveLongTextFormatter().apply {
-					value = state.labelProperty.value
-					state.labelProperty.bind(valueProperty())
+				alignment = Pos.CENTER_RIGHT
+				textFormatter = PositiveLongTextFormatter(model.labelProperty.value).apply {
+					val valueOrInvalid = valueProperty().createNullableValueBinding { it?.takeIf { it >= 0 } ?: -1L }
+					model.labelProperty.bind(valueOrInvalid)
 				}
 			}
 		}
@@ -44,11 +66,9 @@ class GoToLabelUI(val state: GoToLabelUIState) : VBox(5.0) {
 			alignment = Pos.BOTTOM_RIGHT
 			children += Label("Activate Label? ")
 			children += CheckBox().apply {
-				selectedProperty().bindBidirectional(state.activateLabelProperty)
-				isSelected = true
+				selectedProperty().bindBidirectional(model.activateLabelProperty)
 			}
 		}
-
 	}
 }
 
@@ -56,26 +76,21 @@ class GoToLabelUI(val state: GoToLabelUIState) : VBox(5.0) {
 fun main() {
 	InvokeOnJavaFXApplicationThread {
 
-		val state = object : GoToLabelUIState {
-			override val labelProperty = SimpleLongProperty(1234L)
-			override val activateLabelProperty = SimpleBooleanProperty(true)
-		}
-
-		val root = VBox()
-		root.apply {
-			children += Button("Reload").apply {
-				onAction = EventHandler {
-					root.children.removeIf { it is GoToLabelUI }
-					root.children.add(GoToLabelUI(state))
-				}
+		val model = {
+			GoToLabelUI.Default().apply {
+				labelProperty.set(Random.nextLong().absoluteValue)
 			}
-			children += GoToLabelUI(state)
 		}
 
-		val scene = Scene(root)
-		val stage = Stage()
-		stage.scene = scene
-		stage.show()
+		val dialog = model().getDialog().apply {
+			val reloadButton = ButtonType("Reload", ButtonBar.ButtonData.LEFT)
+			dialogPane.buttonTypes += reloadButton
+			(dialogPane.lookupButton(reloadButton) as? Button)?.addEventFilter(ActionEvent.ACTION) {
+				model().bindDialog(this)
+				it.consume()
+			}
+		}
+		dialog.show()
 	}
 }
 

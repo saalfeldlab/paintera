@@ -121,6 +121,7 @@ import kotlin.collections.toList
 import kotlin.collections.toMutableList
 import kotlin.collections.toTypedArray
 import kotlin.math.*
+import kotlin.properties.Delegates
 
 
 //TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
@@ -570,28 +571,28 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							afterRegisterEvent = {
 								toggleDisplayProperty.bind(primaryClickLabelProperty.isEqualTo(SamPredictor.SparseLabel.IN))
 							}
-							onAction { primaryClickToggleIncludeAction(null) }
+							onAction { primaryClickToggleIncludeAction() }
 						}
 						MidiToggleEvent.BUTTON_TOGGLE(9) {
 							name = "PrimaryClickOut"
 							afterRegisterEvent = {
 								toggleDisplayProperty.bind(primaryClickLabelProperty.isEqualTo(SamPredictor.SparseLabel.OUT))
 							}
-							onAction { primaryClickToggleExcludeAction(null) }
+							onAction { primaryClickToggleExcludeAction() }
 						}
 
 						MidiButtonEvent.BUTTON_PRESSED(10) {
 							name = "ResetPrompt"
 							verifyEventNotNull()
-							onAction { resetPromptAction(null) }
+							onAction { resetPromptAction() }
 						}
 						MidiButtonEvent.BUTTON_PRESSED(11) {
 							name = "ApplyPrediction"
 							verifyEventNotNull()
 							onAction {
-								applyPredictionAction(null)
+								applyPredictionAction()
 								Platform.runLater {
-									resetPromptAction(null)
+									resetPromptAction()
 								}
 							}
 						}

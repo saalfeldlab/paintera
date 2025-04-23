@@ -141,8 +141,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 			old?.children?.remove(statusBar)
 			new?.children?.add(statusBar)
 		}
-		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
-			when (it!!) {
+		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().map { mode ->
+			when (mode) {
 				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
 				StatusBarConfig.Mode.BOTTOM -> bottomGroup
 			}

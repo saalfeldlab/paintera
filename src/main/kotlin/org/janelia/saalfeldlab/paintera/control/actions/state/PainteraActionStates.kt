@@ -17,11 +17,11 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
 open class PainteraActionState(vararg delegates : Any, var invalidIfDisabled : Boolean = true) : VerifiablePropertyActionState(*delegates) {
 
-	override fun <E : Event> verifyState(action: Action<E>)  = with(action) {
-		super.verifyState(this)
+	override fun <E : Event> verifyState(action: Action<E>) {
+		super.verifyState(action)
 
-		if (invalidIfDisabled)
-			verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
+		if (this@PainteraActionState.invalidIfDisabled)
+			action.verify("Paintera is not disabled") { !paintera.baseView.isDisabledProperty.get() }
 	}
 }
 

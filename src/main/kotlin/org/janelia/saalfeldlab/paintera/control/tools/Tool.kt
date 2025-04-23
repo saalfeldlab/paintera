@@ -57,7 +57,7 @@ interface ToolBarItem {
 
 				btn.apply {
 					onAction = EventHandler {
-						action(null)
+						action()
 					}
 				}
 			} ?: ToggleButton(null, node)

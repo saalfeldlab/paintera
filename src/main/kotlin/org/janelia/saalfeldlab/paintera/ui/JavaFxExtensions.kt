@@ -37,14 +37,14 @@ class PositiveDoubleTextFormatter(initialValue: Double? = null, format: String? 
 	{ it.apply { if (controlNewText?.toDoubleOrNull() == null) text = "" } }
 )
 
-fun <T : Node> T.hGrow(apply: (T.() -> Unit)? = { }): T {
-	setHgrow(this, Priority.ALWAYS)
+fun <T : Node> T.hGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { } ): T {
+	setHgrow(this, priority)
 	apply?.invoke(this)
 	return this
 }
 
-fun <T : Node> T.vGrow(apply: (T.() -> Unit)? = { }): T {
-	setVgrow(this, Priority.ALWAYS)
+fun <T : Node> T.vGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { }): T {
+	setVgrow(this, priority)
 	apply?.invoke(this)
 	return this
 }

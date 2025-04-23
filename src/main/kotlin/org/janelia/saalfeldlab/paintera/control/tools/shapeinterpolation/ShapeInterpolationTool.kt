@@ -561,27 +561,27 @@ internal class ShapeInterpolationTool(
 						MidiButtonEvent.BUTTON_PRESSED(5) {
 							name = "left"
 							verifyEventNotNull()
-							onAction { autoSamLeft(null) }
+							onAction { autoSamLeft() }
 						}
 						MidiButtonEvent.BUTTON_PRESSED(6) {
 							name = "bisect.all"
 							verifyEventNotNull()
-							onAction { autoSamBisectAll(null) }
+							onAction { autoSamBisectAll() }
 						}
 						MidiButtonEvent.BUTTON_PRESSED(7) {
 							name = "right"
 							verifyEventNotNull()
-							onAction { autoSamRight(null) }
+							onAction { autoSamRight() }
 						}
 						MidiButtonEvent.BUTTON_PRESSED(14) {
 							name = "bisect.current"
 							verifyEventNotNull()
-							onAction { autoSamBisectCurrent(null) }
+							onAction { autoSamBisectCurrent() }
 						}
 						MidiButtonEvent.BUTTON_PRESSED(15) {
 							name = "current"
 							verifyEventNotNull()
-							onAction { autoSamCurrent(null) }
+							onAction { autoSamCurrent() }
 						}
 					}
 				}

@@ -22,16 +22,16 @@ open class ActionMenu(text: String? = null, graphic: Node? = null, vararg items:
 	}
 }
 
-open class MenuAction(val label: String) : Action<Event>(Event.ANY) {
+open class MenuAction(val text: String) : Action<Event>(Event.ANY) {
 
 
 	init {
 		keysDown = null
-		name = label
+		name = text
 	}
 
 	val menuItem by LazyForeignValue(::paintera) {
-		MenuItem(label).also { item ->
+		MenuItem(text).also { item ->
 			item.onAction = EventHandler { this(it) }
 			item.userData = this
 		}
