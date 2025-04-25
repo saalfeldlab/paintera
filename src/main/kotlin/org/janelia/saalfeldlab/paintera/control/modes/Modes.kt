@@ -19,7 +19,7 @@ import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
 import javafx.util.Subscription
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
+import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -42,7 +42,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.jvm.Throws
 
 interface ControlMode {
 
@@ -74,19 +73,8 @@ interface SourceMode : ControlMode {
 interface ToolMode : SourceMode {
 
 	private object ToolChange {
-		val channel = Channel<Job>()
-		val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-		init {
-			scope.launch {
-				for (msg in channel) {
-					runCatching {
-						msg.start()
-						msg.join()
-					}
-				}
-			}
-		}
+		private val loop = ChannelLoop()
+		fun submit(block : suspend CoroutineScope.() -> Unit) = loop.submit(block = block)
 	}
 
 	val tools: ObservableList<Tool>
@@ -147,7 +135,7 @@ interface ToolMode : SourceMode {
 		LOG.debug { "Switch from $activeTool to $tool" }
 
 
-		val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
+		val switchToolJob = ToolChange.submit {
 			LOG.debug { "Deactivated $activeTool" }
 			activeTool?.deactivate()
 			(activeTool as? ViewerTool)?.removeFromAll()
@@ -171,11 +159,6 @@ interface ToolMode : SourceMode {
 				else -> LOG.error(cause) { "Switch to $tool failed" }
 			}
 		}
-
-		ToolChange.scope.launch {
-			ToolChange.channel.send(switchToolJob)
-		}
-
 		return switchToolJob
 	}
 
