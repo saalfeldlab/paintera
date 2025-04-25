@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
@@ -101,7 +102,21 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	protected var subscriptions: Subscription = Subscription.EMPTY
 	override val isValidProperty = SimpleBooleanProperty(true)
 
+	private class SubImp(sub: Subscription) : Subscription by sub {
+
+		val id = count.getAndIncrement()
+
+		override fun toString(): String {
+			return super.toString() + "_$id"
+		}
+
+		companion object {
+			private var count = AtomicInteger(1)
+		}
+	}
+
 	override fun activate() {
+		println("Activate: $this")
 		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
 		/* this handles installing into the currently active viewer */
 		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
