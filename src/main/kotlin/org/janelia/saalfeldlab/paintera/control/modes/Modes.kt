@@ -18,7 +18,7 @@ import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.layout.GridPane
 import javafx.util.Subscription
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
+import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -74,19 +74,8 @@ interface SourceMode : ControlMode {
 interface ToolMode : SourceMode {
 
 	private object ToolChange {
-		val channel = Channel<Job>()
-		val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-		init {
-			scope.launch {
-				for (msg in channel) {
-					runCatching {
-						msg.start()
-						msg.join()
-					}
-				}
-			}
-		}
+		private val loop = ChannelLoop()
+		fun submit(block : suspend CoroutineScope.() -> Unit) = loop.submit(block = block)
 	}
 
 	val tools: ObservableList<Tool>
@@ -140,45 +129,39 @@ interface ToolMode : SourceMode {
 		}
 	}
 
+	@Synchronized
 	fun switchTool(tool: Tool?): Job? {
-		synchronized(this) {
 			if (activeTool == tool)
 				return null
 
 			LOG.debug { "Switch from $activeTool to $tool" }
 
 
-			val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
-				LOG.debug { "Deactivated $activeTool" }
-				activeTool?.deactivate()
-				(activeTool as? ViewerTool)?.removeFromAll()
+		val switchToolJob = ToolChange.submit {
+			LOG.debug { "Deactivated $activeTool" }
+			activeTool?.deactivate()
+			(activeTool as? ViewerTool)?.removeFromAll()
 
 
-				/* If the mode was changed before we can activate, switch to null */
-				val activeMode = paintera.baseView.activeModeProperty.value
-				activeTool = when {
-					activeMode != this@ToolMode -> null // wrong mode
-					tool?.isValidProperty?.value == false -> null // tool is not currently valid
-					else -> tool?.apply {
-						activate()
-						LOG.debug { "Activated $activeTool" }
-					} // try to activate
-				}
+			/* If the mode was changed before we can activate, switch to null */
+			val activeMode = paintera.baseView.activeModeProperty.value
+			activeTool = when {
+				activeMode != this@ToolMode -> null // wrong mode
+				tool?.isValidProperty?.value == false -> null // tool is not currently valid
+				else -> tool?.apply {
+					activate()
+					LOG.debug { "Activated $activeTool" }
+				} // try to activate
 			}
-			switchToolJob.invokeOnCompletion { cause ->
-				when (cause) {
-					null -> InvokeOnJavaFXApplicationThread { showToolBars() }
-					is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
-					else -> LOG.error(cause) { "Switch to $tool failed" }
-				}
-			}
-
-			ToolChange.scope.launch {
-				ToolChange.channel.send(switchToolJob)
-			}
-
-			return switchToolJob
 		}
+		switchToolJob.invokeOnCompletion { cause ->
+			when (cause) {
+				null -> InvokeOnJavaFXApplicationThread { showToolBars() }
+				is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
+				else -> LOG.error(cause) { "Switch to $tool failed" }
+			}
+		}
+		return switchToolJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
