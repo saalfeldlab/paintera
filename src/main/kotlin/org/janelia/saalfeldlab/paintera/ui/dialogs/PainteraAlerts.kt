@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.binding.BooleanExpression
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.geometry.Pos
 import javafx.scene.control.*
@@ -101,9 +102,18 @@ object PainteraAlerts {
 		initAppDialog(window)
 	}
 
-	@JvmStatic
-	fun warning( warning : String) = alert(Alert.AlertType.WARNING, true).apply {
-		headerText = warning
+	fun Dialog<*>.denyClose(blockExit: BooleanExpression) {
+		listOf(
+			DialogEvent.DIALOG_HIDING,
+			DialogEvent.DIALOG_HIDDEN,
+			DialogEvent.DIALOG_CLOSE_REQUEST,
+		).forEach { event ->
+			addEventFilter(event) {
+				if (blockExit.get())
+					it.consume()
+			}
+		}
+
 	}
 
 	internal fun Dialog<*>.setButtonText(vararg buttonToText: Pair<ButtonType, String?>) = buttonToText.toMap()
