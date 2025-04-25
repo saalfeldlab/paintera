@@ -149,7 +149,7 @@ private fun Model.makeSmoothDirectionButton(direction: SmoothDirection, hover: S
 	}
 }
 
-private enum class SmoothBehaviorUI(val direction: SmoothDirection, val makeNode: Model.() -> ToggleButton) {
+private enum class SmoothDirectionUI(val direction: SmoothDirection, val makeNode: Model.() -> ToggleButton) {
 	In(SmoothDirection.In, { makeSmoothDirectionButton(SmoothDirection.In, "Only Smooth in to the selected labels (Shrink)") }),
 	Out(SmoothDirection.Out, { makeSmoothDirectionButton(SmoothDirection.Out, "Only Smooth out from the selected labels (Grow)") }),
 	Both(SmoothDirection.Both, { makeSmoothDirectionButton(SmoothDirection.Both, "Smooth into and out from the selected labels (Grow and Shrink)") });
@@ -169,7 +169,7 @@ private enum class SmoothBehaviorUI(val direction: SmoothDirection, val makeNode
 				}
 				content = VBox(10.0).apply {
 					val toggleGroup = ToggleGroup()
-					children += SmoothBehaviorUI.entries
+					children += SmoothDirectionUI.entries
 						.map {
 							it.makeNode(state).apply {
 								this.toggleGroup = toggleGroup
@@ -280,8 +280,8 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 
 	init {
 		isFillWidth = true
+		children += SmoothDirectionUI.makeNode(model)
 		children += LabelSelectionUI.makeNode(model)
-		children += SmoothBehaviorUI.makeNode(model)
 		children += InfillStrategyUI.makeNode(model)
 
 		children += VBox(10.0).apply {
