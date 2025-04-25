@@ -3,6 +3,7 @@
     -accept: green;
     -reject: red;
     -refresh-blue: #2DA3FF;
+    -help-blue: #0078D7;
 }
 
 .glyph-icon {
@@ -32,6 +33,11 @@
 }
 
 .glyph-icon.refresh {
+    -icons-color: -refresh-blue;
+    -glyph-name: "REFRESH";
+}
+
+.glyph-icon.help {
     -icons-color: -refresh-blue;
     -glyph-name: "REFRESH";
 }
