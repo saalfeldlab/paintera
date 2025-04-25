@@ -26,9 +26,10 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.control.actions.paint.InfillStrategyUI.entries
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.finalizeSmoothing
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.scopeJob
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothJob
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothTaskLoop
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hGrow
@@ -141,12 +142,55 @@ private enum class InfillStrategyUI(val strategy: InfillStrategy, val makeNode: 
 	}
 }
 
+private fun Model.makeSmoothDirectionButton(direction: SmoothDirection, hover: String): RadioButton {
+	return RadioButton(direction.name).apply {
+		tooltip = Tooltip(hover)
+		onAction = EventHandler { smoothDirectionProperty.value = direction }
+	}
+}
+
+private enum class SmoothBehaviorUI(val direction: SmoothDirection, val makeNode: Model.() -> ToggleButton) {
+	In(SmoothDirection.In, { makeSmoothDirectionButton(SmoothDirection.In, "Only Smooth in to the selected labels (Shrink)") }),
+	Out(SmoothDirection.Out, { makeSmoothDirectionButton(SmoothDirection.Out, "Only Smooth out from the selected labels (Grow)") }),
+	Both(SmoothDirection.Both, { makeSmoothDirectionButton(SmoothDirection.Both, "Smooth into and out from the selected labels (Grow and Shrink)") });
+
+	companion object {
+
+		fun makeNode(state: Model) = let {
+			TitledPane("", null).apply titlePane@{
+				isExpanded = true
+				isCollapsible = false
+				graphic = HBox(5.0).hGrow {
+					minWidthProperty().bind(this@titlePane.widthProperty())
+					padding = Insets(0.0, 20.0, 0.0, 0.0)
+					alignment = Pos.CENTER
+					children += Label("Smooth Direction")
+					children += Pane().hGrow()
+				}
+				content = VBox(10.0).apply {
+					val toggleGroup = ToggleGroup()
+					children += SmoothBehaviorUI.entries
+						.map {
+							it.makeNode(state).apply {
+								this.toggleGroup = toggleGroup
+								if (state.smoothDirectionProperty.value == it.direction)
+									selectedProperty().set(true)
+							}
+						}.toTypedArray()
+				}
+			}
+
+		}
+	}
+}
+
 internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 
 	interface Model {
 
 		val labelSelectionProperty: ObjectProperty<LabelSelection>
 		val infillStrategyProperty: ObjectProperty<InfillStrategy>
+		val smoothDirectionProperty: ObjectProperty<SmoothDirection>
 		val replacementLabelProperty: LongProperty
 		val statusProperty: ObjectProperty<SmoothStatus>
 		val progressProperty: DoubleProperty
@@ -156,56 +200,60 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		val canApply: BooleanExpression
 		val canCancel: BooleanExpression
 
-
 		fun newId(): Long
 
-		fun getDialog(title: String = "Smooth Label") = Dialog<Boolean>().apply {
-			Paintera.registerStylesheets(dialogPane)
-			dialogPane.buttonTypes += ButtonType.APPLY
-			dialogPane.buttonTypes += ButtonType.CANCEL
-			this.title = title
-			this.dialogPane.content = SmoothLabelUI(this@Model)
+		companion object {
 
-			this.initAppDialog()
-			val cleanupOnDialogClose = {
-				scopeJob?.cancel()
-				smoothJob?.cancel()
-				close()
-			}
-			dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
-				val disableBinding = canApply.map { !it }
-				applyButton.disableProperty().bind(disableBinding)
-				applyButton.addEventFilter(ActionEvent.ACTION) { event ->
-					//So the dialog doesn't close until the smoothing is done
-					event.consume()
-					// but listen for when the smoothTask finishes
-					smoothJob?.invokeOnCompletion { cause ->
-						cause?.let {
-							cleanupOnDialogClose()
+			fun Model.getDialog(titleText: String = "Smooth Label"): Dialog<Boolean> {
+
+				return Dialog<Boolean>().apply {
+					Paintera.registerStylesheets(dialogPane)
+					dialogPane.buttonTypes += ButtonType.APPLY
+					dialogPane.buttonTypes += ButtonType.CANCEL
+					title = titleText
+					dialogPane.content = SmoothLabelUI(this@getDialog)
+
+					this.initAppDialog()
+					val cleanupOnDialogClose = {
+						smoothTaskLoop?.cancel()
+						close()
+					}
+					dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
+						val disableBinding = canApply.map { !it }
+						applyButton.disableProperty().bind(disableBinding)
+						applyButton.addEventFilter(ActionEvent.ACTION) { event ->
+							//So the dialog doesn't close until the smoothing is done
+							event.consume()
+							// but listen for when the smoothTask finishes
+							smoothTaskLoop?.invokeOnCompletion { cause ->
+								cause?.let {
+									cleanupOnDialogClose()
+								}
+							}
+							// indicate the smoothTask should try to apply the current smoothing mask to canvas
+							progressProperty.set(0.0)
+							finalizeSmoothing = true
 						}
 					}
-					// indicate the smoothTask should try to apply the current smoothing mask to canvas
-					progressProperty.set(0.0)
-					finalizeSmoothing = true
-				}
-			}
-			val cancelButton = dialogPane.lookupButton(ButtonType.CANCEL)
-			val disableBinding = canCancel.map { !it }
-			cancelButton.disableProperty().bind(disableBinding)
-			cancelButton.addEventFilter(ActionEvent.ACTION) { _ -> cleanupOnDialogClose() }
-			dialogPane.scene.window.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
-				if (event.code == KeyCode.ESCAPE && (statusProperty.value == SmoothStatus.Smoothing || (scopeJob?.isActive == true))) {
-					/* Cancel if still running */
-					event.consume()
-					scopeJob?.cancel("Escape Pressed")
-					progressProperty.set(0.0)
-				}
-			}
-			dialogPane.scene.window.setOnCloseRequest {
-				if (canCancel.value) {
-					cleanupOnDialogClose()
-				}
+					val cancelButton = dialogPane.lookupButton(ButtonType.CANCEL)
+					val disableBinding = canCancel.map { !it }
+					cancelButton.disableProperty().bind(disableBinding)
+					cancelButton.addEventFilter(ActionEvent.ACTION) { _ -> cleanupOnDialogClose() }
+					dialogPane.scene.window.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
+						if (event.code == KeyCode.ESCAPE && (statusProperty.value == SmoothStatus.Smoothing || (smoothJob?.isActive == true))) {
+							/* Cancel if still running */
+							event.consume()
+							smoothJob?.cancel("Escape Pressed")
+							progressProperty.set(0.0)
+						}
+					}
+					dialogPane.scene.window.setOnCloseRequest {
+						if (canCancel.value) {
+							cleanupOnDialogClose()
+						}
 
+					}
+				}
 			}
 		}
 	}
@@ -213,6 +261,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 	class Default : Model {
 		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveFragments)
 		override val infillStrategyProperty = SimpleObjectProperty(InfillStrategy.NearestLabel)
+		override val smoothDirectionProperty = SimpleObjectProperty(SmoothDirection.Both)
 		override val replacementLabelProperty = SimpleLongProperty(0L)
 
 		override val statusProperty = SimpleObjectProperty(SmoothStatus.Empty)
@@ -232,6 +281,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 	init {
 		isFillWidth = true
 		children += LabelSelectionUI.makeNode(model)
+		children += SmoothBehaviorUI.makeNode(model)
 		children += InfillStrategyUI.makeNode(model)
 
 		children += VBox(10.0).apply {
