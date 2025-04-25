@@ -2,7 +2,10 @@ package org.janelia.saalfeldlab.paintera.control.actions.paint
 
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.BooleanExpression
-import javafx.beans.property.*
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.ActionEvent
@@ -16,15 +19,13 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
 import javafx.scene.layout.VBox
 import javafx.util.converter.LongStringConverter
-import kotlinx.coroutines.delay
 import org.controlsfx.control.SegmentedButton
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.Companion.getReplaceIdSelectionButtons
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.entries
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.Companion.getReplaceTargetSelectionButtons
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.entries
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
@@ -59,27 +60,31 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 		fun fragmentsForSegment(segment: Long): LongArray
 		fun nextId(): Long
 
-		fun getDialog(dialogTitle: String) = PainteraAlerts.confirmation("_Apply", "_Cancel").apply {
-			title = dialogTitle
-			bindDialog(this)
-		}
+		companion object {
 
-		fun bindDialog(dialog: Dialog<ButtonType>) = dialog.dialogPane.apply {
-			content = ReplaceLabelUI(this@Model)
-			graphic = null
-			headerText = null
-			header = null
-
-			(lookupButton(ButtonType.OK) as? Button)?.apply {
-				disableProperty().unbind()
-				disableProperty().bind(canApply.not())
+			fun Model.getDialog(dialogTitle: String) = PainteraAlerts.confirmation("_Apply", "_Cancel").apply {
+				title = dialogTitle
+				bindDialog(this)
 			}
 
-			(lookupButton(ButtonType.CANCEL) as? Button)?.apply {
-				disableProperty().unbind()
-				disableProperty().bind(canCancel.not())
+			fun Model.bindDialog(dialog: Dialog<ButtonType>): DialogPane = dialog.dialogPane.apply {
+				content = ReplaceLabelUI(this@bindDialog)
+				graphic = null
+				headerText = null
+				header = null
+
+				(lookupButton(ButtonType.OK) as? Button)?.apply {
+					disableProperty().unbind()
+					disableProperty().bind(canApply.not())
+				}
+
+				(lookupButton(ButtonType.CANCEL) as? Button)?.apply {
+					disableProperty().unbind()
+					disableProperty().bind(canCancel.not())
+				}
 			}
 		}
+
 	}
 
 

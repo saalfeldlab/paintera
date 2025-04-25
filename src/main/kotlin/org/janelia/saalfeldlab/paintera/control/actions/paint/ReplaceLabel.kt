@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleStringProperty
@@ -26,6 +25,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
@@ -48,15 +48,14 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 		fun deleteMenu() = ReplaceLabel("_Delete Labels...", Mode.Delete)
 	}
 
-	private val LOG = KotlinLogging.logger { }
-
 	init {
 		verifyPermission(*mode.permissions)
 		onActionWithState({ ReplaceLabelState(mode) }) {
 			val title = "${mode.name} Labels"
-			val buttonType = getDialog(title).showAndWait().getOrNull()
-			if (buttonType != ButtonType.OK)
-				return@onActionWithState
+			getDialog(title).showAndWait()
+				.getOrNull()
+				.takeIf { it == ButtonType.OK }
+				?: return@onActionWithState
 
 			val replacementLabel = replacementLabelProperty.value ?: return@onActionWithState
 
