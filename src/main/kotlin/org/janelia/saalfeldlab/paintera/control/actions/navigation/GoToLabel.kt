@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
+import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.util.convert
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks

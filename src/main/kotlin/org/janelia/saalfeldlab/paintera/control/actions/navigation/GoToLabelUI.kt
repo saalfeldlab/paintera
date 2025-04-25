@@ -12,6 +12,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.hGrow
@@ -25,15 +26,18 @@ class GoToLabelUI(val model: Model) : VBox(5.0) {
 		val labelProperty: LongProperty
 		val activateLabelProperty: BooleanProperty
 
-		fun getDialog(dialogTitle: String = "Go To Label"): Alert {
-			return PainteraAlerts.confirmation("_Go", "_Cancel").apply {
-				title = dialogTitle
-				headerText = "Go to Label"
-				bindDialog(this)
+		companion object {
+
+			fun Model.getDialog(dialogTitle: String = "Go To Label"): Alert {
+				return PainteraAlerts.confirmation("_Go", "_Cancel").apply {
+					title = dialogTitle
+					headerText = "Go to Label"
+					bindDialog(this)
+				}
 			}
 		}
 
-		fun bindDialog(dialog: Dialog<ButtonType>)= dialog.apply {
+		fun bindDialog(dialog: Dialog<ButtonType>) = dialog.apply {
 			dialogPane.content = GoToLabelUI(this@Model)
 			(dialogPane.lookupButton(ButtonType.OK) as Button).apply {
 				val modelInvalid = labelProperty.map { it.toLong() < 0 }
