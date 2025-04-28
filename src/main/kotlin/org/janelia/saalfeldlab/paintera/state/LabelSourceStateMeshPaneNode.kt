@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
@@ -20,13 +19,14 @@ import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgressState
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 
 typealias TPE = TitledPaneExtensions
@@ -72,7 +72,10 @@ class LabelSourceStateMeshPaneNode(
 
 			val exportMeshButton = Button("Export all")
 			exportMeshButton.setOnAction { _ ->
-				val exportDialog = MeshExporterDialog(meshInfoList.meshInfos as ObservableList<MeshInfo<Long>>)
+				val model = MeshExportModel
+					.fromMeshInfos(*meshInfoList.meshInfos.toTypedArray())
+					.initFromProject()
+				val exportDialog = MeshExportDialog(model)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
 					manager.exportMeshWithProgressPopup(result.get())
