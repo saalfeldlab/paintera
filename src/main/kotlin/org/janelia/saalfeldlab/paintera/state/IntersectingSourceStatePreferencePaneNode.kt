@@ -13,7 +13,9 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController.Companion.addGridOption
 import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
 import org.janelia.saalfeldlab.util.Colors
 
 class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingSourceState<*, *>) {
@@ -44,12 +46,14 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 						exportMeshButton.setOnAction { _ ->
 							val manager = state.meshManager as MeshManagerWithSingleMesh<IntersectingSourceStateMeshCacheKey<*, *>>
 							val key = manager.meshKey!!
-							val exportDialog = MeshExporterDialog(MeshInfo(key, manager))
+							val model = MeshExportModel.fromMeshInfos(MeshInfo(key, manager))
+								.initFromProject()
+							val exportDialog = MeshExportDialog(model)
 							val result = exportDialog.showAndWait()
 							if (result.isPresent) {
 								manager.exportMeshWithProgressPopup(result.get())
 								result.get().run {
-									if (meshExporter.isCancelled()) return@run
+									if (meshExporter.isCancelled) return@run
 									(meshExporter as? MeshExporterObj<*>)?.run {
 										exportMaterial(filePath, arrayOf(""), arrayOf(Colors.toColor(state.converter().color)))
 									}

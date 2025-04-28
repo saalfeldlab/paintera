@@ -44,8 +44,8 @@ class SegmentMeshInfoList(
 		/*Trigger change listener for current list state */
 		val currentListChange = MultipleAdditionAndRemovedChange<Long>(selectedSegments.toList(), emptyList<Long>(), selectedSegments)
 		InvokeOnJavaFXApplicationThread {
-		listChangeListener.onChanged(currentListChange)
-	}
+			listChangeListener.onChanged(currentListChange)
+		}
 	}
 
 	override fun meshNodeFactory(meshInfo: SegmentMeshInfo) = SegmentMeshInfoNode(meshInfo)

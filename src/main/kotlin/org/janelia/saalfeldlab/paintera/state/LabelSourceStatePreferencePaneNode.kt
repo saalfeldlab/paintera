@@ -55,7 +55,7 @@ class LabelSourceStatePreferencePaneNode(
 	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
 	private val converter: HighlightingStreamConverter<*>,
 	private val meshManager: MeshManagerWithAssignmentForSegments,
-	private val brushProperties: BrushProperties?
+	private val brushProperties: BrushProperties?,
 ) {
 
 	private val stream = converter.stream
@@ -95,7 +95,7 @@ class LabelSourceStatePreferencePaneNode(
 	private class SelectedIdsNode(
 		private val selectedIds: SelectedIds?,
 		private val assignment: FragmentSegmentAssignmentState?,
-		private val selectedSegments: SelectedSegments
+		private val selectedSegments: SelectedSegments,
 	) {
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {

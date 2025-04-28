@@ -20,8 +20,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
 
@@ -90,12 +92,16 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		it.content = VBox(it.content).apply {
 			val exportMeshButton = Button("Export all")
 			exportMeshButton.setOnAction { _ ->
-				val exportDialog = MeshExporterDialog(MeshInfo(state.meshManager.meshKey, state.meshManager))
+				val meshInfo = MeshInfo(state.meshManager.meshKey, state.meshManager)
+				val model = MeshExportModel
+					.fromMeshInfos(meshInfo)
+					.initFromProject()
+				val exportDialog = MeshExportDialog(model)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
 					state.meshManager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
-						if (meshExporter.isCancelled()) return@run
+						if (meshExporter.isCancelled) return@run
 						(meshExporter as? MeshExporterObj<*>)?.run {
 							exportMaterial(filePath, arrayOf(""), arrayOf(state.colorProperty().get()))
 						}

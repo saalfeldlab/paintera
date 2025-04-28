@@ -35,8 +35,10 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignment
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExportResult
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import java.util.concurrent.CancellationException
 import kotlin.math.max
@@ -322,7 +324,10 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 	private fun createExportMeshButton(): Button {
 		val exportMeshButton = Button("Export")
 		exportMeshButton.setOnAction { event ->
-			val exportDialog = MeshExporterDialog(meshInfo)
+			val model = MeshExportModel
+				.fromMeshInfos(meshInfo)
+				.initFromProject()
+			val exportDialog = MeshExportDialog(model)
 			val result = exportDialog.showAndWait()
 			if (!result.isPresent) return@setOnAction
 
