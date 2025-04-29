@@ -21,7 +21,6 @@ import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -32,15 +31,16 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExportResult
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import java.util.concurrent.CancellationException
+import kotlin.jvm.optionals.getOrNull
 import kotlin.math.max
 import kotlin.math.min
 
@@ -57,7 +57,7 @@ class MeshSettingsController @JvmOverloads constructor(
 	private val drawMode: Property<DrawMode>,
 	private val cullFace: Property<CullFace>,
 	private val isVisible: BooleanProperty,
-	private val refreshMeshes: Runnable? = null
+	private val refreshMeshes: Runnable? = null,
 ) {
 
 	@JvmOverloads
@@ -113,9 +113,9 @@ class MeshSettingsController @JvmOverloads constructor(
 		withGridPane.invoke(contents) /* Used to add costume components to the GridPane */
 
 		val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				headerText = helpDialogSettings.headerText
-				contentText = helpDialogSettings.contentText
-			}
+			headerText = helpDialogSettings.headerText
+			contentText = helpDialogSettings.contentText
+		}
 
 		val tpGraphics = HBox(
 			Label(titledPaneGraphicsSettings.labelText),
@@ -144,7 +144,7 @@ class MeshSettingsController @JvmOverloads constructor(
 
 	data class HelpDialogSettings(
 		val headerText: String = "Mesh Settings",
-		val contentText: String = "TODO"
+		val contentText: String = "TODO",
 	)
 
 	data class TitledPaneGraphicsSettings(val labelText: String = "Mesh Settings")
@@ -333,13 +333,9 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 
 			val manager: MeshManager<T> = meshInfo.manager
 			val parameters = result.get()
-			manager.exportMeshWithProgressPopup(parameters)
-
 			val meshExporter = parameters.meshExporter
-
 			val ids = parameters.meshKeys
 			val filePath = parameters.filePath
-
 			if (meshExporter is MeshExporterObj) {
 				meshExporter.exportMaterial(
 					filePath,
@@ -347,6 +343,8 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 					arrayOf(meshInfo.manager.getStateFor(ids[0])?.color ?: Color.WHITE)
 				)
 			}
+			manager.exportMeshWithProgressPopup(parameters)
+
 		}
 		return exportMeshButton
 	}
@@ -357,29 +355,32 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 }
 
 private val LOG = KotlinLogging.logger { }
-fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>) {
+fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) {
 	val meshExporter = result.meshExporter
-	val blocksProcessed = meshExporter.blocksProcessed
 	val ids = result.meshKeys
 	if (ids.isEmpty()) return
-	val (getBlocks, getMesh) = when(this) {
+	val (getBlocks, getMesh) = when (this) {
 		is MeshManagerWithAssignmentForSegments -> getBlockListForSegment as GetBlockListFor<T> to getMeshForLongKey as GetMeshFor<T>
 		else -> getBlockListFor to getMeshFor
 	}
 	val totalBlocks = ids.sumOf { getBlocks.getBlocksFor(result.scale, it).count() }
-	val labelProp = SimpleStringProperty().apply {
-		bind(blocksProcessed.createNonNullValueBinding { "Blocks processed: ${it}/$totalBlocks" })
-	}
-	val progressProp = SimpleDoubleProperty(0.0).apply {
-		bind(blocksProcessed.createNonNullValueBinding { it.toDouble() / totalBlocks })
-	}
+
+	val labelProp = SimpleStringProperty()
+	val progressProp = SimpleDoubleProperty(0.0)
+
 	val progressUpdater = AnimatedProgressBarAlert(
 		"Export Mesh",
 		"Exporting Mesh",
 		labelProp,
 		progressProp
 	)
-	val exportJob = CoroutineScope(Dispatchers.Default).async {
+
+	val uiSubscription = meshExporter.blocksProcessed.subscribe { count ->
+		labelProp.set("Blocks processed: $count/$totalBlocks")
+		progressProp.set(count.toDouble() / totalBlocks)
+	}
+
+	val exportJob = CoroutineScope(Dispatchers.IO).async {
 		meshExporter.exportMesh(
 			getBlocks,
 			getMesh,
@@ -390,6 +391,7 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 		)
 	}
 	exportJob.invokeOnCompletion { cause ->
+		uiSubscription.unsubscribe()
 		cause?.let {
 			if (it is CancellationException) {
 				LOG.info { "Export Mesh Cancelled by User" }
@@ -405,10 +407,11 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 			}
 		} ?: progressUpdater.finish()
 	}
+
 	InvokeOnJavaFXApplicationThread {
 		if (exportJob.isActive) {
-			progressUpdater.showAndWait()
-			if (progressUpdater.cancelled)
+			val buttonType = progressUpdater.showAndWait().getOrNull()
+			if (buttonType == ButtonType.CANCEL || progressUpdater.cancelled)
 				meshExporter.cancel()
 		}
 
@@ -417,7 +420,7 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 
 abstract class MeshInfoList<T : MeshInfo<K>, K>(
 	protected val meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
-	manager: MeshManager<K>
+	manager: MeshManager<K>,
 ) : ListView<T>(meshInfoList) {
 
 

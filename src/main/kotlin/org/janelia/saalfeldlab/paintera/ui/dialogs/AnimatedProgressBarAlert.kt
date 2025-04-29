@@ -95,15 +95,13 @@ class AnimatedProgressBarAlert(
 	 * finish the progressBar and close the dialog
 	 *
 	 */
-	fun finish() = InvokeOnJavaFXApplicationThread {
-		progressBar.finish()
-	}
+	fun finish() = progressBar.finish()
 
 	/**
 	 * Stop progress at its current state without finishing and close the dialog
 	 *
 	 */
-	fun stopAndClose() = InvokeOnJavaFXApplicationThread {
+	fun stopAndClose() {
 		progressBar.stop()
 		close()
 	}
@@ -112,7 +110,7 @@ class AnimatedProgressBarAlert(
 	 * Stop progress without finishing, leave the dialog open, but allow it to be closed.
 	 *
 	 */
-	fun stop() = InvokeOnJavaFXApplicationThread {
+	fun stop() {
 		progressBar.stop()
 	}
 }
