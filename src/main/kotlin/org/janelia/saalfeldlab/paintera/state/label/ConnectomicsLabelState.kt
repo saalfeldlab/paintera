@@ -338,7 +338,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			converter(),
 			meshManager,
 			brushProperties
-		).node.let { if (it is VBox) it else VBox(it) }
+		).node.let { it as? VBox ?: VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
 
