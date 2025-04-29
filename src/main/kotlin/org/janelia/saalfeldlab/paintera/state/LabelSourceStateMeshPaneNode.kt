@@ -78,7 +78,6 @@ class LabelSourceStateMeshPaneNode(
 				val exportDialog = MeshExportDialog(model)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
-					manager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
 						if (meshExporter.isCancelled()) return@run
 
@@ -92,6 +91,7 @@ class LabelSourceStateMeshPaneNode(
 							exportMaterial(filePath, ids.map { it.toString() }.toTypedArray(), colors)
 						}
 					}
+					manager.exportMeshWithProgressPopup(result.get())
 				}
 			}
 

@@ -110,7 +110,13 @@ interface MeshExportModel<K> {
 		@JvmStatic
 		fun <K> fromMeshInfos(vararg meshInfos: MeshInfo<K>): Default<K> {
 			val map = meshInfos.associateBy { it.key }
-			return Default { map[it]!!.meshSettings }
+			val model = Default<K> { map[it]!!.meshSettings }
+			model.possibleMeshSelections.setAll(map.keys)
+
+			if (meshInfos.size == 1)
+				model.meshFileName.set(meshInfos[0].key.toString())
+
+			return model
 		}
 
 		@JvmStatic
@@ -210,7 +216,12 @@ class MeshExportDialog<K>(model: MeshExportModel<K>) : Dialog<MeshExportResult<K
 	}
 
 	init {
+		previousFilePath?.let {
+			model.outputDirectory.value = previousFilePath
+		}
+
 		title = "Export Meshes"
+		dialogPane.content = MeshExportUI(model)
 		dialogPane.buttonTypes += listOf(CANCEL, OK)
 		dialogPane.lookupButton(OK).disableProperty().bind(model.hasError)
 		initAppDialog()
@@ -221,10 +232,6 @@ class MeshExportDialog<K>(model: MeshExportModel<K>) : Dialog<MeshExportResult<K
 
 			previousFilePath = model.outputDirectory.value
 			model.getMeshExportResult()
-		}
-
-		previousFilePath?.let {
-			model.outputDirectory.value = previousFilePath
 		}
 	}
 

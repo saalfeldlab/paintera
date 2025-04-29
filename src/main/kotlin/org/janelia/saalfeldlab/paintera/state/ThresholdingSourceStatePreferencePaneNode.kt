@@ -99,13 +99,13 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 				val exportDialog = MeshExportDialog(model)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
-					state.meshManager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
 						if (meshExporter.isCancelled) return@run
 						(meshExporter as? MeshExporterObj<*>)?.run {
 							exportMaterial(filePath, arrayOf(""), arrayOf(state.colorProperty().get()))
 						}
 					}
+					state.meshManager.exportMeshWithProgressPopup(result.get())
 				}
 			}
 			val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }

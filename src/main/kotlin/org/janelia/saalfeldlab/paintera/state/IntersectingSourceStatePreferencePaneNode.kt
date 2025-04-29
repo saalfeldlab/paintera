@@ -51,13 +51,13 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 							val exportDialog = MeshExportDialog(model)
 							val result = exportDialog.showAndWait()
 							if (result.isPresent) {
-								manager.exportMeshWithProgressPopup(result.get())
 								result.get().run {
 									if (meshExporter.isCancelled) return@run
 									(meshExporter as? MeshExporterObj<*>)?.run {
 										exportMaterial(filePath, arrayOf(""), arrayOf(Colors.toColor(state.converter().color)))
 									}
 								}
+								manager.exportMeshWithProgressPopup(result.get())
 							}
 						}
 						val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }
