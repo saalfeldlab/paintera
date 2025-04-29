@@ -267,7 +267,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 	}
 
 	class Default : Model {
-		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveFragments)
+		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveSegments)
 		override val infillStrategyProperty = SimpleObjectProperty(InfillStrategy.NearestLabel)
 		override val smoothDirectionProperty = SimpleObjectProperty(SmoothDirection.Both)
 		override val replacementLabelProperty = SimpleLongProperty(0L)
