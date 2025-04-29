@@ -13,6 +13,7 @@ import net.imglib2.*
 import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.cache.img.CachedCellImg
+import net.imglib2.cache.img.DiskCachedCellImg
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.img.basictypeaccess.AccessFlags
@@ -73,6 +74,11 @@ internal enum class SmoothStatus(val text: String) {
 	Empty("             ")
 }
 
+internal enum class Resmooth {
+	Full,
+	Partial;
+}
+
 internal class SmoothLabelState<D, T> :
 	ViewerAndPaintableSourceActionState<ConnectomicsLabelState<D, T>, D, T>(),
 	SmoothLabelUI.Model by SmoothLabelUI.Default()
@@ -108,16 +114,24 @@ internal class SmoothLabelState<D, T> :
 	//  going back to higher resolution
 	internal val scaleLevel = 0
 
+	internal val timepoint = 0
+
+	private val activeFragments by lazy {
+		selectedIds.activeIds.toArray()
+	}
+
+	private val activeSegments by lazy {
+		val fragments = mutableSetOf<Long>()
+		with(paintContext.assignment) {
+			selectedIds.activeIds.toArray().map { getSegment(it) }.toSet().forEach { getFragments(it).forEach { fragments.add(it) } }
+		}
+		fragments.toLongArray()
+	}
+
 	val labelsToSmooth: LongArray
 		get() = when (labelSelectionProperty.get()) {
-			LabelSelection.ActiveFragments -> selectedIds.activeIds.toArray()
-			LabelSelection.ActiveSegments -> let {
-				val fragments = mutableSetOf<Long>()
-				with(paintContext.assignment) {
-					selectedIds.activeIds.toArray().map { getSegment(it) }.toSet().forEach { getFragments(it).forEach { fragments.add(it) } }
-				}
-				fragments.toLongArray()
-			}
+			LabelSelection.ActiveFragments -> activeFragments
+			LabelSelection.ActiveSegments -> activeSegments
 		}
 
 	override fun newId() = sourceState.idService.next()
@@ -156,8 +170,7 @@ internal class SmoothLabelState<D, T> :
 		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scaleLevel, it)).toList() }
 
 		/* Read from canvas access (if in canvas) */
-		val timePoint = 0
-		val cellGrid = maskedSource.getCellGrid(timePoint, scaleLevel)
+		val cellGrid = maskedSource.getCellGrid(timepoint, scaleLevel)
 		val cellIntervals = cellGrid.cellIntervals().randomAccess()
 		val cellPos = LongArray(cellGrid.numDimensions())
 		val blocksFromCanvas = labels.flatMap {
@@ -181,8 +194,7 @@ internal class SmoothLabelState<D, T> :
 				val height = it.viewer().height
 				val screenInterval = FinalInterval(width.toLong(), height.toLong(), 1L)
 				val sourceToGlobal = AffineTransform3D()
-				val time = 0
-				sourceState.getDataSource().getSourceTransform(time, scaleLevel, sourceToGlobal)
+				sourceState.getDataSource().getSourceTransform(timepoint, scaleLevel, sourceToGlobal)
 				val viewerToSource = sourceToGlobal.inverse().copy().concatenate(globalToViewerTransform.inverse())
 				viewerToSource.estimateBounds(screenInterval)
 			}.toTypedArray()
@@ -195,27 +207,16 @@ internal class SmoothLabelState<D, T> :
 			return
 		}
 		val smoothedInterval = intervals.reduce(Intervals::union)
-		val time = 0
-		val globalSmoothedInterval = dataSource.getSourceTransformForMask(MaskInfo(time, scaleLevel)).estimateBounds(smoothedInterval)
+		val globalSmoothedInterval = dataSource.getSourceTransformForMask(MaskInfo(timepoint, scaleLevel)).estimateBounds(smoothedInterval)
 		paintera.baseView.orthogonalViews().requestRepaint(globalSmoothedInterval)
 	}
 
-	fun updateSmoothMaskFunction(): suspend (Boolean) -> List<RealInterval> {
+	private val labelMask: DiskCachedCellImg<DoubleType, *> by LazyForeignValue(::labelsToSmooth) { labels ->
 
-		val maskedSource = dataSource as MaskedSource<*, *>
-		val labels = labelsToSmooth
+		val sourceImg = maskedSource.getReadOnlyDataBackground(timepoint, scaleLevel)
+		val canvasImg = maskedSource.getReadOnlyDataCanvas(timepoint, scaleLevel)
 
-
-		/* Read from the labelBlockLookup (if already persisted) */
-		val blocksWithLabel = blocksForLabels(scaleLevel, labels)
-		if (blocksWithLabel.isEmpty()) return { emptyList() }
-
-		val timePoint = 0
-		val sourceImg = maskedSource.getReadOnlyDataBackground(timePoint, scaleLevel)
-		val canvasImg = maskedSource.getReadOnlyDataCanvas(timePoint, scaleLevel)
-		val cellGrid = maskedSource.getCellGrid(timePoint, scaleLevel)
-
-		val labelMask = DiskCachedCellImgFactory(DoubleType(0.0)).create(sourceImg) { labelMaskChunk ->
+		DiskCachedCellImgFactory(DoubleType(0.0)).create(sourceImg) { labelMaskChunk ->
 			val sourceChunk = sourceImg.interval(labelMaskChunk).cursor()
 			val canvasChunk = canvasImg.interval(labelMaskChunk).cursor()
 			val maskCursor = labelMaskChunk.cursor()
@@ -229,61 +230,79 @@ internal class SmoothLabelState<D, T> :
 				label?.takeIf { it in labels }?.let { maskVal.set(1.0) }
 			}
 		}
+	}
 
-		val voronoiBackgroundLabel = IdService.randomTemporaryId()
-		val sqWeights = DataSource.getScale(maskedSource, timePoint, scaleLevel).also {
+	private val labelsImg: DiskCachedCellImg<UnsignedLongType, *> by lazy {
+		val sourceImg = maskedSource.getReadOnlyDataBackground(timepoint, scaleLevel)
+		val canvasImg = maskedSource.getReadOnlyDataCanvas(timepoint, scaleLevel)
+		sourceAndCanvasImg(sourceImg, canvasImg)
+	}
+
+	private val voronoiBackgroundLabel = IdService.randomTemporaryId()
+
+	fun mergeNearestLabelUnalignedGrids(labels: LongArray, sqWeights: DoubleArray, blocksWithLabel: List<Interval>, invert: Boolean = false): RandomAccessibleInterval<UnsignedLongType> {
+
+		val cellGrid = maskedSource.getCellGrid(timepoint, scaleLevel)
+		val smallGrid = cellGrid.cellDimensions.also { it.forEachIndexed { idx, value -> it[idx] = (value * .75).toInt() } }
+
+		val (nearestLabelsSmallGrid, distancesSmallGrid) = nearestLabelImgs(labelsImg, smallGrid, voronoiBackgroundLabel, blocksWithLabel, labels, sqWeights, invert)
+		val (nearestLabelsFullGrid, distancesFullGrid) = nearestLabelImgs(labelsImg, cellGrid.cellDimensions, voronoiBackgroundLabel, blocksWithLabel, labels, sqWeights, invert)
+
+		return DiskCachedCellImgFactory(
+			UnsignedLongType(Label.INVALID),
+			DiskCachedCellImgOptions.options().cellDimensions(*cellGrid.cellDimensions)
+		).create(labelsImg) { nearestLabelCell ->
+
+			val nearestLabelCursor = nearestLabelCell.cursor()
+			val labelSmallGridRa = nearestLabelsSmallGrid.randomAccess()
+			val labelFullGridRa = nearestLabelsFullGrid.randomAccess()
+			/* ensure the necessary cells have been processed before we use the distances */
+
+			labelFullGridRa.setPositionAndGet(*nearestLabelCell.minAsLongArray())
+			IntervalCorners.corners(nearestLabelCell).forEach { corner -> labelSmallGridRa.setPositionAndGet(*corner.map { it.toLong() }.toLongArray()) }
+
+			for (nearestLabel in nearestLabelCursor) {
+				val distFullGrid = distancesFullGrid.getAt(nearestLabelCursor).realDouble
+				if (distFullGrid == 0.0) //If either is 0.0, they should both be 0.0, so only need to check one
+					continue
+
+				val distSmallGrid = distancesSmallGrid.getAt(nearestLabelCursor).realDouble
+				val labelRa = if (distFullGrid < distSmallGrid) labelFullGridRa else labelSmallGridRa
+				val label = labelRa.setPositionAndGet(nearestLabelCursor)
+				nearestLabel.set(label)
+			}
+		}
+	}
+
+	fun updateSmoothMaskFunction(): suspend (Boolean, Resmooth) -> List<RealInterval> {
+
+		/* Read from the labelBlockLookup (if already persisted) */
+		val blocksWithLabel = blocksForLabels(scaleLevel, labelsToSmooth)
+		if (blocksWithLabel.isEmpty()) return { _, _ -> emptyList() }
+
+		val sqWeights = DataSource.getScale(maskedSource, timepoint, scaleLevel).also {
 			for ((index, weight) in it.withIndex()) {
 				it[index] = weight * weight
 			}
 		}
 
-		val smoothDirection = smoothDirectionProperty.get()
-		val smallGrid = cellGrid.cellDimensions.also { it.forEachIndexed { idx, value -> it[idx] = (value * .75).toInt() } }
-		val mergeNearestLabelUnalignedGrids: (Boolean) -> RandomAccessibleInterval<UnsignedLongType> = { invert ->
-			val (nearestLabelsSmallGrid, distancesSmallGrid) = nearestLabelImgs(sourceImg, canvasImg, smallGrid, voronoiBackgroundLabel, blocksWithLabel, labels, sqWeights, invert)
-			val (nearestLabelsFullGrid, distancesFullGrid) = nearestLabelImgs(sourceImg, canvasImg, cellGrid.cellDimensions, voronoiBackgroundLabel, blocksWithLabel, labels, sqWeights, invert)
-
-			DiskCachedCellImgFactory(
-				UnsignedLongType(Label.INVALID),
-				DiskCachedCellImgOptions.options().cellDimensions(*cellGrid.cellDimensions)
-			).create(sourceImg) { nearestLabelCell ->
-
-				val nearestLabelCursor = nearestLabelCell.cursor()
-				val labelSmallGridRa = nearestLabelsSmallGrid.randomAccess()
-				val labelFullGridRa = nearestLabelsFullGrid.randomAccess()
-				/* ensure the necessary cells have been processed before we use the distances */
-
-				labelFullGridRa.setPositionAndGet(*nearestLabelCell.minAsLongArray())
-				IntervalCorners.corners(nearestLabelCell).forEach { corner -> labelSmallGridRa.setPositionAndGet(*corner.map { it.toLong() }.toLongArray()) }
-
-				for (nearestLabel in nearestLabelCursor) {
-					val distFullGrid = distancesFullGrid.getAt(nearestLabelCursor).realDouble
-					if (distFullGrid == 0.0) //If either is 0.0, they should both be 0.0, so only need to check one
-						continue
-
-					val distSmallGrid = distancesSmallGrid.getAt(nearestLabelCursor).realDouble
-					val labelRa = if (distFullGrid < distSmallGrid) labelFullGridRa else labelSmallGridRa
-					val label = labelRa.setPositionAndGet(nearestLabelCursor)
-					nearestLabel.set(label)
-				}
-			}
+		val nearestLabels = mergeNearestLabelUnalignedGrids(labelsToSmooth, sqWeights, blocksWithLabel)
+		val nearestBackgroundLabels = smoothDirectionProperty.get().takeIf { it == SmoothDirection.Out || it == SmoothDirection.Both }?.let {
+			mergeNearestLabelUnalignedGrids(labelsToSmooth, sqWeights, blocksWithLabel, invert = true)
 		}
-
-		val invert = true
-		val nearestLabels = mergeNearestLabelUnalignedGrids(!invert)
-		val nearestBackgroundLabels = smoothDirection.takeIf { it == SmoothDirection.Out || it == SmoothDirection.Both }?.let { mergeNearestLabelUnalignedGrids(invert) }
-		return { preview -> smoothMask(labelMask, nearestLabels, nearestBackgroundLabels, blocksWithLabel, preview) }
+		return { preview, resmooth -> smoothMask(labelMask, nearestLabels, nearestBackgroundLabels, blocksWithLabel, preview, resmooth) }
 	}
 
 	private fun pruneBlock(blocksWithLabel: List<Interval>): List<RealInterval> {
 		val viewsInSourceSpace = viewerIntervalsInSourceSpace()
 
-		/* remove any blocks that don't intersect with them*/
-		return blocksWithLabel
-			.mapNotNull { it.takeIf { viewsInSourceSpace.any { viewer -> !Intervals.isEmpty(viewer.intersect(it)) } } }
-			.toList()
-
+		/* Only take blocks and their relevant slices (dilated) that intersect the screen */
+		return blocksWithLabel.filter {
+			viewsInSourceSpace.any { viewer -> !Intervals.isEmpty(viewer.intersect(it)) }
+		}
 	}
+
+	private var smoothImg: RandomAccessibleInterval<DoubleType>? = null
 
 	private suspend fun smoothMask(
 		labelMask: CachedCellImg<DoubleType, *>,
@@ -291,11 +310,14 @@ internal class SmoothLabelState<D, T> :
 		nearestBackgroundLabels: RandomAccessibleInterval<UnsignedLongType>?,
 		blocksWithLabel: List<Interval>,
 		preview: Boolean = false,
+		resmooth: Resmooth = Resmooth.Full,
 	): List<RealInterval> {
 
-		/* Just to show that smoothing has started */
-		progress = 0.0 // The listener only resets to zero if going backward, so do this first
-		progress = .05
+		if (resmooth == Resmooth.Full) {
+			/* Just to show that smoothing has started */
+			progress = 0.0 // The listener only resets to zero if going backward, so do this first
+			progress = .05
+		}
 
 		val intervalsToSmoothOver = if (preview) pruneBlock(blocksWithLabel) else blocksWithLabel
 
@@ -304,24 +326,24 @@ internal class SmoothLabelState<D, T> :
 		val sigma = DoubleArray(3) { kernelSize / levelResolution[it] }
 
 		val convolution = FastGauss.convolution(sigma)
-		val smoothedImg = DiskCachedCellImgFactory(DoubleType(0.0)).create(labelMask)
-
-		val time = 0
-		dataSource.resetMasks()
-		setNewSourceMask(dataSource, MaskInfo(time, scaleLevel)) { it >= 0 }
-		val mask = dataSource.currentMask
+		val smoothedImg = smoothImg?.takeUnless { resmooth == Resmooth.Full }
+			?: DiskCachedCellImgFactory(DoubleType(0.0)).create(labelMask)
+		smoothImg = smoothedImg
+		val mask = getNewSourceMask(dataSource, MaskInfo(timepoint, scaleLevel))
 		val smoothDirection = smoothDirectionProperty.get()
+		val threshold = smoothThresholdProperty.get()
+
 		val smoothIn = smoothDirection == SmoothDirection.In || smoothDirection == SmoothDirection.Both
 		val smoothOut = smoothDirection == SmoothDirection.Out || smoothDirection == SmoothDirection.Both
 		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
 			val nearestBackgroundLabelsAccess = nearestBackgroundLabels?.randomAccess()
 			flow {
 				val smoothedSlice = smoothedImg.interval(slice)
-				runCatching {
-					convolution.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
-				}.exceptionOrNull()
-					?.takeIf { it is RejectedExecutionException && isActive }
-					?.let { throw it }
+				if (resmooth == Resmooth.Full) {
+					runCatching { convolution.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice) }.exceptionOrNull()
+						?.takeIf { it is RejectedExecutionException && isActive }
+						?.let { throw it }
+				}
 				emit(0)
 
 				val labels = BundleView(labelMask).interval(slice).cursor()
@@ -348,22 +370,20 @@ internal class SmoothLabelState<D, T> :
 					val nearest = nearestLabelsCursor.next()
 					val maskPos = maskBundleCursor.next()
 					val maskVal = maskPos.get()
-					if (smoothness < 0.5 && smoothIn && wasLabel) {
-						val newLabel = when (infillStrategy) {
-							InfillStrategy.Replace -> replaceLabel
-							InfillStrategy.Background -> Label.BACKGROUND
-							InfillStrategy.NearestLabel -> nearest.get()
-						}
-						maskVal.set(newLabel)
-						continue
-					}
-					if (smoothness > 0.5 && smoothOut && !wasLabel) {
-						val newLabel = nearestBackgroundLabelsAccess!!.setPositionAndGet(nearestLabelsCursor)
-						maskVal.set(newLabel)
-						continue
-					}
-					if (maskVal.get() == replaceLabel)
-						maskVal.set(Label.INVALID)
+					when {
+						smoothness < (1 - threshold) && smoothIn && wasLabel ->
+							when (infillStrategy) {
+								InfillStrategy.Replace -> replaceLabel
+								InfillStrategy.Background -> Label.BACKGROUND
+								InfillStrategy.NearestLabel -> nearest.get()
+							}
+
+						smoothness > (1 - threshold) && smoothOut && !wasLabel ->
+							nearestBackgroundLabelsAccess!!.setPositionAndGet(nearestLabelsCursor).get()
+
+						maskVal.get() == replaceLabel -> Label.INVALID
+						else -> null
+					}?.let { newLabel -> maskVal.set(newLabel) }
 				}
 			}
 		}
@@ -377,16 +397,24 @@ internal class SmoothLabelState<D, T> :
 				launch {
 					var approachTotal = 0.0
 					smoothOverInterval(interval).collect { _ ->
-						val addProgress = (increment - approachTotal) * .25
-						approachTotal += addProgress
-						localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
-						SmoothScope.submitUI { progress = localProgress.get() }
+						if (resmooth == Resmooth.Full) {
+							val addProgress = (increment - approachTotal) * .25
+							approachTotal += addProgress
+							localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
+							SmoothScope.submitUI { progress = localProgress.get() }
+						}
 					}
 				}
 			}
 		}.apply {
 			invokeOnCompletion { cause ->
-				requestRepaintOverIntervals(intervalsToSmoothOver.map { it.smallestContainingInterval })
+				if (cause != null || resmooth == Resmooth.Full)
+					requestRepaintOverIntervals()
+				if (cause == null) {
+					maskedSource.resetMasks()
+					maskedSource.setMask(mask) { it >= 0 }
+					requestRepaintOverIntervals(intervalsToSmoothOver.map { it.smallestContainingInterval })
+				}
 				val finalProgress = when (cause) {
 					null -> 1.0
 					is CancellationException -> 0.0
@@ -401,11 +429,10 @@ internal class SmoothLabelState<D, T> :
 		return intervalsToSmoothOver
 	}
 
-	internal fun setNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo, acceptMaskValue: (Long) -> Boolean = { it >= 0 }) {
+	internal fun getNewSourceMask(maskedSource: MaskedSource<*, *>, maskInfo: MaskInfo): SourceMask {
 
 		val (store, volatileStore) = maskedSource.createMaskStoreWithVolatile(maskInfo.level)
-		val mask = SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
-		maskedSource.setMask(mask, acceptMaskValue)
+		return SourceMask(maskInfo, store, volatileStore.rai, store.cache, volatileStore.invalidate) { store.shutdown() }
 	}
 
 
@@ -413,9 +440,27 @@ internal class SmoothLabelState<D, T> :
 		private val AffineTransform3D.resolution
 			get() = doubleArrayOf(this[0, 0], this[1, 1], this[2, 2])
 
-		fun nearestLabelImgs(
+		fun sourceAndCanvasImg(
 			sourceLabels: RandomAccessibleInterval<out RealType<*>>,
 			canvasLabels: RandomAccessibleInterval<UnsignedLongType>,
+		): DiskCachedCellImg<UnsignedLongType, *> {
+			return DiskCachedCellImgFactory(UnsignedLongType()).create(sourceLabels) { cell ->
+
+				val canvasCursor = canvasLabels.interval(cell).cursor()
+				val sourceCursor = sourceLabels.interval(cell).cursor()
+				val cursor = cell.cursor()
+
+				while (canvasCursor.hasNext() && sourceCursor.hasNext() && cursor.hasNext()) {
+					val canvasLabel = canvasCursor.next()
+					val sourceLabel = sourceCursor.next()
+					val label = cursor.next()
+					label.set(canvasLabel.get().takeIf { it != Label.INVALID } ?: sourceLabel.realDouble.toLong())
+				}
+			}
+		}
+
+		fun nearestLabelImgs(
+			labelsImg: RandomAccessibleInterval<UnsignedLongType>,
 			cellDimensions: IntArray,
 			voronoiBackgroundLabel: Long,
 			blocksWithLabels: List<Interval>,
@@ -428,36 +473,33 @@ internal class SmoothLabelState<D, T> :
 				.accessFlags(setOf(AccessFlags.VOLATILE))
 				.cellDimensions(*cellDimensions)
 
-			val distances = DiskCachedCellImgFactory(DoubleType(), options).create(sourceLabels)
+			val distancesImg = DiskCachedCellImgFactory(DoubleType(), options).create(labelsImg)
 
-			val labelsImg = DiskCachedCellImgFactory(UnsignedLongType(Label.INVALID), options).create(sourceLabels) { nearestLabelCell ->
+			val voronoiLabelsImg = DiskCachedCellImgFactory(UnsignedLongType(Label.INVALID), options).create(labelsImg) { nearestLabelCell ->
 
 				if (!blocksWithLabels.any { (it intersect nearestLabelCell).isNotEmpty() })
 					return@create
 
-				val canvasCursor = canvasLabels.interval(nearestLabelCell).cursor()
-				val sourceCursor = sourceLabels.interval(nearestLabelCell).cursor()
+				val labelsCursor = labelsImg.interval(nearestLabelCell).cursor()
 				val voronoiCursor = nearestLabelCell.cursor()
-				val distanceRa = distances.randomAccess(nearestLabelCell)
+				val distanceRa = distancesImg.randomAccess(nearestLabelCell)
 
-				while (canvasCursor.hasNext() && sourceCursor.hasNext()) {
-					val canvasLabel = canvasCursor.next()
-					val sourceLabel = sourceCursor.next()
-					val label = canvasLabel.get().takeIf { it != Label.INVALID } ?: sourceLabel.realDouble.toLong()
+				while (labelsCursor.hasNext()) {
+					val label = labelsCursor.next().get()
 
 					val labelInLabels = label in labelsToSmooth
 					val acceptLabel = if (invert) !labelInLabels else labelInLabels
 
 					val finalLabel = if (acceptLabel) {
-						distanceRa.setPositionAndGet(canvasCursor).set(Double.MAX_VALUE)
+						distanceRa.setPositionAndGet(labelsCursor).set(Double.MAX_VALUE)
 						voronoiBackgroundLabel
 					} else label
 					voronoiCursor.next().set(finalLabel)
 				}
 
-				DistanceTransform.voronoiDistanceTransform(nearestLabelCell, distances.interval(nearestLabelCell), *sqWeights)
+				DistanceTransform.voronoiDistanceTransform(nearestLabelCell, distancesImg.interval(nearestLabelCell), *sqWeights)
 			}
-			return labelsImg to distances
+			return voronoiLabelsImg to distancesImg
 		}
 	}
 }

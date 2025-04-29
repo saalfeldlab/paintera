@@ -4,6 +4,7 @@
     -reject: red;
     -refresh-blue: #2DA3FF;
     -help-blue: #0078D7;
+    -reset-blue: #007BFF;
 }
 
 .glyph-icon {
@@ -37,7 +38,12 @@
     -glyph-name: "REFRESH";
 }
 
-.glyph-icon.help {
+.glyph-icon.reset {
     -icons-color: -refresh-blue;
+    -glyph-name: "UNDO";
+}
+
+.glyph-icon.help {
+    -icons-color: -help-blue;
     -glyph-name: "REFRESH";
 }

@@ -8,6 +8,7 @@ import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
+import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
@@ -15,15 +16,18 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import javafx.util.StringConverter
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import org.controlsfx.control.SegmentedButton
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.ui.NumberField
+import org.janelia.saalfeldlab.fx.ui.ObjectField.InvalidUserInput
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
+import org.janelia.saalfeldlab.paintera.Style.RESET_GLYPH
 import org.janelia.saalfeldlab.paintera.control.actions.paint.InfillStrategyUI.entries
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.finalizeSmoothing
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothJob
@@ -33,6 +37,9 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Mode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hGrow
+import org.janelia.saalfeldlab.paintera.ui.vGrow
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -195,6 +202,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		val statusProperty: ObjectProperty<SmoothStatus>
 		val progressProperty: DoubleProperty
 		val kernelSizeProperty: IntegerProperty
+		val smoothThresholdProperty: DoubleProperty
 		val minKernelSize: Int
 		val maxKernelSize: Int
 		val canApply: BooleanExpression
@@ -269,6 +277,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		override val canCancel = statusProperty.isNotEqualTo(SmoothStatus.Applying)
 		override val progressProperty = SimpleDoubleProperty(0.0)
 		override val kernelSizeProperty = SimpleIntegerProperty()
+		override val smoothThresholdProperty = SimpleDoubleProperty(0.5)
 		override val minKernelSize = 0
 		override val maxKernelSize = 100
 
@@ -285,15 +294,8 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		children += InfillStrategyUI.makeNode(model)
 
 		children += VBox(10.0).apply {
-			kernelSizeNodes().let { (label, textField, slider) ->
-				children += HBox(10.0, label, textField).apply {
-					alignment = Pos.CENTER_RIGHT
-				}
-				children += HBox(10.0, slider)
-				HBox.setHgrow(label, Priority.NEVER)
-				HBox.setHgrow(slider, Priority.ALWAYS)
-				HBox.setHgrow(textField, Priority.ALWAYS)
-			}
+			children += smoothThresholdNode()
+			children += kernelSizeNode()
 		}
 		children += HBox(10.0).apply {
 			children += Label().apply {
@@ -314,15 +316,23 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		}
 	}
 
-	private fun kernelSizeNodes(): KernelSizeNodes {
+	data class SliderWithTextInputNode(val label: Label, val resetBtn: Button, val textField: TextField, val slider: Slider) {
+
+		fun makeNode() = VBox(5.0).hGrow(Priority.ALWAYS) {
+			children += HBox(10.0, label.hGrow(Priority.NEVER), textField.hGrow(), resetBtn.hGrow(Priority.NEVER)).apply { alignment = Pos.CENTER_RIGHT }
+			children += HBox(10.0, slider.hGrow(Priority.ALWAYS))
+		}
+	}
+
+	private fun kernelSizeNode(): Node {
 
 		val label = Label("Kernel size (physical units)")
 
 		val minKernelSize = model.minKernelSize.toDouble()
 		val maxKernelSize = model.maxKernelSize.toDouble()
-		val kernelSize = model.kernelSizeProperty.get()
-		val kernelSizeSlider = Slider(log10(minKernelSize).coerceAtLeast(0.0), log10(maxKernelSize), log10(kernelSize.toDouble()))
-		val kernelSizeField = NumberField.intField(kernelSize, { it > 0.0 }, *SubmitOn.values())
+		val initialKernelSize = model.kernelSizeProperty.get()
+		val kernelSizeSlider = Slider(log10(minKernelSize).coerceAtLeast(0.0), log10(maxKernelSize), log10(initialKernelSize.toDouble()))
+		val kernelSizeField = NumberField.intField(initialKernelSize, { it > 0.0 }, *SubmitOn.values())
 
 		/* slider sets field */
 		kernelSizeSlider.valueProperty().subscribe { old, new ->
@@ -338,7 +348,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 			}
 		}
 
-		val prevStableKernelSize = SimpleIntegerProperty(kernelSize)
+		val prevStableKernelSize = SimpleIntegerProperty(initialKernelSize)
 
 		val stableKernelSizeBinding = Bindings
 			.`when`(kernelSizeSlider.valueChangingProperty().not())
@@ -352,10 +362,53 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 			prevStableKernelSize.value = kernelSize.toInt()
 		}
 
-		return KernelSizeNodes(label, kernelSizeField.textField, kernelSizeSlider)
+		val resetBtn = Button().apply {
+			styleClass += RESET_GLYPH
+			graphic = FontAwesome[FontAwesomeIcon.UNDO, 2.0]
+			setOnAction { kernelSizeField.valueProperty().set(initialKernelSize) }
+			tooltip = Tooltip("Reset Threshold")
+		}
+
+		return SliderWithTextInputNode(label, resetBtn, kernelSizeField.textField, kernelSizeSlider).makeNode()
 	}
 
-	private data class KernelSizeNodes(val label: Label, val textField: TextField, val slider: Slider)
+	private fun smoothThresholdNode(): Node {
+
+		val label = Label("Smooth Threshold")
+
+		val minThreshold = .001
+		val maxThreshold = .999
+		val threshold = model.smoothThresholdProperty.get()
+		val smoothThresholdSlider = Slider(minThreshold, maxThreshold, threshold)
+
+		val converter = object : StringConverter<Number>() {
+			override fun toString(`object`: Number?): String? {
+				`object` ?: return null
+				return BigDecimal(`object`.toDouble()).setScale(3, RoundingMode.HALF_UP).toString()
+			}
+
+			override fun fromString(string: String?): Number? {
+				string ?: return null
+				val value = BigDecimal(string).setScale(3, RoundingMode.HALF_UP).toDouble()
+				if (value <= minThreshold || value >= maxThreshold)
+					throw InvalidUserInput("Illegal value: $string")
+				return value
+			}
+		}
+		val smoothThresholdField = NumberField(SimpleDoubleProperty(threshold), converter, *SubmitOn.entries.toTypedArray())
+		/* slider and field set each other */
+		smoothThresholdSlider.valueProperty().bindBidirectional(smoothThresholdField.valueProperty())
+
+		model.smoothThresholdProperty.bind(smoothThresholdField.valueProperty())
+
+		val resetBtn = Button().apply {
+			styleClass += RESET_GLYPH
+			graphic = FontAwesome[FontAwesomeIcon.UNDO, 2.0]
+			setOnAction { smoothThresholdField.valueProperty().set(0.5) }
+			tooltip = Tooltip("Reset Threshold")
+		}
+		return SliderWithTextInputNode(label, resetBtn, smoothThresholdField.textField, smoothThresholdSlider).makeNode()
+	}
 }
 
 fun main() {
