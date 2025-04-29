@@ -20,13 +20,13 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 
 object SmoothLabel : MenuAction("_Smooth...") {
 
-	internal var smoothJob: Job? = null
+	internal var smoothJob: Deferred<List<Interval>?>? = null
 	internal var smoothTaskLoop: Deferred<List<Interval>?>? = null
 
 	internal var finalizeSmoothing = false
-	private var resmooth = false
+	private var resmooth : Resmooth? = null
 
-	private lateinit var updateSmoothMask: suspend ((Boolean) -> List<RealInterval>)
+	private lateinit var updateSmoothMask: suspend ((Boolean, Resmooth) -> List<RealInterval>)
 
 	internal object SmoothScope : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
 		private val updateOnPulse = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -88,51 +88,56 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun SmoothLabelState<*, *>.startSmoothTask() {
 		val prevScales = viewer.screenScales
-		val smoothTriggerListener = { reason: String ->
+		val smoothTriggerListener = { reason: String, type: Resmooth ->
 			Runnable {
-				resmooth = true
+				resmooth = type
 				smoothJob?.cancel()
 			}
 		}
 		var smoothTriggerSubscription: Subscription = Subscription.EMPTY
 
 		smoothTaskLoop = SmoothScope.async {
-			val kernelSizeChangeSubscription = kernelSizeProperty.subscribe(smoothTriggerListener("Kernel Size Changed"))
-			val replacementLabelChangeSubscription = replacementLabelProperty.subscribe(smoothTriggerListener("Replacement Label Changed"))
+			val kernelSizeChangeSubscription = kernelSizeProperty.subscribe(smoothTriggerListener("Kernel Size Changed", Resmooth.Full))
+			val replacementLabelChangeSubscription = replacementLabelProperty.subscribe(smoothTriggerListener("Replacement Label Changed", Resmooth.Partial))
 			val labelSelectionSubscription = labelSelectionProperty.subscribe { selection ->
 				smoothJob?.cancel()
 				smoothing = true
 				initializeSmoothLabel()
 				smoothing = false
 			}
-			val infillStrategyChangeSubscription = infillStrategyProperty.subscribe(smoothTriggerListener("Infill Strategy Changed"))
-			val smoothBehaviorChangeSubscription = smoothDirectionProperty.subscribe(smoothTriggerListener("Smooth Behavior Changed"))
+			val infillStrategyChangeSubscription = infillStrategyProperty.subscribe(smoothTriggerListener("Infill Strategy Changed", Resmooth.Partial))
+			val smoothDirectionChangeSubscription = smoothDirectionProperty.subscribe(smoothTriggerListener("Smooth Direction Changed", Resmooth.Partial))
+			val smoothThresholdChangeSubscription = smoothThresholdProperty.subscribe(smoothTriggerListener("Smooth Threshold Changed", Resmooth.Partial))
 
 			smoothTriggerSubscription.unsubscribe()
 			smoothTriggerSubscription = kernelSizeChangeSubscription
 				.and(replacementLabelChangeSubscription)
 				.and(infillStrategyChangeSubscription)
-				.and(smoothBehaviorChangeSubscription)
+				.and(smoothDirectionChangeSubscription)
+				.and(smoothThresholdChangeSubscription)
 				.and(labelSelectionSubscription)
 
 			paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 			var intervals: List<Interval>? = emptyList()
 			while (true) {
-				if (resmooth || finalizeSmoothing) {
+				val resmoothType = resmooth
+				if (resmoothType != null || finalizeSmoothing) {
 					val preview = !finalizeSmoothing
 					try {
 						smoothing = true
-						resmooth = false
-						smoothJob = SmoothScope.launch {
-							intervals = updateSmoothMask(preview).map { it.smallestContainingInterval }
+						resmooth = null
+						smoothJob = SmoothScope.async {
+							updateSmoothMask(preview, resmoothType!! ).map { it.smallestContainingInterval }
 						}
-						smoothJob?.join()
+						intervals = smoothJob?.await()
 						if (!preview)
 							break
 					} catch (_: CancellationException) {
 						intervals = null
-						dataSource.resetMasks()
-						paintera.baseView.orthogonalViews().requestRepaint()
+						if (resmoothType == Resmooth.Full) {
+							dataSource.resetMasks()
+							paintera.baseView.orthogonalViews().requestRepaint()
+						}
 					} finally {
 						smoothing = false
 						/* reset for the next loop */
@@ -169,6 +174,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	private fun SmoothLabelState<*, *>.initializeSmoothLabel() {
 
 		updateSmoothMask = updateSmoothMaskFunction()
-		resmooth = true
+		resmooth = Resmooth.Full
 	}
 }
