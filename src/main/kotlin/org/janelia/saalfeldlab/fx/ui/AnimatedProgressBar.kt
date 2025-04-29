@@ -7,6 +7,7 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.scene.control.ProgressBar
 import javafx.util.Duration
+import kotlinx.coroutines.cancel
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
 open class AnimatedProgressBar : ProgressBar() {
@@ -20,9 +21,11 @@ open class AnimatedProgressBar : ProgressBar() {
 	var reversible = false
 	var baseDuration: Duration = Duration.seconds(1.0)
 
+	private val conflatedPulseLoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
+
 	val progressTargetProperty: DoubleProperty = SimpleDoubleProperty().apply {
 		subscribe { progress ->
-			updateTimeline(progress.toDouble())
+			conflatedPulseLoop.submit { updateTimeline(progress.toDouble()) }
 		}
 	}
 
@@ -30,7 +33,7 @@ open class AnimatedProgressBar : ProgressBar() {
 	private var runningAverageBetweenUpdates = 0.0
 
 
-	protected open fun updateTimeline(newTarget: Double) = InvokeOnJavaFXApplicationThread {
+	protected open fun updateTimeline(newTarget: Double) {
 
 		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
 		runningAverageBetweenUpdates = runningAverageBetweenUpdates / 2.0 + thisPortion
@@ -40,14 +43,14 @@ open class AnimatedProgressBar : ProgressBar() {
 		val progressProperty = progressProperty()
 		if (newTarget == 0.0) {
 			progressProperty.value = 0.0
-			return@InvokeOnJavaFXApplicationThread
+			return
 		}
 
 
-		if (!reversible && newTarget <= progressProperty.get()) return@InvokeOnJavaFXApplicationThread
+		if (!reversible && newTarget <= progressProperty.get()) return
 
 		val resultDuration =
-			if (newTarget >= 1.0) Duration.seconds(.25)
+			if (newTarget >= 1.0) Duration.seconds(.1)
 			else baseDuration.add(Duration.millis(runningAverageBetweenUpdates))
 
 
@@ -60,11 +63,14 @@ open class AnimatedProgressBar : ProgressBar() {
 	}
 
 	fun finish() = InvokeOnJavaFXApplicationThread {
+		conflatedPulseLoop.cancel("Timeline Finished")
 		timeline.stop()
 		progressProperty().unbind()
 		progressProperty().value = 1.0
-		timeline.jumpTo(END_CUE)
 	}
 
-	fun stop() = timeline.stop()
+	fun stop() {
+		conflatedPulseLoop.cancel("Timeline Stopped")
+		timeline.stop()
+	}
 }
