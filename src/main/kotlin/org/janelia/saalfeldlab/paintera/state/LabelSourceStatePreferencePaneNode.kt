@@ -70,6 +70,7 @@ class LabelSourceStatePreferencePaneNode(
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
 				val segments = selectedSegments.getSelectedSegments().toArray().toList()
+
 				val toRemove = observableSelectedSegmentsList - segments
 				val toAdd = segments - observableSelectedSegmentsList
 				InvokeOnJavaFXApplicationThread {
@@ -78,6 +79,7 @@ class LabelSourceStatePreferencePaneNode(
 				}
 			}
 			selectedSegments.addListener(selectedSegmentUpdateListener)
+
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
@@ -390,7 +392,7 @@ class LabelSourceStatePreferencePaneNode(
 	private class MaskedSourceNode(
 		private val source: DataSource<*, *>,
 		private val brushProperties: BrushProperties,
-		private val refreshMeshes: () -> Unit
+		private val refreshMeshes: () -> Unit,
 	) {
 
 		val node: Node?
