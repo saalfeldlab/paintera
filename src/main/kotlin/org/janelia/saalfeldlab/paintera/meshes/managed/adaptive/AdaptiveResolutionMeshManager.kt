@@ -11,6 +11,7 @@ import javafx.beans.value.ObservableValue
 import javafx.scene.Group
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
@@ -20,7 +21,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Collections
@@ -45,28 +45,24 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val viewerEnabled: ObservableBooleanValue,
 	private val managers: ExecutorService,
 	private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-	private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>
+	private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>,
 ) {
 
 	// Avoid flooding the FX application thread with thousands of calls to cancelAndUpdate() and freezing the
-	// UI for tens of seconds. Really only the latest cancelAndUpdate() call matters
-	private val cancelAndUpdateRequestService = LatestTaskExecutor(
-		NamedThreadFactory("adaptive-resolution-meshmanager-cancel-and-update-%d", true)
-	)
+	// UI for tens of seconds. Really only the latest cancelAndUpdate() call matters and it does not have to
+	// happen at high frequency so we can run only on pulses.
+	private val cancelAndUpdateService = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
 
 	val meshesGroup = Group()
 	val rendererSettings = MeshManagerModel()
-	private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
-	private val isMeshesAndViewerEnabled: Boolean
-		get() = _meshesAndViewerEnabled.get()
+	private val meshesAndViewerEnabledBinding = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
+	private val isMeshesAndViewerEnabled by meshesAndViewerEnabledBinding.nonnullVal()
 
 	private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
 	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
 	private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
-	private val sceneUpdateService = LatestTaskExecutor(
-		NamedThreadFactory( "meshmanager-sceneupdate-%d", true )
-	)
+	private val sceneUpdateService = Executors.newSingleThreadExecutor(NamedThreadFactory("meshmanager-sceneupdate-%d", true))
 	private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
 	private var currentSceneUpdateTask: Future<*>? = null
 	private var scheduledSceneUpdateTask: Future<*>? = null
@@ -78,7 +74,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		get() = meshes.keys.toList()
 
 	init {
-		viewFrustum.addListener { _ -> requestCancelAndUpdate() }
+		viewFrustum.addListener { _ -> cancelAndUpdate() }
 		rendererSettings.blockSizeProperty.addListener { _: Observable? ->
 			synchronized(this) {
 				rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty.get())
@@ -104,17 +100,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	}
 
 	@Synchronized
-	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
-
-	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshFor(key, BiConsumer { key, state -> releaseState(key, state) })
+	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
 	@Synchronized
-	fun removeMeshFor(key: ObjectKey, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>): MeshGenerator.State? {
+	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
 		return meshes.remove(key)?.let { generator ->
 			generator.interrupt()
 			generator.unbindFromThis()
 			generator.root.visibleProperty().unbind()
-			releaseState.accept(key, generator.state)
+			releaseState(key, generator.state)
 			InvokeOnJavaFXApplicationThread {
 				generator.root.isVisible = false
 				meshesGroup.children -= generator.root
@@ -123,17 +117,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		}
 	}
 
-	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshesFor(keys, BiConsumer { key, state -> releaseState(key, state) })
-
 	@Synchronized
-	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: BiConsumer<ObjectKey, MeshGenerator.State>) {
+	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) {
 		val keysAndGenerators = synchronized(this) { keys.map { it to meshes.remove(it) } }
 		val roots = keysAndGenerators.mapNotNull { (key, generator) ->
 			generator?.run {
 				interrupt()
 				unbindFromThis()
 				root?.visibleProperty()?.unbind()
-				releaseState.accept(key, state)
+				releaseState(key, state)
 				root
 			}
 		}
@@ -145,25 +137,25 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		}
 	}
 
-	fun removeAllMeshes(releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeAllMeshes(BiConsumer { key, state -> releaseState(key, state) })
-
-	fun removeAllMeshes(releaseState: BiConsumer<ObjectKey, MeshGenerator.State>) = removeMeshesFor(allMeshKeys, releaseState)
+	fun removeAllMeshes(releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshesFor(allMeshKeys, releaseState)
 
 	fun createMeshFor(
 		key: ObjectKey,
 		cancelAndUpdate: Boolean,
 		state: MeshGenerator.State = MeshGenerator.State(),
-		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit
-	) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(key, it) })
+		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit,
+	): Boolean {
+		return createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(key, it) })
+	}
 
 	@JvmOverloads
 	fun createMeshFor(
 		key: ObjectKey,
 		cancelAndUpdate: Boolean,
 		state: MeshGenerator.State? = MeshGenerator.State(),
-		stateSetup: Consumer<MeshGenerator.State> = Consumer {}
+		stateSetup: Consumer<MeshGenerator.State> = Consumer {},
 	): Boolean {
-		if (state === null) return false
+		if (state == null) return false
 		val meshGenerator = synchronized(this) {
 			if (key in meshes) return false
 			stateSetup.accept(state)
@@ -191,7 +183,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			meshesGroup.children += meshGenerator.root
 			// TODO is this cancelAndUpdate necessary?
 			if (cancelAndUpdate)
-				requestCancelAndUpdate()
+				cancelAndUpdate()
 		}
 		return true
 	}
@@ -202,7 +194,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	@Synchronized
 	fun getStateFor(key: ObjectKey) = meshes[key]?.state
 
-	fun requestCancelAndUpdate() = this.cancelAndUpdateRequestService.execute { InvokeOnJavaFXApplicationThread { cancelAndUpdate() } }
+	fun requestCancelAndUpdate() = cancelAndUpdateService.submit { cancelAndUpdate() }
 
 	@Synchronized
 	private fun cancelAndUpdate() {
@@ -224,7 +216,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		val needToSubmit = sceneUpdateParametersProperty.get() == null
 		sceneUpdateParametersProperty.set(sceneUpdateParameters)
 		if (needToSubmit && !managers.isShutdown)
-			assert(scheduledSceneUpdateTask === null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
+			assert(scheduledSceneUpdateTask == null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
 		scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
 	}
 
@@ -273,10 +265,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				for ((blockTreeParametersKey, value) in blockTreeParametersKeysToMeshGenerators) {
 					val sceneBlockTreeForKey =
 						sceneBlockTrees[blockTreeParametersKey]
-					for (meshGenerator in value) meshGenerator.update(
-						sceneBlockTreeForKey,
-						sceneUpdateParameters.rendererGrids
-					)
+					for (meshGenerator in value)
+						meshGenerator.update(sceneBlockTreeForKey, sceneUpdateParameters.rendererGrids)
 				}
 			}
 		} finally {
@@ -289,14 +279,14 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
 		// Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
 		val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
-		_meshesAndViewerEnabled.addListener(listener)
+		meshesAndViewerEnabledBinding.addListener(listener)
 		meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
 	}
 
 	@Synchronized
 	private fun MeshGenerator<ObjectKey>.unbindFromThis() {
 		this.state.showBlockBoundariesProperty().unbind()
-		meshesAndViewerEnabledListenersInterruptGeneratorMap.remove(this)?.let { _meshesAndViewerEnabled.removeListener(it) }
+		meshesAndViewerEnabledListenersInterruptGeneratorMap.remove(this)?.let { meshesAndViewerEnabledBinding.removeListener(it) }
 	}
 
 	companion object {

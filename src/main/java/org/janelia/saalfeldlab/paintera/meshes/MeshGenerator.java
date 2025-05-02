@@ -154,28 +154,6 @@ public class MeshGenerator<T> {
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
-			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
-
-		this(
-				numScaleLevels,
-				segmentId,
-				getBlockLists,
-				getMeshes,
-				meshViewUpdateQueue,
-				unshiftedWorldTransforms,
-				managers,
-				workers,
-				new State());
-	}
-
-	public MeshGenerator(
-			final int numScaleLevels,
-			final T segmentId,
-			final GetBlockListFor<T> getBlockLists,
-			final GetMeshFor<T> getMeshes,
-			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
-			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
-			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final State state) {
 
@@ -186,8 +164,8 @@ public class MeshGenerator<T> {
 		this.updateInvalidationListener = obs -> {
 			synchronized (this) {
 				sceneUpdateParameters = new SceneUpdateParameters(
-						sceneUpdateParameters != null ? sceneUpdateParameters.sceneBlockTree : null,
-						sceneUpdateParameters != null ? sceneUpdateParameters.rendererGrids : null,
+						sceneUpdateParameters == null ? null : sceneUpdateParameters.sceneBlockTree,
+						sceneUpdateParameters == null ? null : sceneUpdateParameters.rendererGrids,
 						this.state.settings.getSimplificationIterations(),
 						this.state.settings.getSmoothingLambda(),
 						this.state.settings.getSmoothingIterations(),
