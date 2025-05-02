@@ -1,19 +1,16 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh
 
-import javafx.animation.AnimationTimer
 import javafx.css.PseudoClass
-import javafx.scene.control.Tooltip
 import javafx.util.Subscription
-import org.controlsfx.control.StatusBar
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.paintera.meshes.MeshProgressState
 
-class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSEC) : StatusBar() {
-	private val statusToolTip = Tooltip()
+class MeshProgressBar : AnimatedProgressBar() {
 	private var meshProgress: MeshProgressState? = null
-	private var progressBarUpdater: AnimationTimer? = null
+	private var subscription : Subscription? = null
 
 	init {
-		tooltip = statusToolTip
 		setCssProperties()
 	}
 
@@ -26,54 +23,33 @@ class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSE
 	}
 
 	fun bindTo(meshProgress: MeshProgressState) {
-		unbind()
+		/* don't rebind if already bound */
+		if (meshProgress == this.meshProgress)
+			return
+
+		subscription?.unsubscribe()
 		this.meshProgress = meshProgress
-
-		progressBarUpdater = createAnimationTimer(meshProgress)
-	}
-
-	private fun createAnimationTimer(meshProgress: MeshProgressState): AnimationTimer {
-
-		return object : AnimationTimer() {
-			private var subscription: Subscription? = null
-			var lastUpdate: Long = -1L
-			var handleUpdate: Boolean = false
-
-			init {
-				start()
-				subscription = meshProgress.totalNumTasksProperty.subscribe { it ->
-					val numTasks = it.toInt()
-					handleUpdate = numTasks > 0 && meshProgress.numCompletedTasks < numTasks
-				}
-			}
-
-			override fun stop() {
-				super.stop()
-				subscription?.unsubscribe()
-				subscription = null
-			}
-
-			override fun handle(now: Long) {
-
-				if (handleUpdate && now - lastUpdate > updateIntervalMsec) {
-					lastUpdate = now
-					val numTotalTasks = meshProgress.numTotalTasks
-					val numCompletedTasks = meshProgress.numCompletedTasks
-
-					progress = numCompletedTasks.toDouble() / numTotalTasks
-					statusToolTip.text = "$numCompletedTasks/$numTotalTasks"
-				}
-			}
+		val progressBinding = meshProgress.totalNumTasksProperty.createNonNullValueBinding(meshProgress.completedNumTasksProperty) {
+			meshProgress.numTotalTasks.takeIf { it > 0 }?.let {
+				meshProgress.numCompletedTasks.toDouble() / it
+			} ?: 1.0
 		}
+		progressTargetProperty.bind(progressBinding)
+		subscription = Subscription {
+			subscription = null
+			unbind()
+		}
+
 	}
 
 	fun unbind() {
-		progressBarUpdater?.stop()
-		meshProgress = null
-		progress = 1e-7
-	}
+		if (subscription == null)
+			return
 
-	companion object {
-		const val UPDATE_INTERVAL_MSEC: Long = 100
+		subscription = null
+		stop()
+		progressTargetProperty.unbind()
+		meshProgress = null
+		progress = Double.MIN_VALUE
 	}
 }

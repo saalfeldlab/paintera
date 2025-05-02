@@ -1,14 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import net.imglib2.type.label.LabelMultisetType
@@ -26,8 +24,9 @@ import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
-import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
+import kotlin.jvm.optionals.getOrNull
 
 typealias TPE = TitledPaneExtensions
 
@@ -46,7 +45,6 @@ class LabelSourceStateMeshPaneNode(
 			source.dataType is LabelMultisetType,
 			manager.managedSettings.meshesEnabledProperty,
 			titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
-			helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
 		)
 		with(tp.content.asVBox()) {
 			tp.content = this
@@ -75,11 +73,11 @@ class LabelSourceStateMeshPaneNode(
 				val model = MeshExportModel
 					.fromMeshInfos(*meshInfoList.meshInfos.toTypedArray())
 					.initFromProject()
-				val exportDialog = MeshExportDialog(model)
-				val result = exportDialog.showAndWait()
-				if (result.isPresent) {
-					result.get().run {
-						if (meshExporter.isCancelled()) return@run
+				MeshExportDialog(model)
+					.showAndWait()
+					.getOrNull()?.apply {
+
+						if (meshExporter.isCancelled) return@apply
 
 						val ids = meshKeys.toTypedArray()
 						val meshSettings = ids.map { manager.getSettings(it) }.toTypedArray()
@@ -90,9 +88,8 @@ class LabelSourceStateMeshPaneNode(
 							}.toTypedArray()
 							exportMaterial(filePath, ids.map { it.toString() }.toTypedArray(), colors)
 						}
+						manager.exportMeshWithProgressPopup(this)
 					}
-					manager.exportMeshWithProgressPopup(result.get())
-				}
 			}
 
 			val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }
@@ -101,17 +98,11 @@ class LabelSourceStateMeshPaneNode(
 
 			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(manager.managedSettings.isMeshListEnabledProperty) }
 
-			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				headerText = "Mesh List."
-				contentText = "TODO"
-			}
-
 			val tpGraphics = HBox(
 				10.0,
 				Label("Mesh List"),
-				totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
-				isMeshListEnabledCheckBox,
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+				totalProgressBar.hGrow(),
+				isMeshListEnabledCheckBox
 			).apply {
 				minWidthProperty().set(0.0)
 				alignment = Pos.CENTER_LEFT
@@ -131,7 +122,7 @@ class LabelSourceStateMeshPaneNode(
 
 		private val LOG = KotlinLogging.logger { }
 
-		private fun Node.asVBox() = if (this is VBox) this else VBox(this)
+		private fun Node.asVBox() = this as? VBox ?: VBox(this)
 
 	}
 

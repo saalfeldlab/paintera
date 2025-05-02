@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
 class IndividualMeshProgressState : MeshProgressState() {
 

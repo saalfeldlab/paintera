@@ -29,7 +29,6 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 				children += MeshSettingsController(settings, state::refreshMeshes).createTitledPane(
 					false,
 					manager.managedSettings.meshesEnabledProperty,
-					MeshSettingsController.HelpDialogSettings("Meshes"),
 					MeshSettingsController.TitledPaneGraphicsSettings("Meshes")
 				) {
 					val conversionBinding = state.converter().colorProperty().createNullableValueBinding { Colors.toColor(it) }
@@ -38,7 +37,6 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 							state.converter().color = Colors.toARGBType(new)
 						}
 					}
-
 					addGridOption("Color", colorPicker)
 				}.also {
 					it.content = VBox(it.content).apply {

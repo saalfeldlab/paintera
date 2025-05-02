@@ -87,7 +87,6 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		false,
 		state.meshManager.managedSettings.meshesEnabledProperty,
 		titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
-		helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
 	).also {
 		it.content = VBox(it.content).apply {
 			val exportMeshButton = Button("Export all")

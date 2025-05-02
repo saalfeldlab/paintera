@@ -415,7 +415,7 @@ public class MeshGeneratorJobManager<T> {
 
 		// Update the blocks according to the new tree node states and submit top-level tasks
 		final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
-		//noinspection CodeBlock2Expr
+//		noinspection CodeBlock2Expr
 		blockTree.getRootKeys().forEach(rootKey -> {
 			blockTree.traverseSubtree(rootKey, (key, node) -> {
 				if (node.state == BlockTreeNodeState.REPLACED) {
