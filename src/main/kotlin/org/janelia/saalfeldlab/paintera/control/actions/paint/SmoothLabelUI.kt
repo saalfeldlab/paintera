@@ -37,7 +37,6 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Mode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hGrow
-import org.janelia.saalfeldlab.paintera.ui.vGrow
 import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlin.math.log10
@@ -224,7 +223,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 					this.initAppDialog()
 					val cleanupOnDialogClose = {
 						smoothTaskLoop?.cancel()
-						close()
+						InvokeOnJavaFXApplicationThread { close() }
 					}
 					dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
 						val disableBinding = canApply.map { !it }
@@ -256,10 +255,8 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 						}
 					}
 					dialogPane.scene.window.setOnCloseRequest {
-						if (canCancel.value) {
+						if (canCancel.value)
 							cleanupOnDialogClose()
-						}
-
 					}
 				}
 			}
