@@ -7,11 +7,7 @@ import javafx.collections.FXCollections
 import javafx.collections.MapChangeListener
 import javafx.collections.ObservableList
 import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.MenuButton
-import javafx.scene.control.ProgressIndicator
-import javafx.scene.control.TextField
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
@@ -24,10 +20,10 @@ class OpenSourceNode(
 	openSourceState: OpenSourceState,
 	containerLocationNode: TextField,
 	browseNode: Node,
-	isBusy: BooleanExpression
+	isBusy: BooleanExpression,
 ) : GridPane() {
 
-	var resetAction : ((String) -> Unit)? = null
+	var resetAction: ((String) -> Unit)? = null
 
 	init {
 		/* Create the grid and add the root node */
@@ -78,7 +74,7 @@ class OpenSourceNode(
 
 
 			val dropDownMenuButton = MatchSelectionMenuButton(choices, null, null) { selection ->
-				activeNodeProperty.set(validDatasets.get()[selection])
+				activeNode = validDatasets.get()[selection]
 			}.apply {
 				cutoff = 50
 

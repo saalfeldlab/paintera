@@ -52,7 +52,7 @@ class OpenSourceState {
 
 	val activeNodeProperty = SimpleObjectProperty<N5TreeNode?>()
 	var activeNode by activeNodeProperty.nullable()
-	val activeMetadataProperty = activeNodeProperty.map {it as? SpatialMetadata }!!
+	val activeMetadataProperty = activeNodeProperty.map {it?.metadata as? SpatialMetadata }!!
 
 	val resolutionProperty = SimpleObjectProperty<DoubleArray?>()
 	var resolution by resolutionProperty.nullable()
@@ -66,7 +66,7 @@ class OpenSourceState {
 	val maxIntensityProperty = SimpleDoubleProperty(255.0)
 	var maxIntensity by maxIntensityProperty.nonnull()
 
-	val metadataStateBinding = activeMetadataProperty.createObservableBinding {
+	val metadataStateBinding = activeMetadataProperty.createObservableBinding(containerStateProperty) {
 		val metadata = activeMetadataProperty.value ?: return@createObservableBinding null
 		val container = containerStateProperty.value ?: return@createObservableBinding null
 
