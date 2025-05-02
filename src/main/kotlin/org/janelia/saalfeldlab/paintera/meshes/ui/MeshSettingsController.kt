@@ -285,7 +285,7 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 				content = createMeshInfoGrid()
 			}
 		}
-		graphic = HBox(10.0, Label("${meshInfo.key}"), progressBar.hGrow()).apply {
+		graphic = HBox(10.0, Label("${meshInfo.key}").hGrow { maxWidth = Double.MAX_VALUE }, progressBar.hGrow()).apply {
 			minWidthProperty().set(0.0)
 			alignment = Pos.CENTER_LEFT
 			isFillHeight = true

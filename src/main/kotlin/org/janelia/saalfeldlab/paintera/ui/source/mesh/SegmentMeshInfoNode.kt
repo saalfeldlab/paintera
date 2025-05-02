@@ -8,15 +8,14 @@ import javafx.scene.layout.Priority
 import org.fxmisc.flowless.VirtualizedScrollPane
 import org.fxmisc.richtext.InlineCssTextArea
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshInfoPane
 
-class SegmentMeshInfoNode(private val meshInfo: SegmentMeshInfo) : MeshInfoPane<Long>(meshInfo) {
+class SegmentMeshInfoNode(private val segmentMeshInfo: SegmentMeshInfo) : MeshInfoPane<Long>(segmentMeshInfo) {
 
     override fun createMeshInfoGrid(grid: GridPane): GridPane {
 
-        val textIds = InlineCssTextArea(meshInfo.fragments().contentToString())
+        val textIds = InlineCssTextArea(segmentMeshInfo.fragments().contentToString())
         val virtualPane = VirtualizedScrollPane(textIds)
         textIds.isWrapText = true
 
