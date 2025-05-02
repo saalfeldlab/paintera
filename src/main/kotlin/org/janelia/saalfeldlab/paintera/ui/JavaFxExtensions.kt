@@ -6,6 +6,7 @@ import javafx.scene.layout.HBox.setHgrow
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox.setVgrow
 import javafx.util.StringConverter
+import java.math.RoundingMode
 
 
 class PositiveLongTextFormatter(initialValue: Long? = null, customMapping: ((String?) -> String?)? = null) : TextFormatter<Long?>(
@@ -28,16 +29,30 @@ class PositiveLongTextFormatter(initialValue: Long? = null, customMapping: ((Str
 	}
 )
 
-class PositiveDoubleTextFormatter(initialValue: Double? = null, format: String? = "%.3f") : TextFormatter<Double>(
+class PositiveDoubleTextFormatter(initialValue: Double? = null, format: (Double) -> String = ::defaultFormat) : TextFormatter<Double>(
 	object : StringConverter<Double>() {
-		override fun toString(`object`: Double?) = `object`?.takeIf { it >= 0 }?.let { format?.format(it) ?: "$it" }
+		override fun toString(`object`: Double?) = `object`?.takeIf { it >= 0 }?.let { format(it) }
 		override fun fromString(string: String?) = string?.toDoubleOrNull()
 	},
 	initialValue,
-	{ it.apply { if (controlNewText?.toDoubleOrNull() == null) text = "" } }
-)
+	{ it.apply { controlNewText?.toDoubleWithLeadingDecimalOrNull() ?: let { text = "" } } }
+) {
+	companion object {
 
-fun <T : Node> T.hGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { } ): T {
+		private fun String.toDoubleWithLeadingDecimalOrNull() = (takeUnless { it.startsWith(".") } ?: "0$this").toDoubleOrNull()
+
+		private fun defaultFormat(value: Double): String {
+			return value.toBigDecimal()
+				.setScale(3, RoundingMode.HALF_UP)
+				.toString()
+				.trimTrailingZeros()
+		}
+
+		private fun String.trimTrailingZeros(): String = replace("\\.?0+$".toRegex(), "")
+	}
+}
+
+fun <T : Node> T.hGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { }): T {
 	setHgrow(this, priority)
 	apply?.invoke(this)
 	return this
