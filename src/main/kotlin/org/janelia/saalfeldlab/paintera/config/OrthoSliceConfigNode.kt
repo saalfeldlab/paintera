@@ -26,7 +26,7 @@ class OrthoSliceConfigNode() {
 
 	private val showOrthoViews = CheckBox()
 
-	private val opacitySlider = NumericSliderWithField(0.0, 1.0, 1.0)
+	private val opacitySlider = NumericSliderWithField(0.0, 0.5, 1.0)
 
 	private val shadingSlider = NumericSliderWithField(0.0, 1.0, 0.1)
 
