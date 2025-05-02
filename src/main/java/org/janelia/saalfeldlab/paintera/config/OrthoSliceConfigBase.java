@@ -15,7 +15,7 @@ public class OrthoSliceConfigBase {
 
 	private final SimpleBooleanProperty showBottomLeft = new SimpleBooleanProperty(true);
 
-	private final SimpleDoubleProperty opacity = new SimpleDoubleProperty(1.0);
+	private final SimpleDoubleProperty opacity = new SimpleDoubleProperty(0.5);
 
 	private final SimpleDoubleProperty shading = new SimpleDoubleProperty(0.1);
 

@@ -57,7 +57,7 @@ object DataSourceDialogs {
 			headerText = "Define label-to-block-lookup for on-the-fly mesh generation"
 			dialogPane.content = TextArea(
 				"""
-					Could not deserialize label-to-block-lookup for dataset `$group` in N5 container `$reader` that is required for on-the-fly mesh generation. 
+					Could not deserialize label-to-block-lookup for dataset `$group` in N5 container at `${reader?.uri}` that is required for on-the-fly mesh generation. 
 					If you are not interested in 3D meshes, press cancel. Otherwise, press OK. 
 					Generating meshes on the fly will be slow as the sparsity of objects cannot be utilized.
 				""".trimIndent()
