@@ -67,7 +67,7 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<app.package>paintera</app.package>
-		<app.version>1.10.1</app.version>
+		<app.version>1.10.2</app.version>
 
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -81,7 +81,10 @@
 		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
 		<n5-zarr.version>1.5.1</n5-zarr.version>
 		<n5-hdf5.version>2.2.1</n5-hdf5.version>
-		<n5.version>3.5.0</n5.version>
+		<n5.version>3.5.1</n5.version>
+
+		<!-- Imglib2 Versions -->
+		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
 
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
