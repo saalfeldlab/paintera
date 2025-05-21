@@ -225,7 +225,7 @@ class FloodFill<T : IntegerType<T>>(
 			fillLabel: Long,
 			assignment: FragmentSegmentAssignment?
 		) {
-			val extension = Util.getTypeFromInterval(input)!!.createVariable()
+			val extension = input.type.createVariable()
 			extension!!.setInteger(Label.OUTSIDE)
 
 			val predicate = makePredicate<T>(seedLabel, assignment)
