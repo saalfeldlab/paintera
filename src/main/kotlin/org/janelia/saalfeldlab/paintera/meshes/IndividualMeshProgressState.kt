@@ -4,12 +4,12 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
 class IndividualMeshProgressState : MeshProgressState() {
 
-	fun set(numTasks: Int, numCompletedTasks: Int) = InvokeOnJavaFXApplicationThread {
+	fun set(numTasks: Int, numCompletedTasks: Int) {
 		writableTotalNumTasksProperty.set(numTasks)
 		writableCompletedNumTasksProperty.set(numCompletedTasks)
 	}
 
-	fun incrementNumCompletedTasks() = InvokeOnJavaFXApplicationThread {
+	fun incrementNumCompletedTasks() {
 		writableCompletedNumTasksProperty.set(writableCompletedNumTasksProperty.get() + 1)
 	}
 }

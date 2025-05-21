@@ -374,7 +374,7 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 		labelProp,
 		progressProp
 	)
-	val exportJob = CoroutineScope(Dispatchers.IO).async {
+	val exportJob = CoroutineScope(Dispatchers.Default).async {
 		meshExporter.exportMesh(
 			getBlocks,
 			getMesh,
