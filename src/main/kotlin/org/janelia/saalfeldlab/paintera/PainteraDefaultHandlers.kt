@@ -19,7 +19,6 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.input.MouseEvent.MOUSE_PRESSED
 import javafx.scene.layout.BorderPane
-import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
 import javafx.scene.transform.Affine
 import javafx.stage.Stage
@@ -127,7 +126,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 	private val viewerToTransforms = HashMap<ViewerPanelFX, ViewerAndTransforms>()
 
 	init {
-		sourceInfo.currentState().addListener { _, _, newState ->
+		sourceInfo.currentState().subscribe { newState ->
 			paintera.baseView.changeMode(newState?.defaultMode ?: NavigationControlMode)
 		}
 		sourceInfo.currentSourceProperty().addListener { _, oldSource, newSource ->
@@ -333,7 +332,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		val uiCallback = { stackPane: StackPane, borderPane: BorderPane ->
 
-			val setupToolbar: (StackPane, GridPane) -> Unit = { pane, toolbar ->
+			val setupToolbar: (StackPane, Node) -> Unit = { pane, toolbar ->
 				val group = Group(toolbar)
 				group.visibleProperty().bind(paintera.properties.toolBarConfig.isVisibleProperty)
 				group.managedProperty().bind(group.visibleProperty())
@@ -358,7 +357,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			}
 
 			borderPane.bottom =
-				createPainteraStatusBar(borderPane.backgroundProperty(), borderPane.widthProperty(), paintera.properties.statusBarConfig.isVisibleProperty())
+				createPainteraStatusBar(borderPane.backgroundProperty(), paintera.properties.statusBarConfig.isVisibleProperty)
 		}
 
 

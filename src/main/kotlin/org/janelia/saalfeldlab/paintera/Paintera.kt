@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.util.debug.DebugModeProperty
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.universe.PainteraN5Factory
@@ -57,11 +58,11 @@ class Paintera : Application() {
 
 	init {
 		application = this
-		/* add window listener for scenes */
 	}
 
 	override fun init() {
 		paintable = false
+
 		if (!::commandlineArguments.isInitialized) {
 			commandlineArguments = parameters?.raw?.toTypedArray() ?: emptyArray()
 		}
@@ -162,7 +163,7 @@ class Paintera : Application() {
 	}
 
 	override fun start(primaryStage: Stage) {
-
+		primaryStage.title = Constants.NAME
 		primaryStage.scene = Scene(paintera.pane)
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		registerStylesheets(primaryStage.scene)
@@ -245,18 +246,9 @@ class Paintera : Application() {
 	companion object {
 
 		@JvmStatic
-		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
-
-		@JvmStatic
 		val n5Factory = PainteraN5Factory()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
-		@JvmStatic
-		fun main(args: Array<String>) {
-			System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
-			launch(Paintera::class.java, *args)
-		}
 
 		@JvmStatic
 		fun getPaintera() = paintera
@@ -327,6 +319,7 @@ class Paintera : Application() {
 
 		private val stylesheets: List<String> = listOf(
 			"style/glyphs.css",
+			"style/menubar.css",
 			"style/toolbar.css",
 			"style/navigation.css",
 			"style/interpolation.css",
@@ -343,6 +336,9 @@ class Paintera : Application() {
 		private fun registerPainteraStylesheets(styleable: Parent) {
 			styleable.stylesheets.addAll(stylesheets)
 		}
+
+		@JvmStatic
+		internal var debugMode by DebugModeProperty.nonnull()
 	}
 
 }

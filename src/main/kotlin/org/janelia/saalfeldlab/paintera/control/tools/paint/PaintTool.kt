@@ -139,6 +139,7 @@ abstract class PaintTool(
 	}
 }
 
+/*Phase out in favor of PaintContextActionState */
 interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val dataSource: MaskedSource<D, T>
 	val assignment: FragmentSegmentAssignment
@@ -153,7 +154,7 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	fun nextId(): Long = nextId(false)
 }
 
-
+/*Phase out in favor of PaintContextActionState */
 private data class ConnectomicsLabelStatePaintContext<D, T>(val state: ConnectomicsLabelState<D, T>) : StatePaintContext<D, T>
 		where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
 

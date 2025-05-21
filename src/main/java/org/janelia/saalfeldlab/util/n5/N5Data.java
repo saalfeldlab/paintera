@@ -9,6 +9,7 @@ import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.UncheckedVolatileCache;
@@ -21,7 +22,6 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -32,11 +32,9 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
-import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.LabelMultisetUtilsKt;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -547,14 +545,19 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) {
 
-		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage
-				= N5LabelMultisets.openLabelMultiset(n5, dataset, LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND));
+
+		final var cachedLabelMultisetImage = LabelMultisetUtilsKt.openLabelMultiset(n5, dataset);
+//		final var cachedLabelMultisetImage = N5LabelMultisets.openLabelMultiset(
+//				n5,
+//				dataset,
+//				LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND)
+//		);
+
+		final var vcache = new WeakRefVolatileCache(cachedLabelMultisetImage.getCache(), queue, new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
+
+
 
 		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
-		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(
-				cachedLabelMultisetImage.getCache(),
-				queue,
-				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
 		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);

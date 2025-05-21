@@ -34,6 +34,8 @@ internal object LabelSourceUtils {
 		val blockSize = blockSizeFromRai(rai)
 		val cells = Grids.collectAllContainedIntervals(Intervals.minAsLongArray(rai), Intervals.maxAsLongArray(rai), blockSize)
 
+
+
 		val delta = 1.0 / cells.size
 		return coroutineScope {
 			cells.map {
@@ -51,7 +53,7 @@ internal object LabelSourceUtils {
 	}
 
 
-	private fun findMaxId(rai: RandomAccessibleInterval<out IntegerType<*>>): Long {
+	internal fun findMaxId(rai: RandomAccessibleInterval<out IntegerType<*>>): Long {
 		var maxId: Long = Label.Companion.INVALID
 		for (t in rai) {
 			val id = t.integerLong

@@ -36,22 +36,19 @@ open class ViewerAndSourceActionState<S : SourceState<*,*>>(
 	SourceStateActionState<S> by sourceStateActionState
 
 open class PaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
-	maskedSourceActionState: MaskedSourceActionState<S, D, T> = MaskedSourceActionState.ActiveSource(),
-	paintContextActionState: PaintContextActionState = PaintContextActionState.FromCurrentMode(),
+	paintContextActionState: PaintContextActionState<S, D, T> = PaintContextActionState.FromCurrentMode(),
 	vararg additionalDelegates : Any
 ) :
-	PainteraActionState(maskedSourceActionState, paintContextActionState, *additionalDelegates),
-	MaskedSourceActionState<S, D, T> by maskedSourceActionState,
-	PaintContextActionState by paintContextActionState
+	PainteraActionState(paintContextActionState, *additionalDelegates),
+	PaintContextActionState<S, D, T> by paintContextActionState
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 
 open class ViewerAndPaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
 	viewerActionState : ViewerActionState = ViewerActionState.LastFocused(),
-	maskedSourceActionState: MaskedSourceActionState<S, D, T> = MaskedSourceActionState.ActiveSource(),
-	paintContextActionState: PaintContextActionState = PaintContextActionState.FromCurrentMode(),
+	paintContextActionState: PaintContextActionState<S, D, T> = PaintContextActionState.FromCurrentMode(),
 	vararg additionalDelegates : Any
 ) :
-	PaintableSourceActionState<S, D, T>(maskedSourceActionState, paintContextActionState, viewerActionState, *additionalDelegates),
+	PaintableSourceActionState<S, D, T>(paintContextActionState, viewerActionState, *additionalDelegates),
 	ViewerActionState by viewerActionState
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 

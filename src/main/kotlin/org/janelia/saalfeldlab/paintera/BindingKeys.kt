@@ -55,6 +55,7 @@ object PainteraBaseKeys {
     const val OPEN_KEY_BINDINGS                = "open key bindings"
     const val QUIT                             = "quit"
     const val TOGGLE_SIDE_BAR                  = "toggle side bar"
+    const val TOGGLE_TOOL_BAR_MODE             = "toggle tool bar mode"
     const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
@@ -75,7 +76,8 @@ object PainteraBaseKeys {
         OPEN_KEY_BINDINGS                           byKeyCombo F4,
         QUIT                                        byKeyCombo CONTROL_DOWN + Q,
         TOGGLE_SIDE_BAR                             byKeyCombo P,
-        TOGGLE_TOOL_BAR                             byKeyCombo T,
+        TOGGLE_TOOL_BAR_MODE                        byKeyCombo SHIFT_DOWN + F5,
+        TOGGLE_TOOL_BAR                             byKeyCombo F5,
         CYCLE_CURRENT_SOURCE_FORWARD                byKeyCombo CONTROL_DOWN + TAB,
         CYCLE_CURRENT_SOURCE_BACKWARD               byKeyCombo CONTROL_DOWN + SHIFT_DOWN + TAB,
         TOGGLE_CURRENT_SOURCE_VISIBILITY            byKeyCombo V,
@@ -141,7 +143,7 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL ( SHIFT_DOWN + QUOTE, "shape interpolation: auto SAM: new slice between all slices" ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT       ( CLOSE_BRACKET, "shape interpolation: auto SAM: new slice right"   ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE        ( SHIFT_DOWN + A, "shape interpolation: auto SAM: new slice at current location"   ),
-    GO_TO_LABEL                                          (L + CONTROL_DOWN, "go-to-label")
+    GO_TO_LABEL                                          ( CONTROL_DOWN + L, "go-to-label")
     ;
 
 

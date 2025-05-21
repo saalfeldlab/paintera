@@ -61,7 +61,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	lateinit var properties: Properties
 		private set
 
-	private lateinit var paneWithStatus: BorderPaneWithStatusBars
+	internal lateinit var paneWithStatus: BorderPaneWithStatusBars
 
 	val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
 

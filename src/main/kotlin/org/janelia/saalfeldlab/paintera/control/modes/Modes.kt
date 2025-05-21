@@ -15,9 +15,12 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
-import javafx.scene.layout.GridPane
+import javafx.scene.layout.FlowPane
 import javafx.util.Subscription
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -27,8 +30,9 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
-import org.janelia.saalfeldlab.fx.ui.ActionBar
+import org.janelia.saalfeldlab.fx.ui.ModeToolActionBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
@@ -41,7 +45,10 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.concurrent.LinkedBlockingQueue
+<<<<<<< HEAD
 import java.util.concurrent.atomic.AtomicBoolean
+=======
+>>>>>>> f7176f060 (tmp)
 import java.util.concurrent.atomic.AtomicReference
 
 interface ControlMode {
@@ -75,7 +82,7 @@ interface ToolMode : SourceMode {
 
 	private object ToolChange {
 		private val loop = ChannelLoop()
-		fun submit(block : suspend CoroutineScope.() -> Unit) = loop.submit(block = block)
+		fun submit(block: suspend CoroutineScope.() -> Unit) = loop.submit(block = block)
 	}
 
 	val tools: ObservableList<Tool>
@@ -92,9 +99,7 @@ interface ToolMode : SourceMode {
 	var activeToolProperty: ObjectProperty<Tool?>
 	var activeTool: Tool?
 
-	val modeToolsBar: ActionBar
-	val modeActionsBar: ActionBar
-	val toolActionsBar: ActionBar
+	val actionBar : ModeToolActionBar
 
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
@@ -165,14 +170,21 @@ interface ToolMode : SourceMode {
 	}
 
 	private fun showToolBars(show: Boolean = true) {
-		modeToolsBar.show(show)
-		modeActionsBar.show(show)
-		toolActionsBar.show(show)
+		actionBar.isVisible = show
+		actionBar.isManaged = show
 	}
 
-	fun createToolBar(): GridPane {
-		return GridPane().apply {
+	fun bindTogglesForActiveTool() {
+		var prevActiveToolSubscription = AtomicReference<Subscription?>(null)
+		actionBar.modeToolsGroup.apply {
+			selectedToggleProperty().subscribe { _, selected ->
+				selected?.let {
+					(it.userData as? Tool)?.let { tool ->
+						if (activeTool != tool) {
+							val requiresActiveViewer = it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as Boolean
+							if (requiresActiveViewer) selectViewerBefore { switchTool(tool) } else switchTool(tool)
 
+<<<<<<< HEAD
 			var col = 0
 
 			modeToolsBar.set(*tools.filterIsInstance<ToolBarItem>().toTypedArray())
@@ -201,23 +213,41 @@ interface ToolMode : SourceMode {
 								//TODO this should be refactored and more generic
 								(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
 							}
+=======
+							//TODO this should be refactored and more generic
+							(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+>>>>>>> f7176f060 (tmp)
 						}
-					} ?: switchTool(defaultTool)
-				}
+					}
+				} ?: switchTool(defaultTool)
+			}.also { subscriptions = subscriptions + it }
 
-				/* when the active tool changes, update the toggle to reflect the active tool */
-				activeToolProperty.subscribe { tool ->
-					tool?.let { newTool ->
-						toggles
-							.firstOrNull { it.userData == newTool }
-							?.also { toggleForTool -> selectToggle(toggleForTool) }
-						val toolActionSets = newTool.actionSets.toTypedArray()
-						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*toolActionSets) }
+			/* when the active tool changes, update the toggle to reflect the active tool */
+			activeToolProperty.subscribe { tool ->
+				tool?.let { newTool ->
+					toggles.firstOrNull { it.userData == newTool }?.let { toggleForTool -> selectToggle(toggleForTool) }
+					val toolActionSets = newTool.actionSets.toList()
+					InvokeOnJavaFXApplicationThread {
+						prevActiveToolSubscription.getAndUpdate { prev ->
+							prev?.unsubscribe()
+							actionBar.addActionSets(toolActionSets, actionBar.toolActionsGroup)
+						}
+						subscriptions = subscriptions + prevActiveToolSubscription.get()
 					}
 				}
-			}
+			}.also { subscriptions = subscriptions + it }
 		}
+	}
 
+	fun createToolBar(): FlowPane = actionBar.apply {
+		/* Add modeTools to toolbar */
+		subscriptions = subscriptions + addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
+
+		/* add modeActions toolbar*/
+		subscriptions = subscriptions + addActionSets(activeViewerActions.toList(), modeActionsGroup)
+
+		/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
+		bindTogglesForActiveTool()
 	}
 
 	/**
@@ -447,10 +477,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	final override var activeToolProperty: ObjectProperty<Tool?> = SimpleObjectProperty<Tool?>()
 	final override var activeTool by activeToolProperty.nullable()
 
-	override val modeActionsBar: ActionBar = ActionBar()
-	override val modeToolsBar: ActionBar = ActionBar()
-	override val toolActionsBar: ActionBar = ActionBar()
-
+	override val actionBar: ModeToolActionBar = ModeToolActionBar()
 	override var subscriptions: Subscription = Subscription.EMPTY
 
 	override val statusProperty: StringProperty = SimpleStringProperty()

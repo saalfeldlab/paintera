@@ -121,7 +121,6 @@ import kotlin.collections.toList
 import kotlin.collections.toMutableList
 import kotlin.collections.toTypedArray
 import kotlin.math.*
-import kotlin.properties.Delegates
 
 
 //TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
@@ -252,8 +251,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override fun activate() {
 		mode?.apply {
-			modeActionsBar.show(false)
-			modeToolsBar.show(false)
+			actionBar.showGroup(actionBar.modeActionsGroup, false)
+			actionBar.showGroup(actionBar.modeToolsGroup, false)
 		}
 		super.activate()
 		(mode as? PaintLabelMode)?.apply {
@@ -275,6 +274,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 	override fun deactivate() {
+		mode?.apply {
+			actionBar.showGroup(actionBar.modeActionsGroup, true)
+			actionBar.showGroup(actionBar.modeToolsGroup, true)
+		}
 		cleanup()
 		(mode as? PaintLabelMode)?.enableAllViewers()
 		super.deactivate()

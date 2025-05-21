@@ -9,8 +9,11 @@ import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -62,10 +65,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
 	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
 	private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
-	private val sceneUpdateService = Executors.newSingleThreadExecutor(NamedThreadFactory("meshmanager-sceneupdate-%d", true))
+	private val sceneUpdateService = ChannelLoop(capacity = Channel.CONFLATED)
 	private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
-	private var currentSceneUpdateTask: Future<*>? = null
-	private var scheduledSceneUpdateTask: Future<*>? = null
+	private var currentSceneUpdateTask: Job? = null
+	private var scheduledSceneUpdateTask: Job? = null
 
 	private val meshesAndViewerEnabledListenersInterruptGeneratorMap: MutableMap<MeshGenerator<ObjectKey>, ChangeListener<Boolean>> = mutableMapOf()
 
@@ -198,9 +201,9 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	@Synchronized
 	private fun cancelAndUpdate() {
-		currentSceneUpdateTask?.cancel(true)
+		currentSceneUpdateTask?.cancel()
 		currentSceneUpdateTask = null
-		scheduledSceneUpdateTask?.cancel(true)
+		scheduledSceneUpdateTask?.cancel()
 		scheduledSceneUpdateTask = null
 		sceneUpdateParametersProperty.set(null)
 		update()
@@ -217,7 +220,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		sceneUpdateParametersProperty.set(sceneUpdateParameters)
 		if (needToSubmit && !managers.isShutdown)
 			assert(scheduledSceneUpdateTask == null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
-		scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
+		scheduledSceneUpdateTask = sceneUpdateService.submit { withErrorPrinting { updateScene() } }
 	}
 
 	private fun updateScene() {

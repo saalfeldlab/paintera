@@ -62,12 +62,11 @@
 		<javafx.version>22.0.1</javafx.version>
 		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
 		<n5-universe.version>2.3.0</n5-universe.version>
-		<n5.version>3.5.0</n5.version>
+		<n5.version>3.5.1</n5.version>
 		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
 		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
 		<n5-zarr.version>1.5.1</n5-zarr.version>
 		<n5-hdf5.version>2.2.1</n5-hdf5.version>
-		<n5.version>3.5.1</n5.version>
 
 		<!-- Imglib2 Versions -->
 		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
@@ -527,6 +526,10 @@
 			<artifactId>kotlinx-coroutines-core</artifactId>
 			<version>1.7.3</version>
 			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
 		</dependency>
 	</dependencies>
 

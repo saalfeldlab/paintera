@@ -86,7 +86,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 				}
 				switchTool(defaultTool)?.invokeOnCompletion {
 					InvokeOnJavaFXApplicationThread {
-						modeToolsBar.toggleGroup?.selectToggle(null)
+						actionBar.modeToolsGroup.selectToggle(null)
 					}
 				}
 			}

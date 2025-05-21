@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import javafx.beans.binding.Bindings
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.binding.BooleanExpression
 import javafx.beans.property.*
 import javafx.event.ActionEvent
@@ -10,48 +10,45 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import javafx.util.StringConverter
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import org.controlsfx.control.SegmentedButton
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
+import org.janelia.saalfeldlab.fx.ui.ExceptionNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
-import org.janelia.saalfeldlab.fx.ui.ObjectField.InvalidUserInput
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.Style.RESET_GLYPH
 import org.janelia.saalfeldlab.paintera.control.actions.paint.InfillStrategyUI.entries
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.finalizeSmoothing
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothJob
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothTaskLoop
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.denyClose
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hGrow
-import java.math.BigDecimal
-import java.math.RoundingMode
+import org.janelia.saalfeldlab.paintera.ui.hvGrow
+import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import net.imglib2.type.label.Label as Imglib2Label
 
+private val LOG = KotlinLogging.logger { }
+
 private enum class LabelSelectionUI(val strategy: LabelSelection, val makeNode: Model.() -> ToggleButton) {
 	ActiveFragments(LabelSelection.ActiveFragments, {
-		ToggleButton("Active Fragments").apply {
+		RadioButton("Active Fragments").apply {
 			onAction = EventHandler { labelSelectionProperty.value = LabelSelection.ActiveFragments }
 		}
 	}),
 	ActiveSegments(LabelSelection.ActiveSegments, {
-		ToggleButton("Active Segments").apply {
+		RadioButton("Active Segments").apply {
 			onAction = EventHandler { labelSelectionProperty.value = LabelSelection.ActiveSegments }
 		}
 	});
@@ -77,7 +74,6 @@ private enum class LabelSelectionUI(val strategy: LabelSelection, val makeNode: 
 							}
 						}
 						.toTypedArray()
-						.let { SegmentedButton(*it) }
 				}
 			}
 
@@ -156,8 +152,8 @@ private fun Model.makeSmoothDirectionButton(direction: SmoothDirection, hover: S
 }
 
 private enum class SmoothDirectionUI(val direction: SmoothDirection, val makeNode: Model.() -> ToggleButton) {
-	In(SmoothDirection.In, { makeSmoothDirectionButton(SmoothDirection.In, "Only Smooth in to the selected labels (Shrink)") }),
-	Out(SmoothDirection.Out, { makeSmoothDirectionButton(SmoothDirection.Out, "Only Smooth out from the selected labels (Grow)") }),
+	In(SmoothDirection.Shrink, { makeSmoothDirectionButton(SmoothDirection.Shrink, "Only Smooth inward over the selected labels (Shrink)") }),
+	Out(SmoothDirection.Expand, { makeSmoothDirectionButton(SmoothDirection.Expand, "Only Smooth out from the selected labels (Expand)") }),
 	Both(SmoothDirection.Both, { makeSmoothDirectionButton(SmoothDirection.Both, "Smooth into and out from the selected labels (Grow and Shrink)") });
 
 	companion object {
@@ -195,23 +191,24 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 	interface Model {
 
 		val labelSelectionProperty: ObjectProperty<LabelSelection>
+		val labelsToSmoothProperty: ObjectProperty<LongArray?>
 		val infillStrategyProperty: ObjectProperty<InfillStrategy>
 		val smoothDirectionProperty: ObjectProperty<SmoothDirection>
 		val replacementLabelProperty: LongProperty
 		val statusProperty: ObjectProperty<SmoothStatus>
 		val progressProperty: DoubleProperty
 		val kernelSizeProperty: IntegerProperty
-		val smoothThresholdProperty: DoubleProperty
-		val minKernelSize: Int
-		val maxKernelSize: Int
+		val scaleLevel: Int
+		val timepoint: Int
 		val canApply: BooleanExpression
-		val canCancel: BooleanExpression
+		val canClose: BooleanExpression
 
 		fun newId(): Long
+		fun getLevelResolution(level: Int = scaleLevel): DoubleArray
 
 		companion object {
 
-			fun Model.getDialog(titleText: String = "Smooth Label"): Dialog<Boolean> {
+			fun Model.getDialog(titleText: String = "Smooth Label", onApply: () -> Unit): Dialog<Boolean> {
 
 				return Dialog<Boolean>().apply {
 					Paintera.registerStylesheets(dialogPane)
@@ -222,8 +219,10 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 
 					this.initAppDialog()
 					val cleanupOnDialogClose = {
-						smoothTaskLoop?.cancel()
-						InvokeOnJavaFXApplicationThread { close() }
+						if (canClose.get()) {
+							smoothTaskLoop?.cancel()
+							InvokeOnJavaFXApplicationThread { close() }
+						}
 					}
 					dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
 						val disableBinding = canApply.map { !it }
@@ -233,31 +232,24 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 							event.consume()
 							// but listen for when the smoothTask finishes
 							smoothTaskLoop?.invokeOnCompletion { cause ->
+								cleanupOnDialogClose()
 								cause?.let {
-									cleanupOnDialogClose()
+									LOG.error(it) { "Exception during Smooth Action" }
+									InvokeOnJavaFXApplicationThread {
+										ExceptionNode.exceptionDialog(it as Exception).showAndWait()
+									}
 								}
 							}
 							// indicate the smoothTask should try to apply the current smoothing mask to canvas
 							progressProperty.set(0.0)
-							finalizeSmoothing = true
+							onApply()
 						}
 					}
+					val disableBinding = canClose.map { !it }
 					val cancelButton = dialogPane.lookupButton(ButtonType.CANCEL)
-					val disableBinding = canCancel.map { !it }
 					cancelButton.disableProperty().bind(disableBinding)
-					cancelButton.addEventFilter(ActionEvent.ACTION) { _ -> cleanupOnDialogClose() }
-					dialogPane.scene.window.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
-						if (event.code == KeyCode.ESCAPE && (statusProperty.value == SmoothStatus.Smoothing || (smoothJob?.isActive == true))) {
-							/* Cancel if still running */
-							event.consume()
-							smoothJob?.cancel("Escape Pressed")
-							progressProperty.set(0.0)
-						}
-					}
-					dialogPane.scene.window.setOnCloseRequest {
-						if (canCancel.value)
-							cleanupOnDialogClose()
-					}
+					(cancelButton as? Button)?.setOnAction { cleanupOnDialogClose() }
+					denyClose(canClose.not())
 				}
 			}
 		}
@@ -265,39 +257,56 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 
 	class Default : Model {
 		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveSegments)
+		override val labelsToSmoothProperty = SimpleObjectProperty<LongArray?>()
 		override val infillStrategyProperty = SimpleObjectProperty(InfillStrategy.NearestLabel)
 		override val smoothDirectionProperty = SimpleObjectProperty(SmoothDirection.Both)
 		override val replacementLabelProperty = SimpleLongProperty(0L)
 
 		override val statusProperty = SimpleObjectProperty(SmoothStatus.Empty)
 		override val canApply = statusProperty.isEqualTo(SmoothStatus.Done)
-		override val canCancel = statusProperty.isNotEqualTo(SmoothStatus.Applying)
+		override val canClose = statusProperty.isNotEqualTo(SmoothStatus.Applying)
 		override val progressProperty = SimpleDoubleProperty(0.0)
 		override val kernelSizeProperty = SimpleIntegerProperty()
-		override val smoothThresholdProperty = SimpleDoubleProperty(0.5)
-		override val minKernelSize = 0
-		override val maxKernelSize = 100
 
-		override fun newId(): Long {
-			TODO("Not yet implemented")
-		}
+		//TODO Caleb: Currently, this is always 0
+		//  At higher scale levels, currently it can leave small artifacts at the previous boundary when
+		//  going back to higher resolution
+		override val scaleLevel = 0
+		override val timepoint = 0 //NOTE: this is aspirational; timepoint other than 0 currently not tested
 
+
+		/* A bit misleading to make this a `class`, but it allows us to instantiate and use as a delegate for `Model`
+		* and then override `newId` in the implementor of `Model`. This lets us use this as an interface
+		* instead of a class. */
+		override fun newId() = throw(NotImplementedError("Must be implemented in subclass"))
+		override fun getLevelResolution(level: Int) = throw(NotImplementedError("Must be implemented in subclass"))
 	}
 
 	init {
 		isFillWidth = true
-		children += SmoothDirectionUI.makeNode(model)
-		children += LabelSelectionUI.makeNode(model)
+		children += HBox(10.0).apply {
+			children += SmoothDirectionUI.makeNode(model).hvGrow {
+				maxHeight = Double.MAX_VALUE
+				maxWidth = Double.MAX_VALUE
+			}
+			children += LabelSelectionUI.makeNode(model).hvGrow {
+				maxHeight = Double.MAX_VALUE
+				maxWidth = Double.MAX_VALUE
+			}
+		}
 		children += InfillStrategyUI.makeNode(model)
 
+		val kernelIsChanging = SimpleBooleanProperty(false)
 		children += VBox(10.0).apply {
-			children += smoothThresholdNode()
-			children += kernelSizeNode()
+			children += kernelSizeNode(kernelIsChanging)
 		}
 		children += HBox(10.0).apply {
-			children += Label().apply {
+			children += TextField().apply {
+				prefColumnCount = 6
+				background = null
+				isEditable = false
 				HBox.setHgrow(this, Priority.NEVER)
-				model.statusProperty.subscribe { status ->
+				model.statusProperty.`when`(kernelIsChanging.not()).subscribe { status ->
 					InvokeOnJavaFXApplicationThread {
 						text = status.text
 						requestLayout()
@@ -306,7 +315,8 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 			}
 			children += AnimatedProgressBar().apply {
 				progressTargetProperty.unbind()
-				progressTargetProperty.bind(model.progressProperty)
+				/* `when` stops the flickering when the kernel slider is being dragged */
+				progressTargetProperty.bind(model.progressProperty.`when`(kernelIsChanging.not()))
 				HBox.setHgrow(this, Priority.ALWAYS)
 				maxWidth = Double.MAX_VALUE
 			}
@@ -321,21 +331,32 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		}
 	}
 
-	private fun kernelSizeNode(): Node {
+	private fun kernelSizeNode(kernelIsChanging : BooleanProperty): Node {
 
 		val label = Label("Kernel size (physical units)")
 
-		val minKernelSize = model.minKernelSize.toDouble()
-		val maxKernelSize = model.maxKernelSize.toDouble()
-		val initialKernelSize = model.kernelSizeProperty.get()
-		val kernelSizeSlider = Slider(log10(minKernelSize).coerceAtLeast(0.0), log10(maxKernelSize), log10(initialKernelSize.toDouble()))
-		val kernelSizeField = NumberField.intField(initialKernelSize, { it > 0.0 }, *SubmitOn.values())
+		val resolution = model.getLevelResolution()
+		val min = resolution.min()
+		val max = resolution.max()
+		val defaultKernelSize = model.smoothDirectionProperty.get().defaultKernelSize(resolution)
+
+		val minKernelSize = floor(min / 2).toInt()
+		val maxKernelSize = (max * 10).toInt()
+		val kernelSizeSlider = Slider(
+			log10(minKernelSize.toDouble()).coerceAtLeast(0.0),
+			log10(maxKernelSize.toDouble()),
+			log10(defaultKernelSize.toDouble())
+		)
+		val kernelSizeField = NumberField.intField(defaultKernelSize, { it > 0.0 }, *SubmitOn.entries.toTypedArray())
 
 		/* slider sets field */
 		kernelSizeSlider.valueProperty().subscribe { old, new ->
 			kernelSizeField.valueProperty().set(10.0.pow(new.toDouble()).roundToInt())
 		}
-		/* field sets slider*/
+
+		kernelIsChanging.bind(kernelSizeSlider.valueChangingProperty())
+
+		/* field sets slider and model property*/
 		kernelSizeField.valueProperty().subscribe { fieldVal ->
 			/* Let the user go over if they want to explicitly type a larger number in the field.
 			* otherwise, set the slider */
@@ -343,68 +364,23 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 				val sliderVal = log10(fieldVal.toDouble())
 				kernelSizeSlider.valueProperty().set(sliderVal)
 			}
+
+			model.kernelSizeProperty.set(fieldVal.toInt())
 		}
 
-		val prevStableKernelSize = SimpleIntegerProperty(initialKernelSize)
-
-		val stableKernelSizeBinding = Bindings
-			.`when`(kernelSizeSlider.valueChangingProperty().not())
-			.then(kernelSizeField.valueProperty())
-			.otherwise(prevStableKernelSize)
-
-		model.kernelSizeProperty.bind(stableKernelSizeBinding)
-		model.kernelSizeProperty.subscribe { kernelSize ->
-			kernelSize ?: return@subscribe
-
-			prevStableKernelSize.value = kernelSize.toInt()
+		/* the field and slider should both be responsive to direct changes to the model */
+		model.kernelSizeProperty.subscribe { size ->
+			kernelSizeField.value = size
 		}
 
 		val resetBtn = Button().apply {
 			styleClass += RESET_GLYPH
 			graphic = FontAwesome[FontAwesomeIcon.UNDO, 2.0]
-			setOnAction { kernelSizeField.valueProperty().set(initialKernelSize) }
+			setOnAction { kernelSizeField.valueProperty().set(defaultKernelSize) }
 			tooltip = Tooltip("Reset Threshold")
 		}
 
 		return SliderWithTextInputNode(label, resetBtn, kernelSizeField.textField, kernelSizeSlider).makeNode()
-	}
-
-	private fun smoothThresholdNode(): Node {
-
-		val label = Label("Smooth Threshold")
-
-		val minThreshold = .001
-		val maxThreshold = .999
-		val threshold = model.smoothThresholdProperty.get()
-		val smoothThresholdSlider = Slider(minThreshold, maxThreshold, threshold)
-
-		val converter = object : StringConverter<Number>() {
-			override fun toString(`object`: Number?): String? {
-				`object` ?: return null
-				return BigDecimal(`object`.toDouble()).setScale(3, RoundingMode.HALF_UP).toString()
-			}
-
-			override fun fromString(string: String?): Number? {
-				string ?: return null
-				val value = BigDecimal(string).setScale(3, RoundingMode.HALF_UP).toDouble()
-				if (value <= minThreshold || value >= maxThreshold)
-					throw InvalidUserInput("Illegal value: $string")
-				return value
-			}
-		}
-		val smoothThresholdField = NumberField(SimpleDoubleProperty(threshold), converter, *SubmitOn.entries.toTypedArray())
-		/* slider and field set each other */
-		smoothThresholdSlider.valueProperty().bindBidirectional(smoothThresholdField.valueProperty())
-
-		model.smoothThresholdProperty.bind(smoothThresholdField.valueProperty())
-
-		val resetBtn = Button().apply {
-			styleClass += RESET_GLYPH
-			graphic = FontAwesome[FontAwesomeIcon.UNDO, 2.0]
-			setOnAction { smoothThresholdField.valueProperty().set(0.5) }
-			tooltip = Tooltip("Reset Threshold")
-		}
-		return SliderWithTextInputNode(label, resetBtn, smoothThresholdField.textField, smoothThresholdSlider).makeNode()
 	}
 }
 
@@ -412,7 +388,7 @@ fun main() {
 	InvokeOnJavaFXApplicationThread {
 		val model = SmoothLabelUI.Default()
 
-		val dialog = model.getDialog().apply {
+		val dialog = model.getDialog { println("Done!") }.apply {
 			val reloadButton = ButtonType("Reload", ButtonBar.ButtonData.LEFT)
 			dialogPane.buttonTypes += reloadButton
 			(dialogPane.lookupButton(reloadButton) as? Button)?.addEventFilter(ActionEvent.ACTION) {

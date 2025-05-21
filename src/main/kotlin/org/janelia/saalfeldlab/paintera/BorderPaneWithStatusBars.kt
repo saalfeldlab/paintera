@@ -1,12 +1,9 @@
 package org.janelia.saalfeldlab.paintera
 
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import javafx.beans.binding.Bindings
+import javafx.animation.Interpolator
 import javafx.beans.property.SimpleObjectProperty
-import javafx.collections.ObservableList
 import javafx.geometry.Insets
 import javafx.geometry.Pos
-import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.MenuBar
 import javafx.scene.control.ScrollPane
@@ -14,23 +11,32 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
+import javafx.util.Duration
+import javafx.util.Subscription
+import org.checkerframework.common.reflection.qual.Invoke
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.extensions.interpolate
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.MenuBarConfig
 import org.janelia.saalfeldlab.paintera.config.StatusBarConfig
+import org.janelia.saalfeldlab.paintera.config.ToolBarConfig
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.SettingsView
+import org.janelia.saalfeldlab.paintera.ui.StatusBar
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.ui.menus.menuBar
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
+import org.janelia.saalfeldlab.paintera.ui.vGrow
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
 import org.janelia.saalfeldlab.util.Colors
+import org.reactfx.value.Val.animate
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
@@ -45,33 +51,74 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val sideBarWidthProperty = painteraProperties.sideBarConfig.widthProperty
 
-	private val bottomGroup = HBox().also {
-		it.isFillHeight = false
-		it.mouseTransparentProperty().set(true)
+	private val centerPaneBottomGroup = HBox().apply {
+		maxWidth = Double.MAX_VALUE
+	}
+	private val centerPaneBottomHBox = HBox().apply {
+		isPickOnBounds = false
+		maxWidth = Double.MAX_VALUE
+		isFillHeight = false
+		StackPane.setAlignment(this, Pos.BOTTOM_LEFT)
+	}
+	private val centerPaneBottomVBox = VBox().apply {
+		isFillWidth = true
+		isPickOnBounds = false
+		maxWidth = Double.MAX_VALUE
+		StackPane.setAlignment(this, Pos.BOTTOM_LEFT)
+		alignment = Pos.BOTTOM_LEFT
+		children += centerPaneBottomGroup
+		children += centerPaneBottomHBox
+	}
+	private val centerPaneBottomLeftHBox = HBox().apply {
+		isPickOnBounds = false
+		isFillHeight = false
+		maxWidth = Double.MAX_VALUE
+		alignment = Pos.BOTTOM_LEFT
+
+		centerPaneBottomHBox.children += this
 	}
 
-	private val topLeftGroup = Group()
-	private val topRightGroup = Group()
 
-	private val topGroup = BorderPane().apply {
-		left = topLeftGroup
-		right = topRightGroup
-		center = HBox().also { HBox.setHgrow(it, Priority.ALWAYS) }
+	private val centerPaneTopGroup = HBox().apply {
+		maxWidth = Double.MAX_VALUE
+	}
+	private val centerPaneTopHBox = HBox().apply {
+		isPickOnBounds = false
+		maxWidth = Double.MAX_VALUE
+		isFillHeight = false
+		StackPane.setAlignment(this, Pos.TOP_LEFT)
+	}
+	private val centerPaneTopVBox = VBox().apply {
+		isFillWidth = true
+		isPickOnBounds = false
+		maxWidth = Double.MAX_VALUE
+		StackPane.setAlignment(this, Pos.TOP_LEFT)
+		children += centerPaneTopGroup
+		children += centerPaneTopHBox
+	}
+	private val centerPaneTopLeftHBox = HBox().apply {
+		isPickOnBounds = false
+		isFillHeight = false
+		maxWidth = Double.MAX_VALUE
+		alignment = Pos.TOP_LEFT
+
+		centerPaneTopHBox.children += this
 	}
 
-	private val centerPaneTopLeftAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_LEFT) }
-
-	private val centerPaneTopRightAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_RIGHT) }
-
-	private val centerPaneBottomAlignGroup = HBox().also {
-		StackPane.setAlignment(it, Pos.BOTTOM_LEFT)
-		it.isFillHeight = false
-		it.mouseTransparentProperty().set(true)
+	private val centerPaneTopRightHBox = HBox().apply {
+		isPickOnBounds = false
+		isFillHeight = false
+		alignment = Pos.TOP_RIGHT
+		maxWidth = Double.MAX_VALUE
+		/* fill remaining width */
+		prefWidthProperty().bind(centerPaneTopHBox.widthProperty().subtract(centerPaneTopLeftHBox.widthProperty()))
+		centerPaneTopHBox.children += this
 	}
+
 
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
-	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup)
+	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopVBox, centerPaneBottomVBox)
 
 	private val orthoSlicesManager = OrthoSlicesManager(
 		center.viewer3D().sceneGroup,
@@ -86,84 +133,138 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	val sourceTabs = SourceTabs(center.sourceInfo()).apply {
 		val widthMinusMargins = sideBarWidthProperty.createNonNullValueBinding { it.toDouble() - 10.4 }
-		widthProperty.bind(widthMinusMargins)
+		maxWidthProperty().bind(widthMinusMargins)
 	}
 
-	val sourcesContents = TitledPane("Sources", sourceTabs.node).apply {
+	val sourcesContents = TitledPane("Sources", sourceTabs).apply {
 		isExpanded = false
 		padding = Insets.EMPTY
 		maxWidthProperty().bind(sideBarWidthProperty)
-		minWidthProperty().bind(sideBarWidthProperty)
-		prefWidthProperty().bind(sideBarWidthProperty)
-		widthProperty().addListener { _, _, new -> LOG.trace("sourceContents width is {} ({})", new, painteraProperties.sideBarConfig.width) }
 	}
 
 	val scrollPane = ScrollPane().apply {
-		widthProperty().addListener { _, _, new -> LOG.trace("scrollPane width is {} ({})", new, painteraProperties.sideBarConfig.width) }
-
 		hbarPolicy = ScrollBarPolicy.NEVER
 		vbarPolicy = ScrollBarPolicy.AS_NEEDED
 		padding = Insets.EMPTY
 		content = VBox(sourcesContents, settingsView).apply {
-			maxWidthProperty().bind(sideBarWidthProperty)
-			minWidthProperty().bind(sideBarWidthProperty)
-			prefWidthProperty().bind(sideBarWidthProperty)
+			isFillWidth = true
+			maxWidth = Double.MAX_VALUE
 		}
-
-		maxWidthProperty().bind(sideBarWidthProperty)
-		minWidthProperty().bind(sideBarWidthProperty)
-		prefWidthProperty().bind(sideBarWidthProperty)
-		visibleProperty().bind(painteraProperties.sideBarConfig.isVisibleProperty)
-		managedProperty().bind(visibleProperty())
-
 	}
 
-	val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
+	private val bottomVBox = VBox().apply {
+		maxWidth = Double.MAX_VALUE
+		alignment = Pos.BOTTOM_LEFT
+		isPickOnBounds = false
+		isFillWidth = true
+	}
+
+	val bottomGroup = HBox().apply {
+		maxWidth = Double.MAX_VALUE
+		alignment = Pos.BOTTOM_LEFT
+		maxWidth = Double.MAX_VALUE
+	}
+
+	private val rightTopGroup = HBox().vGrow(Priority.NEVER)
+
+	internal val rightGroup = VBox().apply {
+		alignment = Pos.TOP_RIGHT
+		isFillWidth = true
+		children += rightTopGroup
+		children += scrollPane
+		managedProperty().bind(visibleProperty())
+	}
+
+	val pane = BorderPane(centerPane, null, rightGroup, bottomVBox, null)
 
 	@Suppress("unused")
-	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply {
+	private val resizeSideBar = ResizeOnLeftSide(rightGroup, sideBarWidthProperty).apply {
 		verifyPermission(MenuActionType.ResizePanel, MenuActionType.ResizeViewers)
+		rightGroup.prefWidthProperty().bind(sideBarWidthProperty)
 		install()
 	}
 
-	private val statusBarPrefWidth = Bindings.createDoubleBinding(
-		{ pane.width - if (painteraProperties.sideBarConfig.isVisible) painteraProperties.sideBarConfig.width else 0.0 },
-		painteraProperties.sideBarConfig.isVisibleProperty,
-		pane.widthProperty(),
-		sideBarWidthProperty
-	)
-
-	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
-
-	@Suppress("unused")
-	private val statusBarParentProperty = SimpleObjectProperty<HBox?>(null).apply {
-		addListener { _, old, new ->
-			old?.children?.remove(statusBar)
-			new?.children?.add(statusBar)
-		}
-		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().map { mode ->
-			when (mode) {
-				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
-				StatusBarConfig.Mode.BOTTOM -> bottomGroup
-			}
-		}
-		bind(replaceParentBinding)
-	}
+	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), painteraProperties.statusBarConfig.isVisibleProperty)
 
 	init {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
 		initCrossHairs()
 		toggleOnMenuBarConfigMode(menuBar)
-		paintera.baseView.activeModeProperty.addListener { _, _, new ->
-			(new as? ToolMode)?.also { toolMode ->
-				val toolBar = toolMode.createToolBar()
+		toggleOnStatusBarConfigMode(statusBar)
+		var prevSub: Subscription? = null
+		paintera.baseView.activeModeProperty.addListener { _, old, new ->
+			prevSub?.unsubscribe()
+			(new as? ToolMode)?.createToolBar()?.also { toolBar ->
 				toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)
 				toolBar.managedProperty().bind(toolBar.visibleProperty())
-				toggleOnToolBarConfigMode(toolBar)
+				prevSub = toggleOnToolBarConfigMode(toolBar)
 			}
 		}
+
 		center.viewer3D().meshesGroup.children.add(settingsView.getMeshGroup())
 		paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
+
+
+		val animateSideBar = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
+		fun toggleSideBar(isVisible: Boolean, animate: Boolean = true) {
+			if (isVisible)
+				animateSideBar.submit { expandSideBar(animate) }
+			else
+				animateSideBar.submit { minimizeSideBar(animate) }
+		}
+		/* Trigger once w/o animation */
+		toggleSideBar(painteraProperties.sideBarConfig.isVisible, animate = false)
+
+		/* listen for changes*/
+		properties.sideBarConfig.isVisibleProperty.subscribe { _, isVisible ->
+			toggleSideBar(isVisible)
+		}
+	}
+
+	internal fun minimizeSideBar(animate: Boolean = true) {
+		if ("animating" in rightGroup.properties.keys)
+			return
+
+		if (!animate) {
+			rightGroup.visibleProperty().value = false
+			return
+		}
+
+		rightGroup.properties["animating"] = true
+		val prevWidth = sideBarWidthProperty.value
+		sideBarWidthProperty.asObject().interpolate(
+			to = 0.0,
+			interpolator = Interpolator.EASE_OUT,
+			time = Duration.millis(350.0)
+		) {
+			rightGroup.visibleProperty().value = false
+			sideBarWidthProperty.set(prevWidth)
+			rightGroup.properties -= "animating"
+		}
+	}
+
+	internal fun expandSideBar(animate : Boolean = true) {
+		if ("animating" in rightGroup.properties.keys)
+			return
+
+		if (!animate) {
+			rightGroup.visibleProperty().value = true
+			return
+		}
+
+		rightGroup.properties["animating"] = true
+		val prevWidth = sideBarWidthProperty.value
+		sideBarWidthProperty.value = 0.0
+		rightGroup.visibleProperty().value = true
+		sideBarWidthProperty.asObject().interpolate(
+			to = prevWidth,
+			interpolator = Interpolator.EASE_IN,
+			time = Duration.millis(350.0)
+		) {
+			sideBarWidthProperty.set(prevWidth)
+			rightGroup.properties -= "animating"
+
+		}
 	}
 
 	private fun initCrossHairs() {
@@ -177,38 +278,87 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	fun bookmarkConfigNode() = this.settingsView.bookmarkConfigNode()
 
-	private fun toggleOnMenuBarConfigMode(menuBar: MenuBar) {
-		/* Call once, then listen */
-		val tc = this.topLeftGroup.children
-		val oc = this.centerPaneTopLeftAlignGroup.children
+	private fun toggleOnMenuBarConfigMode(menuBar: MenuBar): Subscription {
 		val modeProperty = painteraProperties.menuBarConfig.modeProperty
-		modeProperty.value.toggleMenuBarLocation(menuBar, tc, oc)
-		modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(menuBar, tc, oc) }
+		var removeOld: Subscription? = null
+		return modeProperty.subscribe { mode ->
+			removeOld?.unsubscribe()
+			removeOld = mode.moveMenuBarLocation(menuBar, centerPaneTopGroup, centerPaneTopLeftHBox)
+		}.and { removeOld?.unsubscribe() }
 	}
 
-	private fun toggleOnToolBarConfigMode(toolBar: Node) {
-		/* Call once, then listen */
-		val tc = this.topRightGroup.children.also { it.clear() }
-		val oc = this.centerPaneTopRightAlignGroup.children.also { it.clear() }
-		val modeProperty = painteraProperties.menuBarConfig.modeProperty
-		modeProperty.value.toggleMenuBarLocation(toolBar, tc, oc)
-		modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(toolBar, tc, oc) }
+	private fun toggleOnStatusBarConfigMode(statusBar: StatusBar): Subscription {
+		val modeProperty = painteraProperties.statusBarConfig.modeProperty
+		var removeOld: Subscription? = null
+		return modeProperty.subscribe { mode ->
+			removeOld?.unsubscribe()
+			removeOld = mode.moveStatusBarLocation(statusBar, pane, centerPaneBottomLeftHBox)
+		}.and { removeOld?.unsubscribe() }
+	}
+
+	private fun toggleOnToolBarConfigMode(toolBar: FlowPane): Subscription {
+		val modeProperty = painteraProperties.toolBarConfig.modeProperty
+		var removeOld: Subscription? = null
+		return modeProperty.subscribe { mode ->
+			removeOld?.unsubscribe()
+			removeOld = mode.moveToolBarLocation(toolBar, rightTopGroup, centerPaneTopRightHBox)
+		}.and { removeOld?.unsubscribe() }
 	}
 
 	companion object {
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private fun MenuBarConfig.Mode.toggleMenuBarLocation(menuBar: Node, topChildren: ObservableList<Node>, centerChildren: ObservableList<Node>) {
-			when (this) {
+		private fun MenuBarConfig.Mode.moveMenuBarLocation(menuBar: Node, topGroup: Pane, overlayGroup: Pane): Subscription {
+			return when (this) {
 				MenuBarConfig.Mode.OVERLAY -> {
-					topChildren -= menuBar
-					centerChildren += menuBar
+					overlayGroup.children += menuBar
+					Subscription { overlayGroup.children -= menuBar }
 				}
 
 				MenuBarConfig.Mode.TOP -> {
-					centerChildren -= menuBar
-					topChildren += menuBar
+					topGroup.styleClass += "menu-bar"
+					topGroup.children += menuBar
+					Subscription {
+						topGroup.children -= menuBar
+						topGroup.styleClass -= "menu-bar"
+					}
+				}
+			}
+		}
+
+		private fun StatusBarConfig.Mode.moveStatusBarLocation(statusBar: Node, borderPane: BorderPane, overlayGroup: Pane): Subscription {
+			return when (this) {
+				StatusBarConfig.Mode.OVERLAY -> {
+					overlayGroup.children += statusBar
+					Subscription { overlayGroup.children -= statusBar }
+				}
+
+				StatusBarConfig.Mode.BOTTOM -> {
+					borderPane.bottom = statusBar
+					borderPane.styleClass += "status-bar"
+					Subscription {
+						borderPane.bottom = null
+						borderPane.styleClass -= "status-bar"
+					}
+				}
+			}
+		}
+
+		private fun ToolBarConfig.Mode.moveToolBarLocation(toolBar: Node, rightGroup: Pane, overlayGroup: Pane): Subscription {
+			return when (this) {
+				ToolBarConfig.Mode.OVERLAY -> {
+					overlayGroup.children += toolBar
+					Subscription { overlayGroup.children -= toolBar }
+				}
+
+				ToolBarConfig.Mode.RIGHT -> {
+					rightGroup.children += toolBar
+					rightGroup.styleClass += "toolbar"
+					Subscription {
+						rightGroup.children -= toolBar
+						rightGroup.styleClass -= "toolbar"
+					}
 				}
 			}
 		}
