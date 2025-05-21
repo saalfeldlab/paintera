@@ -792,7 +792,8 @@ object N5Helpers {
 		withBlock: (Interval) -> Unit
 	) {
 
-		val blockGrid = n5.getDatasetAttributes(dataset).run {
+		val normalizedDatasetName = N5URI.normalizeGroupPath(dataset)
+		val blockGrid = n5.getDatasetAttributes(normalizedDatasetName).run {
 			CellGrid(dimensions, blockSize)
 		}
 
@@ -805,11 +806,8 @@ object N5Helpers {
 			while (gridIterable.hasNext()) {
 				gridIterable.fwd()
 				gridIterable.localize(curBlock)
+				if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
 
-				//FIXME Caleb: revert when https://github.com/saalfeldlab/n5-zarr/pull/58 is merged
-				val sep = (n5 as? ZarrKeyValueReader)?.getDatasetAttributes(dataset)?.dimensionSeparator ?: "/"
-				val blockPath = curBlock.joinToString(sep)
-				if (n5.keyValueAccess.exists(n5.absoluteGroupPath("$dataset/$blockPath"))) {
 					for (i in cellMin.indices)
 						cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
 					val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
