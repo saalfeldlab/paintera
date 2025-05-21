@@ -138,13 +138,17 @@ public class MetaPanel {
 					return label;
 				};
 
-				xLabel.textProperty().set(dimensionLabel.apply(X_STRING));
-				yLabel.textProperty().set(dimensionLabel.apply(Y_STRING));
-				zLabel.textProperty().set(dimensionLabel.apply(Z_STRING));
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					xLabel.textProperty().set(dimensionLabel.apply(X_STRING));
+					yLabel.textProperty().set(dimensionLabel.apply(Y_STRING));
+					zLabel.textProperty().set(dimensionLabel.apply(Z_STRING));
+				});
 			} else {
-				xLabel.textProperty().set(X_STRING);
-				yLabel.textProperty().set(Y_STRING);
-				zLabel.textProperty().set(Z_STRING);
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					xLabel.textProperty().set(X_STRING);
+					yLabel.textProperty().set(Y_STRING);
+					zLabel.textProperty().set(Z_STRING);
+				});
 			}
 		});
 
