@@ -30,8 +30,6 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
@@ -71,6 +69,8 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +81,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -327,14 +328,14 @@ public class MultiResolutionRendererGeneric<T> {
 
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
-		final ArrayDeque<T> highestResBuffers = screenImages.get(0);
+		final ArrayDeque<T> highestResBuffers = getScreenImages(0);
 		final T highResBuffer = highestResBuffers.peek();
 		if (highResBuffer == null
 				|| width.applyAsInt(highResBuffer) != (int) Math.ceil(componentW * screenScales[0])
 				|| height.applyAsInt(highResBuffer) != (int) Math.ceil(componentH * screenScales[0])) {
 			int numBuffers = doubleBuffered ? 2 : 1;
 			for (int i = 0; i < screenScales.length; ++i) {
-				final ArrayDeque<T> bufferQueue = screenImages.get(i);
+				final ArrayDeque<T> bufferQueue = getScreenImages(i);
 				bufferQueue.clear();
 				final double screenToViewerScale = screenScales[i];
 				final int w = (int) Math.ceil(screenToViewerScale * componentW);
@@ -361,7 +362,7 @@ public class MultiResolutionRendererGeneric<T> {
 	private boolean checkRenewRenderImages(final int numVisibleSources) {
 
 		final int n = Math.max(numVisibleSources, 1);
-		final T screenImage = screenImages.get(0).peek();
+		final T screenImage = getScreenImages(0).peek();
 
 		final int screenWidth = width.applyAsInt(screenImage);
 		final int screenHeight = height.applyAsInt(screenImage);
@@ -379,8 +380,8 @@ public class MultiResolutionRendererGeneric<T> {
 		renderImages = new ArrayImg[screenScales.length][n];
 		for (int i = 0; i < screenScales.length; ++i) {
 
-			final int w = this.width.applyAsInt(screenImages.get(i).peek());
-			final int h = height.applyAsInt(screenImages.get(i).peek());
+			final int w = this.width.applyAsInt(getScreenImages(i).peek());
+			final int h = height.applyAsInt(getScreenImages(i).peek());
 			for (int j = 0; j < n; ++j) {
 				renderImages[i][j] = i == 0
 						? ArrayImgs.argbs(screenWidth, screenHeight)
@@ -392,7 +393,7 @@ public class MultiResolutionRendererGeneric<T> {
 
 	private boolean checkRenewMaskArrays(final int numVisibleSources) {
 
-		final T screenImage = screenImages.get(0).peek();
+		final T screenImage = getScreenImages(0).peek();
 		final int size = width.applyAsInt(screenImage) * height.applyAsInt(screenImage);
 		if (numVisibleSources == renderMaskArrays.length && (numVisibleSources == 0 || renderMaskArrays[0].length == size))
 			return false;
@@ -464,8 +465,7 @@ public class MultiResolutionRendererGeneric<T> {
 
 			if (createProjector) {
 				currentScreenScaleIndex = requestedScreenScaleIndex;
-				final var buffers = this.screenImages.get(currentScreenScaleIndex);
-				renderTarget = buffers.peek();
+				renderTarget = getScreenImages(currentScreenScaleIndex).peek();
 
 
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this)) {
@@ -529,15 +529,23 @@ public class MultiResolutionRendererGeneric<T> {
 			// if rendering was not cancelled...
 			if (success) {
 				if (createProjector) {
-					if (currentScreenScaleIndex >= screenImages.size() || reuseBufferScreenScale >= screenImages.size())
+					if (reuseBufferScreenScale >= screenImages.size())
 						return -1;
-					final ArrayDeque<T> buffers = screenImages.get(currentScreenScaleIndex);
-					final T renderTarget = doubleBuffered ? buffers.pop() : buffers.peek();
+
+					final ArrayDeque<T> buffers;
+					final T renderTarget;
+					try {
+						buffers = getScreenImages(currentScreenScaleIndex);
+						renderTarget = doubleBuffered ? buffers.pop() : buffers.peek();
+					} catch (NoSuchElementException | IndexOutOfBoundsException ignore) {
+						//TODO Caleb: Debug why this case can happen...
+						return -1;
+					}
 					final T unusedBuffer = display.setBufferedImageAndTransform(renderTarget, currentProjectorTransform);
 					if (doubleBuffered) {
 						if (unusedBuffer != null) {
 							/* add the buffer back to the correct screen scale*/
-							final ArrayDeque<T> reuseBuffers = screenImages.get(reuseBufferScreenScale);
+							final ArrayDeque<T> reuseBuffers = getScreenImages(reuseBufferScreenScale);
 							final T otherBuffer = reuseBuffers == buffers ? renderTarget : reuseBuffers.peek();
 							if (
 									width.applyAsInt(unusedBuffer) == width.applyAsInt(otherBuffer)
@@ -669,7 +677,7 @@ public class MultiResolutionRendererGeneric<T> {
 			LOG.debug("Got only one source, creating pre-multiplying single source projector");
 			final SourceAndConverter<?> sac = sacs.get(0);
 			final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
-			final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).peek());
+			final int[] renderTargetSize = getImageSize(getScreenImages(currentScreenScaleIndex).peek());
 			projector = createSingleSourceProjector(
 					sac,
 					timepoint,
@@ -690,7 +698,7 @@ public class MultiResolutionRendererGeneric<T> {
 				final byte[] maskArray = renderMaskArrays[j];
 				++j;
 				final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
-				final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).peek());
+				final int[] renderTargetSize = getImageSize(getScreenImages(currentScreenScaleIndex).peek());
 				final VolatileProjector p = createSingleSourceProjector(
 						sac,
 						timepoint,
@@ -1006,14 +1014,21 @@ public class MultiResolutionRendererGeneric<T> {
 			projector.cancel();
 		renderImages = new ArrayImg[screenScales.length][0];
 		renderMaskArrays = new byte[0][];
-		screenImages = new ArrayList<>();
-		for (int i = 0; i < screenScales.length; ++i) {
-			screenImages.add(new ArrayDeque<>());
-		}
+		createScreenImageVariable(screenScales.length);
 		screenScaleTransforms = new AffineTransform3D[screenScales.length];
 		pendingRepaintRequests = new Interval[screenScales.length];
 		maxScreenScaleIndex = screenScales.length - 1;
 		requestedScreenScaleIndex = maxScreenScaleIndex;
 	}
 
+	private synchronized void createScreenImageVariable(final int numScales) {
+		screenImages = new ArrayList<>();
+		for (int i = 0; i < numScales; ++i) {
+			screenImages.add(new ArrayDeque<>());
+		}
+	}
+
+	private synchronized ArrayDeque<T> getScreenImages(final int scale) {
+		return screenImages.get(scale);
+	}
 }
