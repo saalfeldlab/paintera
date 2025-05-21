@@ -38,12 +38,11 @@
     -glyph-name: "REFRESH";
 }
 
-.glyph-icon.reset {
-    -icons-color: -refresh-blue;
-    -glyph-name: "UNDO";
-}
-
 .glyph-icon.help {
     -icons-color: -help-blue;
     -glyph-name: "REFRESH";
+}
+
+.glyph-icon.reset {
+    -glyph-name: "UNDO";
 }

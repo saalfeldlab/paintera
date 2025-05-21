@@ -26,7 +26,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 private const val NOT_APPLICABLE = "N/A"
 private val MONOSPACE = Font.font("Monospaced")
 
-internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidthBinding: ObservableDoubleValue) : HBox() {
+internal class StatusBar(backgroundBinding: ObjectProperty<Background>) : HBox() {
 
 	private val statusLabel = Label().apply {
 		tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
@@ -106,8 +106,9 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 		children += modeStatus
 		children += NamedNode.bufferNode()
 
+		maxWidth = Double.MAX_VALUE
 		backgroundProperty().bind(backgroundBinding)
-		prefWidthProperty().bind(prefWidthBinding)
+//		prefWidthProperty().bind(prefWidthBinding)
 	}
 
 	fun updateStatusBarNode(vararg nodes: Node) {
@@ -148,10 +149,9 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 	companion object {
 		fun createPainteraStatusBar(
 			backgroundProperty: ObjectProperty<Background>,
-			prefWidthProperty: ObservableDoubleValue,
 			visibilityBinding: ObservableBooleanValue? = null
 		): StatusBar {
-			return StatusBar(backgroundProperty, prefWidthProperty).apply {
+			return StatusBar(backgroundProperty).apply {
 				visibilityBinding?.let {
 					visibleProperty().bind(it)
 					managedProperty().bind(visibleProperty())

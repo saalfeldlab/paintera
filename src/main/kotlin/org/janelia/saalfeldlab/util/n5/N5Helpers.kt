@@ -9,8 +9,10 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
@@ -28,7 +30,6 @@ import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
-import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -50,6 +51,7 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.Pai
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
 import java.util.Optional
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
@@ -183,7 +185,6 @@ object N5Helpers {
 	 * @throws IOException if any N5 operation throws [IOException]
 	 */
 	@JvmStatic
-	@Throws(IOException::class)
 	fun getDatasetAttributes(n5: N5Reader, group: String): DatasetAttributes? {
 		LOG.debug { "Getting data type for group/dataset $group" }
 		if (isPainteraDataset(n5, group)) {
@@ -803,7 +804,10 @@ object N5Helpers {
 		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
 		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
 
-		coroutineScope {
+		val uiUpdate = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
+		val progressCount = AtomicInteger(0)
+
+		CoroutineScope(Dispatchers.IO).async {
 			while (gridIterable.hasNext()) {
 				gridIterable.fwd()
 				val curBlock = gridIterable.positionAsLongArray()
@@ -816,10 +820,13 @@ object N5Helpers {
 						val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
 						launch {
 							withBlock(cellInterval)
-							processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
-						}
-					} else
-						processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
+							progressCount.incrementAndGet()
+							uiUpdate.submit { processedCount?.set(progressCount.get()) }
+							}
+					} else {
+						progressCount.incrementAndGet()
+						uiUpdate.submit { processedCount?.set(progressCount.get()) }
+					}
 				}
 			}
 		}

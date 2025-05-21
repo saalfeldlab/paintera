@@ -8,6 +8,7 @@ import javafx.scene.control.*
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
 import javafx.util.StringConverter
@@ -15,6 +16,7 @@ import net.imglib2.type.numeric.RealType
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
+import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.paintera.Constants
@@ -29,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import kotlin.jvm.optionals.getOrNull
 
@@ -46,7 +49,7 @@ object ExportSourceDialog {
 
 		val state = ExportSourceState()
 		when (newDialog(state).showAndWait().getOrNull()) {
-			ButtonType.OK -> state.exportSource(false)
+			ButtonType.OK -> state.exportSource(true)
 		}
 	}
 
@@ -109,16 +112,26 @@ object ExportSourceDialog {
 			val containerPathField = TextField().apply {
 				promptText = "Enter the container path"
 				maxWidth = Double.MAX_VALUE
-				state.exportLocationProperty.bind(textProperty())
+				state.exportLocationProperty.bindBidirectional(textProperty())
 			}
 			add(containerPathField, 2, 1, 2, 1)
-			add(Button("Browse").apply {
-				setOnAction {
-					val directoryChooser = DirectoryChooser()
-					val selectedDirectory = directoryChooser.showDialog(null)
-					selectedDirectory?.let {
-						containerPathField.text = it.absolutePath
+			add(HBox().apply {
+				children += Button("Browse").apply {
+					setOnAction {
+						val directoryChooser = DirectoryChooser()
+						val selectedDirectory = directoryChooser.showDialog(null)
+						selectedDirectory?.let {
+							containerPathField.text = it.absolutePath
+						}
 					}
+				}
+				PainteraCache.RECENT_EXPORT_LOCATIONS.readLines().reversed().takeIf { it.isNotEmpty() }?.let { recentExports ->
+					containerPathField.text = recentExports.firstOrNull()
+					containerPathField.prefColumnCount *= 2
+					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {
+						containerPathField.text = it
+					}
+					children += recentMatcher
 				}
 			}, 3, 1)
 

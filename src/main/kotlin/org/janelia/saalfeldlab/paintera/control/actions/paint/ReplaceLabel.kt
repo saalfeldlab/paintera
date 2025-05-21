@@ -161,7 +161,7 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 	}
 
 	private fun ReplaceLabelState<*, *>.requestRepaintOverIntervals(sourceIntervals: List<Interval>? = null) {
-		val globalInterval = sourceIntervals
+		val globalInterval = sourceIntervals?.takeIf { it.isNotEmpty() }
 			?.reduce(Intervals::union)
 			?.let { maskedSource.getSourceTransformForMask(MaskInfo(0, 0)).estimateBounds(it) }
 

@@ -102,9 +102,9 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 	private fun setupContextMenu(): ContextMenu {
 		val contextMenu = ContextMenu()
 		contextMenu.items.addAll(
-			PainteraMenuItems.RESET_3D_LOCATION_MENU_ITEM.menu,
-			PainteraMenuItems.CENTER_3D_LOCATION_MENU_ITEM.menu,
-			PainteraMenuItems.SAVE_3D_PNG_MENU_ITEM.menu
+			PainteraMenuItems.RESET_3D_LOCATION.menu,
+			PainteraMenuItems.CENTER_3D_LOCATION.menu,
+			PainteraMenuItems.SAVE_3D_PNG.menu
 		)
 		contextMenu.isAutoHide = true
 		return contextMenu

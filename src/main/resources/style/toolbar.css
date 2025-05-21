@@ -5,6 +5,13 @@
     -toolbar-tool-width: 1.75em;
 }
 
+.toolbar {
+    /* Note: the 75% works in conjunction with .menu-bar. When horizontally next to each other
+     *  the toolbar is 25% taller and so we align the gradient here so it looks seamless.
+     *  if you change default height, you likely will want to change this % as well. */
+    -fx-background-color: linear-gradient(to bottom, #FDFDFD, #D9D9D9 75%, #D9D9D9);
+}
+
 .toolbar-button {
     -fx-padding: .5em .5em .5em .5em;
 }

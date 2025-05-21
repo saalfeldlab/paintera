@@ -53,12 +53,14 @@ class PositiveDoubleTextFormatter(initialValue: Double? = null, format: (Double)
 }
 
 fun <T : Node> T.hGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { }): T {
+	//TODO Caleb: consider setting maxWidth to Double.POSITIVE_INFINITY; maybe as a default param
 	setHgrow(this, priority)
 	apply?.invoke(this)
 	return this
 }
 
 fun <T : Node> T.vGrow(priority: Priority = Priority.ALWAYS, apply: (T.() -> Unit)? = { }): T {
+	//TODO Caleb: consider setting maxHeight to Double.POSITIVE_INFINITY; maybe as a default param
 	setVgrow(this, priority)
 	apply?.invoke(this)
 	return this

@@ -67,9 +67,9 @@ private val newVirtualSourceMenu by LazyForeignValue(::paintera) { Menu("_Virtua
 private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, EXPORT_SOURCE.menu, newSourceMenu) }
 private val menuBarMenu by LazyForeignValue(::paintera) { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
 private val statusBarMenu by LazyForeignValue(::paintera) { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
-private val sideBarMenu by LazyForeignValue(::paintera) { Menu("_Side Bar", null, TOGGLE_SIDE_BAR_MENU_ITEM.menu) }
-private val toolBarMenu by LazyForeignValue(::paintera) { Menu("_Tool Bar", null, TOGGLE_TOOL_BAR_MENU_ITEM.menu) }
-private val viewer3DMenu by LazyForeignValue(::paintera) { Menu("_3D Viewer", null, RESET_3D_LOCATION_MENU_ITEM.menu, CENTER_3D_LOCATION_MENU_ITEM.menu, SAVE_3D_PNG_MENU_ITEM.menu) }
+private val sideBarMenu by LazyForeignValue(::paintera) { Menu("_Side Bar", null, TOGGLE_SIDE_BAR.menu) }
+private val toolBarMenu by LazyForeignValue(::paintera) { Menu("_Tool Bar", null, TOGGLE_TOOL_BAR.menu, TOGGLE_TOOL_BAR_MODE.menu) }
+private val viewer3DMenu by LazyForeignValue(::paintera) { Menu("_3D Viewer", null, RESET_3D_LOCATION.menu, CENTER_3D_LOCATION.menu, SAVE_3D_PNG.menu) }
 private val viewMenu by LazyForeignValue(::paintera) {
 	Menu(
 		"_View",
@@ -78,8 +78,8 @@ private val viewMenu by LazyForeignValue(::paintera) {
 		sideBarMenu,
 		statusBarMenu,
 		toolBarMenu,
-		FULL_SCREEN_ITEM.menu,
-		REPL_ITEM.menu,
+		FULL_SCREEN.menu,
+		SHOW_REPL.menu,
 		RESET_VIEWER_POSITIONS.menu,
 		viewer3DMenu
 	)
@@ -91,11 +91,14 @@ private val actionMenuItems = arrayOf(
 	GoToCoordinate.menuItem,
 	GoToLabel.menuItem,
 )
+
 private val actionMenu by LazyForeignValue(::paintera) { ActionMenu("_Actions", null, *actionMenuItems) }
 private val helpMenu by LazyForeignValue(::paintera) { ActionMenu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
+
 val menuBar by LazyForeignValue(::paintera) {
 	MenuBar(fileMenu, sourcesMenu, actionMenu, viewMenu, helpMenu).apply {
+		widthProperty().subscribe { _ -> minWidth = prefWidth(-1.0) }
 		padding = Insets.EMPTY
 		visibleProperty().bind(paintera.properties.menuBarConfig.isVisibleProperty)
 		managedProperty().bind(visibleProperty())

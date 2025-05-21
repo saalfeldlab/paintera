@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs
 import com.google.common.util.concurrent.AtomicDouble
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.LongProperty
+import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
@@ -13,6 +14,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
+import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.numeric.IntegerType
 import org.controlsfx.control.StatusBar
 import org.janelia.saalfeldlab.fx.ui.NumberField
@@ -20,10 +22,12 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils
+import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils.findMaxId
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.alert
@@ -31,9 +35,12 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.confirmation
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.setButtonText
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
+import org.janelia.saalfeldlab.util.interval
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.LongPredicate
+import kotlin.Throws
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.roundToInt
 
@@ -152,16 +159,30 @@ object DataSourceDialogs {
 			val progress = AtomicDouble(0.0)
 			val maxTracker = AtomicLong(Label.INVALID)
 
-			task.get()?.cancel()
-			val findMaxIdJob = CoroutineScope(Dispatchers.IO).launch {
-				val maxId = LabelSourceUtils.findMaxId(source, progress) { localMax ->
-					maxTracker.getAndUpdate { max -> maxOf(max, localMax) }
+			val count = SimpleIntegerProperty(0)
+			val findMaxIdJob = CoroutineScope(Dispatchers.Default).launch {
+
+				(n5 as? GsonKeyValueN5Reader)?.let {
+
+					val blockGrid = n5.getDatasetAttributes(dataset).run {
+						CellGrid(dimensions, blockSize)
+					}
+					val numBlocks = blockGrid.cellIntervals().size()
+					count.subscribe { it -> statusBar.progress = it.toDouble() / numBlocks.toDouble() }
+
+					var dataSource = source.getDataSource(0, 0)
+					N5Helpers.forEachBlockExists(it, dataset ?: "", count) { block ->
+						val id = findMaxId(dataSource.interval(block))
+						maxTracker.getAndUpdate { max -> maxOf(max, id) }
+					}
+				} ?: run {
+					val maxId = findMaxId(source, progress) { localMax ->
+						maxTracker.getAndUpdate { max -> maxOf(max, localMax) }
+					}
+					maxTracker.set(maxId)
 				}
-				maxTracker.set(maxId)
 			}
-			task.set(findMaxIdJob)
 			findMaxIdJob.invokeOnCompletion { cause ->
-				task.set(null)
 				when (cause) {
 					is CancellationException -> {
 						val initialValue = initialValue.get()
@@ -170,24 +191,17 @@ object DataSourceDialogs {
 						statusBar.progress = 0.0
 					}
 
-					null -> InvokeOnJavaFXApplicationThread {
-						scanButton.text = scanDataButtonText
+					null -> {
+						InvokeOnJavaFXApplicationThread {
+							maxIdField.value = maxTracker.get()
+							scanButton.text = scanDataButtonText
+						}
 					}
 
 					else -> LOG.error(cause) { "Could not find max id for dataset $dataset" }
 				}
-
 			}
-
-			InvokeOnJavaFXApplicationThread {
-				while (!findMaxIdJob.isCompleted) {
-					awaitPulse()
-					maxIdField.valueProperty().set(maxTracker.get())
-					statusBar.progress = progress.get()
-				}
-				maxIdField.valueProperty().set(maxTracker.get())
-				statusBar.progress = progress.get()
-			}
+			findMaxIdJob
 		}
 
 		val runOnCancel = {
@@ -195,6 +209,7 @@ object DataSourceDialogs {
 			LOG.info("Setting next id field {} to initial value {}", maxIdField.valueProperty(), initialValue)
 			maxIdField.valueProperty().set(initialValue.get())
 			statusBar.progress = 0.0
+			null
 		}
 
 		val actionCycle = sequence {
@@ -204,10 +219,12 @@ object DataSourceDialogs {
 			}
 		}.iterator()
 
+		var job : Job? = null
 		scanButton.onAction = EventHandler {
+			job?.cancel()
 			val (action, nextActionText) = actionCycle.next()
 			scanButton.text = nextActionText
-			action()
+			job = action()
 		}
 
 		val maxIdBox = HBox(Label("Max Id:"), maxIdField.textField, statusBar).apply {

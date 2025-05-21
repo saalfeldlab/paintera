@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
+import bsh.commands.dir
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.util.Subscription
@@ -8,6 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
 import net.imglib2.Interval
 import net.imglib2.RealInterval
+import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -20,57 +22,26 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 
 object SmoothLabel : MenuAction("_Smooth...") {
 
-	internal var smoothJob: Deferred<List<Interval>?>? = null
 	internal var smoothTaskLoop: Deferred<List<Interval>?>? = null
-
-	internal var finalizeSmoothing = false
-	private var resmooth : Resmooth? = null
-
 	private lateinit var updateSmoothMask: suspend ((Boolean, Resmooth) -> List<RealInterval>)
 
-	internal object SmoothScope : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
-		private val updateOnPulse = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
+	internal object SmoothScope : ChannelLoop(capacity = CONFLATED) {
+		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
 
-		private val channel = Channel<Job>(capacity = CONFLATED)
-		private var currentJob: Job? = null
+		fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = pulseConflatedUILoop.submit(block = block)
 
-
-		fun submit(block: suspend CoroutineScope.() -> Unit): Job {
-			val job = launch(start = CoroutineStart.LAZY) {
-				block()
-			}
-
-			runBlocking {
-				currentJob?.cancel()
-				channel.send(job)
-				currentJob = job
-			}
-			return job
-		}
-
-		fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = updateOnPulse.submit(block = block)
-
-		init {
-			launch {
-				for (msg in channel) {
-					runCatching {
-						msg.start()
-						msg.join()
-					}
-				}
-			}
-		}
+		fun cancelCurrent() = currentJob?.cancel()
 	}
 
 	init {
 		verifyPermission(PaintActionType.Smooth, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onActionWithState<SmoothLabelState<*, *>> {
-			finalizeSmoothing = false
-			progress = 0.0
-			val sub = progressStatusSubscription()
 			startSmoothTask()
-			getDialog(name?.replace("_", "") ?: "Smooth Label").showAndWait()
-			sub.unsubscribe()
+			getDialog(name?.replace("_", "") ?: "Smooth Label") {
+				runBlocking {
+					resmoothNotification.send(Resmooth.Finish)
+				}
+			}.showAndWait()
 		}
 	}
 
@@ -85,95 +56,114 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	 */
 	private var smoothing by smoothingProperty.nonnull()
 
+	private val resmoothNotification = Channel<Resmooth>(CONFLATED)
+
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun SmoothLabelState<*, *>.startSmoothTask() {
 		val prevScales = viewer.screenScales
-		val smoothTriggerListener = { reason: String, type: Resmooth ->
-			Runnable {
-				resmooth = type
-				smoothJob?.cancel()
-			}
+
+		/* update status based on progress */
+		val progressStatusSubscription = progressStatusSubscription()
+
+		/* these should only trigger on change */
+		val replacementLabelChangeSubscription = replacementLabelProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Partial) }
+		val infillStrategyChangeSubscription = infillStrategyProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Partial) }
+		val kernelSizeChangeSubscription = kernelSizeProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Full) }
+		val smoothDirectionChangeSubscription = smoothDirectionProperty.subscribe { _, direction ->
+			val defaultKernelSize = direction.defaultKernelSize(getLevelResolution())
+			kernelSizeProperty.set(defaultKernelSize)
+			resmoothNotification.trySend(Resmooth.Full)
 		}
-		var smoothTriggerSubscription: Subscription = Subscription.EMPTY
+
+		/* Initialize the kernelSize */
+		val defaultKernelSize = smoothDirectionProperty.get().defaultKernelSize(getLevelResolution())
+		kernelSizeProperty.set(defaultKernelSize)
+
+		/* This should trigger smoothing immediately and on future changes */
+		val labelSelectionSubscription = labelsToSmoothProperty.subscribe { _ ->
+			updateSmoothMask = updateSmoothMaskFunction()
+			resmoothNotification.trySend(Resmooth.Full)
+		}
+
+		val subscriptions = kernelSizeChangeSubscription
+			.and(replacementLabelChangeSubscription)
+			.and(infillStrategyChangeSubscription)
+			.and(smoothDirectionChangeSubscription)
+			.and(labelSelectionSubscription)
+			.and(progressStatusSubscription)
+
+		paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 
 		smoothTaskLoop = SmoothScope.async {
-			val kernelSizeChangeSubscription = kernelSizeProperty.subscribe(smoothTriggerListener("Kernel Size Changed", Resmooth.Full))
-			val replacementLabelChangeSubscription = replacementLabelProperty.subscribe(smoothTriggerListener("Replacement Label Changed", Resmooth.Partial))
-			val labelSelectionSubscription = labelSelectionProperty.subscribe { selection ->
-				smoothJob?.cancel()
+
+			var job: Job? = null
+			var intervals: List<Interval>? = null
+			for (resmoothType in resmoothNotification) {
+				job?.cancelAndJoin()
 				smoothing = true
-				initializeSmoothLabel()
-				smoothing = false
-			}
-			val infillStrategyChangeSubscription = infillStrategyProperty.subscribe(smoothTriggerListener("Infill Strategy Changed", Resmooth.Partial))
-			val smoothDirectionChangeSubscription = smoothDirectionProperty.subscribe(smoothTriggerListener("Smooth Direction Changed", Resmooth.Partial))
-			val smoothThresholdChangeSubscription = smoothThresholdProperty.subscribe(smoothTriggerListener("Smooth Threshold Changed", Resmooth.Partial))
+				job = when (resmoothType) {
+					Resmooth.Cancel -> continue // already cancelled, just continue
+					Resmooth.Partial -> SmoothScope.submit { intervals = updateSmoothMask(true, resmoothType).map { it.smallestContainingInterval } }
+					Resmooth.Full -> SmoothScope.submit { intervals = updateSmoothMask(true, resmoothType).map { it.smallestContainingInterval } }
+					Resmooth.Finish -> SmoothScope.submit { intervals = updateSmoothMask(false, resmoothType).map { it.smallestContainingInterval } }.apply {
+						invokeOnCompletion { cause ->
+							when (cause) {
+								null -> Unit
+								is CancellationException -> {
+									SmoothScope.submitUI { progress = 0.0 }
+									maskedSource.resetMasks()
+									paintera.baseView.orthogonalViews().requestRepaint()
+								}
 
-			smoothTriggerSubscription.unsubscribe()
-			smoothTriggerSubscription = kernelSizeChangeSubscription
-				.and(replacementLabelChangeSubscription)
-				.and(infillStrategyChangeSubscription)
-				.and(smoothDirectionChangeSubscription)
-				.and(smoothThresholdChangeSubscription)
-				.and(labelSelectionSubscription)
-
-			paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
-			var intervals: List<Interval>? = emptyList()
-			while (true) {
-				val resmoothType = resmooth
-				if (resmoothType != null || finalizeSmoothing) {
-					val preview = !finalizeSmoothing
-					try {
-						smoothing = true
-						resmooth = null
-						smoothJob = SmoothScope.async {
-							updateSmoothMask(preview, resmoothType!! ).map { it.smallestContainingInterval }
+								else -> throw cause
+							}
 						}
-						intervals = smoothJob?.await()
-						if (!preview)
-							break
-					} catch (_: CancellationException) {
-						intervals = null
-						if (resmoothType == Resmooth.Full) {
-							dataSource.resetMasks()
-							paintera.baseView.orthogonalViews().requestRepaint()
-						}
-					} finally {
-						smoothing = false
-						/* reset for the next loop */
-						finalizeSmoothing = false
 					}
+				}.apply { invokeOnCompletion { cause -> smoothing = false  } }
+
+				if (resmoothType == Resmooth.Finish) {
+					try {
+						job.join()
+					} catch (_: CancellationException) {
+						SmoothScope.submitUI { progress = 0.0 }
+						continue
+					}
+					break
 				}
-				delay(100)
 			}
-			return@async intervals
+			return@async intervals!!
 		}.also { task ->
 			paintera.baseView.disabledPropertyBindings[task] = smoothingProperty
 			task.invokeOnCompletion { cause ->
-				if (cause != null) {
-					dataSource.resetMasks()
-					paintera.baseView.orthogonalViews().requestRepaint()
-				} else {
+
+				if (cause == null) {
 					val intervals = task.getCompleted()
-					dataSource.apply {
-						val applyProgressProperty = SimpleDoubleProperty()
-						applyProgressProperty.addListener { _, _, applyProgress -> progress = applyProgress.toDouble() }
+					maskedSource.apply {
+						val applyProgressProperty = SimpleDoubleProperty().apply {
+							subscribe { applyProgress ->
+								SmoothScope.submitUI { progress = applyProgress.toDouble() }
+							}
+						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
 				}
-
-				paintera.baseView.disabledPropertyBindings -= task
-				smoothTriggerSubscription.unsubscribe()
-				paintera.baseView.orthogonalViews().setScreenScales(prevScales)
+				try {
+					/* reset if an exception; throw unless cancellation */
+					cause?.let {
+						maskedSource.resetMasks()
+						paintera.baseView.orthogonalViews().requestRepaint()
+						SmoothScope.cancelCurrent()
+						it.takeUnless { it is CancellationException }?.let { throw it }
+					}
+				} finally {
+					paintera.baseView.disabledPropertyBindings -= task
+					subscriptions.unsubscribe()
+					maskedSource.resetMasks()
+					paintera.baseView.orthogonalViews().setScreenScales(prevScales)
+				}
 			}
 		}
-	}
-
-	private fun SmoothLabelState<*, *>.initializeSmoothLabel() {
-
-		updateSmoothMask = updateSmoothMaskFunction()
-		resmooth = Resmooth.Full
 	}
 }

@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import javafx.beans.binding.DoubleExpression
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -10,9 +9,11 @@ import javafx.scene.control.*
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
-import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
@@ -22,16 +23,11 @@ import java.util.function.Consumer
 
 class StatePane(
 	private val state: SourceState<*, *>,
-	private val sourceInfo: SourceInfo,
 	activeSourceRadioButtonGroup: ToggleGroup,
 	remove: Consumer<Source<*>>,
-	width: DoubleExpression,
 ) {
 
 	private val nameProperty = state.nameProperty()
-
-	private val isCurrentSourceProperty = sourceInfo.isCurrentSource(state.dataSource)
-	val isCurrentSource: Boolean by isCurrentSourceProperty.nonnullVal()
 
 	private val statePaneVisibleProperty = state.isVisibleProperty
 	var statePaneIsVisible: Boolean by statePaneVisibleProperty.nonnull()
@@ -51,10 +47,8 @@ class StatePane(
 		}
 		val activeSource = RadioButton().apply {
 			tooltip = Tooltip("Select as active source")
-			selectedProperty().addListener { _, _, new -> if (new) sourceInfo.currentSourceProperty().set(state.dataSource) }
-			isCurrentSourceProperty.addListener { _, _, newv -> if (newv) isSelected = true }
-			isSelected = isCurrentSource
 			toggleGroup = activeSourceRadioButtonGroup
+			userData = state.dataSource
 		}
 		val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0].apply { stroke = Color.BLACK }
 		val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0].apply {

@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.n5.universe.N5FactoryWithCache
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import java.net.URI
 import java.nio.file.Paths
+import kotlin.Throws
 
 class PainteraN5Factory : N5FactoryWithCache() {
 
@@ -33,7 +34,9 @@ class PainteraN5Factory : N5FactoryWithCache() {
 
 	fun newWriter(uri: String): N5Writer =
 		runCatching { openWriter(uri) }.getOrNull()
-			?: super.openWriter(uri)
+			?: StorageFormat.parseUri(uri).let {
+				super.openWriter(it.a ,it.b) /* must be the last `openWriter` that doesn't call an override version */
+			}
 
 	fun openWriterOrNull(uri: String): N5Writer? =
 		runCatching { openWriter(uri) }
