@@ -47,7 +47,6 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 				map += getValidDatasets(it)
 			}
 		}
-		map.remove("/")?.let { map[key.name()] = it }
 		return map.takeIf { it.isNotEmpty() }
 	}
 
