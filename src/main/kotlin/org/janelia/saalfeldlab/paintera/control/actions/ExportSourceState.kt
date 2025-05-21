@@ -16,6 +16,7 @@ import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
@@ -68,9 +69,13 @@ class ExportSourceState {
 
 			val dataSource = (source.getDataSource(0, scaleLevel) as? RandomAccessibleInterval<IntegerType<*>>)!!
 			val typeVal = N5Utils.type(dataType)!! as AbstractIntegerType<out AbstractIntegerType<*>>
+			val invalidVal = typeVal.copy().also { it.setInteger(Label.INVALID) }
 
 			val mappedIntSource = if (mapFragmentToSegment)
-				dataSource.convertRAI(typeVal) { src, target -> target.setInteger(fragmentMapper.getSegment(src.integerLong)) }
+				dataSource.convertRAI(typeVal) { src, target ->
+					val srcVal = src.takeIf { it != invalidVal }?.integerLong ?: 0
+					target.setInteger(fragmentMapper.getSegment(srcVal))
+				}
 			else
 				dataSource
 
@@ -119,7 +124,7 @@ class ExportSourceState {
 			)
 		} else null to null
 
-		val exportJob = CoroutineScope(Dispatchers.IO).launch {
+		val exportJob = CoroutineScope(Dispatchers.Default).launch {
 			val writer = Paintera.n5Factory.newWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata)
 			if (maxIdProperty.value > -1)
