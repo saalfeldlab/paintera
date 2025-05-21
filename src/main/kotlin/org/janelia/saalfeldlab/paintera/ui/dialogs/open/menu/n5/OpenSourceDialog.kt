@@ -66,6 +66,7 @@ class OpenSourceDialog(
 		with(textField) {
 			minWidth = 0.0
 			maxWidth = Double.POSITIVE_INFINITY
+			prefColumnCount *= 2
 			promptText = "Source location (N5/Zarr/HDF5)"
 			tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
 			textProperty().subscribe { _, new -> containerSelection = new }
