@@ -109,7 +109,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 
 			val zeroMinSource = if (Views.isZeroMin(source)) source else Views.zeroMin(source)
 
-			val volatileType = VolatileTypeMatcher.getVolatileTypeForType(Util.getTypeFromInterval(source)).createVariable() as T
+			val volatileType = VolatileTypeMatcher.getVolatileTypeForType(source.type).createVariable() as T
 			volatileType.isValid = true
 
 			val volatileSource = zeroMinSource.convertRAI(volatileType) { s, t -> (t.get() as NativeType<D>).set(s) }
