@@ -108,7 +108,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	public final String dataset() {
 
-		return metadataState.getGroup();
+		return metadataState.getDataset();
 	}
 
 	@Override
@@ -122,7 +122,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		LOG.debug(() -> "Updating label block lookup with " + blockDiffsByLevel);
 		try {
-			final String uniqueLabelsPath = "%s/unique-labels".formatted(dataset());
+			final String uniqueLabelsPath = N5URI.normalizeGroupPath("%s/unique-labels".formatted(dataset()));
 			LOG.debug(() -> "uniqueLabelsPath %s".formatted(uniqueLabelsPath));
 
 			final LabelBlockLookup labelBlockLoader;
@@ -329,7 +329,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	private @NotNull String getDatasetPath() {
 
-		return isPainteraDataset() ? "%s/data".formatted(dataset()) : dataset();
+		final String dataset = isPainteraDataset() ? "%s/data".formatted(dataset()) : dataset();
+		return N5URI.normalizeGroupPath(dataset);
 	}
 
 	private String getHighestResolutionDatasetPath() {
