@@ -49,10 +49,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 ) {
 
 	// Avoid flooding the FX application thread with thousands of calls to cancelAndUpdate() and freezing the
-	// UI for tens of seconds. Really only the latest cancelAndUpdate() call matters and it does not have to
-	// happen at high frequency so we can add a long delay of 100 milliseconds.
+	// UI for tens of seconds. Really only the latest cancelAndUpdate() call matters
 	private val cancelAndUpdateRequestService = LatestTaskExecutor(
-		100_000_000L,
 		NamedThreadFactory("adaptive-resolution-meshmanager-cancel-and-update-%d", true)
 	)
 
@@ -66,11 +64,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
 	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
 	private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
-	private val sceneUpdateService = Executors.newSingleThreadExecutor(
-		NamedThreadFactory(
-			"meshmanager-sceneupdate-%d",
-			true
-		)
+	private val sceneUpdateService = LatestTaskExecutor(
+		NamedThreadFactory( "meshmanager-sceneupdate-%d", true )
 	)
 	private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
 	private var currentSceneUpdateTask: Future<*>? = null
@@ -83,7 +78,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		get() = meshes.keys.toList()
 
 	init {
-		viewFrustum.addListener { _ -> cancelAndUpdate() }
+		viewFrustum.addListener { _ -> requestCancelAndUpdate() }
 		rendererSettings.blockSizeProperty.addListener { _: Observable? ->
 			synchronized(this) {
 				rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty.get())
@@ -109,7 +104,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	}
 
 	@Synchronized
-	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
+	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
 
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshFor(key, BiConsumer { key, state -> releaseState(key, state) })
 
@@ -120,7 +115,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			generator.unbindFromThis()
 			generator.root.visibleProperty().unbind()
 			releaseState.accept(key, generator.state)
-			Platform.runLater {
+			InvokeOnJavaFXApplicationThread {
 				generator.root.isVisible = false
 				meshesGroup.children -= generator.root
 			}
@@ -191,11 +186,11 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		// interrupted generators will be replaced appropriately.
 		if (!isMeshesAndViewerEnabled)
 			meshGenerator.interrupt()
-		Platform.runLater {
+		InvokeOnJavaFXApplicationThread {
 			meshesGroup.children += meshGenerator.root
 			// TODO is this cancelAndUpdate necessary?
 			if (cancelAndUpdate)
-				cancelAndUpdate()
+				requestCancelAndUpdate()
 		}
 		return true
 	}
@@ -206,7 +201,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	@Synchronized
 	fun getStateFor(key: ObjectKey) = meshes[key]?.state
 
-	fun requestCancelAndUpdate() = this.cancelAndUpdateRequestService.execute { Platform.runLater { cancelAndUpdate() } }
+	fun requestCancelAndUpdate() = this.cancelAndUpdateRequestService.execute { InvokeOnJavaFXApplicationThread { cancelAndUpdate() } }
 
 	@Synchronized
 	private fun cancelAndUpdate() {
