@@ -83,9 +83,6 @@
 		<n5-hdf5.version>2.2.1</n5-hdf5.version>
 		<n5.version>3.5.1</n5.version>
 
-		<!-- Imglib2 Versions -->
-		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
-
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
 	</properties>
