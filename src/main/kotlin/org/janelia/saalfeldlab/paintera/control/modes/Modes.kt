@@ -171,7 +171,7 @@ interface ToolMode : SourceMode {
 			}
 		}
 
-		runBlocking {
+		ToolChange.scope.launch {
 			ToolChange.channel.send(switchToolJob)
 		}
 
