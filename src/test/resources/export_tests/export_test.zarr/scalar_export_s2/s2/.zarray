@@ -1,0 +1,1 @@
+{"shape":[25,25,25],"chunks":[32,32,32],"fill_value":0,"dtype":"|u1","filters":[],"dimension_separator":".","zarr_format":2,"order":"C","compressor":{"id":"gzip","level":-1}}
