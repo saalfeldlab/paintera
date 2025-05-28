@@ -32,7 +32,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.t
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
-import java.util.stream.Stream
 import kotlin.streams.asSequence
 
 interface MetadataState {
@@ -387,18 +386,13 @@ class MetadataUtils {
 		}
 
 		@JvmStatic
-		fun createMetadataState(n5containerAndDataset: String): MetadataState? {
+		fun createMetadataState(n5Uri: String): MetadataState? {
 
-			val reader = with(Paintera.n5Factory) {
-				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset) ?: return null
-			}
+			val n5URI = N5URI(n5Uri)
+			val containerPath = n5URI.containerPath
+			val dataset = n5URI.groupPath
 
-			val n5ContainerState = N5ContainerState(reader)
-			return discoverAndParseRecursive(reader, n5containerAndDataset).run {
-				if (isDataset && metadataIsValid(metadata))
-					createMetadataState(n5ContainerState, metadata)
-				else null
-			}
+			return createMetadataState(containerPath, dataset)
 		}
 
 		@JvmStatic
