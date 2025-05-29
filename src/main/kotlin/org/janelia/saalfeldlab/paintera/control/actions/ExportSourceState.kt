@@ -1,14 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.actions
 
 import javafx.beans.property.*
+import javafx.scene.control.Alert
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.NativeType
@@ -42,6 +39,7 @@ import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 
 class ExportSourceState {
@@ -94,7 +92,7 @@ class ExportSourceState {
 	//  - Export multiscale pyramid
 	//  - Export interval of label source
 	//  - custom fragment to segment mapping
-	fun exportSource(showProgressAlert: Boolean = false) : Job? {
+	fun exportSource(showProgressAlert: Boolean = false): Job? {
 
 		val backend = backendProperty.value ?: return null
 		val source = sourceProperty.value ?: return null
@@ -132,6 +130,8 @@ class ExportSourceState {
 			)
 		} else null to null
 
+		val blocksWritten = AtomicInteger(0)
+
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
 			val writer = Paintera.n5Factory.newWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, metadataState)
@@ -154,11 +154,30 @@ class ExportSourceState {
 				}
 
 				/* If we are here, there was an error.
-				 *  If it was cancellation, just close .
+				 *  If it was cancellation, just close and warn the user of potential partial export.
 				 *  Otherwise, show an exception dialog */
 				stopAndClose()
-				it.takeIf { it !is CancellationException }?.let { t ->
-					(t as? Exception)?.let {
+				when {
+					blocksWritten.get() > 0 && it is CancellationException -> {
+						InvokeOnJavaFXApplicationThread {
+							PainteraAlerts.alert(Alert.AlertType.WARNING).apply {
+								title = "Export Cancelled"
+								headerText = "Export was cancelled.\nPartial dataset export may exist."
+								contentText = """
+									Export Location: 
+											$exportLocation
+									Dataset:        $dataset
+									Scale Level:    $scaleLevel
+									
+									Blocks Written: ${blocksWritten.get()}
+								""".trimIndent()
+							}.showAndWait()
+						}
+					}
+
+					it is CancellationException -> {}
+
+					it is Exception -> {
 						InvokeOnJavaFXApplicationThread {
 							/* hack until the dialog is improved in saalfx*/
 							val content = ExceptionNode(it).pane.apply {
