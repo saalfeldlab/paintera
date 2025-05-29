@@ -89,7 +89,10 @@ class OpenSourceDialog(
 
 	val nameField = NameField("Source name", "Specify source name (required)", InnerShadow(10.0, Color.ORANGE)).apply {
 		errorMessageProperty().subscribe { _, _ -> combineErrorMessages() }
+		/* init sourceName to text, and listen for future programatic changes*/
 		state.sourceNameProperty.subscribe { name -> textField().text = name }
+		/* listen for text input and set sourceName*/
+		textField().textProperty().subscribe { _, text -> state.sourceName = text ?: "" }
 	}
 
 	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isBusy)
