@@ -58,9 +58,9 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private val currentLabelToPaintAtomic = AtomicLong(Label.INVALID)
 	internal var currentLabelToPaint : Long
-		get() = currentLabelToPaintAtomic.get()
+		get() = currentLabelToPaintAtomic.getAcquire()
 		set(value) {
-			currentLabelToPaintAtomic.set(value)
+			currentLabelToPaintAtomic.setRelease(value)
 			updateStatus()
 		}
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
@@ -110,7 +110,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	override val statusProperty = SimpleStringProperty()
 
 	private fun updateStatus() = InvokeOnJavaFXApplicationThread {
-		val labelNum = currentLabelToPaintAtomic.get()
+		val labelNum = currentLabelToPaint
 		if (IdService.isTemporary(labelNum)) return@InvokeOnJavaFXApplicationThread
 		val labelText = when (labelNum) {
 			Label.BACKGROUND -> "BACKGROUND"
@@ -157,6 +157,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {
 		currentLabelToPaint = label
+		updateStatus()
 	}
 
 	protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint, ignoreDisable = true) {

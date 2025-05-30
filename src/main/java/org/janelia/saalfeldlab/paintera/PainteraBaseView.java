@@ -217,11 +217,6 @@ public class PainteraBaseView {
 
 		activeModeProperty.set(AppControlMode.INSTANCE);
 
-		sourceInfo().currentSourceProperty().addListener((obs, oldv, newv) ->
-				Optional.ofNullable(newv)
-						.map(sourceInfo::getState)
-						.ifPresent(state -> activeModeProperty.set(state.getDefaultMode()))
-		);
 
 		this.allowedActionsProperty = new AllowedActionsProperty(getNode().cursorProperty());
 

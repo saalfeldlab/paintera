@@ -865,7 +865,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			distanceType: DistanceTransform.DISTANCE_TYPE,
 			vararg weights: Double
 		) where R : RealType<R>?, R : NativeType<R>? {
-			val distanceInside: RandomAccessibleInterval<R> = ArrayImgFactory(Util.getTypeFromInterval(target)).create(target)
+			val distanceInside: RandomAccessibleInterval<R> = ArrayImgFactory(target.type).create(target)
 			DistanceTransform.binaryTransform(mask, target, distanceType, *weights)
 			DistanceTransform.binaryTransform(Logical.complement(mask), distanceInside, distanceType, *weights)
 			LoopBuilder.setImages(target, distanceInside).multiThreaded().forEachPixel { result, inside ->
@@ -884,7 +884,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			transformToSource: AffineTransform3D,
 			invalidValue: T
 		): ExtendedRealRandomAccessibleRealInterval<T, RealRandomAccessibleRealInterval<T>> where T : NativeType<T>, T : RealType<T> {
-			val extendValue = Util.getTypeFromInterval(dt1)!!.createVariable()
+			val extendValue = dt1.type.createVariable()
 			extendValue!!.setReal(extendValue.maxValue)
 
 			val union = dt1 union dt2

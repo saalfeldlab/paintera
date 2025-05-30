@@ -12,7 +12,13 @@
 .settings
 /target
 *.swp
+# ignore all attributes.json files, EXCEPT in test resources
 attributes.json*
+!src/test/resources/**/attributes.json*
+#ignore tmp.n5/tmp.zarr (should be removed, but incase of error may persist locally)
+tmp.n5*
+tmp.zarr*
+
 canvases
 .paintera
 .idea
@@ -21,3 +27,7 @@ canvases
 *.java-version
 *dockerfile
 /meshes
+
+# ignore scijava scripts if presetn
+ci-build.sh
+ci-setup-github-actions.sh

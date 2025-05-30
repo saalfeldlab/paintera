@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
@@ -69,18 +70,14 @@ class LabelSourceStatePreferencePaneNode(
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
 				val segments = selectedSegments.getSelectedSegments().toArray().toList()
-				observableSelectedSegmentsList.removeIf { it !in segments }
-				observableSelectedSegmentsList.addAll(segments.filter { it !in observableSelectedSegmentsList }.toList())
-			}
-			selectedSegments.addListener(selectedSegmentUpdateListener)
-			selectedSegmentUpdateListener(selectedSegments) //run the first time manually, since it may not be invalidated yet
-			box.visibleProperty().addListener { _, _, visible ->
-				if (!visible) {
-					selectedSegments.removeListener(selectedSegmentUpdateListener)
-				} else {
-					selectedSegments.addListener(selectedSegmentUpdateListener)
+				val toRemove = observableSelectedSegmentsList - segments
+				val toAdd = segments - observableSelectedSegmentsList
+				InvokeOnJavaFXApplicationThread {
+					observableSelectedSegmentsList -= toRemove
+					observableSelectedSegmentsList += toAdd
 				}
 			}
+			selectedSegments.addListener(selectedSegmentUpdateListener)
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,

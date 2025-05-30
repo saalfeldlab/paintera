@@ -13,7 +13,6 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -29,7 +28,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ProgressBar;
@@ -88,7 +86,6 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.checkerframework.common.reflection.qual.Invoke;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.UtilityTask;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -126,6 +123,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -139,7 +137,6 @@ import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 /**
  * Wrap a paintable canvas around a source that provides background.
@@ -231,7 +228,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private final BooleanProperty isBusy = new SimpleBooleanProperty(null, "Masked Source Is Busy");
 
-	private final Map<Long, TLongHashSet>[] affectedBlocksByLabel;
+	private final ConcurrentHashMap<Long, TLongHashSet>[] affectedBlocksByLabel;
 
 	private final List<Runnable> canvasClearedListeners = new ArrayList<>();
 
@@ -309,7 +306,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				this.blockSizes));
 		this.cacheDirectory.set(initialCacheDirectory);
 
-		this.affectedBlocksByLabel = Stream.generate(HashMap::new).limit(this.canvases.length).toArray(Map[]::new);
+		this.affectedBlocksByLabel = new ConcurrentHashMap[canvases.length];
+		for (int level = 0; level < canvases.length; level++) {
+			affectedBlocksByLabel[level] = new ConcurrentHashMap<>();
+		}
 
 		isBusyProperty().addListener((obs, oldv, busy) -> {
 			if (!busy) {
@@ -616,13 +616,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final CellGrid grid = canvas.getCellGrid();
 		final RandomAccessibleInterval<UnsignedLongType> maskRai = mask.getRai();
 
+		/* Start as busy, so a new mask isn't generated until we are done applying this one. */
+		this.isBusy.set(true);
+
 		for (Interval interval : intervals) {
 			final FinalInterval intervalOverCanvas = Intervals.intersect(canvas, interval);
 			if (Intervals.isEmpty(intervalOverCanvas))
 				continue;
 
-			/* Start as busy, so a new mask isn't generated until we are done applying this one. */
-			this.isBusy.set(true);
 
 			var applyFuture = applyPool.submit(() -> {
 				final int[] blockSize = new int[grid.numDimensions()];
@@ -842,21 +843,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		/*Show the dialog and wait for committing to finish */
 		LOG.warn("Creating commit status dialog.");
 		final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
-		Scene dialogScene = isCommittingDialog.getDialogPane().getScene();
-		final var prevCursor = Optional.ofNullable(dialogScene.cursorProperty().get()).orElse(javafx.scene.Cursor.DEFAULT);
-		ObjectBinding<javafx.scene.Cursor> busyCursorBinding = Bindings.createObjectBinding(() -> {
-			if (isBusy.get()) {
-				return javafx.scene.Cursor.WAIT;
-			} else {
-				return prevCursor;
-			}
-		}, isBusyProperty());
-		dialogScene.cursorProperty().bind(busyCursorBinding);
-		dialogScene.getWindow().setOnCloseRequest(ev -> {
-			if (isBusy.get())
-				ev.consume();
-		});
 		isCommittingDialog.setHeaderText("Committing canvas.");
+		/* The hidden FINISH button blocks the dialog from closing before OK is done. */
+		isCommittingDialog.getButtonTypes().add(ButtonType.FINISH);
+		final Node finishButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.FINISH);
+		finishButton.setManaged(false);
 		final Node okButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK);
 		okButton.setDisable(true);
 		final var content = new VBox();
@@ -1287,7 +1278,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			for (Entry<Long, Set<Long>> entry : blocksModifiedByLabel.entrySet()) {
 				final Long labelId = entry.getKey();
 				final Set<Long> blocks = entry.getValue();
-				this.affectedBlocksByLabel[lowerResLevel].computeIfAbsent(labelId, k -> new TLongHashSet()).addAll(blocks);
+				synchronized (affectedBlocksByLabel) {
+					affectedBlocksByLabel[lowerResLevel].computeIfAbsent(labelId, k -> new TLongHashSet()).addAll(blocks);
+				}
 			}
 			LOG.debug("Downsampled level {}", lowerResLevel);
 		}

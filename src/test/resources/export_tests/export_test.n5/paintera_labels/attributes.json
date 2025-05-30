@@ -1,0 +1,11 @@
+{
+  "painteraData": {
+    "type": "label"
+  },
+  "maxId": 11,
+  "labelBlockLookup": {
+    "type": "n5-filesystem-relative",
+    "scaleDatasetPattern": "label-to-block-mapping/s%d"
+  },
+  "n5": "4.0.0"
+}

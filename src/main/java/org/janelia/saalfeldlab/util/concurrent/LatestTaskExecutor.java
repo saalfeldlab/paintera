@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.util.concurrent;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -11,7 +12,7 @@ public class LatestTaskExecutor implements Executor {
 
 	private final ScheduledExecutorService executor;
 
-	private Runnable task;
+	private Future<?> task;
 
 	private long delayInNanoSeconds;
 
@@ -31,24 +32,23 @@ public class LatestTaskExecutor implements Executor {
 
 	@Override
 	public synchronized void execute(final Runnable command) {
+		submit(command);
+	}
 
-		final Runnable pendingTask = task;
-		task = command;
-		if (pendingTask == null) {
-			executor.schedule(
-					() -> {
-						final Runnable currentTask;
+	public synchronized Future<?> submit(final Runnable command) {
+		if (task == null || task.isDone()) {
+			final long nsDelay = Math.max(delayInNanoSeconds - (System.nanoTime() - lastTaskExecutionNanoTime), 0);
+			task = executor.schedule(() -> {
+						command.run();
 						synchronized (this) {
 							lastTaskExecutionNanoTime = System.nanoTime();
-							currentTask = task;
 							task = null;
 						}
-						currentTask.run();
 					},
-					Math.max(delayInNanoSeconds - (System.nanoTime() - lastTaskExecutionNanoTime), 0),
-					TimeUnit.NANOSECONDS
+					nsDelay, TimeUnit.NANOSECONDS
 			);
 		}
+		return task;
 	}
 
 	public synchronized boolean busy() {

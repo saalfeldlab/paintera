@@ -1,0 +1,18 @@
+{
+  "dataType": "uint8",
+  "compression": {
+    "type": "gzip",
+    "useZlib": false,
+    "level": -1
+  },
+  "blockSize": [
+    32,
+    32,
+    32
+  ],
+  "dimensions": [
+    100,
+    100,
+    100
+  ]
+}

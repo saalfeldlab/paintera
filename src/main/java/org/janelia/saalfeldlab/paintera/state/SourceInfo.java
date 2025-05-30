@@ -87,8 +87,8 @@ public class SourceInfo {
 	private final IntegerProperty currentSourceIndex = new SimpleIntegerProperty(-1);
 
 	{
-		this.currentSource.addListener((oldv, obs, newv) -> this.currentSourceIndex.set(this.sources.indexOf(newv)));
-		this.currentSourceIndex.addListener((oldv, obs, newv) -> this.currentSource.set(newv.intValue() < 0 || newv
+		this.currentSource.addListener((obs, oldv, newv) -> this.currentSourceIndex.set(this.sources.indexOf(newv)));
+		this.currentSourceIndex.addListener((obs, oldv, newv) -> this.currentSource.set(newv.intValue() < 0 || newv
 				.intValue() >= this.sources.size()
 				? null
 				: this.sources.get(newv
@@ -188,7 +188,9 @@ public class SourceInfo {
 
 		this.states.remove(source);
 		this.sources.remove(source);
-		this.currentSource.set(this.sources.isEmpty() ? null : this.sources.get(Math.max(currentSourceIndex - 1, 0)));
+		if (currentSource.get() == source) {
+			this.currentSource.set(this.sources.isEmpty() ? null : this.sources.get(Math.max(currentSourceIndex - 1, 0)));
+		}
 		this.composites.remove(source);
 		this.removedSources.add(source);
 		if (state != null)

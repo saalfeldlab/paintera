@@ -1,0 +1,26 @@
+{
+  "dataType": "uint8",
+  "compression": {
+    "type": "gzip",
+    "useZlib": false,
+    "level": -1
+  },
+  "blockSize": [
+    32,
+    32,
+    32
+  ],
+  "dimensions": [
+    25,
+    25,
+    25
+  ],
+  "maxNumEntries": -1,
+  "isLabelMultiset": true,
+  "unit": "pixel",
+  "downsamplingFactors": [
+    4.0,
+    4.0,
+    4.0
+  ]
+}

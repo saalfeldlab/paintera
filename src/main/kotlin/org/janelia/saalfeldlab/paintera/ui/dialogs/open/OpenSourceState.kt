@@ -61,10 +61,10 @@ class OpenSourceState {
 	val translationProperty = SimpleObjectProperty<DoubleArray?>()
 	var translation by translationProperty.nullable()
 
-	val minIntensityProperty = SimpleDoubleProperty(Double.NaN)
+	val minIntensityProperty = SimpleDoubleProperty(0.0)
 	var minIntensity by minIntensityProperty.nonnull()
 
-	val maxIntensityProperty = SimpleDoubleProperty(Double.NaN)
+	val maxIntensityProperty = SimpleDoubleProperty(255.0)
 	var maxIntensity by maxIntensityProperty.nonnull()
 
 	val metadataStateBinding = activeMetadataProperty.createObservableBinding {
@@ -92,7 +92,7 @@ class OpenSourceState {
 	val datasetPath get() = activeNodeProperty.get()?.path
 	val sourceNameProperty = SimpleStringProperty().also { prop ->
 		activeNodeProperty.subscribe { it ->
-			prop.value = datasetPath?.split("/")?.last()
+			prop.value = arrayOf(datasetPath, containerState?.uri?.path).firstNotNullOfOrNull { it?.split("/")?.lastOrNull { it.isNotEmpty() } }
 		}
 	}
 	var sourceName: String by sourceNameProperty.nonnull()

@@ -160,8 +160,8 @@ public class LabelSourceStateIdSelectorHandler {
 				keyAction.verify(keyEvent -> selectAllTask != null);
 				keyAction.onAction(keyEvent -> {
 					selectAllTask.cancel(null);
-					refreshMeshes.run();
 					selectedIds.deactivateAll();
+					refreshMeshes.run();
 				});
 			});
 		});

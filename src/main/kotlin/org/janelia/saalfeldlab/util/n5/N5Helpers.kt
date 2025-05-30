@@ -10,6 +10,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
@@ -792,33 +793,32 @@ object N5Helpers {
 		withBlock: (Interval) -> Unit
 	) {
 
-		val blockGrid = n5.getDatasetAttributes(dataset).run {
+		val normalizedDatasetName = N5URI.normalizeGroupPath(dataset)
+		val blockGrid = n5.getDatasetAttributes(normalizedDatasetName).run {
 			CellGrid(dimensions, blockSize)
 		}
 
 		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
-		val curBlock = LongArray(gridIterable.numDimensions())
 		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
-		val cellMin = LongArray(gridIterable.numDimensions())
 
 		coroutineScope {
 			while (gridIterable.hasNext()) {
 				gridIterable.fwd()
-				gridIterable.localize(curBlock)
+				val curBlock = gridIterable.positionAsLongArray()
+				launch {
+					val cellMin = LongArray(gridIterable.numDimensions())
+					if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
 
-				//FIXME Caleb: revert when https://github.com/saalfeldlab/n5-zarr/pull/58 is merged
-				val sep = (n5 as? ZarrKeyValueReader)?.getDatasetAttributes(dataset)?.dimensionSeparator ?: "/"
-				val blockPath = curBlock.joinToString(sep)
-				if (n5.keyValueAccess.exists(n5.absoluteGroupPath("$dataset/$blockPath"))) {
-					for (i in cellMin.indices)
-						cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
-					val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
-					launch {
-						withBlock(cellInterval)
+						for (i in cellMin.indices)
+							cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
+						val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
+						launch {
+							withBlock(cellInterval)
+							processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
+						}
+					} else
 						processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
-					}
-				} else
-					processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
+				}
 			}
 		}
 	}

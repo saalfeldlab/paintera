@@ -826,7 +826,7 @@ public class N5Data {
 
 		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
-		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
+		final String uniqueLabelsGroup = N5URI.normalizeGroupPath(String.format("%s/unique-labels", group));
 
 		var n5Uri = writer.getURI();
 		if (!ignoreExisiting && writer.datasetExists(group))
@@ -844,7 +844,7 @@ public class N5Data {
 		writer.setAttribute(group, N5Helpers.PAINTERA_DATA_KEY, pd);
 		writer.setAttribute(group, N5Helpers.MAX_ID_KEY, 0L);
 
-		final String dataGroup = String.format("%s/data", group);
+		final String dataGroup = N5URI.normalizeGroupPath(String.format("%s/data", group));
 		writer.createGroup(dataGroup);
 
 		writer.setAttribute(dataGroup, N5Helpers.MULTI_SCALE_KEY, true);
@@ -855,8 +855,8 @@ public class N5Data {
 		writer.createGroup(uniqueLabelsGroup);
 		writer.setAttribute(uniqueLabelsGroup, N5Helpers.MULTI_SCALE_KEY, true);
 
-		final String scaleDatasetPattern = String.format("%s/s%%d", dataGroup);
-		final String scaleUniqueLabelsPattern = String.format("%s/s%%d", uniqueLabelsGroup);
+		final String scaleDatasetPattern = N5URI.normalizeGroupPath(String.format("%s/s%%d", dataGroup));
+		final String scaleUniqueLabelsPattern = N5URI.normalizeGroupPath(String.format("%s/s%%d", uniqueLabelsGroup));
 		final long[] scaledDimensions = dimensions.clone();
 		final double[] accumulatedFactors = new double[]{1.0, 1.0, 1.0};
 		for (int scaleLevel = 0, downscaledLevel = -1; downscaledLevel < relativeScaleFactors.length; ++scaleLevel, ++downscaledLevel) {
@@ -867,8 +867,8 @@ public class N5Data {
 				Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
 			}
 
-			final String dataset = String.format(scaleDatasetPattern, scaleLevel);
-			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
+			final String dataset = N5URI.normalizeGroupPath(String.format(scaleDatasetPattern, scaleLevel));
+			final String uniqeLabelsDataset = N5URI.normalizeGroupPath(String.format(scaleUniqueLabelsPattern, scaleLevel));
 
 			if (labelMultisetType) {
 				writer.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());

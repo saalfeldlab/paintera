@@ -1,13 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.actions
 
 import javafx.beans.property.*
+import javafx.scene.control.Alert
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.NativeType
@@ -16,6 +14,7 @@ import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
@@ -29,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 
 class ExportSourceState {
@@ -65,14 +66,23 @@ class ExportSourceState {
 			val mapFragmentToSegment = segmentFragmentMappingProperty.value
 			val dataType = dataTypeProperty.value
 
-
 			val dataSource = (source.getDataSource(0, scaleLevel) as? RandomAccessibleInterval<IntegerType<*>>)!!
 			val typeVal = N5Utils.type(dataType)!! as AbstractIntegerType<out AbstractIntegerType<*>>
+			val invalidVal = typeVal.copy().also { it.setInteger(Label.INVALID) }
 
 			val mappedIntSource = if (mapFragmentToSegment)
-				dataSource.convertRAI(typeVal) { src, target -> target.setInteger(fragmentMapper.getSegment(src.integerLong)) }
+				dataSource.convertRAI(typeVal) { src, target ->
+					target.setInteger(fragmentMapper.getSegment(src.integerLong))
+					if (target == invalidVal)
+						target.setInteger(Label.BACKGROUND)
+				}
 			else
-				dataSource
+				dataSource.convertRAI(typeVal) { src, target ->
+					val srcVal = src.integerLong
+					target.setInteger(srcVal)
+					if (target == invalidVal)
+						target.setInteger(Label.BACKGROUND)
+				}
 
 			return mappedIntSource as RandomAccessibleInterval<out NativeType<*>>
 		}
@@ -82,19 +92,20 @@ class ExportSourceState {
 	//  - Export multiscale pyramid
 	//  - Export interval of label source
 	//  - custom fragment to segment mapping
-	fun exportSource(showProgressAlert: Boolean = false) {
+	fun exportSource(showProgressAlert: Boolean = false): Job? {
 
-		val backend = backendProperty.value ?: return
-		val source = sourceProperty.value ?: return
-		val exportLocation = exportLocationProperty.value ?: return
-		val dataset = datasetProperty.value ?: return
+		val backend = backendProperty.value ?: return null
+		val source = sourceProperty.value ?: return null
+		val exportLocation = exportLocationProperty.value ?: return null
+		val dataset = datasetProperty.value ?: return null
 
 
 		val scaleLevel = scaleLevelProperty.value
 		val dataType = dataTypeProperty.value
 
-		val sourceMetadata: N5SpatialDatasetMetadata = backend.metadataState.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: backend.metadataState as N5SpatialDatasetMetadata
+		val metadataState = backend.metadataState
 		val n5 = backend.container as GsonKeyValueN5Reader
+		val sourceMetadata = metadataState.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: metadataState.metadata as N5SpatialDatasetMetadata
 
 		val exportRAI = exportableSourceRAI!!
 		val cellGrid: CellGrid = source.getCellGrid(0, scaleLevel)
@@ -119,9 +130,11 @@ class ExportSourceState {
 			)
 		} else null to null
 
-		val exportJob = CoroutineScope(Dispatchers.IO).launch {
+		val blocksWritten = AtomicInteger(0)
+
+		val exportJob = CoroutineScope(Dispatchers.Default).launch {
 			val writer = Paintera.n5Factory.newWriter(exportLocation)
-			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata)
+			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, metadataState)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, MAX_ID_KEY, maxIdProperty.value)
 			val scaleLevelDataset = "$dataset/s$scaleLevel"
@@ -141,11 +154,30 @@ class ExportSourceState {
 				}
 
 				/* If we are here, there was an error.
-				 *  If it was cancellation, just close .
+				 *  If it was cancellation, just close and warn the user of potential partial export.
 				 *  Otherwise, show an exception dialog */
 				stopAndClose()
-				it.takeIf { it !is CancellationException }?.let { t ->
-					(t as? Exception)?.let {
+				when {
+					blocksWritten.get() > 0 && it is CancellationException -> {
+						InvokeOnJavaFXApplicationThread {
+							PainteraAlerts.alert(Alert.AlertType.WARNING).apply {
+								title = "Export Cancelled"
+								headerText = "Export was cancelled.\nPartial dataset export may exist."
+								contentText = """
+									Export Location: 
+											$exportLocation
+									Dataset:        $dataset
+									Scale Level:    $scaleLevel
+									
+									Blocks Written: ${blocksWritten.get()}
+								""".trimIndent()
+							}.showAndWait()
+						}
+					}
+
+					it is CancellationException -> {}
+
+					it is Exception -> {
 						InvokeOnJavaFXApplicationThread {
 							/* hack until the dialog is improved in saalfx*/
 							val content = ExceptionNode(it).pane.apply {
@@ -170,6 +202,7 @@ class ExportSourceState {
 				}
 			}
 		}
+		return exportJob
 	}
 
 	internal fun exportOmeNGFFMetadata(
@@ -177,11 +210,26 @@ class ExportSourceState {
 		dataset: String,
 		scaleLevel: Int,
 		datasetAttributes: DatasetAttributes,
-		sourceMetadata: N5SpatialDatasetMetadata,
+		metadataState: MetadataState,
 	) {
 		val scaleLevelDataset = "$dataset/s$scaleLevel"
 		writer.createGroup(dataset)
 		writer.createDataset(scaleLevelDataset, datasetAttributes)
+
+		val sourceMetadata = metadataState.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: metadataState.metadata as N5SpatialDatasetMetadata
+
+		val translation = (metadataState as? MultiScaleMetadataState)?.let {
+			if (scaleLevel == 0)
+				sourceMetadata.offset
+			else {
+				val s0Metadata = it.metadata[0]
+				val s0Resolution = s0Metadata.resolution
+				val s0Offset = s0Metadata.offset
+				DoubleArray(3) { idx ->
+					s0Offset[idx] + (sourceMetadata.resolution[idx] - s0Resolution[idx]) / 2.0
+				}
+			}
+		} ?: sourceMetadata.offset
 
 		val exportMetadata = OmeNgffMetadata.buildForWriting(
 			datasetAttributes.numDimensions,
@@ -193,7 +241,7 @@ class ExportSourceState {
 			),
 			arrayOf("s$scaleLevel"),
 			arrayOf(sourceMetadata.resolution),
-			arrayOf(sourceMetadata.offset)
+			arrayOf(translation)
 		)
 
 		OmeNgffMetadataParser().writeMetadata(

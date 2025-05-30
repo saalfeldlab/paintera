@@ -171,7 +171,7 @@ interface ToolMode : SourceMode {
 			}
 		}
 
-		runBlocking {
+		ToolChange.scope.launch {
 			ToolChange.channel.send(switchToolJob)
 		}
 
@@ -351,6 +351,7 @@ interface ToolMode : SourceMode {
 
 	fun disableUnfocusedViewers() {
 		val orthoViews = paintera.baseView.orthogonalViews()
+		activeViewerProperty.get()?.viewer() ?: return
 		orthoViews.views()
 			.stream()
 			.filter { activeViewerProperty.get()?.viewer()!! != it }

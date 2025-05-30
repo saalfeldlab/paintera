@@ -32,7 +32,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.t
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
-import java.util.stream.Stream
 import kotlin.streams.asSequence
 
 interface MetadataState {
@@ -58,7 +57,7 @@ interface MetadataState {
 	val writer: N5Writer?
 	var group: String
 	val dataset: String
-		get() = group
+		get() = N5URI.normalizeGroupPath(group)
 
 	fun updateTransform(newTransform: AffineTransform3D)
 	fun updateTransform(resolution: DoubleArray, offset: DoubleArray)
@@ -116,7 +115,7 @@ open class SingleScaleMetadataState(
 	override val writer: N5Writer?
 		get() = n5ContainerState.writer
 
-	override var group = metadata.path!!
+	override var group = N5URI.normalizeGroupPath(metadata.path)!!
 
 	override fun copy(): SingleScaleMetadataState {
 		return SingleScaleMetadataState(n5ContainerState, metadata).also {
@@ -163,8 +162,8 @@ open class MultiScaleMetadataState(
 	}
 	override var resolution: DoubleArray = transform.run { doubleArrayOf(get(0, 0), get(1, 1), get(2, 2)) }
 	override var translation: DoubleArray = transform.translation
-	override var group: String = metadata.path
-	override val dataset: String = metadata.path
+	override var group: String = N5URI.normalizeGroupPath(metadata.path)
+	override val dataset: String = N5URI.normalizeGroupPath(metadata.path)
 	val scaleTransforms: Array<AffineTransform3D> = metadata.spatialTransforms3d()
 
 	override fun copy(): MultiScaleMetadataState {
@@ -387,18 +386,13 @@ class MetadataUtils {
 		}
 
 		@JvmStatic
-		fun createMetadataState(n5containerAndDataset: String): MetadataState? {
+		fun createMetadataState(n5Uri: String): MetadataState? {
 
-			val reader = with(Paintera.n5Factory) {
-				openWriterOrNull(n5containerAndDataset) ?: openReaderOrNull(n5containerAndDataset) ?: return null
-			}
+			val n5URI = N5URI(n5Uri)
+			val containerPath = n5URI.containerPath
+			val dataset = n5URI.groupPath
 
-			val n5ContainerState = N5ContainerState(reader)
-			return discoverAndParseRecursive(reader, n5containerAndDataset).run {
-				if (isDataset && metadataIsValid(metadata))
-					createMetadataState(n5ContainerState, metadata)
-				else null
-			}
+			return createMetadataState(containerPath, dataset)
 		}
 
 		@JvmStatic

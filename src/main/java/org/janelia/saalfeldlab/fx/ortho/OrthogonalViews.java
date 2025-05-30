@@ -157,7 +157,9 @@ public class OrthogonalViews<BR extends Node> {
 			return worker;
 		};
 
-		final ForkJoinPool rendererService = new ForkJoinPool(optional.values.getNumRenderingThreads(), factory, null, false);
+		final int maxNumThreads = Math.max(Runtime.getRuntime().availableProcessors() - 2, 1);
+		var numRenderingThreads = Math.min(optional.values.getNumRenderingThreads(), maxNumThreads);
+		final ForkJoinPool rendererService = new ForkJoinPool(numRenderingThreads, factory, null, false);
 		this.renderingTaskExecutor = TaskExecutors.forExecutorService(rendererService);
 		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, renderingTaskExecutor);
 		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, renderingTaskExecutor);

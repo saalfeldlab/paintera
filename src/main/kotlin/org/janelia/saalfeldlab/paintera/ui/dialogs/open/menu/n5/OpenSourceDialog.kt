@@ -66,6 +66,7 @@ class OpenSourceDialog(
 		with(textField) {
 			minWidth = 0.0
 			maxWidth = Double.POSITIVE_INFINITY
+			prefColumnCount *= 2
 			promptText = "Source location (N5/Zarr/HDF5)"
 			tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
 			textProperty().subscribe { _, new -> containerSelection = new }
@@ -88,7 +89,10 @@ class OpenSourceDialog(
 
 	val nameField = NameField("Source name", "Specify source name (required)", InnerShadow(10.0, Color.ORANGE)).apply {
 		errorMessageProperty().subscribe { _, _ -> combineErrorMessages() }
+		/* init sourceName to text, and listen for future programatic changes*/
 		state.sourceNameProperty.subscribe { name -> textField().text = name }
+		/* listen for text input and set sourceName*/
+		textField().textProperty().subscribe { _, text -> state.sourceName = text ?: "" }
 	}
 
 	val openSourceNode = OpenSourceNode(state, containerField.textField, browseButton, isBusy)
