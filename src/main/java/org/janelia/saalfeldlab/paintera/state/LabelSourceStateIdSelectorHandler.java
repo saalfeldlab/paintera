@@ -125,6 +125,7 @@ public class LabelSourceStateIdSelectorHandler {
 					selectAllTask = Tasks.createTask(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
 						selector.selectAll();
+						return null;
 					}).onEnd((result, error) -> {
 						selectAllTask = null;
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
@@ -144,6 +145,7 @@ public class LabelSourceStateIdSelectorHandler {
 					selectAllTask = Tasks.createTask(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
 						selector.selectAllInCurrentView(viewer);
+						return null;
 					}).onEnd((result, error) -> {
 						if (error != null) {
 							LOG.error("Error selecting all labels in view", error);
@@ -183,12 +185,15 @@ public class LabelSourceStateIdSelectorHandler {
 		};
 	}
 
-	public long activateCurrentOrNext() {
+	public long activateCurrent() {
 
 		if (selectedIds.isLastSelectionValid())
 			return selectedIds.getLastSelection();
-		else
-			return nextId(true);
+		else {
+			final long current = idService.current();
+			selectedIds.activate(current);
+			return current;
+		}
 	}
 
 	public long nextId() {

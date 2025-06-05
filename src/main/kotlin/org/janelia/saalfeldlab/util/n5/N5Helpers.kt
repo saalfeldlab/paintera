@@ -322,6 +322,10 @@ object N5Helpers {
 			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId` not specified for dataset `$dataset` in container `$n5`.")
 			maxId == null -> N5IdService(n5, dataset, 1)
 			else -> N5IdService(n5, dataset, maxId)
+		}.also {
+			/* We don't want the current ID to be 0 */
+			if (it.current() == 0L)
+				it.next()
 		}
 	}
 
