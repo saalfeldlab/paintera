@@ -69,7 +69,7 @@ class LabelSourceStatePreferencePaneNode(
 
 			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segments = selectedSegments.getSelectedSegments().toArray().toList()
+				val segments = selectedSegments.segments.toArray().toList()
 
 				val toRemove = observableSelectedSegmentsList - segments
 				val toAdd = segments - observableSelectedSegmentsList
@@ -102,7 +102,7 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.getSelectedSegments().toArray().joinToString(",")
+				return selectedSegments.segments.toArray().joinToString(",")
 			}
 
 			override fun fromString(string: String?): SelectedSegments {
@@ -127,12 +127,12 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				var activeIds = selectedSegments.selectedIds.activeIds
-				var fragmentIds = TLongHashSet()
+				val activeIds = selectedSegments.selectedIds.activeIds
+				val fragmentIds = TLongHashSet()
 				activeIds.forEach { id ->
 					val fragmentsForId = selectedSegments.assignment.getFragments(id)
 					if (fragmentsForId.contains(id)) {
-						// ID is segment and fragment ID; Fragment/Segment may or may not exist
+						// ID is both a segment and fragment ID; Fragment/Segment may or may not exist
 						fragmentIds.add(id)
 
 					}

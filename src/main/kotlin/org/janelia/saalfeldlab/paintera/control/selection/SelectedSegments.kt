@@ -18,12 +18,10 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
  * to its listeners and then a diff can be easily generated from that.
  */
 class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSegmentAssignmentState) : ObservableWithListenersList() {
-	/**
-	 * Package protected for [SelectedSegments] internal use.
-	 *
-	 * @return
-	 */
-	val set: TLongHashSet = TLongHashSet()
+
+	private val set: TLongHashSet = TLongHashSet()
+	val segments: TLongSet = TCollections.unmodifiableSet(set)
+
 
 	init {
 
@@ -31,13 +29,9 @@ class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSeg
 		this.assignment.addListener { update() }
 	}
 
-	fun getSelectedSegments(): TLongSet {
-		return TCollections.unmodifiableSet(this.set)
-	}
-
 	val selectedSegmentsCopyAsArray: LongArray?
 		get() {
-			synchronized(this.set) {
+			synchronized(segments) {
 				return set.toArray()
 			}
 		}
@@ -47,7 +41,7 @@ class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSeg
 	}
 
 	private fun update() {
-		synchronized(set) {
+		synchronized(segments) {
 			set.clear()
 			val selectedIds = selectedIds.set
 			synchronized(selectedIds) {
