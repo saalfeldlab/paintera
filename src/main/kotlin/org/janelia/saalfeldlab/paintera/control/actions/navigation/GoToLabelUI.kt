@@ -62,7 +62,9 @@ class GoToLabelUI(val model: Model) : VBox(5.0) {
 				alignment = Pos.CENTER_RIGHT
 				textFormatter = PositiveLongTextFormatter(model.labelProperty.value).apply {
 					val valueOrInvalid = valueProperty().createNullableValueBinding { it?.takeIf { it >= 0 } ?: -1L }
-					model.labelProperty.bind(valueOrInvalid)
+					valueOrInvalid.subscribe { it ->
+						model.labelProperty.value = it
+					}
 				}
 			}
 		}
