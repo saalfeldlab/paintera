@@ -146,7 +146,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
 	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments, meshManager::refreshMeshes).also {
-		it.activateCurrentOrNext()
+		it.activateCurrent()
 	}
 
 	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)

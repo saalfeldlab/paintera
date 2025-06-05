@@ -115,7 +115,7 @@ class MeshManagerWithAssignmentForSegments(
 	private suspend fun setMeshesToSelectionImpl() {
 		coroutineContext.ensureActive()
 		val (selectedSegments, presentSegments) = synchronized(this) {
-			val selectedSegments = Segments(selectedSegments.getSelectedSegments())
+			val selectedSegments = Segments(selectedSegments.segments)
 			val presentSegments = Segments().also { set -> segmentFragmentBiMap.keys.forEach { set.add(it) } }
 			selectedSegments to presentSegments
 		}
