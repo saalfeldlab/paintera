@@ -171,9 +171,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			final String dataset,
 			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
 
-		final long maxId = Math.max(LabelSourceUtils.findMaxId(source), 0);
+		final long maxId = Math.max(LabelSourceUtils.findMaxId(source), 1);
 		n5.setAttribute(dataset, N5Helpers.MAX_ID_KEY, maxId);
-		return new N5IdService(n5, dataset, maxId + 1);
+		return new N5IdService(n5, dataset, maxId);
 	}
 
 	private static void addToViewer(

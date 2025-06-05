@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.id;
 
-import net.imglib2.type.label.Label;
-import org.checkerframework.checker.units.qual.A;
-
 import java.util.Iterator;
 import java.util.Random;
 import java.util.stream.LongStream;
@@ -21,6 +18,15 @@ public interface IdService {
 	 * @param id
 	 */
 	public void invalidate(final long id);
+
+	/**
+	 * return the result of the previous call to `next()`.
+	 * next() == current() should always be true.
+	 * It is not valid to call `current()` before the first call the `next()`
+	 *
+	 * @return the last value of `next()`
+	 */
+	public long current();
 
 	/**
 	 * Get the next ID.
@@ -115,6 +121,12 @@ public interface IdService {
 
 		@Override
 		public void invalidate(long id) {
+
+			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+		}
+
+		@Override
+		public long current() {
 
 			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
 		}
