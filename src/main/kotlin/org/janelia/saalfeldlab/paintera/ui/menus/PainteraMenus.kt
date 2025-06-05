@@ -84,13 +84,15 @@ private val viewMenu by LazyForeignValue(::paintera) {
 		viewer3DMenu
 	)
 }
-private val actionMenuItems = arrayOf(
-	SmoothLabel.menuItem,
-	ReplaceLabel.replaceMenu().menuItem,
-	ReplaceLabel.deleteMenu().menuItem,
-	GoToCoordinate.menuItem,
-	GoToLabel.menuItem,
-)
+private val actionMenuItems by LazyForeignValue(::paintera) {
+	arrayOf(
+		SmoothLabel.menuItem,
+		ReplaceLabel.replaceMenu().menuItem,
+		ReplaceLabel.deleteMenu().menuItem,
+		GoToCoordinate.menuItem,
+		GoToLabel.menuItem,
+	)
+}
 
 private val actionMenu by LazyForeignValue(::paintera) { ActionMenu("_Actions", null, *actionMenuItems) }
 private val helpMenu by LazyForeignValue(::paintera) { ActionMenu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
