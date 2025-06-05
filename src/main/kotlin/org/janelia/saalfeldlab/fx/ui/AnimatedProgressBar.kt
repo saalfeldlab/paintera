@@ -7,10 +7,8 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.scene.control.ProgressBar
 import javafx.util.Duration
-import kotlinx.coroutines.cancel
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 open class AnimatedProgressBar : ProgressBar() {
 

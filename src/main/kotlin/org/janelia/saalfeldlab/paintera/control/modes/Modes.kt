@@ -45,10 +45,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.concurrent.LinkedBlockingQueue
-<<<<<<< HEAD
 import java.util.concurrent.atomic.AtomicBoolean
-=======
->>>>>>> f7176f060 (tmp)
 import java.util.concurrent.atomic.AtomicReference
 
 interface ControlMode {
@@ -180,43 +177,16 @@ interface ToolMode : SourceMode {
 			selectedToggleProperty().subscribe { _, selected ->
 				selected?.let {
 					(it.userData as? Tool)?.let { tool ->
-						if (activeTool != tool) {
-							val requiresActiveViewer = it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as Boolean
-							if (requiresActiveViewer) selectViewerBefore { switchTool(tool) } else switchTool(tool)
-
-<<<<<<< HEAD
-			var col = 0
-
-			modeToolsBar.set(*tools.filterIsInstance<ToolBarItem>().toTypedArray())
-			addColumn(col++, modeToolsBar)
-
-			modeActionsBar.set(*activeViewerActions.toTypedArray())
-			addColumn(col++, modeActionsBar)
-
-			addColumn(col, toolActionsBar)
-
-
-			modeToolsBar.toggleGroup?.apply {
-				/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
-				selectedToggleProperty().addListener { _, _, selected ->
-					selected?.let {
-						(it.userData as? Tool)?.let { tool ->
-							if (activeTool != tool) {
-								val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
-								if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
-									selectViewerBefore {
-										switchTool(tool)
-									}
-								} else {
+						if (activeTool != tool) {val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
+							if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
+								selectViewerBefore {
 									switchTool(tool)
 								}
-								//TODO this should be refactored and more generic
-								(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+							} else {
+								switchTool(tool)
 							}
-=======
 							//TODO this should be refactored and more generic
 							(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
->>>>>>> f7176f060 (tmp)
 						}
 					}
 				} ?: switchTool(defaultTool)

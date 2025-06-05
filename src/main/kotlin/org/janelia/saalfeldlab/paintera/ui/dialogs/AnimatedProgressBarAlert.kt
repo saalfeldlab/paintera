@@ -12,11 +12,11 @@ import javafx.scene.control.DialogEvent
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
+import kotlinx.coroutines.javafx.awaitPulse
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import java.util.concurrent.CancellationException
-import kotlin.jvm.optionals.getOrNull
 
 class AnimatedProgressBarAlert(
 	title: String,
@@ -76,15 +76,17 @@ class AnimatedProgressBarAlert(
 		textProperty().bind(progressLabelBinding)
 	}
 
-
-
-
 	/**
 	 * Show Dialog and wait for it to finish. Should be called on the JavaFx Thread.
 	 *
 	 */
-	fun showAndStart() = InvokeOnJavaFXApplicationThread {
-		when (showAndWait().getOrNull()) {
+	fun showProgressAndWait() = InvokeOnJavaFXApplicationThread {
+		/* effectivelyShowAndWait, but doesn't block the thread from processing other InvokeOnJavaFx coroutines*/
+		show()
+		while (result == null) {
+			awaitPulse()
+		}
+		when (result) {
 			ButtonType.OK -> Unit
 			ButtonType.CANCEL -> throw CancellationException("Progress Dialog was Cancelled")
 			else -> throw RuntimeException("Unexpected button type")
