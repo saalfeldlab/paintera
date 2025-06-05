@@ -2,19 +2,14 @@ package org.janelia.saalfeldlab.util.n5
 
 import com.google.gson.JsonObject
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.IntegerProperty
 import javafx.event.EventHandler
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.DirectoryChooser
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.imglib2.Interval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.iterator.IntervalIterator
@@ -45,16 +40,18 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
+import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
+import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
 import java.util.Optional
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
+import kotlin.coroutines.coroutineContext
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -229,7 +226,7 @@ object N5Helpers {
 	fun considerDownsampling(
 		transform: AffineTransform3D,
 		downsamplingFactors: DoubleArray,
-		initialDownsamplingFactors: DoubleArray
+		initialDownsamplingFactors: DoubleArray,
 	): AffineTransform3D {
 		val shift = DoubleArray(downsamplingFactors.size)
 		for (d in downsamplingFactors.indices) {
@@ -338,7 +335,7 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getFinestLevel(
 		n5: N5Reader,
-		group: String
+		group: String,
 	): String {
 		LOG.debug { "Getting finest level for dataset $group" }
 		val scaleDirs = listAndSortScaleDatasets(n5, group)
@@ -355,7 +352,7 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getFinestLevelJoinWithGroup(
 		n5: N5Reader,
-		group: String
+		group: String,
 	): String {
 		return getFinestLevelJoinWithGroup(n5, group) { g: String?, d: String? -> String.format("%s/%s", g, d) }
 	}
@@ -372,7 +369,7 @@ object N5Helpers {
 	fun getFinestLevelJoinWithGroup(
 		n5: N5Reader,
 		group: String,
-		joiner: BiFunction<String?, String?, String>
+		joiner: BiFunction<String?, String?, String>,
 	): String {
 		return joiner.apply(group, getFinestLevel(n5, group))
 	}
@@ -387,7 +384,7 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getCoarsestLevel(
 		n5: N5Reader,
-		group: String
+		group: String,
 	): String {
 		val scaleDirs = listAndSortScaleDatasets(n5, group)
 		return scaleDirs[scaleDirs.size - 1]
@@ -403,7 +400,7 @@ object N5Helpers {
 	@Throws(IOException::class)
 	fun getCoarsestLevelJoinWithGroup(
 		n5: N5Reader,
-		group: String
+		group: String,
 	): String {
 		return getCoarsestLevelJoinWithGroup(n5, group) { g: String?, d: String? -> String.format("%s/%s", g, d) }
 	}
@@ -420,7 +417,7 @@ object N5Helpers {
 	fun getCoarsestLevelJoinWithGroup(
 		n5: N5Reader,
 		group: String,
-		joiner: BiFunction<String?, String?, String>
+		joiner: BiFunction<String?, String?, String>,
 	): String {
 		return joiner.apply(group, getCoarsestLevel(n5, group))
 	}
@@ -439,7 +436,7 @@ object N5Helpers {
 		n5: N5Reader,
 		group: String,
 		key: String?,
-		vararg fallBack: Double
+		vararg fallBack: Double,
 	): DoubleArray {
 		return getDoubleArrayAttribute(n5, group, key, false, *fallBack)
 	}
@@ -460,7 +457,7 @@ object N5Helpers {
 		group: String,
 		key: String?,
 		reverse: Boolean,
-		vararg fallBack: Double
+		vararg fallBack: Double,
 	): DoubleArray {
 		if (reverse) {
 			val toReverse = getDoubleArrayAttribute(n5, group, key, false, *fallBack)
@@ -781,19 +778,21 @@ object N5Helpers {
 
 	/**
 	 * Iterates through each block in the specified dataset that exists and performs an action using the provided lambda function.
-	 * `withBlock` is called asynchronously for each block that exists, and the overall call will return only
-	 * when all blocks are processed.
+	 * `forEachBlockExists` will be called asynchrounsly only on blocks that exist (checked via [KeyValueAccess#exists]).
+	 * `forEachBlock` is called asynchronously for each block regardless of existence.
+	 *
+	 * If both `forEachBlockExists` and `forEachBlock` are provided, `forEachBlock` will be called twice for blocks that exist.
 	 *
 	 * @param n5 The N5 reader used to check for the existence of blocks.
 	 * @param dataset The dataset path to check within the N5 container.
-	 * @param processedCount An optional IntegerProperty to track the number of processed blocks.
-	 * @param withBlock A lambda function to execute for each existing block's interval.
+	 * @param forEachBlock operation to run at each block interval
+	 * @param forEachBlockExists A lambda function to execute for each existing block's interval.
 	 */
 	suspend fun forEachBlockExists(
 		n5: GsonKeyValueN5Reader,
 		dataset: String,
-		processedCount: IntegerProperty? = null,
-		withBlock: (Interval) -> Unit
+		forEachBlock: (suspend (Interval) -> Unit)? = null,
+		forEachBlockExists: (suspend (Interval) -> Unit)? = null,
 	) {
 
 		val normalizedDatasetName = N5URI.normalizeGroupPath(dataset)
@@ -801,71 +800,90 @@ object N5Helpers {
 			CellGrid(dimensions, blockSize)
 		}
 
-		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
-		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
+		val gridIterator = IntervalIterator(blockGrid.gridDimensions)
+		val cellDims = LongArray(gridIterator.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
 
-		val uiUpdate = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
-		val progressCount = AtomicInteger(0)
 
-		CoroutineScope(Dispatchers.IO).async {
-			while (gridIterable.hasNext()) {
-				gridIterable.fwd()
-				val curBlock = gridIterable.positionAsLongArray()
-				launch {
-					val cellMin = LongArray(gridIterable.numDimensions())
-					if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
+		val existsIOScope = CoroutineScope(Dispatchers.IO)
+		val withBlockScope = CoroutineScope(coroutineContext)
 
-						for (i in cellMin.indices)
-							cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
-						val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
-						launch {
-							withBlock(cellInterval)
-							progressCount.incrementAndGet()
-							uiUpdate.submit { processedCount?.set(progressCount.get()) }
-							}
-					} else {
-						progressCount.incrementAndGet()
-						uiUpdate.submit { processedCount?.set(progressCount.get()) }
-					}
+		val jobs = Channel<Job>(Channel.UNLIMITED)
+		while (gridIterator.hasNext()) {
+			gridIterator.fwd()
+			val curBlock = gridIterator.positionAsLongArray()
+
+			val cellMin = LongArray(gridIterator.numDimensions())
+			for (i in cellMin.indices)
+				cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
+			val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
+
+			when {
+				/* nothing to do */
+				forEachBlockExists == null && forEachBlock == null -> return
+				/* don't check exists if there is no lambda for it */
+				forEachBlock != null && forEachBlockExists == null -> {
+					jobs.send(
+						withBlockScope.launch {
+							forEachBlock(cellInterval)
+						}
+					)
 				}
+
+				else -> jobs.send(
+					existsIOScope.launch {
+						if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
+							jobs.send(
+								withBlockScope.launch {
+								forEachBlockExists!!(cellInterval)
+								forEachBlock?.invoke(cellInterval)
+							})
+						} else if (forEachBlock != null) {
+							jobs.send(
+								withBlockScope.launch {
+								forEachBlock(cellInterval)
+							})
+						}
+					})
 			}
+		}
+		for (job in jobs) {
+			job.join()
 		}
 	}
 
 
 	/**
-	 * Iterates through each block in the specified dataset and performs an action using the provided lambda function.
+	 * Iterates through each block in the blockGrid and performs an action using the provided lambda function.
 	 * `withBlock` is called asynchronously for each block, and the overall call will return only
 	 * when all blocks are processed.
 	 *
 	 * @param blockGrid to iterate over
-	 * @param processedCount An optional IntegerProperty to track the number of processed blocks.
-	 * @param withBlock A lambda function to execute for each existing block's interval.
+	 * @param forEachBlock A lambda function to execute for each existing block's interval.
 	 */
 	suspend fun forEachBlock(
 		blockGrid: CellGrid,
-		processedCount: IntegerProperty? = null,
-		withBlock: (Interval) -> Unit
+		forEachBlock: (suspend (Interval) -> Unit),
 	) {
 
-		val gridIterable = IntervalIterator(blockGrid.gridDimensions)
-		val curBlock = LongArray(gridIterable.numDimensions())
-		val cellDims = LongArray(gridIterable.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
-		val cellMin = LongArray(gridIterable.numDimensions())
+		val gridIterator = IntervalIterator(blockGrid.gridDimensions)
+		val cellDims = LongArray(gridIterator.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
 
-		coroutineScope {
-			while (gridIterable.hasNext()) {
-				gridIterable.fwd()
-				gridIterable.localize(curBlock)
-				for (i in cellMin.indices)
-					cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
-				val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
-				launch {
-					withBlock(cellInterval)
-					processedCount?.apply { InvokeOnJavaFXApplicationThread { set(value + 1) } }
-				}
+		val withBlockScope = CoroutineScope(coroutineContext)
+
+		val jobs = mutableListOf<Job>()
+		while (gridIterator.hasNext()) {
+			gridIterator.fwd()
+			val curBlock = gridIterator.positionAsLongArray()
+
+			val cellMin = LongArray(gridIterator.numDimensions())
+			for (i in cellMin.indices)
+				cellMin[i] = blockGrid.getCellMin(i, curBlock[i])
+			val cellInterval = Intervals.createMinSize(*cellMin, *cellDims)
+			jobs += withBlockScope.launch {
+				forEachBlock(cellInterval)
 			}
 		}
+		jobs.joinAll()
 	}
 
 	class RemoveSourceException : PainteraException {
