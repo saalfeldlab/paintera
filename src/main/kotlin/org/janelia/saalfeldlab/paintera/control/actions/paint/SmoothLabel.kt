@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import bsh.commands.dir
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
-import javafx.util.Subscription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
@@ -119,7 +117,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 							}
 						}
 					}
-				}.apply { invokeOnCompletion { cause -> smoothing = false  } }
+				}.apply { invokeOnCompletion { cause -> smoothing = false } }
 
 				if (resmoothType == Resmooth.Finish) {
 					try {

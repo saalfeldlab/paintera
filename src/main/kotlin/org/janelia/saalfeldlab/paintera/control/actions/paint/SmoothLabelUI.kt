@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.actions.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.application.Platform
 import javafx.beans.binding.BooleanExpression
 import javafx.beans.property.*
 import javafx.event.ActionEvent
@@ -24,7 +25,6 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
 import org.janelia.saalfeldlab.paintera.Style.RESET_GLYPH
-import org.janelia.saalfeldlab.paintera.control.actions.paint.InfillStrategyUI.entries
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothTaskLoop
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model.Companion.getDialog
@@ -386,7 +386,17 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 
 fun main() {
 	InvokeOnJavaFXApplicationThread {
-		val model = SmoothLabelUI.Default()
+
+		val newIds = sequence {
+			repeat(Int.MAX_VALUE) {
+				yield(it.toLong())
+			}
+		}.iterator()
+		val model = object : Model by SmoothLabelUI.Default() {
+
+			override fun getLevelResolution(level: Int) = doubleArrayOf(1.0, 1.0, 1.0)
+			override fun newId() = newIds.next()
+		}
 
 		val dialog = model.getDialog { println("Done!") }.apply {
 			val reloadButton = ButtonType("Reload", ButtonBar.ButtonData.LEFT)
@@ -412,5 +422,11 @@ fun main() {
 		}
 
 		dialog.show()
+	}.invokeOnCompletion { cause ->
+		if (cause != null)
+			cause.printStackTrace()
+		else
+			println("Done!")
+		Platform.exit()
 	}
 }
