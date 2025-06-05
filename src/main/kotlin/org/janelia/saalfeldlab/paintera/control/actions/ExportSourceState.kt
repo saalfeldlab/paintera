@@ -1,12 +1,18 @@
 package org.janelia.saalfeldlab.paintera.control.actions
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
 import javafx.scene.control.Alert
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.NativeType
+import net.imglib2.type.Type
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
@@ -21,23 +27,26 @@ import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.get
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
+
+private val LOG = KotlinLogging.logger {  }
 
 class ExportSourceState {
 
@@ -54,8 +63,8 @@ class ExportSourceState {
 
 	private val exportableSourceRAI: RandomAccessibleInterval<out NativeType<*>>?
 		get() {
-			val source = sourceProperty.value ?: return null
-			val backend = backendProperty.value ?: return null
+			val source = getSource() ?: return null
+			val backend = getBackend() ?: return null
 
 			val fragmentMapper = backend.fragmentSegmentAssignment
 
@@ -84,6 +93,16 @@ class ExportSourceState {
 			return mappedIntSource as RandomAccessibleInterval<out NativeType<*>>
 		}
 
+	fun getSource(): DataSource<out RealType<*>?, out Type<*>?>? {
+		return sourceProperty.value
+			?: sourceStateProperty.value?.dataSource
+	}
+
+	fun getBackend(): ConnectomicsLabelBackend<out Any?, out Any?>? {
+		return backendProperty.value
+			?: sourceStateProperty.value?.backend
+	}
+
 	//TODO Caleb: some future ideas:
 	//  - Export specific label? Maybe only if LabelBlockLookup is present?
 	//  - Export multiscale pyramid
@@ -91,8 +110,8 @@ class ExportSourceState {
 	//  - custom fragment to segment mapping
 	fun exportSource(showProgressAlert: Boolean = false): Job? {
 
-		val backend = backendProperty.value ?: return null
-		val source = sourceProperty.value ?: return null
+		val backend = getBackend() ?: return null
+		val source = getSource() ?: return null
 		val exportLocation = exportLocationProperty.value ?: return null
 		val dataset = datasetProperty.value ?: return null
 
@@ -100,37 +119,32 @@ class ExportSourceState {
 		val scaleLevel = scaleLevelProperty.value
 		val dataType = dataTypeProperty.value
 
-		val metadataState = backend.metadataState
 
-		val metadata = (backend as? SourceStateBackendN5<*, *>)?.run {
-			metadataState.let { it as? MultiScaleMetadataState }?.highestResMetadata ?: metadataState.metadata as N5SpatialDatasetMetadata
-		}
-
+		val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState
+		val metadata = metadataState?.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: metadataState?.metadata as? N5SpatialDatasetMetadata
 		val translation = when {
-			scaleLevel == 0 -> backend.translation
-			metadataState is MultiScaleMetadataState -> metadataState.downscaleTranslation(scaleLevel)
+			metadataState is MultiScaleMetadataState && metadataState.highestResMetadata != metadata -> metadataState.downscaleTranslation(scaleLevel)
 			else -> backend.translation
 		}
+
 
 		val imgSize = source.grids[scaleLevel].run { gridDimensions.apply { forEachIndexed { idx, size -> set(idx, size * cellDimensions[idx]) } } }
 
 
-		val sourceMetadata: N5SpatialDatasetMetadata = metadata ?: let {
-			N5SingleScaleMetadata(
-				dataset,
-				source.getSourceTransformCopy(0, scaleLevel),
-				doubleArrayOf(1.0, 1.0, 1.0),
-				backend.resolution,
-				translation,
-				source.voxelDimensions?.unit() ?: "pixel",
-				DatasetAttributes(
-					imgSize,
-					source.grids[scaleLevel].cellDimensions,
-					dataType,
-					GzipCompression()
-				)
+		val sourceMetadata: N5SpatialDatasetMetadata = metadata ?: N5SingleScaleMetadata(
+			dataset,
+			source.getSourceTransformCopy(0, scaleLevel),
+			doubleArrayOf(1.0, 1.0, 1.0),
+			backend.resolution,
+			translation,
+			source.voxelDimensions?.unit() ?: "pixel",
+			DatasetAttributes(
+				imgSize,
+				source.grids[scaleLevel].cellDimensions,
+				dataType,
+				GzipCompression()
 			)
-		}
+		)
 
 
 		val n5 = (backend as? SourceStateBackendN5<*, *>)?.container as? GsonKeyValueN5Reader
@@ -143,23 +157,27 @@ class ExportSourceState {
 
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
-		val labelProp = SimpleStringProperty("Blocks Written 0 / $totalBlocks").apply {
-			bind(count.createNonNullValueBinding { "Blocks Written $it / $totalBlocks" })
+		val labelProp = SimpleStringProperty("Blocks Processed 0 / $totalBlocks").apply {
+			bind(count.createNonNullValueBinding { "Blocks Processed $it / $totalBlocks" })
 		}
 		val progressProp = SimpleDoubleProperty(0.0).apply {
-			bind(count.createObservableBinding { it.value / totalBlocks })
+			bind(count.createObservableBinding { it.value.toDouble() / totalBlocks })
 		}
 
-		val (processedBlocks, progressUpdater) = if (showProgressAlert) {
-			count to AnimatedProgressBarAlert(
+		val progressUpdater = if (showProgressAlert) {
+			AnimatedProgressBarAlert(
 				"Export Label Source",
 				"Exporting data...",
 				labelProp,
 				progressProp
 			)
-		} else null to null
+		} else null
 
-		val blocksWritten = AtomicInteger(0)
+		val blocksProcessed = MutableStateFlow(0)
+		val incrementProcessed = { -> blocksProcessed.update { it + 1 } }
+
+		val blocksWritten = MutableStateFlow(0)
+		val incrementWritten = { -> blocksWritten.update { it + 1 } }
 
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
 			val writer = Paintera.n5Factory.newWriter(exportLocation)
@@ -169,31 +187,50 @@ class ExportSourceState {
 			val scaleLevelDataset = "$dataset/s$scaleLevel"
 
 			n5?.let {
-				forEachBlockExists(it, sourceMetadata.path, processedBlocks) { cellInterval ->
+				forEachBlockExists(it, sourceMetadata.path, { incrementProcessed() }) { cellInterval ->
 					val cellRai = exportRAI.interval(cellInterval)
 					N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
+					incrementWritten()
 				}
-			} ?: forEachBlock(cellGrid, processedBlocks) { cellInterval ->
+			} ?: forEachBlock(cellGrid) { cellInterval ->
 				val cellRai = exportRAI.interval(cellInterval)
 				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
+				incrementProcessed()
+				incrementWritten()
 			}
 			Paintera.n5Factory.remove(exportLocation)
 		}
 		progressUpdater?.apply {
-			exportJob.invokeOnCompletion {
-				/* no error, just finish*/
-				if (it == null) {
-					finish()
-					return@invokeOnCompletion
+			InvokeOnJavaFXApplicationThread {
+				while (exportJob.isActive) {
+					repeat(3) { awaitPulse() }
+					count.value = blocksProcessed.value
 				}
-
-				/* If we are here, there was an error.
-				 *  If it was cancellation, just close and warn the user of potential partial export.
-				 *  Otherwise, show an exception dialog */
-				stopAndClose()
+				count.value = blocksProcessed.value
+			}
+			exportJob.invokeOnCompletion { cause ->
 				when {
-					blocksWritten.get() > 0 && it is CancellationException -> {
+					/* No error, clean up */
+					cause == null -> {
+						finish()
+						close()
+						val exportInfo = """
+								Export Location: 
+										$exportLocation
+								Dataset:        $dataset
+								Scale Level:    $scaleLevel
+							""".trimIndent()
+						LOG.info { "Export complete\n$exportInfo" }
+						PainteraAlerts.information("Ok").apply {
+							title = "Export Complete"
+							headerText = "Export complete."
+							contentText = exportInfo
+						}
+					}
+					/* Cancellation after some blocks have been written; warn the user */
+					blocksWritten.value > 0 && cause is CancellationException -> {
 						InvokeOnJavaFXApplicationThread {
+							stopAndClose()
 							PainteraAlerts.alert(Alert.AlertType.WARNING).apply {
 								title = "Export Cancelled"
 								headerText = "Export was cancelled.\nPartial dataset export may exist."
@@ -203,23 +240,20 @@ class ExportSourceState {
 									Dataset:        $dataset
 									Scale Level:    $scaleLevel
 									
-									Blocks Written: ${blocksWritten.get()}
+									Blocks Written: ${blocksWritten.value}
 								""".trimIndent()
 							}.showAndWait()
 						}
 					}
 
-					it is CancellationException -> {}
-
-					it is Exception -> {
-						InvokeOnJavaFXApplicationThread {
-							/* hack until the dialog is improved in saalfx*/
-							ExceptionNode.exceptionDialog(it).showAndWait()
-						}
+					/* Non-cancellation error */
+					cause is Exception && cause !is CancellationException -> InvokeOnJavaFXApplicationThread {
+						/* hack until the dialog is improved in saalfx*/
+						ExceptionNode.exceptionDialog(cause).showAndWait()
 					}
 				}
 			}
-			showAndStart().invokeOnCompletion {
+			showProgressAndWait().invokeOnCompletion {
 				when (it) {
 					null -> Unit
 					is CancellationException -> exportJob.cancel(it)
@@ -231,11 +265,13 @@ class ExportSourceState {
 	}
 }
 
-internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int): DoubleArray {
-	downscaleTranslation(highestResMetadata.resolution, highestResMetadata.offset, metadata[scaleLevel].resolution)
-}
+internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = downscaleTranslation(
+	highestResMetadata.resolution,
+	highestResMetadata.offset,
+	metadata[scaleLevel].resolution
+)
 
-internal fun downscaleTranslation(s0Resolution : DoubleArray, s0Offset : DoubleArray, sNResolution: DoubleArray) : DoubleArray {
+internal fun downscaleTranslation(s0Resolution: DoubleArray, s0Offset: DoubleArray, sNResolution: DoubleArray): DoubleArray {
 
 	return DoubleArray(3) { idx ->
 		s0Offset[idx] + (sNResolution[idx] - s0Resolution[idx]) / 2.0
@@ -248,7 +284,7 @@ internal fun exportOmeNGFFMetadata(
 	scaleLevel: Int,
 	datasetAttributes: DatasetAttributes,
 	sourceMetadata: N5SpatialDatasetMetadata,
-	translation: DoubleArray = sourceMetadata.offset
+	translation: DoubleArray = sourceMetadata.offset,
 ) {
 	val scaleLevelDataset = "$dataset/s$scaleLevel"
 	writer.createGroup(dataset)
