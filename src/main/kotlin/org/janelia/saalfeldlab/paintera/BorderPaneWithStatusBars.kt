@@ -195,9 +195,9 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		paintera.baseView.activeModeProperty.addListener { _, old, new ->
 			prevSub?.unsubscribe()
 			(new as? ToolMode)?.createToolBar()?.also { toolBar ->
-				toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)
-				toolBar.managedProperty().bind(toolBar.visibleProperty())
-				prevSub = toggleOnToolBarConfigMode(toolBar)
+				prevSub = painteraProperties.toolBarConfig.isVisibleProperty.subscribe { isVisible ->
+					toolBar.show(isVisible)
+				}.and(toggleOnToolBarConfigMode(toolBar))
 			}
 		}
 

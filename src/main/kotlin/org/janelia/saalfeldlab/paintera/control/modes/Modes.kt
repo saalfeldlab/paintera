@@ -204,7 +204,7 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-	fun createToolBar(): FlowPane = actionBar.apply {
+	fun createToolBar(): ModeToolActionBar = actionBar.apply {
 		/* Add modeTools to toolbar */
 		subscriptions = subscriptions + addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
 
