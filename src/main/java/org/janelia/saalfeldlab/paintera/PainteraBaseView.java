@@ -389,7 +389,10 @@ public class PainteraBaseView {
 				getQueue().getNumPriorities() - 1,
 				name
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+			addState(state);
+			return null;
+		});
 		state.converter().setMin(min);
 		state.converter().setMax(max);
 		return state;
@@ -462,7 +465,10 @@ public class PainteraBaseView {
 				name,
 				labelBlockLookup
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+			addState(state);
+			return null;
+		});
 		return state;
 	}
 
