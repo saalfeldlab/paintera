@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.event.Event
+import javafx.css.PseudoClass
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
@@ -20,17 +20,16 @@ import net.imglib2.type.logic.BoolType
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.StyleGroup
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
@@ -63,7 +62,9 @@ internal class ShapeInterpolationTool(
 		)
 	}
 
-	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("navigation-tool") }) }
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.addStyleClass(NavigationTool.NAVIGATION_TOOL_STYLE)
+	}
 	override val name: String = "Shape Interpolation"
 	override val keyTrigger = SHAPE_INTERPOLATION__TOGGLE_MODE
 	private var currentJob: Job? = null
@@ -279,7 +280,7 @@ internal class ShapeInterpolationTool(
 				painteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
 					verifyAll(KEY_PRESSED) { isControllerActive }
 					KEY_PRESSED(SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION) {
-						graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += listOf("accept", "accept-shape-interpolation") }) }
+						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.ACCEPT_INTERPOLATION) } }
 						onAction { shapeInterpolationMode.applyShapeInterpolationAndExitMode() }
 						handleException {
 							LOG.error(it) {}
@@ -288,18 +289,12 @@ internal class ShapeInterpolationTool(
 					}
 
 					KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_PREVIEW) {
-						val iconClsBinding = controller.previewProperty.createNonNullValueBinding { if (it) "toggle-on" else "toggle-off" }
-						val iconCls by iconClsBinding.nonnullVal()
-						graphic = {
-							val icon = FontAwesomeIconView().also {
-								it.styleClass.addAll(iconCls)
-								it.id = iconCls
-								iconClsBinding.addListener { _, old, new ->
-									it.styleClass.removeAll(old)
-									it.styleClass.add(new)
-								}
+						createToolNode = {
+							val previewPseudoClass = PseudoClass.getPseudoClass("preview")
+							controller.previewProperty.subscribe { preview ->
+								pseudoClassStateChanged(previewPseudoClass, preview)
 							}
-							GlyphScaleView(icon)
+							apply { addStyleClass(ShapeInterpolationStyle.TOGGLE_PREVIEW) }
 						}
 						onAction { controller.togglePreviewMode() }
 						handleException {
@@ -308,7 +303,7 @@ internal class ShapeInterpolationTool(
 					}
 
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
-						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-left") } }
+						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
 						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
@@ -331,7 +326,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
-						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-bisect") } }
+						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_BISECT)} }
 						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
@@ -374,7 +369,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
-						graphic = { ScaleView().apply { styleClass += listOf("auto-sam", "slice-right") } }
+						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
 						verify { SamEmbeddingLoaderCache.canReachServer }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
@@ -649,5 +644,18 @@ internal class ShapeInterpolationTool(
 
 	companion object {
 		private val LOG = KotlinLogging.logger { }
+
+		enum class ShapeInterpolationStyle(val style: String, vararg classes: String) : StyleGroup by StyleGroup.of(style, *classes) {
+			AUTO_SAM("auto-sam"),
+			SLICE_LEFT("slice-left", AUTO_SAM),
+			SLICE_RIGHT("slice-right", AUTO_SAM),
+			SLICE_BISECT("slice-bisect", AUTO_SAM),
+			ACCEPT_INTERPOLATION("accept-shape-interpolation", Style.ACCEPT_ICON),
+			TOGGLE_PREVIEW("toggle-preview", Style.FONT_ICON);
+
+			constructor(style: String, vararg styles: StyleGroup) : this(style, *styles.flatMap { it.classes.toList() }.toTypedArray())
+			constructor(style: String) : this(style, *emptyArray<StyleGroup>())
+
+		}
 	}
 }

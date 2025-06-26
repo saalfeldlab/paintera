@@ -24,12 +24,9 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		activeViewerProperty.bind(mode!!.activeViewerProperty)
 	}
 
-	override val toolBarButton: ButtonBase
-		get() {
-			return super.toolBarButton.apply {
-				properties[REQUIRES_ACTIVE_VIEWER] = false
-			}
-		}
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.properties[REQUIRES_ACTIVE_VIEWER] = false
+	}
 
 	private var replaceExistingSlice = false
 

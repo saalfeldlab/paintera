@@ -2,9 +2,9 @@ package org.janelia.saalfeldlab.paintera.control.tools
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
-import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Labeled
+import javafx.scene.control.ToggleButton
 import javafx.util.Subscription
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.Action
@@ -12,10 +12,8 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
-import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
-import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
@@ -35,63 +33,17 @@ interface Tool {
 
 interface ToolBarItem {
 
-	val graphic: () -> Node?
-		get() = { null }
-
 	val name: String
 	val keyTrigger: NamedKeyBinding?
 	val action: Action<*>?
 		get() = null
 
-	val toolBarButton: ButtonBase
-		get() {
-			val node = graphic()
-			val button = action?.let { action ->
-				var toggleGroup: ToggleGroup? = null
-				node?.also { graphic ->
-					toggleGroup = graphic.properties["TOGGLE_GROUP"] as? ToggleGroup
-				}
-
-				val btn = toggleGroup?.let { group ->
-					ToggleButton(null, node).also { it.toggleGroup = group }
-				} ?: Button(null, node)
-
-				btn.apply {
-					onAction = EventHandler {
-						action()
-					}
-				}
-			} ?: ToggleButton(null, node)
-
-			return button.also { btn ->
-				btn.id = name
-				//FIXME Caleb: this is either not necessary, or magic. Regardless, should fix it
-				//  why conditionally bind isDisabled only if a graphic?
-				btn.graphic?.let {
-
-					val actionIsValid = { action?.isValid(null) ?: true }
-
-					/* Listen on disabled when visible*/
-					if ("ignore-disable" !in it.styleClass) {
-						paintera.baseView.isDisabledProperty.`when`(btn.visibleProperty()).subscribe { disabled ->
-							btn.disableProperty().set(disabled || !actionIsValid())
-						}
-					} else {
-						btn.disableProperty().set(!actionIsValid())
-					}
-					/* set initial state to */
-					btn.disableProperty().set(!actionIsValid())
-
-					(this as? Tool)?.isValidProperty?.`when`(btn.visibleProperty())?.subscribe { isValid -> btn.disableProperty().set(!isValid) }
-				}
-				btn.styleClass += "toolbar-button"
-				btn.tooltip = Tooltip(
-					keyTrigger?.let { trigger ->
-						"$name: ${KeyTracker.keysToString(*trigger.keyCodes.toTypedArray())}"
-					} ?: name
-				)
-			}
-		}
+	/**
+	 * Create a new [Labeled] instance that can be added to the UI to trigger this tool bar item.
+	 *
+	 * @return
+	 */
+	fun newToolBarControl() : Labeled = ToggleButton()
 }
 
 const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
@@ -102,22 +54,8 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	protected var subscriptions: Subscription = Subscription.EMPTY
 	override val isValidProperty = SimpleBooleanProperty(true)
 
-	private class SubImp(sub: Subscription) : Subscription by sub {
-
-		val id = count.getAndIncrement()
-
-		override fun toString(): String {
-			return super.toString() + "_$id"
-		}
-
-		companion object {
-			private var count = AtomicInteger(1)
-		}
-	}
-
 	override fun activate() {
-		println("Activate: $this")
-		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
+		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.mostRecentFocusHolder)
 		/* this handles installing into the currently active viewer */
 		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
 		/* This handles viewer changes while  activated */

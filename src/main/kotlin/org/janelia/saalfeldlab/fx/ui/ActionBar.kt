@@ -1,16 +1,21 @@
 package org.janelia.saalfeldlab.fx.ui
 
+import javafx.event.ActionEvent.ACTION
+import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.ButtonBase
-import javafx.scene.control.Dialog
-import javafx.scene.control.Toggle
-import javafx.scene.control.ToggleGroup
+import javafx.scene.control.*
+import javafx.scene.input.KeyCode
 import javafx.scene.layout.FlowPane
 import javafx.util.Subscription
 import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 
 private data class ToggleActionBarItem(val node: Node, val toggle: Toggle? = null)
@@ -24,6 +29,7 @@ class ModeToolActionBar : FlowPane() {
 	private val toggleGroups = mutableMapOf<ToggleGroup, List<ToggleActionBarItem>>()
 
 	init {
+		addStyleClass("mode-tool-action-bar")
 		alignment = Pos.TOP_RIGHT
 		prefWrapLength = USE_COMPUTED_SIZE
 		hGrow()
@@ -34,7 +40,7 @@ class ModeToolActionBar : FlowPane() {
 	}
 
 	fun show(show: Boolean = true) {
- 		isVisible = show
+		isVisible = show
 		isManaged = show
 	}
 
@@ -46,69 +52,98 @@ class ModeToolActionBar : FlowPane() {
 	}
 
 	fun removeToggleGroup(group: ToggleGroup) {
-		toggleGroups.remove(group)?.forEach { (_, toggle) -> toggle?.toggleGroup = null}
+		toggleGroups.remove(group)?.forEach { (_, toggle) -> toggle?.toggleGroup = null }
 	}
 
-	fun addActionSets(actionSets : List<ActionSet>, group : ToggleGroup = ToggleGroup()) : Subscription {
-		return addButtons(group, actionSets.actionSetButtons())
+	fun addActionSets(actionSets: List<ActionSet>, group: ToggleGroup = ToggleGroup()): Subscription {
+		return addItems(group, actionSets.actionSetButtons())
 	}
 
-	fun addToolBarItems(items : List<ToolBarItem>, group: ToggleGroup = ToggleGroup()) : Subscription {
-		return addButtons(group, items.toolBarButtons())
+	fun addToolBarItems(items: List<ToolBarItem>, group: ToggleGroup = ToggleGroup()): Subscription {
+		return addItems(group, items.toolBarButtons())
 	}
 
-	private fun addButtons(group: ToggleGroup = ToggleGroup(), buttons: List<ButtonBase>): Subscription {
-		val buttonsToNodes = getNodeForButtons(buttons)
-		val toggles = buttonsToNodes.map { (k, v) -> ToggleActionBarItem(v, k as? Toggle) }
+	private fun addItems(group: ToggleGroup = ToggleGroup(), controls: List<Labeled>): Subscription {
+		val toggles = controls.map { ToggleActionBarItem(it, it as? Toggle) }
 		toggles.forEach { (_, toggle) -> toggle?.toggleGroup = group }
 		toggleGroups.merge(group, toggles) { l, r -> l + r }
-		children.addAll(buttonsToNodes.values)
+		children.addAll(controls)
 		return Subscription {
 			InvokeOnJavaFXApplicationThread {
-				children.removeAll(buttonsToNodes.values)
+				children.removeAll(controls)
 				removeToggleGroup(group)
 			}
 		}
 	}
 
-	private fun getNodeForButtons(buttons : List<ButtonBase>) : Map<ButtonBase, Node> {
-		return buttons.associateWith {  node ->
-			node.styleClass += "toolbar-button"
-			node.graphic?.also { graphic -> graphic.styleClass += "toolbar-graphic" }
-			ScaleView(node).also { it.styleClass += "toolbar-scale-pane" }
-		}
-	}
-
 	companion object {
 
-		fun List<ToolBarItem>.toolBarButtons() = map { item ->
-			item.toolBarButton.apply {
-				onAction ?: let {
+		private fun finalizeToolBarItemControl(item : ToolBarItem, control: Labeled) {
+			control.id = item.name
+			//FIXME Caleb: this is either not necessary, or magic. Regardless, should fix it
+			//  why conditionally bind isDisabled only if a graphic?
+
+			val actionIsValid = { item.action?.isValid(null) ?: true }
+
+			/* Listen on disabled when visible*/
+			if ("ignore-disable" !in control.styleClass) {
+				paintera.baseView.isDisabledProperty.`when`(control.visibleProperty()).subscribe { disabled ->
+					control.disableProperty().set(disabled || !actionIsValid())
+				}
+			} else {
+				control.disableProperty().set(!actionIsValid())
+			}
+			/* set the initial state to */
+			control.disableProperty().set(!actionIsValid())
+
+			(control as? Tool)?.isValidProperty?.`when`(control.visibleProperty())?.subscribe { isValid -> control.disableProperty().set(!isValid) }
+
+			control.addStyleClass(Style.TOOLBAR_CONTROL)
+			control.tooltip = Tooltip(
+				item.keyTrigger?.let { trigger ->
+					"${item.name}: ${KeyTracker.keysToString(*trigger.keyCodes.toTypedArray<KeyCode>())}"
+				} ?: item.name
+			)
+		}
+
+		private fun initializeToolBarControl(item: ToolBarItem): Labeled {
+			val control = item.newToolBarControl()
+			item.action?.let { action ->
+				when (control) {
+					is ButtonBase -> { control.setOnAction { action() } }
+					else -> control.addEventHandler(ACTION, EventHandler { action() })
+				}
+			}
+			finalizeToolBarItemControl(item, control)
+			return control.apply {
+				item.action ?: let {
 					userData = item
 				}
 				isFocusTraversable = false
 			}
 		}
 
+		fun List<ToolBarItem>.toolBarButtons() = map {  initializeToolBarControl(it) }
+
+		private fun Iterable<ActionSet>.actionSetButtons() = map { it.toolBarNodes().toSet() }
+			.filter { it.isNotEmpty() }
+			.fold(setOf<ToolBarItem>()) { l, r -> l + r }
+			.map { initializeToolBarControl(it) }
+
 		private fun ActionSet.toolBarNodes(): List<ToolBarItem> {
 			return actions.mapNotNull { action ->
 				action.name?.let { name ->
-					action.graphic?.let { graphic ->
+					action.createToolNode?.let { create ->
 						object : ToolBarItem {
-							override val graphic = graphic
 							override val name = name
 							override val keyTrigger = null
 							override val action = action
+							override fun newToolBarControl() = create(super.newToolBarControl())
 						}
 					}
 				}
 			}
 		}
-
-		private fun Iterable<ActionSet>.actionSetButtons(): List<ButtonBase> = map { it.toolBarNodes().toSet() }
-			.filter { it.isNotEmpty() }
-			.fold(setOf<ToolBarItem>()) { l, r -> l + r }
-			.map { it.toolBarButton }
 	}
 }
 

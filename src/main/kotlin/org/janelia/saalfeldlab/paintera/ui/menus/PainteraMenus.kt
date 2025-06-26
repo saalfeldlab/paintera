@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -13,16 +12,19 @@ import javafx.scene.control.SeparatorMenuItem
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenu
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.actions.ActionMenu
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.kordamp.ikonli.fontawesome.FontAwesome
+import org.kordamp.ikonli.javafx.FontIcon
 
 private val currentSourceName by LazyForeignValue(::paintera) {
 	MenuItem(null).apply {
@@ -62,7 +64,7 @@ private val fileMenu by LazyForeignValue(::paintera) {
 		}
 	}
 }
-private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", FontAwesome[FontAwesomeIcon.PLUS, 1.5], NEW_LABEL_SOURCE.menu, newVirtualSourceMenu) }
+private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", FontIcon(FontAwesome.PLUS), NEW_LABEL_SOURCE.menu, newVirtualSourceMenu).apply { addStyleClass(Style.ADD_ICON) } }
 private val newVirtualSourceMenu by LazyForeignValue(::paintera) { Menu("_Virtual", null, NEW_CONNECTED_COMPONENT_SOURCE.menu, NEW_THRESHOLDED_SOURCE.menu) }
 private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, EXPORT_SOURCE.menu, newSourceMenu) }
 private val menuBarMenu by LazyForeignValue(::paintera) { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }

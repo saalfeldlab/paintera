@@ -18,7 +18,6 @@ import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
@@ -39,7 +38,7 @@ open class RawSourceMode : AbstractToolMode() {
 	private val minMaxIntensityThreshold = painteraActionSet("Min/Max Intensity Threshold") {
 		verifyAll(KEY_PRESSED, "Invalid Source State") { (activeSourceStateProperty.get() as? SourceState<*, RealType<*>>) != null }
 		KEY_PRESSED(RawSourceStateKeys.RESET_MIN_MAX_INTENSITY_THRESHOLD) {
-			graphic = { ScaleView().apply { styleClass += "intensity-reset-min-max" } }
+			createToolNode = { apply { styleClass += "intensity-reset-min-max" } }
 			onAction {
 				(activeSourceStateProperty.get() as? SourceState<*, RealType<*>>)?.let {
 					resetIntensityMinMax(it)
@@ -47,10 +46,10 @@ open class RawSourceMode : AbstractToolMode() {
 			}
 		}
 		KEY_PRESSED(RawSourceStateKeys.AUTO_MIN_MAX_INTENSITY_THRESHOLD) {
-			graphic = { ScaleView().apply { styleClass += "intensity-auto-min-max" } }
+			createToolNode = { apply { styleClass += "intensity-auto-min-max" } }
 			onAction {
 				val viewer = paintera.baseView.run {
-					lastFocusHolder.value ?: orthogonalViews().topLeft
+					mostRecentFocusHolder.value ?: orthogonalViews().topLeft
 				}.viewer()
 				(activeSourceStateProperty.get() as? SourceState<*, RealType<*>>)?.let {
 					autoIntensityMinMax(it, viewer)

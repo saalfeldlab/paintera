@@ -1,0 +1,35 @@
+.status-bar {
+    -fx-background-color: #FDFDFD;
+    -fx-padding: 0em 0em 0em 0.5em;
+}
+
+.status-bar .text-field {
+    -fx-padding: 0.0em;
+    -fx-background-color: transparent;
+    -fx-editable: false;
+}
+
+.status-bar .coordinates.text-field {
+    -fx-font-family: MONOSPACE;
+}
+
+.status-bar .viewer.coordinates.text-field {
+    -length: 10em;
+    -fx-min-width: -length;
+    -fx-pref-width: -length;
+    -fx-max-width: -length;
+}
+
+.status-bar .world.coordinates.text-field {
+    -length: 23em;
+    -fx-min-width: -length;
+    -fx-pref-width: -length;
+    -fx-max-width: -length;
+}
+
+.status-bar .source.coordinates.text-field {
+    -length: 20em;
+    -fx-min-width: -length;
+    -fx-pref-width: -length;
+    -fx-max-width: -length;
+}

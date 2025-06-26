@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import com.google.gson.*
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
@@ -18,6 +17,8 @@ import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_COMPRESS_ENCODING
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_MODEL_LOCATION
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_RESPONSE_TIMEOUT
@@ -25,7 +26,6 @@ import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.D
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.UUID
@@ -115,7 +115,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			add(this, 1, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { serviceTextField.text = DEFAULT_SERVICE_URL }
 			add(it, 2, row)
 		}
@@ -142,7 +142,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			add(it, 1, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { modelTextField.text = DEFAULT_MODEL_LOCATION }
 			add(it, 2, row)
 		}
@@ -169,7 +169,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			}
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { responseTimeoutField.textField.text = "$DEFAULT_RESPONSE_TIMEOUT" }
 			add(it, 2, row)
 		}

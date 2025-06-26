@@ -19,6 +19,8 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
@@ -109,7 +111,12 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 			val tpGraphics = HBox(
 				Label("Color Conversion"),
 				NamedNode.bufferNode(),
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
+			)
 				.also { it.alignment = Pos.CENTER }
 
 			val contents = VBox(alphaBox, setButton, channels)

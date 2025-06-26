@@ -9,8 +9,8 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.IntersectPainting
@@ -22,7 +22,9 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { ScaleView().also { it.styleClass += "intersect-tool" } }
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.addStyleClass("intersect-tool")
+	}
 	override val name = "Intersect Paint with Underlying Label"
 	override val keyTrigger = LabelSourceStateKeys.INTERSECT_UNDERLYING_LABEL
 

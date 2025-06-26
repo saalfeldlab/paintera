@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.BooleanBinding
 import javafx.event.ActionEvent
@@ -11,12 +10,13 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
@@ -26,22 +26,24 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.OpenDialogMenuEntry
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.IntersectingSourceStateOpener
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
+import org.kordamp.ikonli.fontawesome.FontAwesome
+import org.kordamp.ikonli.javafx.FontIcon
 import java.util.function.Supplier
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
 enum class PainteraMenuItems(
 	private val text: String,
 	private val keys: String? = null,
-	private val icon: FontAwesomeIcon? = null,
+	private val icon: FontAwesome? = null,
 	private val requiredActionTypes: Array<ActionType> = emptyArray()
 ) {
 	NEW_PROJECT("_New Project", requiredActionTypes = arrayOf(OpenProject)),
-	OPEN_PROJECT("Open _Project...", icon = FontAwesomeIcon.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
-	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, arrayOf(AddSource)),
-	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesomeIcon.SAVE, arrayOf(ExportSource)),
-	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, arrayOf(SaveProject)),
-	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, arrayOf(SaveProject)),
-	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
+	OPEN_PROJECT("Open _Project...", icon = FontAwesome.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
+	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesome.FOLDER_OPEN, arrayOf(AddSource)),
+	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesome.SAVE, arrayOf(ExportSource)),
+	SAVE("_Save", PBK.SAVE, FontAwesome.SAVE, arrayOf(SaveProject)),
+	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
+	QUIT("_Quit", PBK.QUIT, FontAwesome.SIGN_OUT),
 	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
 	CYCLE_BACKWARD("Cycle _Backward", PBK.CYCLE_CURRENT_SOURCE_BACKWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
 	TOGGLE_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_CURRENT_SOURCE_VISIBILITY),
@@ -61,8 +63,8 @@ enum class PainteraMenuItems(
 	FULL_SCREEN("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN, requiredActionTypes = arrayOf(ResizeViewers, ResizePanel)),
 	SHOW_REPL("Show _REPL...", PBK.SHOW_REPL_TABS),
 	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS, requiredActionTypes = arrayOf(ResizeViewers, ToggleMaximizeViewer, DetachViewer)),
-	SHOW_README("Show _Readme...", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
-	SHOW_KEY_BINDINGS("Show _Key Bindings...", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT);
+	SHOW_README("Show _Readme...", PBK.OPEN_README, FontAwesome.QUESTION),
+	SHOW_KEY_BINDINGS("Show _Key Bindings...", PBK.OPEN_KEY_BINDINGS, FontAwesome.KEYBOARD_O);
 
 	val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
 
@@ -120,7 +122,9 @@ enum class PainteraMenuItems(
 			return paintera.namedEventHandlers()[namedEventHandlerMenuItem]?.let { handler ->
 				namedEventHandlerMenuItem.run {
 					MenuItem(text).apply {
-						icon?.let { graphic = FontAwesome[it, 1.5] }
+						icon?.let {
+							graphic = FontIcon(it).apply { addStyleClass(Style.fontAwesome(it)) }
+						}
 						onAction = handler
 						namedKeyCombindations[keys]?.let { acceleratorProperty().bind(it.primaryCombinationProperty) }
 						/* Set up the disabled binding by permission type*/

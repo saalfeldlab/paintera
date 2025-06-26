@@ -23,6 +23,8 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
@@ -80,7 +82,10 @@ class KeyAndMouseConfigNode(
 		val tpGraphics = HBox(
 			Label("Source-Specific Bindings"),
 			NamedNode.bufferNode(),
-			Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+			Button("").apply {
+				addStyleClass(Style.HELP_ICON)
+				setOnAction { helpDialog.show() }
+			}
 		).apply { alignment = Pos.CENTER }
 		val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
 			graphicsOnly(tpGraphics)
@@ -134,7 +139,10 @@ class KeyAndMouseConfigNode(
 			val tpGraphics = HBox(
 				Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
 				NamedNode.bufferNode(),
-				Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
 			).apply { alignment = Pos.CENTER }
 
 			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
@@ -166,7 +174,10 @@ class KeyAndMouseConfigNode(
 					contentText = description
 				}
 
-				val helpButtonIfDescription = Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				val helpButtonIfDescription = Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
 				tpGraphics = HBox(titleLabel, NamedNode.bufferNode(), helpButtonIfDescription).apply { alignment = Pos.CENTER }
 			} else {
 				tpGraphics = HBox(titleLabel).apply { alignment = Pos.CENTER }

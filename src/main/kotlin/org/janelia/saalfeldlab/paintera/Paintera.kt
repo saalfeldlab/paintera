@@ -318,8 +318,10 @@ class Paintera : Application() {
 		}
 
 		private val stylesheets: List<String> = listOf(
-			"style/glyphs.css",
+			"style/graphics.css",
+			"style/ikonli.css",
 			"style/menubar.css",
+			"style/statusbar.css",
 			"style/toolbar.css",
 			"style/navigation.css",
 			"style/interpolation.css",
@@ -330,10 +332,12 @@ class Paintera : Application() {
 		)
 
 		private fun registerPainteraStylesheets(styleable: Scene) {
+			DynamicCssProperty.register(styleable.stylesheets)
 			styleable.stylesheets.addAll(stylesheets)
 		}
 
 		private fun registerPainteraStylesheets(styleable: Parent) {
+			DynamicCssProperty.register(styleable.stylesheets)
 			styleable.stylesheets.addAll(stylesheets)
 		}
 

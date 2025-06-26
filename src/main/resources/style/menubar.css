@@ -1,3 +1,13 @@
+.root {
+    -menu-bar-start-color: #FDFDFD;
+    -menu-bar-end-color: #D9D9D9;
+    -menu-bar-height: 2em;
+    -menu-bar-gradient: linear-gradient(to bottom, -menu-bar-start-color, -menu-bar-end-color);
+}
+
 .menu-bar {
-    -fx-background-color: linear-gradient(to bottom, #FDFDFD, #D9D9D9);
+    -fx-background-color: -menu-bar-gradient;
+    -fx-pref-height: -menu-bar-height;
+    -fx-min-height: -menu-bar-height;
+    -fx-max-height: -menu-bar-height;
 }

@@ -20,6 +20,8 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
@@ -190,12 +192,16 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		}
 
 		val resetMin = Button("  ", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }))
+		val resetMin = Button("  ")
+		resetMin.addStyleClass(Style.RESET_ICON)
 		resetMin.setOnAction {
 			valueProps[0].forEachIndexed { idx, prop ->
 				prop.valueProperty().value = 0L
 			}
 		}
 		val resetMax = Button("  ", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }))
+		val resetMax = Button("  ")
+		resetMax.addStyleClass(Style.RESET_ICON)
 		imgDimensions
 		resetMax.setOnAction {
 			valueProps[1].forEachIndexed { idx, prop ->
@@ -267,45 +273,45 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				}
 			}
 
-			children +=  GridPane().apply {
-					columnConstraints.add(
-						0, ColumnConstraints(
-							Label.USE_COMPUTED_SIZE, Label.USE_COMPUTED_SIZE, Label.USE_COMPUTED_SIZE,
-							Priority.ALWAYS,
-							HPos.LEFT,
-							true
-						)
+			children += GridPane().apply {
+				columnConstraints.add(
+					0, ColumnConstraints(
+						Label.USE_COMPUTED_SIZE, Label.USE_COMPUTED_SIZE, Label.USE_COMPUTED_SIZE,
+						Priority.ALWAYS,
+						HPos.LEFT,
+						true
 					)
-					padding = Insets(10.0, 0.0, 0.0, 0.0)
-					hgap = 10.0
-					var row = 0
+				)
+				padding = Insets(10.0, 0.0, 0.0, 0.0)
+				hgap = 10.0
+				var row = 0
 
-					add(Separator(Orientation.VERTICAL), 1, 0, 1, GridPane.REMAINING)
+				add(Separator(Orientation.VERTICAL), 1, 0, 1, GridPane.REMAINING)
 
-					add(labelMultisetLabel, 0, row)
-					add(Label("${metadataState.isLabelMultiset}").also { it.alignment = Pos.CENTER_RIGHT }, 2, row++)
+				add(labelMultisetLabel, 0, row)
+				add(Label("${metadataState.isLabelMultiset}").also { it.alignment = Pos.CENTER_RIGHT }, 2, row++)
 
-					add(unitLabel, 0, row)
-					add(Label(metadataState.unit).also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
+				add(unitLabel, 0, row)
+				add(Label(metadataState.unit).also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
 
-					mapOf(
-						dimensionsLabel to dimensionsField,
-						resolutionLabel to resolutionField,
-						offsetLabel to offsetField,
-						blockSizeLabel to blockSizeField,
-					).forEach { (label, field) ->
-						add(label, 0, row, 1, 2)
-						GridPane.setValignment(label, VPos.BOTTOM)
-						add(field.node, 2, row++, 3, 2)
-						row++
-					}
-
-					add(dataTypeLabel, 0, row)
-					add(Label("${metadataState.datasetAttributes.dataType}").also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
-
-					add(compressionLabel, 0, row)
-					add(Label(metadataState.datasetAttributes.compression.type).also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
+				mapOf(
+					dimensionsLabel to dimensionsField,
+					resolutionLabel to resolutionField,
+					offsetLabel to offsetField,
+					blockSizeLabel to blockSizeField,
+				).forEach { (label, field) ->
+					add(label, 0, row, 1, 2)
+					GridPane.setValignment(label, VPos.BOTTOM)
+					add(field.node, 2, row++, 3, 2)
+					row++
 				}
+
+				add(dataTypeLabel, 0, row)
+				add(Label("${metadataState.datasetAttributes.dataType}").also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
+
+				add(compressionLabel, 0, row)
+				add(Label(metadataState.datasetAttributes.compression.type).also { GridPane.setHalignment(it, HPos.RIGHT) }, 2, row++)
+			}
 		}
 
 	}

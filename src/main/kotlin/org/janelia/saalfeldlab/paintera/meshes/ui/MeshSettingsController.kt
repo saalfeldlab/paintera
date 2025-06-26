@@ -16,6 +16,7 @@ import javafx.scene.shape.DrawMode
 import javafx.util.Subscription
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
@@ -25,6 +26,8 @@ import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.grap
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -32,7 +35,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
@@ -124,7 +126,7 @@ class MeshSettingsController @JvmOverloads constructor(
 				refreshMeshes?.run()
 
 			}.apply {
-				graphic = makeReloadSymbol()
+				addStyleClass(Style.REFRESH_ICON)
 				isVisible = refreshMeshes != null
 				isManaged = refreshMeshes != null
 			}
@@ -148,11 +150,6 @@ class MeshSettingsController @JvmOverloads constructor(
 
 		const val TEXT_FIELD_WIDTH = 48.0
 		const val CHOICE_WIDTH = 95.0
-
-
-		private fun makeReloadSymbol() = RefreshButton
-			.createFontAwesome(scale = 2.0)
-			.also { it.rotate = 45.0 }
 
 
 		private fun GridPane.populateGridWithMeshSettings(

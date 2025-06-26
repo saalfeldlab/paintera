@@ -406,83 +406,15 @@
 		</dependency>
 
 
-		<!--	fontawesome-->
 		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-commons</artifactId>
-			<version>9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.kordamp.ikonli</groupId>
+			<artifactId>ikonli-javafx</artifactId>
+			<version>12.4.0</version>
 		</dependency>
 		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-controls</artifactId>
-			<version>9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>de.jensd</groupId>
-					<artifactId>fontawesomefx-commons</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-fontawesome</artifactId>
-			<version>4.7.0-9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>de.jensd</groupId>
-					<artifactId>fontawesomefx-commons</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.kordamp.ikonli</groupId>
+			<artifactId>ikonli-fontawesome-pack</artifactId>
+			<version>12.4.0</version>
 		</dependency>
 
 		<!--		Tests-->

@@ -43,6 +43,8 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
@@ -60,7 +62,6 @@ import org.janelia.saalfeldlab.util.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
-import java.util.UUID
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
@@ -358,6 +359,53 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				isBusy = false
 			}
 		}
+	}
+
+	enum class EditSelectionChoice(val style: StyleGroup) {
+		First(Style.FONT_ICON + "interpolation-first-slice"),
+		Previous(Style.FONT_ICON + "interpolation-previous-slice"),
+		Next(Style.FONT_ICON + "interpolation-next-slice"),
+		Last(Style.FONT_ICON + "interpolation-last-slice")
+	}
+
+	private var currentMovementToTargetSlice : Pair<Job, SliceInfo>? = null
+
+	//TODO Caleb: Controller should not handle moving, let the tool/mode do that
+	fun editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
+
+		val fromSlice = currentMovementToTargetSlice?.let { (job, curTargetSlice) ->
+			currentMovementToTargetSlice = null
+			job.cancel()
+			controllerState = ControllerState.Select
+			curTargetSlice
+		} ?: slice
+
+		val slices = slicesAndInterpolants.slices
+		val depth = fromSlice?.globalTransform?.let { depthAt(it) } ?: currentDepth
+		val targetSlice = when (choice) {
+			EditSelectionChoice.First -> slices.getOrNull(0) /* move to first */
+			EditSelectionChoice.Previous -> slicesAndInterpolants.previousSlice(depth) ?: slices.getOrNull(0) /* move to previous, or first if none */
+			EditSelectionChoice.Next -> slicesAndInterpolants.nextSlice(depth) ?: slices.getOrNull(slices.size - 1) /* move to next, or last if none */
+			EditSelectionChoice.Last -> slices.getOrNull(slices.size - 1) /* move to last */
+		} ?: return
+
+
+		currentMovementToTargetSlice = moveToSlice(targetSlice) to targetSlice
+	}
+
+	fun moveTo(globalTransform: AffineTransform3D) = InvokeOnJavaFXApplicationThread {
+		paintera().manager().apply {
+			setTransformAndAnimate(globalTransform, Duration(300.0)) {
+				if (isActive)
+					transform = globalTransform
+					controllerState = ControllerState.Select
+			}
+		}
+	}
+
+	private fun moveToSlice(sliceInfo: SliceInfo): Job {
+		controllerState = ControllerState.Moving
+		return moveTo(sliceInfo.globalTransform)
 	}
 
 	@JvmOverloads
