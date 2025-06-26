@@ -357,7 +357,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			}
 
 			borderPane.bottom =
-				createPainteraStatusBar(borderPane.backgroundProperty(), paintera.properties.statusBarConfig.isVisibleProperty)
+				createPainteraStatusBar(paintera.properties.statusBarConfig.isVisibleProperty)
 		}
 
 

@@ -1,21 +1,17 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.*
 import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.Separator
-import javafx.scene.control.TextField
+import javafx.scene.control.*
 import javafx.scene.layout.*
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
@@ -27,10 +23,13 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
-import javax.xml.transform.Source
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.paintera.util.PainteraUtils.intervalInSourceSpace
+import org.janelia.saalfeldlab.util.isNotEmpty
+import org.janelia.saalfeldlab.util.union
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
-	val metadataState : MetadataState
+	val metadataState: MetadataState
 	val container: N5Reader
 		get() = metadataState.reader
 	val dataset: String
@@ -73,10 +72,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	 * @param metadataState The metadata state to be evaluated.
 	 * @return True if virtual cropping can be applied, false otherwise.
 	 */
-	private fun canCropVirtually(metadataState: MetadataState) : Boolean {
-		return if (metadataState.isLabel && metadataState.n5ContainerState.writer != null)
-			false
-		else true
+	private fun canCropVirtually(metadataState: MetadataState): Boolean {
+		//FIXME Caleb: expand support for virtual crop
+		return !metadataState.isLabel || metadataState.n5ContainerState.writer == null
 
 	}
 
@@ -149,30 +147,53 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			metadataState.virtualCrop?.min(it) ?: 0L
 		}
 		val imgDimensions = metadataState.datasetAttributes.dimensions
-		val cropMaxes = LongArray(3) {
-			metadataState.virtualCrop?.max(it)?.plus(1) ?: (imgDimensions[it])
+		val cropSize = LongArray(3) {
+			metadataState.virtualCrop?.dimension(it) ?: (imgDimensions[it])
 		}
 
-		val cropExtents = arrayOf(cropMins, cropMaxes)
-
-		lateinit var intervalFromProperties: () -> Interval?
+		val uncroppedInterval = Intervals.createMinSize(*cropMins, *cropSize)
 
 		val valueProps = Array(2) { rowIdx ->
+			val row = rowIdx.takeIf { it == 0 }?.let { uncroppedInterval.minAsLongArray() } ?: uncroppedInterval.maxAsLongArray()
 			Array(3) { colIdx ->
-				val initialValue = cropExtents[rowIdx][colIdx]
+				val initialValue = row[colIdx]
 				val boundsCheck: (value: Long) -> Boolean = { it in 0..imgDimensions[colIdx] }
 				NumberField.longField(initialValue, boundsCheck, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).also {
 					virtualCropGrid.add(it.textField, colIdx + 1, rowIdx + 1)
-					it.valueProperty().subscribe { _, new ->
-						metadataState.virtualCrop = intervalFromProperties()
-						paintera.baseView.orthogonalViews().requestRepaint()
-						paintera.baseView.orthogonalViews().drawOverlays()
-					}
 				}
 			}
 		}
 
-		intervalFromProperties = {
+		fun updateNumberFields(virtualCrop: Interval?) {
+			val interval = virtualCrop ?: uncroppedInterval
+			interval.minAsLongArray().zip(valueProps[0]).forEach { (min, field) -> field.value = min }
+			interval.maxAsLongArray().zip(valueProps[1]).forEach { (max, field) -> field.value = max + 1 }
+		}
+
+
+		val virtualCropInterval = object : SimpleObjectProperty<Interval?>(null) {
+
+			override fun set(newValue: Interval?) {
+				/* let the super handle this error case */
+				if (isBound)
+					super.set(newValue)
+
+				/* if we are the same interval, don't set the value. */
+				if (newValue != null && this.value != null && Intervals.equals(this.value, newValue))
+					return
+
+				super.set(newValue)
+			}
+		}
+		virtualCropInterval.subscribe { it ->
+			metadataState.virtualCrop = it
+			updateNumberFields(it)
+			paintera.baseView.orthogonalViews().requestRepaint()
+			paintera.baseView.orthogonalViews().drawOverlays()
+		}
+
+
+		val intervalFromProperties = {
 			val maxExclusiveCrop = Intervals.createMinMax(
 				*valueProps[0].map { it.value.toLong() }.toLongArray(),
 				*valueProps[1].map { it.value.toLong() - 1 }.toLongArray()
@@ -191,7 +212,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				maxExclusiveCrop
 		}
 
-		val resetMin = Button("  ", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }))
+		val intervalFromPropertiesBinding = Bindings.createObjectBinding(intervalFromProperties, *valueProps.flatten().map { it.valueProperty() }.toTypedArray())
+		intervalFromPropertiesBinding.subscribe { it -> virtualCropInterval.value = it }
+
 		val resetMin = Button("  ")
 		resetMin.addStyleClass(Style.RESET_ICON)
 		resetMin.setOnAction {
@@ -199,7 +222,6 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				prop.valueProperty().value = 0L
 			}
 		}
-		val resetMax = Button("  ", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }))
 		val resetMax = Button("  ")
 		resetMax.addStyleClass(Style.RESET_ICON)
 		imgDimensions
@@ -210,7 +232,46 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		}
 		virtualCropGrid.add(resetMin, 4, 1)
 		virtualCropGrid.add(resetMax, 4, 2)
+
+//		FIXME: Implement
+//		 val cropToRegionBox = HBox().apply {
+//			padding = Insets(10.0, 0.0, 10.0, 0.0)
+//			maxWidth = Double.MAX_VALUE
+//			children += Label("Crop to Region: ").hGrow {
+//				alignment = Pos.BASELINE_LEFT
+//			}
+//			children += Region().hGrow()
+//			children += SegmentedButton().apply {
+//				buttons += ToggleButton("Current View").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForCurrentView() } }
+//				buttons += ToggleButton("Active Segments").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForActiveSegments() } }
+//				buttons += ToggleButton("Active Fragments").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForActiveFragments() } }
+//			}
+//		}
+//		virtualCropGrid.add(cropToRegionBox, 0, 3)
+//		GridPane.setColumnSpan(cropToRegionBox, GridPane.REMAINING)
+
+
 		return virtualCropGrid
+	}
+
+	fun sourceIntervalForCurrentView(): Interval? {
+
+		return paintera.baseView.orthogonalViews().viewerAndTransforms()
+			.map { it.viewer() }
+			.mapNotNull { viewer ->
+				viewer.intervalInSourceSpace(metadataState.transform)
+					?.takeIf { it.isNotEmpty() }
+			}
+			.reduceOrNull { acc, interval -> acc.union(interval) }
+			?.smallestContainingInterval
+	}
+
+	fun sourceIntervalForActiveSegments(): Interval? {
+		TODO("Implement this")
+	}
+
+	fun sourceIntervalForActiveFragments(): Interval? {
+		TODO("Implement this")
 	}
 
 	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride: AffineTransform3D? = null): Node {
