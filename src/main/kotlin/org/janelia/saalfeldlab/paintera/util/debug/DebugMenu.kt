@@ -85,29 +85,33 @@ private enum class DebugMenuItems(val menuAction: MenuAction, val initOnStart: B
 
 internal open class ReloadCssAction(text : String = "Reload CSS") : MenuAction(text, KeyEvent.KEY_TYPED) {
 
-	private fun styleSheetIsURL(string: String): Boolean = runCatching { URI.create(string).toURL() }.map { true }.getOrElse { false }
+	companion object {
 
-	open fun mapStyleSheet(styleSheet: String): String {
-		val localStyleSheet = styleSheet
-			.takeUnless { styleSheetIsURL(it) }
-			?.takeIf { it.startsWith("/") }
-			?: "/$styleSheet"
-		return Paintera.javaClass.getResource(localStyleSheet)
-			?.toExternalForm()
-			?.replace("target/classes", "src/main/resources")
-			?.let { uri ->
-				runCatching {
-					Paths.get(URI.create(uri)).takeIf { it.exists() }?.toUri().toString()
-				}.getOrNull()
-			} ?: styleSheet
-	}
+		private fun styleSheetIsURL(string: String): Boolean = runCatching { URI.create(string).toURL() }.map { true }.getOrElse { false }
 
-	open fun reloadCss() {
-		InvokeOnJavaFXApplicationThread {
-			Window.getWindows().forEach { window ->
-				val styleSheets = window.scene.stylesheets.toList().mapNotNull { css -> mapStyleSheet(css) }
-				window.scene.stylesheets.clear()
-				window.scene.stylesheets.setAll(styleSheets)
+		fun mapStyleSheet(styleSheet: String): String {
+			val localStyleSheet = styleSheet
+				.takeUnless { styleSheetIsURL(it) }
+				?.takeIf { it.startsWith("/") }
+				?: "/$styleSheet"
+			return Paintera.javaClass.getResource(localStyleSheet)
+				?.toExternalForm()
+				?.replace("target/classes", "src/main/resources")
+				?.let { uri ->
+					runCatching {
+						Paths.get(URI.create(uri)).takeIf { it.exists() }?.toUri().toString()
+					}.getOrNull()
+				} ?: styleSheet
+		}
+
+		fun reloadCss() {
+			InvokeOnJavaFXApplicationThread {
+				Window.getWindows().forEach { window ->
+					val styleSheets = window.scene.stylesheets.toList().mapNotNull { css -> mapStyleSheet(css) }
+					window.scene.stylesheets.clear()
+					window.scene.stylesheets.setAll(styleSheets)
+					window.scene.root.requestLayout()
+				}
 			}
 		}
 	}
@@ -147,7 +151,7 @@ internal class LiveReloadCssAction : ReloadCssAction("Live Reload CSS") {
 
 	var watchSubscriptions = Subscription { watchLoop.cancel() }
 
-	override fun reloadCss() {
+	fun initWatchAndReloadCss() {
 		InvokeOnJavaFXApplicationThread {
 			watchSubscriptions.unsubscribe()
 			watchSubscriptions = Subscription.EMPTY
