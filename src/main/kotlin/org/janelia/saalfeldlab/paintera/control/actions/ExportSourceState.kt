@@ -157,8 +157,8 @@ class ExportSourceState {
 
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
-		val labelProp = SimpleStringProperty("Blocks Processed 0 / $totalBlocks").apply {
-			bind(count.createNonNullValueBinding { "Blocks Processed $it / $totalBlocks" })
+		val labelProp = SimpleStringProperty("Blocks Processed:\t0 / $totalBlocks").apply {
+			bind(count.createNonNullValueBinding { "Blocks Processed:\t$it / $totalBlocks" })
 		}
 		val progressProp = SimpleDoubleProperty(0.0).apply {
 			bind(count.createObservableBinding { it.value.toDouble() / totalBlocks })
@@ -211,26 +211,26 @@ class ExportSourceState {
 			exportJob.invokeOnCompletion { cause ->
 				when {
 					/* No error, clean up */
-					cause == null -> {
+					cause == null -> InvokeOnJavaFXApplicationThread {
 						finish()
 						close()
-						val exportInfo = """
-								Export Location: 
-										$exportLocation
-								Dataset:        $dataset
-								Scale Level:    $scaleLevel
-							""".trimIndent()
-						LOG.info { "Export complete\n$exportInfo" }
+						LOG.info { "Export Complete ($exportLocation?$dataset/$scaleLevel)" }
 						PainteraAlerts.information("Ok").apply {
 							title = "Export Complete"
 							headerText = "Export complete."
-							contentText = exportInfo
-						}
+							contentText = """
+									Export Location: 
+											$exportLocation
+									Dataset:        $dataset
+									Scale Level:    $scaleLevel
+								""".trimIndent()
+						}.showAndWait()
 					}
 					/* Cancellation after some blocks have been written; warn the user */
 					blocksWritten.value > 0 && cause is CancellationException -> {
 						InvokeOnJavaFXApplicationThread {
 							stopAndClose()
+							LOG.info { "Export Cancelled with some blocks written ($exportLocation?$dataset/$scaleLevel)" }
 							PainteraAlerts.alert(Alert.AlertType.WARNING).apply {
 								title = "Export Cancelled"
 								headerText = "Export was cancelled.\nPartial dataset export may exist."
