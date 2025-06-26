@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
@@ -97,10 +95,16 @@ public class PainteraBaseView {
 
 	private final OrthogonalViews<Viewer3DFX> views;
 
-
+	/**
+	 * The current active ViewerAndTransform. `null` if no current focused ViewerAndTransform
+	 */
 	public final ObservableObjectValue<ViewerAndTransforms> currentFocusHolder;
-	private final ReadOnlyObjectWrapper<ViewerAndTransforms> _lastFocusHolder;
-	public final ReadOnlyObjectProperty<ViewerAndTransforms> lastFocusHolder;
+	/**
+	 * Either current, or the previous if currentFocusHolder is `null`. This value should
+	 * never be null. Default to the `topLeft` view if no current or previous focus holder
+	 * (i.e. during initialization)
+	 */
+	public final ObservableValue<ViewerAndTransforms> mostRecentFocusHolder;
 
 
 	private final AllowedActionsProperty allowedActionsProperty;
@@ -192,13 +196,7 @@ public class PainteraBaseView {
 				views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
 		);
 
-		_lastFocusHolder = new ReadOnlyObjectWrapper<>(views.getTopLeft());
-		lastFocusHolder = _lastFocusHolder.getReadOnlyProperty();
-		currentFocusHolder.subscribe( (prev, cur) -> {
-			if (cur != null) {
-				_lastFocusHolder.set(cur);
-			}
-		});
+		this.mostRecentFocusHolder = currentFocusHolder.when(Bindings.isNotNull(currentFocusHolder)).orElse(views.getTopLeft());
 
 		activeModeProperty.addListener((obs, oldv, newv) -> {
 			if (oldv != newv) {

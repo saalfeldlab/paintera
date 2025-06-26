@@ -12,7 +12,6 @@ import org.janelia.saalfeldlab.fx.actions.verifiable
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
-import org.janelia.saalfeldlab.paintera.control.tools.paint.StatePaintContext
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.paintera
@@ -23,12 +22,12 @@ interface ViewerActionState {
 	var viewerAndTransforms: OrthogonalViews.ViewerAndTransforms
 	var viewer: ViewerPanelFX
 
-	open class LastFocused :
+	open class MostRecentFocus :
 		PainteraActionState(),
 		ViewerActionState {
 
 		override var viewerAndTransforms by verifiable("Viewer is Active") {
-			val lastFocus = paintera.baseView.lastFocusHolder.value?.viewer()
+			val lastFocus = paintera.baseView.mostRecentFocusHolder.value.viewer()!!
 			paintera.baseView.orthogonalViews().run {
 				when (lastFocus) {
 					topLeft.viewer() -> topLeft
