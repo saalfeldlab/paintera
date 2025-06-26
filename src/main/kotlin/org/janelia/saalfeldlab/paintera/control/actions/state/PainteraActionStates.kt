@@ -27,7 +27,7 @@ open class PainteraActionState(vararg delegates : Any, var invalidIfDisabled : B
 
 
 open class ViewerAndSourceActionState<S : SourceState<*,*>>(
-	viewerActionState : ViewerActionState = ViewerActionState.LastFocused(),
+	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
 	sourceStateActionState : SourceStateActionState<S> = SourceStateActionState.ActiveSource(),
 	vararg additionalDelegates : Any
 ) :
@@ -44,7 +44,7 @@ open class PaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 
 open class ViewerAndPaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
-	viewerActionState : ViewerActionState = ViewerActionState.LastFocused(),
+	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
 	paintContextActionState: PaintContextActionState<S, D, T> = PaintContextActionState.FromCurrentMode(),
 	vararg additionalDelegates : Any
 ) :
@@ -53,7 +53,7 @@ open class ViewerAndPaintableSourceActionState<S : ConnectomicsLabelState<D, T>,
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 
 open class NavigationActionState<S : SourceState<*, *>>(
-	viewerActionState : ViewerActionState = ViewerActionState.LastFocused(),
+	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
 	sourceState : SourceStateActionState<S> = SourceStateActionState.ActiveSource(),
 	vararg additionalDelegates : Any
 ) : ViewerAndSourceActionState<S>(viewerActionState, sourceState, *additionalDelegates) {
