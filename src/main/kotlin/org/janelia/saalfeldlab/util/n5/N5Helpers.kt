@@ -811,7 +811,9 @@ object N5Helpers {
 		val existsIOScope = CoroutineScope(Dispatchers.IO)
 		val withBlockScope = CoroutineScope(coroutineContext)
 
-		val jobs = Channel<Job>(Channel.UNLIMITED)
+		val blockJobs = Channel<Job>(Channel.UNLIMITED)
+		val existsJobs = Channel<Job>(Channel.UNLIMITED)
+
 		while (gridIterator.hasNext()) {
 			gridIterator.fwd()
 			val curBlock = gridIterator.positionAsLongArray()
@@ -826,33 +828,30 @@ object N5Helpers {
 				forEachBlockExists == null && forEachBlock == null -> return
 				/* don't check exists if there is no lambda for it */
 				forEachBlock != null && forEachBlockExists == null -> {
-					jobs.send(
-						withBlockScope.launch {
-							forEachBlock(cellInterval)
-						}
-					)
+					withBlockScope.launch { forEachBlock(cellInterval) }.also { blockJobs.send(it) }
 				}
 
-				else -> jobs.send(
+				else ->
 					existsIOScope.launch {
 						if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
-							jobs.send(
-								withBlockScope.launch {
+							withBlockScope.launch {
 								forEachBlockExists!!(cellInterval)
 								forEachBlock?.invoke(cellInterval)
-							})
+							}.also { blockJobs.send(it) }
 						} else if (forEachBlock != null) {
-							jobs.send(
-								withBlockScope.launch {
-								forEachBlock(cellInterval)
-							})
+							withBlockScope.launch { forEachBlock(cellInterval) }.also { blockJobs.send(it) }
 						}
-					})
+					}.also { existsJobs.send(it) }
 			}
 		}
-		for (job in jobs) {
+
+		existsJobs.close()
+		for (job in existsJobs)
 			job.join()
-		}
+
+		blockJobs.close()
+		for (job in blockJobs)
+			job.join()
 	}
 
 
