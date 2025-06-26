@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs
 
-import com.google.common.util.concurrent.AtomicDouble
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.LongProperty
-import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
@@ -13,8 +11,9 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.javafx.awaitPulse
-import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.numeric.IntegerType
 import org.controlsfx.control.StatusBar
 import org.janelia.saalfeldlab.fx.ui.NumberField
@@ -26,7 +25,6 @@ import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils
 import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils.findMaxId
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
@@ -38,9 +36,7 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicLong
 import java.util.function.LongPredicate
-import kotlin.Throws
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.roundToInt
 
@@ -156,32 +152,37 @@ object DataSourceDialogs {
 
 		val runOnScanData = {
 			initialValue.set(maxIdField.valueProperty().get())
-			val progress = AtomicDouble(0.0)
-			val maxTracker = AtomicLong(Label.INVALID)
+			val maxTracker = MutableStateFlow(Label.INVALID)
 
-			val count = SimpleIntegerProperty(0)
+			val grid = source.getGrid(0)
+			val totalBlocks = grid.gridDimensions.reduce { l, r -> l * r }
+
+			val dataSource = source.getDataSource(0, 0)
+
+			val count = MutableStateFlow(0)
 			val findMaxIdJob = CoroutineScope(Dispatchers.Default).launch {
 
 				(n5 as? GsonKeyValueN5Reader)?.let {
-
-					val blockGrid = n5.getDatasetAttributes(dataset).run {
-						CellGrid(dimensions, blockSize)
-					}
-					val numBlocks = blockGrid.cellIntervals().size()
-					count.subscribe { it -> statusBar.progress = it.toDouble() / numBlocks.toDouble() }
-
-					var dataSource = source.getDataSource(0, 0)
-					N5Helpers.forEachBlockExists(it, dataset ?: "", count) { block ->
-						val id = findMaxId(dataSource.interval(block))
-						maxTracker.getAndUpdate { max -> maxOf(max, id) }
-					}
-				} ?: run {
-					val maxId = findMaxId(source, progress) { localMax ->
+					N5Helpers.forEachBlockExists(it, dataset ?: "", { count.getAndUpdate { it + 1 } }) { block ->
+						val localMax = findMaxId(dataSource.interval(block))
 						maxTracker.getAndUpdate { max -> maxOf(max, localMax) }
 					}
-					maxTracker.set(maxId)
+				} ?: N5Helpers.forEachBlock(grid) { interval ->
+					val localMax = findMaxId(dataSource.interval(interval))
+					maxTracker.getAndUpdate { max -> maxOf(max, localMax) }
+					count.getAndUpdate { it + 1 }
 				}
 			}
+
+			InvokeOnJavaFXApplicationThread {
+				val updateProgress = { statusBar.progress = count.value / totalBlocks.toDouble() }
+				while (findMaxIdJob.isActive) {
+					repeat(3) { awaitPulse() }
+					updateProgress()
+				}
+				updateProgress()
+			}
+
 			findMaxIdJob.invokeOnCompletion { cause ->
 				when (cause) {
 					is CancellationException -> {
@@ -193,7 +194,7 @@ object DataSourceDialogs {
 
 					null -> {
 						InvokeOnJavaFXApplicationThread {
-							maxIdField.value = maxTracker.get()
+							maxIdField.value = maxTracker.value
 							scanButton.text = scanDataButtonText
 						}
 					}
@@ -206,7 +207,7 @@ object DataSourceDialogs {
 
 		val runOnCancel = {
 			task.set(null)
-			LOG.info("Setting next id field {} to initial value {}", maxIdField.valueProperty(), initialValue)
+			LOG.info { "Setting next id field ${maxIdField.valueProperty()} to initial value $initialValue" }
 			maxIdField.valueProperty().set(initialValue.get())
 			statusBar.progress = 0.0
 			null
@@ -219,7 +220,7 @@ object DataSourceDialogs {
 			}
 		}.iterator()
 
-		var job : Job? = null
+		var job: Job? = null
 		scanButton.onAction = EventHandler {
 			job?.cancel()
 			val (action, nextActionText) = actionCycle.next()
@@ -235,7 +236,7 @@ object DataSourceDialogs {
 		alert.dialogPane.content = VBox(ta, maxIdBox)
 
 		if (alert.showAndWait().getOrNull() == ButtonType.OK) {
-			val maxId = maxIdField.valueProperty().get() + 1
+			val maxId = maxIdField.valueProperty().get()
 			n5.setAttribute(dataset, "maxId", maxId)
 			return N5IdService(n5, dataset, maxId)
 		} else {
