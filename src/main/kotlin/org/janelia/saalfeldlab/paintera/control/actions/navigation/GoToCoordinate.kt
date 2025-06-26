@@ -17,11 +17,10 @@ object GoToCoordinate : MenuAction("_Go to Coordinate...") {
 
 	init {
 		verifyPermission(NavigationActionType.Pan)
-		onActionWithState<GoToCoordinateState> {
+		onActionWithState<GoToSourceCoordinateState> {
 			initializeWithCurrentCoordinates()
 			when (getDialog("Go To Source Coordinate").showAndWait().getOrNull()) {
 				ButtonType.OK -> translateToCoordinate(xProperty.value, yProperty.value, zProperty.value)
-
 			}
 		}
 	}

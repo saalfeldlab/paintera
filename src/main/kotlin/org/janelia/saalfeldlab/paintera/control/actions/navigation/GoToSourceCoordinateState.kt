@@ -5,7 +5,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.control.actions.state.NavigationActionState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-internal class GoToCoordinateState :
+internal class GoToSourceCoordinateState :
 	NavigationActionState<SourceState<*, *>>(),
 	GoToCoordinateUI.Model by GoToCoordinateUI.Default(){
 
