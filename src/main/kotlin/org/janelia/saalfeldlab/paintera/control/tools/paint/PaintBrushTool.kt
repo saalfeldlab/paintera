@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.animation.Interpolator
 import javafx.beans.Observable
 import javafx.beans.binding.Bindings
@@ -32,7 +31,8 @@ import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
@@ -52,7 +52,10 @@ private const val END_SELECTION_PAINT = "end selection paint"
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += listOf("paint-brush") } ) }
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.addStyleClass(Style.FONT_ICON + "paint-brush")
+	}
+
 	override val name = "Paint"
 	override val keyTrigger = LabelSourceStateKeys.PAINT_BRUSH
 

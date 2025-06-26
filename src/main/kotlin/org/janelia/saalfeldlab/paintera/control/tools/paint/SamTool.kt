@@ -3,8 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtException
 import bdv.fx.viewer.render.RenderUnitState
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable
@@ -12,7 +10,6 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ChangeListener
-import javafx.scene.control.ButtonBase
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.input.KeyCode
@@ -58,14 +55,15 @@ import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
-import org.janelia.saalfeldlab.fx.ui.CircleScaleView
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.StyleGroup
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.createOrtSessionTask
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.getSamRenderState
@@ -80,6 +78,8 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.creat
 import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SamPoint
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SparsePrediction
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool.Companion.SamStyle.SAM_BOX_OVERLAY
+import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool.Companion.SamStyle.SAM_POINT
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
@@ -126,16 +126,12 @@ import kotlin.math.*
 //TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "sam-select" }) }
+	override fun newToolBarControl()  = super.newToolBarControl().apply {
+		properties[REQUIRES_ACTIVE_VIEWER] = true
+		addStyleClass(SamStyle.SAM_SELECT_TOOL)
+	}
 	override val name = "Segment Anything"
 	override val keyTrigger = SEGMENT_ANYTHING__TOGGLE_MODE
-
-	override val toolBarButton: ButtonBase
-		get() {
-			return super.toolBarButton.apply {
-				properties[REQUIRES_ACTIVE_VIEWER] = true
-			}
-		}
 
 	internal var currentLabelToPaint: Long = Label.INVALID
 	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
@@ -223,9 +219,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setCursorWhenDoneApplying = ChangeListener { observable, _, _ ->
 			observable.removeListener(setCursorWhenDoneApplying)
 		}
-		paintera.properties.segmentAnythingConfig.subscribe( Runnable {
+		paintera.properties.segmentAnythingConfig.subscribe { it ->
 			isValidProperty.set(SamEmbeddingLoaderCache.canReachServer)
-		})
+		}
 	}
 
 	private val isBusyProperty = SimpleBooleanProperty(false)
@@ -311,7 +307,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				)
 			}
 		}
-		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT_STYLE in it.styleClass } }
+		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT.style in it.styleClass } }
 		paintera.baseView.disabledPropertyBindings -= this
 		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
 		viewerMask = null
@@ -468,13 +464,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				/* Handle Include Points */
 				MOUSE_CLICKED(MouseButton.PRIMARY) {
 					name = "add include point"
-					graphic = {
-						val circle = Circle().apply {
-							styleClass += "sam-point-in"
-						}
-						CircleScaleView(circle).apply {
-							styleClass += listOf("sam-point", "ignore-disable")
-							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
+					createToolNode = {
+						ToggleButton().apply {
+							addStyleClass(SamStyle.SAM_INCLUDE_TOOL)
+							toggleGroup = primaryClickLabelToggleGroup
 						}
 					}
 					onAction {
@@ -503,13 +496,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				MOUSE_CLICKED(MouseButton.SECONDARY) {
 					name = "add exclude point"
-					graphic = {
-						val circle = Circle().apply {
-							styleClass += "sam-point-out"
-						}
-						CircleScaleView(circle).apply {
-							styleClass += listOf("sam-point", "ignore-disable")
-							properties["TOGGLE_GROUP"] = primaryClickLabelToggleGroup
+					createToolNode = {
+						ToggleButton().apply {
+							addStyleClass(SamStyle.SAM_EXCLUDE_TOOL)
+							toggleGroup = primaryClickLabelToggleGroup
 						}
 					}
 					onAction {
@@ -535,7 +525,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}.also { primaryClickToggleExcludeAction = it }
 
 				KEY_PRESSED(SEGMENT_ANYTHING__RESET_PROMPT) {
-					graphic = { GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "reset" }) }
+					createToolNode = { apply { addStyleClass(Style.RESET_ICON) } }
 					onAction {
 						resetPromptAndPrediction()
 						primaryClickLabel = null
@@ -546,7 +536,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				KEY_PRESSED(SEGMENT_ANYTHING__ACCEPT_SEGMENTATION) {
 					name = "apply last segmentation result to canvas"
-					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "accept" }) }
+					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON) } }
 					verifyPainteraNotDisabled()
 					verify(" label is not valid ") { isLabelValid }
 					onAction {
@@ -561,7 +551,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
-					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
+					createToolNode = { apply { addStyleClass(Style.REJECT_ICON) } }
 					onAction { mode?.switchTool(mode.defaultTool) }
 				}
 			},
@@ -711,7 +701,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			children += Circle(5.0).apply {
 				translateX = point.x / screenScale - width / 2
 				translateY = point.y / screenScale - height / 2
-				styleClass += SamPointStyle[point.label]
+				SamStyle[point.label]?.let { addStyleClass(it) }
 
 				/* If clicked again, remove it */
 				painteraActionSet("remove-circle", ignoreDisable = true) {
@@ -759,7 +749,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setViewer?.let { viewer ->
 			InvokeOnJavaFXApplicationThread {
 				viewer.children.removeIf {
-					it.styleClass.any { style -> style == SAM_POINT_STYLE || style == SAM_BOX_OVERLAY_STYLE }
+					it.styleClass.any { style -> style == SAM_POINT.style || style == SAM_BOX_OVERLAY.style }
 				}
 			}
 		}
@@ -769,10 +759,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		InvokeOnJavaFXApplicationThread {
 			val boxOverlay = children
 				.filterIsInstance<Rectangle>()
-				.firstOrNull { it.styleClass.contains(SAM_BOX_OVERLAY_STYLE) }
+				.firstOrNull { it.styleClass.contains(SAM_BOX_OVERLAY.style) }
 				?: Rectangle().also {
 					it.isMouseTransparent = true
-					it.styleClass += SAM_BOX_OVERLAY_STYLE
+					it.styleClass += SAM_BOX_OVERLAY.style
 					children += it
 				}
 
@@ -1106,19 +1096,29 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	companion object {
 
-		const val SAM_POINT_STYLE = "sam-point"
-		const val SAM_BOX_OVERLAY_STYLE = "sam-box-overlay"
+		enum class SamStyle(val style: String, vararg classes: String) : StyleGroup by StyleGroup.of(style, *classes) {
+			CIRCLE("circle"),
+			SAM_POINT("sam-point"),
+			SAM_BOX_OVERLAY("sam-box-overlay"),
+			SAM_INCLUDE("sam-include", SAM_POINT),
+			SAM_EXCLUDE("sam-exclude", SAM_POINT),
+			SAM_SELECT_TOOL("sam-select", Style.FONT_ICON);
 
-		private enum class SamPointStyle(val styles: Array<String>) {
-			Include(arrayOf(SAM_POINT_STYLE, "sam-include")),
-			Exclude(arrayOf(SAM_POINT_STYLE, "sam-exclude"));
+			constructor(style: String, vararg styles: StyleGroup) : this(style, *styles.flatMap { it.classes.toList() }.toTypedArray())
+			constructor(style: String) : this(style, *emptyArray<StyleGroup>())
 
 			companion object {
 
+				val SAM_INCLUDE_TOOL = StyleGroup.of(SAM_INCLUDE, Style.IGNORE_DISABLE)
+				val SAM_EXCLUDE_TOOL = StyleGroup.of(SAM_EXCLUDE, Style.IGNORE_DISABLE)
+
+				val SAM_INCLUDE_CIRCLE = StyleGroup.of(SAM_INCLUDE, CIRCLE)
+				val SAM_EXCLUDE_CIRCLE = StyleGroup.of(SAM_EXCLUDE, CIRCLE)
+
 				operator fun get(label: SamPredictor.SparseLabel) = when (label) {
-					SamPredictor.SparseLabel.IN -> Include.styles
-					SamPredictor.SparseLabel.OUT -> Exclude.styles
-					else -> emptyArray()
+					SamPredictor.SparseLabel.IN -> SAM_INCLUDE_CIRCLE
+					SamPredictor.SparseLabel.OUT -> SAM_EXCLUDE_CIRCLE
+					else -> null
 				}
 			}
 		}

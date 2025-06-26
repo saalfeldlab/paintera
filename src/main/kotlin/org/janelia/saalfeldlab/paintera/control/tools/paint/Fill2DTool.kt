@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
@@ -16,10 +15,10 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -37,7 +36,9 @@ private val LOG = KotlinLogging.logger { }
 open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
-	override val graphic = { ScaleView().also { it.styleClass += "fill-2d" } }
+	override fun newToolBarControl() = super.newToolBarControl().also { item ->
+		item.addStyleClass("fill-2d")
+	}
 
 	override val name = "Fill 2D"
 	override val keyTrigger = LabelSourceStateKeys.FILL_2D
@@ -112,7 +113,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
 				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.CANCEL) {
 					name = "Cancel Fill 2D"
-					graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += "reject" }).apply { styleClass += "ignore-disable" } }
+					createToolNode = { apply { addStyleClass(Style.REJECT_ICON)} }
 					filter = true
 					onAction {
 						cancelFloodFill()

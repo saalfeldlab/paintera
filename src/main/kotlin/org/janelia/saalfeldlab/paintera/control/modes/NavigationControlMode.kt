@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -22,11 +21,12 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
 import org.janelia.saalfeldlab.paintera.NavigationKeys.*
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
@@ -61,6 +61,8 @@ object NavigationControlMode : AbstractToolMode() {
 }
 
 object NavigationTool : ViewerTool() {
+
+	internal val NAVIGATION_TOOL_STYLE = Style.FONT_ICON + "navigation-tool"
 
 	private const val DEFAULT = 1.0
 	private const val FAST = 10.0
@@ -106,7 +108,9 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "navigation-tool" }) }
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.addStyleClass(NAVIGATION_TOOL_STYLE)
+	}
 
 	override val name: String = "Navigation"
 	override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */

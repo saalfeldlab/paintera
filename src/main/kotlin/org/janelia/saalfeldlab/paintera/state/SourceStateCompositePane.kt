@@ -10,6 +10,8 @@ import javafx.util.Callback
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaCopy
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -91,7 +93,10 @@ class SourceStateCompositePane {
 				Label(title),
 				NamedNode.bufferNode(),
 				createComboBoxAndBindBidrectional(composite, promptText),
-				Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
 			).apply { alignment = Pos.CENTER }
 
 			return with(TitledPaneExtensions) {

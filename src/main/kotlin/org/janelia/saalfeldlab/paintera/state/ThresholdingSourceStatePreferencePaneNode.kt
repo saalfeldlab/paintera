@@ -16,6 +16,8 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
@@ -70,7 +72,11 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		val tpGraphics = HBox(
 			Label("Threshold"),
 			NamedNode.bufferNode(),
-			Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+			Button("").apply {
+				addStyleClass(Style.HELP_ICON)
+				setOnAction { helpDialog.show() }
+			}
+		)
 			.also { it.alignment = Pos.CENTER }
 
 		return TitledPanes

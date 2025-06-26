@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.scene.control.ButtonBase
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
@@ -22,12 +21,9 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		activeViewerProperty.bind(mode!!.activeViewerProperty)
 	}
 
-	override val toolBarButton: ButtonBase
-		get() {
-			return super.toolBarButton.apply {
-				properties[REQUIRES_ACTIVE_VIEWER] = false
-			}
-		}
+	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
+		item.properties[REQUIRES_ACTIVE_VIEWER] = false
+	}
 
 	private var replaceExistingSlice = false
 

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 
 import bdv.viewer.Source
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
@@ -43,8 +42,9 @@ import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
-import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
-import org.janelia.saalfeldlab.paintera.Style.REMOVE_GLYPH
+import org.janelia.saalfeldlab.paintera.Style.ADD_ICON
+import org.janelia.saalfeldlab.paintera.Style.REMOVE_ICON
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.paintera
@@ -52,7 +52,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -459,8 +458,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 			vararg submitOn: SubmitOn
 		) = VBox().apply {
 			val addButton = Button().apply {
-				styleClass += ADD_GLYPH
-				graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0]
+				addStyleClass(ADD_ICON)
 			}
 			addButton.onAction = EventHandler { event ->
 				event.consume()
@@ -491,8 +489,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 							level.relativeDownsamplingFactors.editable = false
 						}
 						val removeButton = Button().apply {
-							styleClass += REMOVE_GLYPH
-							graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
+							addStyleClass(REMOVE_ICON)
 							onAction = EventHandler {
 								it.consume()
 								levels.remove(level)

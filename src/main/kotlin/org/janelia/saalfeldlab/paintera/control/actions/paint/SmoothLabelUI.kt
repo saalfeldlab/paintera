@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.binding.BooleanExpression
@@ -23,12 +22,12 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.Style.ADD_GLYPH
-import org.janelia.saalfeldlab.paintera.Style.RESET_GLYPH
+import org.janelia.saalfeldlab.paintera.Style.ADD_ICON
+import org.janelia.saalfeldlab.paintera.Style.RESET_ICON
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel.smoothTaskLoop
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model
 import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabelUI.Model.Companion.getDialog
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.denyClose
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hGrow
@@ -131,8 +130,7 @@ private enum class InfillStrategyUI(val strategy: InfillStrategy, val makeNode: 
 							textField.hGrow()
 						}
 						children += Button().apply {
-							styleClass += ADD_GLYPH
-							graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0]
+							addStyleClass(ADD_ICON)
 							onAction = EventHandler { replacementLabelProperty.set(newId()) }
 							tooltip = Tooltip("Next New ID")
 						}
@@ -374,8 +372,7 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 		}
 
 		val resetBtn = Button().apply {
-			styleClass += RESET_GLYPH
-			graphic = FontAwesome[FontAwesomeIcon.UNDO, 2.0]
+			addStyleClass(RESET_ICON)
 			setOnAction { kernelSizeField.valueProperty().set(defaultKernelSize) }
 			tooltip = Tooltip("Reset Threshold")
 		}

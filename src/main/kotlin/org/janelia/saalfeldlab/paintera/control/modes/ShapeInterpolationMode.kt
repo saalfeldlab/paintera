@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import bdv.fx.viewer.render.RenderUnitState
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ChangeListener
@@ -34,17 +32,19 @@ import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice.*
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
@@ -64,8 +64,9 @@ import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeIn
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.util.*
+import org.kordamp.ikonli.fontawesome.FontAwesome
+import org.kordamp.ikonli.javafx.FontIcon
 import kotlin.math.roundToLong
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
@@ -164,7 +165,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						paintera.baseView.changeMode(previousMode)
 					}
 					KEY_PRESSED(CANCEL) {
-						graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += listOf("reject", "reject-shape-interpolation") }) }
+						createToolNode = { apply { addStyleClass(Style.FONT_ICON + "reject" + "reject-shape-interpolation") } }
 						onAction(exitMode)
 					}
 					KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
@@ -210,10 +211,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			},
 			painteraActionSet("key slice navigation") {
-				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION__SELECT_FIRST_SLICE)
-				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
-				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
-				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+				keyPressEditSelectionAction(First, SHAPE_INTERPOLATION__SELECT_FIRST_SLICE)
+				keyPressEditSelectionAction(Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
+				keyPressEditSelectionAction(Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
+				keyPressEditSelectionAction(Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
 				//FIXME Caleb: There is a bug when navigating slices quickly that occasionally the correct action above will not
 				//  trigger. When the arrows keys are the expected trigger, this then triggers the parent/sibling nodes focuse traversal
 				//  and causes the focus to escape the active orthoslice. When this happens it appears that shape interpolation
@@ -248,15 +249,15 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				KEY_PRESSED(KeyCode.B) {
 					onAction {
 						samStyleBoxToggle.set(!samStyleBoxToggle.get())
-						data class SamStyleToggle(val icon: FontAwesomeIcon, val title: String, val text: String)
+						data class SamStyleToggle(val icon: FontAwesome, val title: String, val text: String)
 						val (toggle, title, text) = if (samStyleBoxToggle.get())
-							SamStyleToggle(FontAwesomeIcon.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
+							SamStyleToggle(FontAwesome.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
 						else
-							SamStyleToggle(FontAwesomeIcon.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
+							SamStyleToggle(FontAwesome.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
 
 						InvokeOnJavaFXApplicationThread {
 							val notification = Notifications.create()
-								.graphic(FontAwesome[toggle])
+								.graphic(FontIcon(toggle))
 								.title(title)
 								.text(text)
 								.owner(paintera.baseView.node)
@@ -333,25 +334,25 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.First) }
+								onAction { editSelection(First) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Previous) }
+								onAction { editSelection(Previous) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Next) }
+								onAction { editSelection(Next) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Last) }
+								onAction { editSelection(Last) }
 							}
 						}
 					}
@@ -408,23 +409,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, namedKey: NamedKeyBinding) =
 		with(controller) {
 			KEY_PRESSED(namedKey) {
-				graphic = when (choice) {
-					EditSelectionChoice.First -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-first-slice" }) }
-					}
-
-					EditSelectionChoice.Previous -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-previous-slice" }) }
-					}
-
-					EditSelectionChoice.Next -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-next-slice" }) }
-					}
-
-					EditSelectionChoice.Last -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-last-slice" }) }
-					}
-				}
+				createToolNode = { apply { addStyleClass(choice.style) } }
 				verify { activeTool is ShapeInterpolationTool }
 				onAction { editSelection(choice) }
 				handleException {
@@ -532,7 +517,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		selectionIntervalOverMask: Interval,
 		viewerMask: ViewerMask = controller.currentViewerMask!!,
 		globalTransform: AffineTransform3D = viewerMask.currentGlobalTransform,
-		replaceExistingSlice: Boolean = false
+		replaceExistingSlice: Boolean = false,
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
 		val sliceDepth = controller.depthAt(globalToViewerTransform)

@@ -5,7 +5,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
@@ -28,11 +27,12 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.kordamp.ikonli.fontawesome.FontAwesome.*
+import org.kordamp.ikonli.javafx.FontIcon
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -176,7 +176,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	private fun showSaveCompleteNotification(owner: Any = baseView.node.scene.window) {
 		val saveNotification = Notifications.create()
-			.graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
+			.graphic(FontIcon(CHECK_CIRCLE))
 			.title("Save Project")
 			.text("Save Complete")
 			.owner(owner)

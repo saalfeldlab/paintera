@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
@@ -29,6 +28,8 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
@@ -44,7 +45,6 @@ import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.text.DecimalFormat
 import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
@@ -244,7 +244,7 @@ class LabelSourceStatePreferencePaneNode(
 
 
 				val lastSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Last Selection"
@@ -258,7 +258,7 @@ class LabelSourceStatePreferencePaneNode(
 					}
 				}
 				val fragmentSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Fragment Selection"
@@ -271,7 +271,7 @@ class LabelSourceStatePreferencePaneNode(
 					}
 				}
 				val segmentSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Segment Selection"
@@ -301,7 +301,10 @@ class LabelSourceStatePreferencePaneNode(
 				val tpGraphics = HBox(
 					Label("Fragment Selection"),
 					NamedNode.bufferNode(),
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+					Button("").apply {
+						addStyleClass(Style.HELP_ICON)
+						setOnAction { helpDialog.show() }
+					}
 				).also { it.alignment = Pos.CENTER }
 
 				return with(TitledPaneExtensions) {
@@ -420,7 +423,10 @@ class LabelSourceStatePreferencePaneNode(
 						NamedNode.bufferNode(),
 						showCanvasCheckBox,
 						clearButton,
-						Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+						Button("").apply {
+							addStyleClass(Style.HELP_ICON)
+							setOnAction { helpDialog.show() }
+						}
 					).also { it.alignment = Pos.CENTER }
 
 					val brushSizeLabel = Labels.withTooltip(

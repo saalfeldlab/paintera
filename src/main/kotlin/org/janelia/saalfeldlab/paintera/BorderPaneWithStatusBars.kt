@@ -13,7 +13,6 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.util.Duration
 import javafx.util.Subscription
-import org.checkerframework.common.reflection.qual.Invoke
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
@@ -36,7 +35,6 @@ import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.ui.vGrow
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
 import org.janelia.saalfeldlab.util.Colors
-import org.reactfx.value.Val.animate
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
@@ -51,31 +49,23 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val sideBarWidthProperty = painteraProperties.sideBarConfig.widthProperty
 
-	private val centerPaneBottomGroup = HBox().apply {
-		maxWidth = Double.MAX_VALUE
-	}
 	private val centerPaneBottomHBox = HBox().apply {
-		isPickOnBounds = false
-		maxWidth = Double.MAX_VALUE
-		isFillHeight = false
 		StackPane.setAlignment(this, Pos.BOTTOM_LEFT)
+
+		isPickOnBounds = false
+		isFillHeight = false
+		maxWidth = Double.MAX_VALUE
 	}
+
 	private val centerPaneBottomVBox = VBox().apply {
+		StackPane.setAlignment(this, Pos.BOTTOM_LEFT)
+
 		isFillWidth = true
 		isPickOnBounds = false
 		maxWidth = Double.MAX_VALUE
-		StackPane.setAlignment(this, Pos.BOTTOM_LEFT)
-		alignment = Pos.BOTTOM_LEFT
-		children += centerPaneBottomGroup
-		children += centerPaneBottomHBox
-	}
-	private val centerPaneBottomLeftHBox = HBox().apply {
-		isPickOnBounds = false
-		isFillHeight = false
-		maxWidth = Double.MAX_VALUE
 		alignment = Pos.BOTTOM_LEFT
 
-		centerPaneBottomHBox.children += this
+		children += centerPaneBottomHBox
 	}
 
 
@@ -159,11 +149,6 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		isFillWidth = true
 	}
 
-	val bottomGroup = HBox().apply {
-		maxWidth = Double.MAX_VALUE
-		alignment = Pos.BOTTOM_LEFT
-		maxWidth = Double.MAX_VALUE
-	}
 
 	private val rightTopGroup = HBox().vGrow(Priority.NEVER)
 
@@ -184,7 +169,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		install()
 	}
 
-	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), painteraProperties.statusBarConfig.isVisibleProperty)
+	private val statusBar = createPainteraStatusBar(painteraProperties.statusBarConfig.isVisibleProperty)
 
 	init {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
@@ -292,7 +277,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		var removeOld: Subscription? = null
 		return modeProperty.subscribe { mode ->
 			removeOld?.unsubscribe()
-			removeOld = mode.moveStatusBarLocation(statusBar, pane, centerPaneBottomLeftHBox)
+			removeOld = mode.moveStatusBarLocation(statusBar, pane, centerPaneBottomHBox)
 		}.and { removeOld?.unsubscribe() }
 	}
 
@@ -336,10 +321,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 				StatusBarConfig.Mode.BOTTOM -> {
 					borderPane.bottom = statusBar
-					borderPane.styleClass += "status-bar"
 					Subscription {
 						borderPane.bottom = null
-						borderPane.styleClass -= "status-bar"
 					}
 				}
 			}

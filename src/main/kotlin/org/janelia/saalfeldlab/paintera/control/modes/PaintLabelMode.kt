@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
@@ -105,7 +104,7 @@ open class PaintLabelMode : ViewLabelMode() {
 
 	private val enterShapeInterpolationMode = painteraActionSet(SHAPE_INTERPOLATION__TOGGLE_MODE, PaintActionType.ShapeInterpolation) {
 		KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
-			graphic = { ScaleView().also { it.styleClass += "enter-shape-interpolation" } }
+			createToolNode = { apply { styleClass += "enter-shape-interpolation" } }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify {
 				@Suppress("UNCHECKED_CAST")

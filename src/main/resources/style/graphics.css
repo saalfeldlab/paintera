@@ -1,0 +1,6 @@
+.image-graphic.help {
+    -fx-graphic: url("https://png.pngtree.com/png-clipart/20220301/ourmid/pngtree-simple-button-png-image_4096123.png");
+    -fx-scale-x: .5;
+    -fx-scale-y: .5;
+}
+

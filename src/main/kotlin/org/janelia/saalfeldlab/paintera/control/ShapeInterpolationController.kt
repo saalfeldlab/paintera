@@ -46,6 +46,8 @@ import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantVa
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
@@ -347,11 +349,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 	}
 
-	enum class EditSelectionChoice {
-		First,
-		Previous,
-		Next,
-		Last
+	enum class EditSelectionChoice(val style: StyleGroup) {
+		First(Style.FONT_ICON + "interpolation-first-slice"),
+		Previous(Style.FONT_ICON + "interpolation-previous-slice"),
+		Next(Style.FONT_ICON + "interpolation-next-slice"),
+		Last(Style.FONT_ICON + "interpolation-last-slice")
 	}
 
 	private var currentMovementToTargetSlice : Pair<Job, SliceInfo>? = null

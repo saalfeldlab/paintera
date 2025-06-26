@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.css.PseudoClass
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -14,9 +14,9 @@ import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.ui.CloseButton
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.Consumer
@@ -41,7 +41,8 @@ class StatePane(
 	}
 
 	init {
-		val closeButton = Button(null, CloseButton.createFontAwesome(2.0)).apply {
+		val closeButton = Button(null).apply {
+			addStyleClass("source-control", *Style.CLOSE_ICON.classes)
 			onAction = EventHandler { remove.accept(state.dataSource) }
 			tooltip = Tooltip("Remove source")
 		}
@@ -50,15 +51,13 @@ class StatePane(
 			toggleGroup = activeSourceRadioButtonGroup
 			userData = state.dataSource
 		}
-		val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0].apply { stroke = Color.BLACK }
-		val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0].apply {
-			stroke = Color.GRAY
-			fill = Color.GRAY
-		}
 
 		val visibilityButton = Button(null).apply {
+			addStyleClass("source-control", *Style.VISIBILITY_ICON.classes)
+			statePaneVisibleProperty.subscribe { visible ->
+				pseudoClassStateChanged(PseudoClass.getPseudoClass("visible"), visible)
+			}
 			onAction = EventHandler { statePaneIsVisible = !statePaneIsVisible }
-			graphicProperty().bind(statePaneVisibleProperty.createNonNullValueBinding { if (it) visibilityIconViewVisible else visibilityIconViewInvisible })
 			maxWidth = 20.0
 			tooltip = Tooltip("Toggle visibility")
 		}
