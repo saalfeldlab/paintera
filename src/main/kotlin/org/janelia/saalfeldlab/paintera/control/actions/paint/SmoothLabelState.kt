@@ -50,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.paintera.util.PainteraUtils.viewerIntervalsInSourceSpace
 import org.janelia.saalfeldlab.util.*
 import java.util.concurrent.RejectedExecutionException
 import kotlin.math.roundToInt
@@ -70,7 +71,7 @@ internal enum class SmoothDirection {
 	Expand,
 	Both;
 
-	fun defaultKernelSize(resolution : DoubleArray): Int {
+	fun defaultKernelSize(resolution: DoubleArray): Int {
 		val min = resolution.min()
 		val max = resolution.max()
 		return when (this) {
@@ -179,23 +180,18 @@ internal class SmoothLabelState<D, T> :
 		return blocksFromSource + blocksFromCanvas
 	}
 
-	fun viewerIntervalsInSourceSpace(intersectFilter: List<Interval> = emptyList()): List<Interval> {
-		/* get viewer screen intervals for each orthogonal view in source space*/
-		val viewerAndTransforms = paintera.baseView.orthogonalViews().viewerAndTransforms()
-		return viewerAndTransforms.mapNotNull {
-			val globalToViewerTransform = AffineTransform3D()
-			it.viewer().state.getViewerTransform(globalToViewerTransform)
-			val width = it.viewer().width
-			val height = it.viewer().height
-			val screenInterval = FinalInterval(width.toLong(), height.toLong(), 1L)
-			val sourceToGlobal = AffineTransform3D()
-			sourceState.getDataSource().getSourceTransform(timepoint, scaleLevel, sourceToGlobal)
-			val viewerToSource = sourceToGlobal.inverse().copy().concatenate(globalToViewerTransform.inverse())
-			viewerToSource
-				.estimateBounds(screenInterval)
-				.takeIf { intersectFilter.isEmpty() || intersectFilter.any { filter -> filter.intersect(it).isNotEmpty() } }
-				?.smallestContainingInterval
+	fun viewerIntervalsInSourceSpace(intersectIntervals: List<Interval> = emptyList()): List<Interval> {
+		val intersectFilter = { sourceInterval: RealInterval ->
+			sourceInterval.takeIf {
+				intersectIntervals.isEmpty() || intersectIntervals.any { filter ->
+					filter.intersect(sourceInterval).isNotEmpty()
+				}
+			}
 		}
+		/* get viewer screen intervals for each orthogonal view in the source space*/
+		return sourceState
+			.viewerIntervalsInSourceSpace(timepoint, scaleLevel, intersectFilter)
+			.mapNotNull { it?.smallestContainingInterval }
 	}
 
 	fun requestRepaintOverIntervals(intervals: List<Interval>? = null) {
@@ -311,7 +307,7 @@ internal class SmoothLabelState<D, T> :
 			progress = .05
 		}
 
-		val intervalsToSmoothOver = if (preview) viewerIntervalsInSourceSpace(intersectFilter = blocksWithLabel) else blocksWithLabel
+		val intervalsToSmoothOver = if (preview) viewerIntervalsInSourceSpace(intersectIntervals = blocksWithLabel) else blocksWithLabel
 
 		val levelResolution = getLevelResolution(scaleLevel)
 		val kernelSize = kernelSizeProperty.get()
