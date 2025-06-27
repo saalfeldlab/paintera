@@ -531,7 +531,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 		/* IF slice exists at depth AND transform is different THEN delete until first non-pregenerated slices */
 		samSliceCache[sliceDepth]?.sliceInfo?.let {
-			if (it.mask.initialGlobalToViewerTransform.hashable() != viewerMask.initialGlobalToViewerTransform.hashable()) {
+			val diffTransform = it.mask.initialGlobalToViewerTransform.hashable() != viewerMask.initialGlobalToViewerTransform.hashable()
+			val diffMask = it.maskBoundingBox != selectionIntervalOverMask
+			if (diffTransform || diffMask) {
 				val depths = samSliceCache.keys.toList().sorted()
 				val depthIdx = depths.indexOf(sliceDepth.toFloat())
 				for (idx in depthIdx - 1 downTo 0) {
