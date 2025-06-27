@@ -7,6 +7,7 @@ import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.paintera.FontIconPatched
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
@@ -40,8 +41,8 @@ enum class PainteraMenuItems(
 	NEW_PROJECT("_New Project", requiredActionTypes = arrayOf(OpenProject)),
 	OPEN_PROJECT("Open _Project...", icon = FontAwesome.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
 	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesome.FOLDER_OPEN, arrayOf(AddSource)),
-	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesome.SAVE, arrayOf(ExportSource)),
-	SAVE("_Save", PBK.SAVE, FontAwesome.SAVE, arrayOf(SaveProject)),
+	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesome.FLOPPY_O, arrayOf(ExportSource)),
+	SAVE("_Save", PBK.SAVE, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
 	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
 	QUIT("_Quit", PBK.QUIT, FontAwesome.SIGN_OUT),
 	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
@@ -122,9 +123,7 @@ enum class PainteraMenuItems(
 			return paintera.namedEventHandlers()[namedEventHandlerMenuItem]?.let { handler ->
 				namedEventHandlerMenuItem.run {
 					MenuItem(text).apply {
-						icon?.let {
-							graphic = FontIcon(it).apply { addStyleClass(Style.fontAwesome(it)) }
-						}
+						icon?.let { addStyleClass(Style.fontAwesome(it)) }
 						onAction = handler
 						namedKeyCombindations[keys]?.let { acceleratorProperty().bind(it.primaryCombinationProperty) }
 						/* Set up the disabled binding by permission type*/
