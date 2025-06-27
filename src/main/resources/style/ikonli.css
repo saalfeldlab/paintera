@@ -10,7 +10,21 @@
 /* This helps resolve an issue with flickering between incorrect sizes.
  * To change the size of an icon, don't use font size, use `-fx-icon-size` */
 .ikonli-font-icon {
+    -fx-text-fill: -icons-color;
+    -fx-fill: -icons-color;
     -fx-font-size: 1em;
+}
+
+
+.notification-bar .ikonli-font-icon {
+    -icons-color: -reset-blue;
+    -fx-icon-size: 1.5em;
+}
+
+.menu-item > .ikonli-font-icon {
+    -fx-fill: -icons-color;
+    -fx-text-fill: -icons-color;
+    -fx-icon-size: 2.0em;
 }
 
 
@@ -24,8 +38,6 @@
 
 
 .font-icon > .ikonli-font-icon {
-    -fx-text-fill: -icons-color;
-    -fx-fill: -icons-color;
     -fx-icon-size: 2em;
 }
 
@@ -41,57 +53,57 @@
     -fx-icon-size: 2em;
 }
 
-.accept > .ikonli-font-icon, .accept.ikonli-font-icon {
+.accept .ikonli-font-icon, .accept.ikonli-font-icon {
     -icons-color: -accept;
     -fx-icon-code: "fa-check";
 }
 
-.reject > .ikonli-font-icon, .reject.ikonli-font-icon {
+.reject .ikonli-font-icon, .reject.ikonli-font-icon {
     -icons-color: -reject;
     -fx-icon-code: "fa-remove";
 }
 
-.remove > .ikonli-font-icon, .remove.ikonli-font-icon {
+.remove .ikonli-font-icon, .remove.ikonli-font-icon {
     -icons-color: -reject;
     -fx-icon-code: "fa-minus";
 }
 
-.add > .ikonli-font-icon, .add.ikonli-font-icon {
+.add .ikonli-font-icon, .add.ikonli-font-icon {
     -icons-color: -accept;
     -fx-icon-code: "fa-plus";
 }
 
-.refresh > .ikonli-font-icon, .refresh.ikonli-font-icon {
+.refresh .ikonli-font-icon, .refresh.ikonli-font-icon {
     -icons-color: -refresh-blue;
     -fx-icon-code: "fa-refresh";
 }
 
-.help > .ikonli-font-icon, .help.ikonli-font-icon {
+.help .ikonli-font-icon, .help.ikonli-font-icon {
     -icons-color: gray;
     -fx-icon-size: 1.5em;
     -fx-icon-code: "fa-question";
 }
 
-.reset > .ikonli-font-icon, .reset.ikonli-font-icon {
+.reset .ikonli-font-icon, .reset.ikonli-font-icon {
     -fx-icon-code: "fa-undo";
 }
 
-.save > .ikonli-font-icon, .save.ikonli-font-icon {
+.save .ikonli-font-icon, .save.ikonli-font-icon {
     -icons-color: -help-blue;
-    -fx-icon-code: "fa-check-circle";
+    -fx-icon-code: "fa-floppy-o";
 }
 
-.close > .ikonli-font-icon, .close.ikonli-font-icon {
+.close .ikonli-font-icon, .close.ikonli-font-icon {
     -fx-icon-code: "fa-close";
 }
 
-.visibility:visible > .ikonli-font-icon, .visibility.ikonli-font-icon {
+.visibility:visible .ikonli-font-icon, .visibility.ikonli-font-icon {
     -fx-icon-code: "fa-eye";
     -icons-color: black;
     -fx-stroke: -icons-color;
 }
 
-.visibility > .ikonli-font-icon, .visibility.ikonli-font-icon {
+.visibility .ikonli-font-icon, .visibility.ikonli-font-icon {
     -fx-icon-code: "fa-eye-slash";
     -icons-color: gray;
     -fx-stroke: -icons-color;

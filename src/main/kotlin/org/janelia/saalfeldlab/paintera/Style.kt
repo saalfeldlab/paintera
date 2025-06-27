@@ -15,6 +15,7 @@ import javafx.scene.Node
 import javafx.scene.layout.Region
 import javafx.scene.text.Font
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.kordamp.ikonli.Ikon
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import org.kordamp.ikonli.javafx.FontIcon
 import java.util.Base64
@@ -97,10 +98,7 @@ enum class Style(val style: String, vararg classes: String) : StyleGroup by Styl
 			val name = icon.description.removePrefix("fa-")
 			return StyleGroup.of(name, *FONT_ICON.classes).also {
 				val dynamicCssRule = """
-						.$name > .ikonli-font-icon {
-							-fx-icon-code: "${icon.description}";
-						}
-						.$name.ikonli-font-icon {
+						.$name .ikonli-font-icon, .$name.ikonli-font-icon {
 							-fx-icon-code: "${icon.description}";
 						}
 					""".trimIndent().trimStart()
@@ -223,7 +221,11 @@ fun Styleable.addStyleClass(vararg style: StyleGroup) {
 //}
 
 /* Patched to fix this issue: https://github.com/kordamp/ikonli/issues/150 as of (6/9/2025) */
-private class FontIconPatched() : FontIcon() {
+internal class FontIconPatched() : FontIcon() {
+
+	constructor(icon: Ikon) : this() {
+		iconCode = icon
+	}
 
 	companion object {
 

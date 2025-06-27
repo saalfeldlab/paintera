@@ -36,6 +36,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
+import org.janelia.saalfeldlab.paintera.FontIconPatched
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -257,7 +258,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 						InvokeOnJavaFXApplicationThread {
 							val notification = Notifications.create()
-								.graphic(FontIcon(toggle))
+								.graphic(FontIconPatched(toggle))
 								.title(title)
 								.text(text)
 								.owner(paintera.baseView.node)

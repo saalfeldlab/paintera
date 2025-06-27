@@ -64,7 +64,7 @@ private val fileMenu by LazyForeignValue(::paintera) {
 		}
 	}
 }
-private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", FontIcon(FontAwesome.PLUS), NEW_LABEL_SOURCE.menu, newVirtualSourceMenu).apply { addStyleClass(Style.ADD_ICON) } }
+private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", null, NEW_LABEL_SOURCE.menu, newVirtualSourceMenu).apply { addStyleClass(Style.ADD_ICON) } }
 private val newVirtualSourceMenu by LazyForeignValue(::paintera) { Menu("_Virtual", null, NEW_CONNECTED_COMPONENT_SOURCE.menu, NEW_THRESHOLDED_SOURCE.menu) }
 private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, EXPORT_SOURCE.menu, newSourceMenu) }
 private val menuBarMenu by LazyForeignValue(::paintera) { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
