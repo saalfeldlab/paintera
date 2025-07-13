@@ -415,7 +415,7 @@
 		<dependency>
 			<groupId>de.jensd</groupId>
 			<artifactId>fontawesomefx-commons</artifactId>
-			<version>11.0</version>
+			<version>9.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.openjfx</groupId>
@@ -438,7 +438,7 @@
 		<dependency>
 			<groupId>de.jensd</groupId>
 			<artifactId>fontawesomefx-controls</artifactId>
-			<version>11.0</version>
+			<version>9.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.openjfx</groupId>
@@ -465,7 +465,7 @@
 		<dependency>
 			<groupId>de.jensd</groupId>
 			<artifactId>fontawesomefx-fontawesome</artifactId>
-			<version>4.7.0-11</version>
+			<version>4.7.0-9.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.openjfx</groupId>
