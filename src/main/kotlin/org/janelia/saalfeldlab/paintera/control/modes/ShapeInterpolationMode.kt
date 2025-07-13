@@ -30,8 +30,6 @@ import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.*
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -46,7 +44,6 @@ import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashab
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState.Moving
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
@@ -320,28 +317,24 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						with(controller) {
 							MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.First) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Previous) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Next) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Last) }
 							}
@@ -417,7 +410,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-last-slice" }) }
 					}
 				}
-				verify { controllerState != Moving && activeTool is ShapeInterpolationTool }
+				verify { activeTool is ShapeInterpolationTool }
 				onAction { editSelection(choice) }
 				handleException {
 					exitShapeInterpolation(false)
