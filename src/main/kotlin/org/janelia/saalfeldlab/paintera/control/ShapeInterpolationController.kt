@@ -68,6 +68,8 @@ import java.util.function.Supplier
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
+private val EMPTY_3D_INTERVAL = Intervals.createMinSize(0, 0, 0, 0, 0, 0)
+
 class ShapeInterpolationController<D : IntegerType<D>>(
 	val source: MaskedSource<D, *>,
 	private val refreshMeshes: () -> Unit,
@@ -492,7 +494,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						.extendValue(Label.INVALID)
 						.interpolateNearestNeighbor()
 						.affineReal(initialGlobalToMaskTransform.inverse())
-						.realInterval(slice.globalBoundingBox!!)
+						.realInterval(slice.globalBoundingBox ?: EMPTY_3D_INTERVAL)
 				}
 			}
 			val invalidLabel = UnsignedLongType(Label.INVALID)
