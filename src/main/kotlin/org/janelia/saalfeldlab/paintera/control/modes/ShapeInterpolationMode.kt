@@ -214,6 +214,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+				//FIXME Caleb: There is a bug when navigating slices quickly that occasionally the correct action above will not
+				//  trigger. When the arrows keys are the expected trigger, this then triggers the parent/sibling nodes focuse traversal
+				//  and causes the focus to escape the active orthoslice. When this happens it appears that shape interpolation
+				//  no longer is working, since the arrow keys do nothing. you can manually re-focuse the orthoslice, but you need to
+				//  know to do this.
+				//  The following is a hack for now until the cause of the issues can be resolved. For future notes, it appears to be when
+				//  asking the KeyTracker if the trigger key matches the current key state, and it erroneously returns false, even when
+				//  the KeyEvent.code matches.
+				KEY_PRESSED {
+					onAction { event ->
+						val triggers = listOf(SHAPE_INTERPOLATION__SELECT_FIRST_SLICE, SHAPE_INTERPOLATION__SELECT_LAST_SLICE, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+						if (triggers.any { it.primaryCombination.match(event) })
+							event?.consume()
+					}
+				}
 			},
 			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
 				dragDetectedAction.apply {
