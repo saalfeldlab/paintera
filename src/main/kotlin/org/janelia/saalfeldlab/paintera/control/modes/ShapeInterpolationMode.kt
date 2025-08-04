@@ -30,8 +30,6 @@ import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.*
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
@@ -46,7 +44,6 @@ import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashab
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState.Moving
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
@@ -217,6 +214,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
 				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+				//FIXME Caleb: There is a bug when navigating slices quickly that occasionally the correct action above will not
+				//  trigger. When the arrows keys are the expected trigger, this then triggers the parent/sibling nodes focuse traversal
+				//  and causes the focus to escape the active orthoslice. When this happens it appears that shape interpolation
+				//  no longer is working, since the arrow keys do nothing. you can manually re-focuse the orthoslice, but you need to
+				//  know to do this.
+				//  The following is a hack for now until the cause of the issues can be resolved. For future notes, it appears to be when
+				//  asking the KeyTracker if the trigger key matches the current key state, and it erroneously returns false, even when
+				//  the KeyEvent.code matches.
+				KEY_PRESSED {
+					onAction { event ->
+						val triggers = listOf(SHAPE_INTERPOLATION__SELECT_FIRST_SLICE, SHAPE_INTERPOLATION__SELECT_LAST_SLICE, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+						if (triggers.any { it.primaryCombination.match(event) })
+							event?.consume()
+					}
+				}
 			},
 			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
 				dragDetectedAction.apply {
@@ -320,28 +332,24 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						with(controller) {
 							MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.First) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Previous) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Next) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
-								verify { controllerState != Moving }
 								verify { activeTool !is SamTool }
 								onAction { editSelection(EditSelectionChoice.Last) }
 							}
@@ -417,7 +425,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-last-slice" }) }
 					}
 				}
-				verify { controllerState != Moving && activeTool is ShapeInterpolationTool }
+				verify { activeTool is ShapeInterpolationTool }
 				onAction { editSelection(choice) }
 				handleException {
 					exitShapeInterpolation(false)
@@ -531,7 +539,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 		/* IF slice exists at depth AND transform is different THEN delete until first non-pregenerated slices */
 		samSliceCache[sliceDepth]?.sliceInfo?.let {
-			if (it.mask.initialGlobalToViewerTransform.hashable() != viewerMask.initialGlobalToViewerTransform.hashable()) {
+			val diffTransform = it.mask.initialGlobalToViewerTransform.hashable() != viewerMask.initialGlobalToViewerTransform.hashable()
+			val diffMask = it.maskBoundingBox != selectionIntervalOverMask
+			if (diffTransform || diffMask) {
 				val depths = samSliceCache.keys.toList().sorted()
 				val depthIdx = depths.indexOf(sliceDepth.toFloat())
 				for (idx in depthIdx - 1 downTo 0) {

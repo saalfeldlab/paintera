@@ -35,7 +35,6 @@ import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.ConstantUtils
 import net.imglib2.util.Intervals
-import net.imglib2.util.Util
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
@@ -68,6 +67,8 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
+
+private val EMPTY_3D_INTERVAL = Intervals.createMinSize(0, 0, 0, 0, 0, 0)
 
 class ShapeInterpolationController<D : IntegerType<D>>(
 	val source: MaskedSource<D, *>,
@@ -353,35 +354,44 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		Last
 	}
 
-	//TODO Caleb: Controller should not move, let the tool/mode do that
-	fun editSelection(choice: EditSelectionChoice) {
+	private var currentMovementToTargetSlice : Pair<Job, SliceInfo>? = null
+
+	//TODO Caleb: Controller should not handle moving, let the tool/mode do that
+	fun editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
+
+		val fromSlice = currentMovementToTargetSlice?.let { (job, curTargetSlice) ->
+			currentMovementToTargetSlice = null
+			job.cancel()
+			controllerState = ControllerState.Select
+			curTargetSlice
+		} ?: slice
+
 		val slices = slicesAndInterpolants.slices
-		when (choice) {
+		val depth = fromSlice?.globalTransform?.let { depthAt(it) } ?: currentDepth
+		val targetSlice = when (choice) {
 			EditSelectionChoice.First -> slices.getOrNull(0) /* move to first */
-			EditSelectionChoice.Previous -> slicesAndInterpolants.previousSlice(currentDepth)
-				?: slices.getOrNull(0) /* move to previous, or first if none */
-			EditSelectionChoice.Next -> slicesAndInterpolants.nextSlice(currentDepth)
-				?: slices.getOrNull(slices.size - 1) /* move to next, or last if none */
+			EditSelectionChoice.Previous -> slicesAndInterpolants.previousSlice(depth) ?: slices.getOrNull(0) /* move to previous, or first if none */
+			EditSelectionChoice.Next -> slicesAndInterpolants.nextSlice(depth) ?: slices.getOrNull(slices.size - 1) /* move to next, or last if none */
 			EditSelectionChoice.Last -> slices.getOrNull(slices.size - 1) /* move to last */
-		}?.let { slice ->
-			moveToSlice(slice)
-		}
+		} ?: return
+
+
+		currentMovementToTargetSlice = moveToSlice(targetSlice) to targetSlice
 	}
 
-	fun moveTo(globalTransform: AffineTransform3D) {
-		InvokeOnJavaFXApplicationThread {
-			paintera().manager().apply {
-				setTransform(globalTransform, Duration(300.0)) {
+	fun moveTo(globalTransform: AffineTransform3D) = InvokeOnJavaFXApplicationThread {
+		paintera().manager().apply {
+			setTransform(globalTransform, Duration(300.0)) {
+				if (isActive)
 					transform = globalTransform
 					controllerState = ControllerState.Select
-				}
 			}
 		}
 	}
 
-	private fun moveToSlice(sliceInfo: SliceInfo) {
+	private fun moveToSlice(sliceInfo: SliceInfo): Job {
 		controllerState = ControllerState.Moving
-		moveTo(sliceInfo.globalTransform)
+		return moveTo(sliceInfo.globalTransform)
 	}
 
 	@JvmOverloads
@@ -484,7 +494,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						.extendValue(Label.INVALID)
 						.interpolateNearestNeighbor()
 						.affineReal(initialGlobalToMaskTransform.inverse())
-						.realInterval(slice.globalBoundingBox!!)
+						.realInterval(slice.globalBoundingBox ?: EMPTY_3D_INTERVAL)
 				}
 			}
 			val invalidLabel = UnsignedLongType(Label.INVALID)
