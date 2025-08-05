@@ -221,14 +221,18 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				//  know to do this.
 				//  The following is a hack for now until the cause of the issues can be resolved. For future notes, it appears to be when
 				//  asking the KeyTracker if the trigger key matches the current key state, and it erroneously returns false, even when
-				//  the KeyEvent.code matches.
-				KEY_PRESSED {
-					onAction { event ->
-						val triggers = listOf(SHAPE_INTERPOLATION__SELECT_FIRST_SLICE, SHAPE_INTERPOLATION__SELECT_LAST_SLICE, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
-						if (triggers.any { it.primaryCombination.match(event) })
-							event?.consume()
-					}
-				}
+                //  the KeyEvent.code matches.
+                KEY_PRESSED {
+                    verify { event ->
+                        val triggers = listOf(
+                            SHAPE_INTERPOLATION__SELECT_FIRST_SLICE,
+                            SHAPE_INTERPOLATION__SELECT_LAST_SLICE,
+                            SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE,
+                            SHAPE_INTERPOLATION__SELECT_NEXT_SLICE
+                        )
+                        triggers.any { it.primaryCombination.match(event) }
+                    }
+                }
 			},
 			painteraDragActionSet("drag activate SAM mode with box", PaintActionType.Paint, ignoreDisable = true, consumeMouseClicked = true) {
 				dragDetectedAction.apply {
