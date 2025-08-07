@@ -220,7 +220,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		sceneUpdateParametersProperty.set(sceneUpdateParameters)
 		if (needToSubmit && !managers.isShutdown)
 			assert(scheduledSceneUpdateTask == null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
-		scheduledSceneUpdateTask = sceneUpdateService.submit { withErrorPrinting { updateScene() } }
+		scheduledSceneUpdateTask = sceneUpdateService.submit { updateScene() }
 	}
 
 	private fun updateScene() {
@@ -291,23 +291,4 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		this.state.showBlockBoundariesProperty().unbind()
 		meshesAndViewerEnabledListenersInterruptGeneratorMap.remove(this)?.let { meshesAndViewerEnabledBinding.removeListener(it) }
 	}
-
-	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
-		private fun withErrorPrinting(func: () -> Unit) = withErrorPrinting(Runnable { func() })
-
-		private fun withErrorPrinting(runnable: Runnable): Runnable {
-			return Runnable {
-				try {
-					runnable.run()
-				} catch (e: RejectedExecutionException) {
-					// this happens when the application is being shut down and is normal, don't do anything
-				} catch (e: Throwable) {
-					e.printStackTrace()
-				}
-			}
-		}
-	}
-
 }

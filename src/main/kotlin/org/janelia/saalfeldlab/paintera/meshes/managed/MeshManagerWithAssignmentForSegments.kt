@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
-import com.google.common.collect.HashBiMap
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.cache.Invalidate
@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import kotlin.coroutines.coroutineContext
 import kotlin.math.min
@@ -94,7 +95,7 @@ class MeshManagerWithAssignmentForSegments(
 		fun meshUpdateCompleted() = stateChanged()
 	}
 
-	private val segmentFragmentBiMap = HashBiMap.create<Long, Fragments>()
+	private val segmentFragmentBiMap = ConcurrentHashMap<Long, Fragments>()
 	private val relevantBindingsAndPropertiesMap = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, RelevantBindingsAndProperties>())
 
 	@Synchronized
@@ -164,18 +165,30 @@ class MeshManagerWithAssignmentForSegments(
 		this.meshUpdateObservable.meshUpdateCompleted()
 	}
 
+	@OptIn(ExperimentalCoroutinesApi::class)
 	private suspend fun createMeshes(segments: Segments) {
 		coroutineContext.ensureActive()
 
-		for (segment in segments) {
-			if (segment in segmentFragmentBiMap) return
-			selectedSegments.assignment.getFragments(segment)
-				?.takeUnless { it.isEmpty }
-				?.let { fragments ->
-					segmentFragmentBiMap[segment] = fragments
-					createMeshFor(segment)
-				}
+		val tIterator = segments.iterator()
+		object : Iterator<Long> {
+			override fun hasNext() = tIterator.hasNext()
+			override fun next() = tIterator.next()
 		}
+			.asSequence()
+			.asFlow()
+			.flowOn(Dispatchers.Default)
+			.flatMapMerge(Runtime.getRuntime().availableProcessors()) { segment ->
+				flow {
+					if (!segmentFragmentBiMap.containsKey(segment))
+						selectedSegments.assignment.getFragments(segment)
+							?.takeUnless { it.isEmpty }
+							?.let { fragments ->
+								segmentFragmentBiMap[segment] = fragments
+								createMeshFor(segment)
+							}
+					emit(Unit)
+				}
+			}.collect()
 	}
 
 	override suspend fun createMeshFor(key: Long) {
