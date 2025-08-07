@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -394,10 +393,7 @@ public class PainteraBaseView {
 				getQueue().getNumPriorities() - 1,
 				name
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			addState(state);
-			return null;
-		});
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		state.converter().setMin(min);
 		state.converter().setMax(max);
 		return state;
@@ -470,10 +466,7 @@ public class PainteraBaseView {
 				name,
 				labelBlockLookup
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			addState(state);
-			return null;
-		});
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
 	}
 

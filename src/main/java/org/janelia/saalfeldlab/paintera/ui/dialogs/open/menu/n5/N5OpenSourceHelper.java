@@ -54,18 +54,12 @@ public class N5OpenSourceHelper {
 			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
 			final var channels = OpenSourceState.getChannels(openSourceState, channelSelection, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
-			invoke(() -> {
-				channels.forEach(viewer::addState);
-				return null;
-			});
+			invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
 		} else {
 			final SourceState<T, V> raw = OpenSourceState.getRaw(openSourceState, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
-			invoke(() -> {
-				viewer.addState(raw);
-				return null;
-			});
+			invoke(() -> viewer.addState(raw));
 		}
 	}
 
@@ -88,9 +82,6 @@ public class N5OpenSourceHelper {
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getPropagationQueue()
 		);
-		invoke(() -> {
-			viewer.addState(rep);
-			return null;
-		});
+		invoke(() -> viewer.addState(rep));
 	}
 }

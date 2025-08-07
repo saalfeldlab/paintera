@@ -65,7 +65,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
 	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
 	private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
-	private val sceneUpdateService = ChannelLoop(capacity = Channel.CONFLATED)
+	private val sceneUpdateService = ChannelLoop(name = "Scene Update Service", capacity = Channel.CONFLATED)
 	private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
 	private var currentSceneUpdateTask: Job? = null
 	private var scheduledSceneUpdateTask: Job? = null
