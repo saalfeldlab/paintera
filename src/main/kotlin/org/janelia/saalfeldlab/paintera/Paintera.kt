@@ -164,7 +164,7 @@ class Paintera : Application() {
 
 	override fun start(primaryStage: Stage) {
 		primaryStage.title = Constants.NAME
-		primaryStage.scene = Scene(paintera.pane)
+		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0, true);
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		registerStylesheets(primaryStage.scene)
 
