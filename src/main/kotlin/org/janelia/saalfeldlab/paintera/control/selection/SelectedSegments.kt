@@ -5,6 +5,7 @@ import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
+import java.util.stream.Collectors
 
 /**
  * TODO
@@ -41,15 +42,15 @@ class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSeg
 	}
 
 	private fun update() {
+		val newSegments  = selectedIds.parallelStream().use {
+			it
+				.mapToObj { id -> assignment.getSegment(id) }
+				.collect(Collectors.toSet())
+
+		}
 		synchronized(segments) {
 			set.clear()
-			val selectedIds = selectedIds.set
-			synchronized(selectedIds) {
-				selectedIds.forEach { id ->
-					set.add(assignment.getSegment(id))
-					true
-				}
-			}
+			set.addAll(newSegments)
 		}
 		stateChanged()
 	}
