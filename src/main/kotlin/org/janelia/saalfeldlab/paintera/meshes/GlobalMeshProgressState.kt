@@ -1,37 +1,62 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import javafx.beans.binding.Bindings
-import javafx.beans.binding.BooleanExpression
-import javafx.beans.binding.IntegerBinding
-import javafx.beans.binding.ListExpression
-import javafx.collections.ListChangeListener
+import javafx.beans.binding.*
+import javafx.collections.ObservableList
 import javafx.util.Subscription
+import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
-class GlobalMeshProgressState(val meshInfos: ListExpression<SegmentMeshInfo>, val disableUpdates: BooleanExpression) : MeshProgressState() {
+class GlobalMeshProgressState(
+	val meshInfosExpression: ObjectExpression<ObservableList<SegmentMeshInfo>>,
+	val disableUpdates: BooleanExpression,
+) : MeshProgressState() {
+
+	private val meshInfos by meshInfosExpression.nonnullVal()
 
 	init {
 		if (!disableUpdates.get())
 			updateCounts()
-		meshInfos.addListener(ListChangeListener { updateCounts() })
+		meshInfosExpression.subscribe { it -> updateCounts() }
+	}
+
+	private fun chunkSize(size: Int): Int {
+		val chunks = Runtime.getRuntime().availableProcessors() / 2
+		return (size / chunks).coerceAtLeast(500)
+	}
+
+	private fun sumOfProperties(properties: List<IntegerExpression>): Int {
+		val size = chunkSize(properties.size)
+		return if (properties.size <= size)
+			properties.sumOf { it.get() }
+
+		else runBlocking {
+			CoroutineScope(Dispatchers.Default + SupervisorJob()).async {
+				properties.chunked(size).map { chunk ->
+					async { chunk.sumOf { it.get() } }
+				}
+			}.await().awaitAll().sum()
+		}
 	}
 
 	private fun getTotalSumBinding(meshProgressStates: List<MeshProgressState>): IntegerBinding {
-		val countProperties = meshProgressStates.map { it : MeshProgressState -> it.totalNumTasksProperty }.toTypedArray()
-		return Bindings.createIntegerBinding({
-			countProperties.sumOf { it.get()  }
-		}, *countProperties)
+		val countProperties = meshProgressStates.map { it: MeshProgressState -> it.totalNumTasksProperty }
+		return Bindings.createIntegerBinding(
+			{ sumOfProperties(countProperties) },
+			*countProperties.toTypedArray()
+		)
 	}
 
 	private fun getCompletedSumBinding(meshProgressStates: List<MeshProgressState>): IntegerBinding {
-		val countProperties = meshProgressStates.map { it : MeshProgressState -> it.completedNumTasksProperty }.toTypedArray()
-		return Bindings.createIntegerBinding({
-			countProperties.sumOf { it.get() }
-		}, *countProperties)
+		val countProperties = meshProgressStates.map { it: MeshProgressState -> it.completedNumTasksProperty }
+		return Bindings.createIntegerBinding(
+			{ sumOfProperties(countProperties) },
+			*countProperties.toTypedArray()
+		)
 	}
 
-	var countSubscriptions : Subscription? = null
+	var countSubscriptions: Subscription? = null
 
 	private fun updateCounts() {
 		countSubscriptions?.unsubscribe()

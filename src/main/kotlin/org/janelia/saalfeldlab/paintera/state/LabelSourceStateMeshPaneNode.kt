@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.ReadOnlyObjectWrapper
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
 import javafx.geometry.Pos
@@ -60,8 +61,10 @@ class LabelSourceStateMeshPaneNode(
 
 		private val isMeshListEnabledCheckBox = CheckBox()
 		private val disabledMeshesBinding = isMeshListEnabledCheckBox.selectedProperty().not()
-		private val observableMeshProgresses = meshInfoList.meshInfos.readOnlyProperty
-		private val globalMeshProgress = GlobalMeshProgressState(observableMeshProgresses, disabledMeshesBinding)
+		private val globalMeshProgress = GlobalMeshProgressState(
+			ReadOnlyObjectWrapper.objectExpression(meshInfoList.itemsProperty()),
+			disabledMeshesBinding
+		)
 		private val totalProgressBar = MeshProgressBar().also {
 			it.bindTo(globalMeshProgress)
 		}
@@ -71,7 +74,7 @@ class LabelSourceStateMeshPaneNode(
 			val exportMeshButton = Button("Export all")
 			exportMeshButton.setOnAction { _ ->
 				val model = MeshExportModel
-					.fromMeshInfos(*meshInfoList.meshInfos.toTypedArray())
+					.fromMeshInfos(*meshInfoList.items.toTypedArray())
 					.initFromProject()
 				MeshExportDialog(model)
 					.showAndWait()

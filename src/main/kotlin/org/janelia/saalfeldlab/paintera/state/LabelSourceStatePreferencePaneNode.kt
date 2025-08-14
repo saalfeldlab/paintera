@@ -67,23 +67,16 @@ class LabelSourceStatePreferencePaneNode(
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(composite)
 
-			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
+			var meshInfos = SegmentMeshInfoList(emptyList(), meshManager)
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segments = selectedSegments.segments.toArray().toList()
-
-				val toRemove = observableSelectedSegmentsList - segments
-				val toAdd = segments - observableSelectedSegmentsList
-				InvokeOnJavaFXApplicationThread {
-					observableSelectedSegmentsList -= toRemove
-					observableSelectedSegmentsList += toAdd
-				}
+				meshInfos.selectedSegmentsProperty.set(selectedSegments.segments.toArray().toList())
 			}
 			selectedSegments.addListener(selectedSegmentUpdateListener)
 
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-				LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfoList(observableSelectedSegmentsList, meshManager)).node,
+				LabelSourceStateMeshPaneNode(source, meshManager, meshInfos).node,
 				AssignmentsNode(assignment).node,
 				when (source) {
 					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties, meshManager::refreshMeshes).node }

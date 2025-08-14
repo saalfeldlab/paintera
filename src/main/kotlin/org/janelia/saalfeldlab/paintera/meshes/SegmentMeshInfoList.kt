@@ -1,50 +1,42 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import com.sun.javafx.scene.control.MultipleAdditionAndRemovedChange
+import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
-import javafx.collections.ListChangeListener
-import javafx.collections.ObservableList
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshInfoList
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
 
 class SegmentMeshInfoList(
-	selectedSegments: ObservableList<Long>,
-	val manager: MeshManagerWithAssignmentForSegments
+	selectedSegments: List<Long>,
+	val manager: MeshManagerWithAssignmentForSegments,
 ) : MeshInfoList<SegmentMeshInfo, Long>(FXCollections.observableArrayList(), manager) {
 
+	val segmentMeshInfoMap = mutableMapOf<Long, SegmentMeshInfo>()
+	val selectedSegmentsProperty = SimpleObjectProperty<List<Long>>(selectedSegments)
+
 	init {
-		val listChangeListener = ListChangeListener<Long> { change ->
-			if (manager.managedSettings.isMeshListEnabledProperty.get()) {
-				val toRemove = mutableSetOf<Long>()
-				val toAdd = mutableSetOf<Long>()
-				while (change.next()) {
-					val removed = change.removed
-					val added = change.addedSubList
 
-					/* remove the outdated things */
-					toRemove.removeAll(added)
-					toAdd.removeAll(removed)
+		selectedSegmentsProperty.subscribe { newSelection ->
 
-					/* add the new things */
-					toAdd.addAll(added)
-					toRemove.addAll(removed)
-				}
-				val meshInfoToRemove = meshInfoList.filter { toRemove.contains(it.key) }
-				val meshInfoToAdd = toAdd.map { SegmentMeshInfo(it, manager) }.toSet()
-				InvokeOnJavaFXApplicationThread {
-					meshInfoList -= meshInfoToRemove
-					meshInfoList += meshInfoToAdd
-				}
+			val toRemove = mutableSetOf<SegmentMeshInfo?>()
+			val curSelection = newSelection.toMutableSet()
+			/* remove old keys from cur, and existing keys from new*/
+			segmentMeshInfoMap.entries.removeIf { (id, meshInfo) ->
+				val remove = id !in curSelection
+				if (remove) toRemove += meshInfo
+				else curSelection -= id
+
+				remove
 			}
-		}
-		selectedSegments.addListener(listChangeListener)
+			curSelection.forEach {
+				segmentMeshInfoMap[it] = SegmentMeshInfo(it, manager)
+				segmentMeshInfoMap[it]!!
+			}
 
-		/*Trigger change listener for current list state */
-		val currentListChange = MultipleAdditionAndRemovedChange<Long>(selectedSegments.toList(), emptyList<Long>(), selectedSegments)
-		InvokeOnJavaFXApplicationThread {
-			listChangeListener.onChanged(currentListChange)
+			InvokeOnJavaFXApplicationThread {
+				items = FXCollections.observableArrayList(segmentMeshInfoMap.values)
+			}
 		}
 	}
 

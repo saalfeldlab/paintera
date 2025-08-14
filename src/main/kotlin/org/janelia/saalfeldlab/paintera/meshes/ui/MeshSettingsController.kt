@@ -414,12 +414,10 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) 
 }
 
 abstract class MeshInfoList<T : MeshInfo<K>, K>(
-	protected val meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
+	meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
 	manager: MeshManager<K>,
 ) : ListView<T>(meshInfoList) {
 
-
-	val meshInfos: ReadOnlyListWrapper<T> = ReadOnlyListWrapper(meshInfoList)
 
 	init {
 		setCellFactory { MeshInfoListCell() }

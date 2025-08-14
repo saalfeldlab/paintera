@@ -34,6 +34,12 @@ class MeshProgressBar : AnimatedProgressBar() {
 				meshProgress.numCompletedTasks.toDouble() / it
 			} ?: 1.0
 		}
+
+		/* If initializing to (1.0), don't animate, just set it. */
+		if (progressBinding.get() == 1.0) {
+			progressProperty().set(1.0)
+		}
+
 		progressTargetProperty.bind(progressBinding)
 		subscription = Subscription {
 			subscription = null
