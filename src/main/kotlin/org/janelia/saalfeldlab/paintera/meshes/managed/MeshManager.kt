@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
@@ -39,7 +38,6 @@ abstract class MeshManager<Key>(
 	}
 
 	val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
-	var isViewerEnabled: Boolean by viewerEnabledProperty.nonnull()
 
 	protected val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
 		source,
@@ -120,12 +118,12 @@ abstract class MeshManager<Key>(
 	}
 
 	open fun refreshMeshes() {
-		val currentMeshKeys = manager.allMeshKeys
+		val keys = manager.meshKeys
 		this.removeAllMeshes()
 		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
 		runBlocking {
 			launch {
-				currentMeshKeys.forEach {
+				keys.forEach {
 					createMeshFor(it)
 				}
 			}

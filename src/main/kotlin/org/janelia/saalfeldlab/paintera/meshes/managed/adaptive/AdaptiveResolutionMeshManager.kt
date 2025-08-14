@@ -8,8 +8,10 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
+import javafx.collections.FXCollections
 import javafx.scene.Group
-import kotlinx.coroutines.Job
+import javafx.scene.Node
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
@@ -22,18 +24,10 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.util.Collections
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.RejectedExecutionException
-import java.util.function.BiConsumer
 import java.util.function.BooleanSupplier
-import java.util.function.Consumer
 
 /**
  * @author Philipp Hanslovsky
@@ -72,8 +66,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	private val meshesAndViewerEnabledListenersInterruptGeneratorMap: MutableMap<MeshGenerator<ObjectKey>, ChangeListener<Boolean>> = mutableMapOf()
 
-	@get:Synchronized
-	val allMeshKeys: Collection<ObjectKey>
+	val meshKeys: Collection<ObjectKey>
 		get() = meshes.keys.toList()
 
 	init {
@@ -94,7 +87,6 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		rendererSettings.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener)
 	}
 
-	@Synchronized
 	private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
 		val state = removeMeshFor(key) { _, _ -> }
 		state
@@ -102,10 +94,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { _, _ -> })
 	}
 
-	@Synchronized
-	private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
+	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
-	@Synchronized
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
 		return meshes.remove(key)?.let { generator ->
 			generator.interrupt()
@@ -120,81 +110,115 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		}
 	}
 
-	@Synchronized
 	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) {
-		val keysAndGenerators = synchronized(this) { keys.map { it to meshes.remove(it) } }
-		val roots = keysAndGenerators.mapNotNull { (key, generator) ->
-			generator?.run {
-				interrupt()
-				unbindFromThis()
-				root?.visibleProperty()?.unbind()
-				releaseState(key, state)
-				root
+
+		val keysAndGenerators = synchronized(this) {
+			keys
+				.associateWith { meshes.remove(it) }
+				.mapNotNull { (key, generator) -> generator?.let { key to it } }
+		}
+
+		val removedRoots = Collections.synchronizedSet(mutableSetOf<Node>())
+
+		CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+			keysAndGenerators.map { (key, generator) ->
+				launch {
+					generator.run {
+						interrupt()
+						unbindFromThis()
+						root.visibleProperty().unbind()
+						releaseState(key, state)
+						removedRoots += root
+					}
+				}
+			}.joinAll()
+		}.invokeOnCompletion { cause ->
+			InvokeOnJavaFXApplicationThread {
+				// The roots list has to be converted to array first and then passed as vararg
+				// to use the implementation in ObservableList instead of the Kotlin extension
+				// function.
+				meshesGroup.children.removeAll(*removedRoots.toTypedArray())
 			}
 		}
-		InvokeOnJavaFXApplicationThread {
-			// The roots list has to be converted to array first and then passed as vararg
-			// to use the implementation in ObservableList instead of the Kotlin extension
-			// function.
-			meshesGroup.children.removeAll(*roots.toTypedArray())
+	}
+
+	fun removeAllMeshes(releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshesFor(meshKeys, releaseState)
+
+	private val createMeshQueue = Channel<CreateMeshGenerator<ObjectKey>>(capacity = Channel.UNLIMITED)
+
+	@Suppress("unused")
+	private val createMeshRunner = CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+		val jobs = mutableListOf<Deferred<Pair<ObjectKey, MeshGenerator<ObjectKey>>>>()
+		var cancelAndUpdate = false
+		while (isActive) {
+			val createMeshGenerators = generateSequence { createMeshQueue.tryReceive().getOrNull() }
+
+			for ((key, update, generator) in createMeshGenerators) {
+				if (key !in meshes)
+					jobs += async { key to generator() }
+				cancelAndUpdate = cancelAndUpdate || update
+			}
+
+			val keyMeshMap = jobs.awaitAll().toMap()
+
+			meshes.putAll(keyMeshMap)
+
+			InvokeOnJavaFXApplicationThread {
+				meshesGroup.children += keyMeshMap.values.map { it.root }
+				if (cancelAndUpdate)
+					cancelAndUpdate()
+			}
+
+			jobs.clear()
+			cancelAndUpdate = false
+
+			delay(100)
 		}
 	}
 
-	fun removeAllMeshes(releaseState: (ObjectKey, MeshGenerator.State) -> Unit) = removeMeshesFor(allMeshKeys, releaseState)
-
-	fun createMeshFor(
-		key: ObjectKey,
-		cancelAndUpdate: Boolean,
-		state: MeshGenerator.State = MeshGenerator.State(),
-		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit,
-	): Boolean {
-		return createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(key, it) })
-	}
+	private data class CreateMeshGenerator<ObjectKey>(
+		val key: ObjectKey,
+		val cancelAndUpdate: Boolean,
+		val create: () -> MeshGenerator<ObjectKey>,
+	)
 
 	@JvmOverloads
 	fun createMeshFor(
 		key: ObjectKey,
 		cancelAndUpdate: Boolean,
 		state: MeshGenerator.State? = MeshGenerator.State(),
-		stateSetup: Consumer<MeshGenerator.State> = Consumer {},
-	): Boolean {
-		if (state == null) return false
-		val meshGenerator = synchronized(this) {
-			if (key in meshes) return false
-			stateSetup.accept(state)
-			MeshGenerator(
-				source.numMipmapLevels,
-				key,
-				getBlockListFor,
-				getMeshFor,
-				meshViewUpdateQueue,
-				{ level: Int -> unshiftedWorldTransforms[level] },
-				managers,
-				workers,
-				state
-			).also { meshes[key] = it }
-		}
-		meshGenerator.bindToThis()
+		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit,
+	) {
+		if (state == null) return
+		createMeshQueue.trySend(
+			CreateMeshGenerator(key, cancelAndUpdate) {
+				stateSetup(key, state)
+				val meshGenerator = MeshGenerator(
+					source.numMipmapLevels,
+					key,
+					getBlockListFor,
+					getMeshFor,
+					meshViewUpdateQueue,
+					{ level: Int -> unshiftedWorldTransforms[level] },
+					managers,
+					workers,
+					state
+				)
+				meshGenerator.bindToThis()
 
-		// If the viewer or the manager are disabled, interrupt the generator right away because
-		// it should not add any meshes to the scene. Once viewer and manager are enabled again,
-		// interrupted generators will be replaced appropriately.
-		if (!isMeshesAndViewerEnabled)
-			meshGenerator.interrupt()
+				// If the viewer or the manager are disabled, interrupt the generator right away because
+				// it should not add any meshes to the scene. Once viewer and manager are enabled again,
+				// interrupted generators will be replaced appropriately.
+				if (!isMeshesAndViewerEnabled)
+					meshGenerator.interrupt()
 
-		InvokeOnJavaFXApplicationThread {
-			meshesGroup.children += meshGenerator.root
-			// TODO is this cancelAndUpdate necessary?
-			if (cancelAndUpdate)
-				cancelAndUpdate()
-		}
-		return true
+				meshGenerator
+			}
+		)
 	}
 
-	@Synchronized
 	fun contains(key: ObjectKey) = key in meshes
 
-	@Synchronized
 	fun getStateFor(key: ObjectKey) = meshes[key]?.state
 
 	fun requestCancelAndUpdate() = cancelAndUpdateService.submit { cancelAndUpdate() }

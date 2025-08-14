@@ -182,9 +182,6 @@ public class MeshGenerator<T> {
 		this.state.settings.getMinLabelRatioProperty().addListener(updateInvalidationListener);
 		this.state.settings.getOverlapProperty().addListener(updateInvalidationListener);
 
-		// initialize
-		updateInvalidationListener.invalidated(null);
-
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
@@ -213,6 +210,9 @@ public class MeshGenerator<T> {
 				managers,
 				workers,
 				state.progress);
+
+		// initialize
+		updateInvalidationListener.invalidated(null);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
 		{
