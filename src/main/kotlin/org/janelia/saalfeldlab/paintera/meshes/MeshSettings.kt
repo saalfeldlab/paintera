@@ -52,7 +52,7 @@ class MeshSettings @JvmOverloads constructor(
 			val overlap = true
 
 			@JvmStatic
-			val minLabelRatio = 0.25
+			val minLabelRatio = 0.0
 
 			@JvmStatic
 			val minLevelOfDetail = 1

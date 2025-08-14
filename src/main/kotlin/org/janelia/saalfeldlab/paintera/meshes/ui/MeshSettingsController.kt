@@ -82,7 +82,7 @@ class MeshSettingsController @JvmOverloads constructor(
 	)
 
 	fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
-		val minLabelRatioSlider: NumericSliderWithField? = if (addMinLabelRatioSlider) NumericSliderWithField(0.0, 1.0, 0.5) else null
+		val minLabelRatioSlider: NumericSliderWithField? = if (addMinLabelRatioSlider) NumericSliderWithField(0.0, 1.0, 0.0) else null
 		return GridPane().populateGridWithMeshSettings(
 			CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
 			NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
