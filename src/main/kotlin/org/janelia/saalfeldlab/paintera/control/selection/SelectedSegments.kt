@@ -25,7 +25,6 @@ class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSeg
 
 
 	init {
-
 		this.selectedIds.addListener { update() }
 		this.assignment.addListener { update() }
 	}

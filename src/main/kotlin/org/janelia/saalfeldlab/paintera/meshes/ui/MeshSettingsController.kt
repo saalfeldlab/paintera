@@ -48,6 +48,8 @@ import kotlin.jvm.optionals.getOrNull
 import kotlin.math.max
 import kotlin.math.min
 
+private val LOG = KotlinLogging.logger { }
+
 class MeshSettingsController @JvmOverloads constructor(
 	val numScaleLevels: Int,
 	private val opacity: DoubleProperty,
@@ -80,6 +82,7 @@ class MeshSettingsController @JvmOverloads constructor(
 		meshSettings.isVisibleProperty,
 		refreshMeshes
 	)
+
 
 	fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
 		val minLabelRatioSlider: NumericSliderWithField? = if (addMinLabelRatioSlider) NumericSliderWithField(0.0, 1.0, 0.0) else null
@@ -143,14 +146,14 @@ class MeshSettingsController @JvmOverloads constructor(
 		}
 	}
 
-
 	data class TitledPaneGraphicsSettings(val labelText: String = "Mesh Settings")
 
+
 	companion object {
-
 		const val TEXT_FIELD_WIDTH = 48.0
-		const val CHOICE_WIDTH = 95.0
 
+
+		const val CHOICE_WIDTH = 95.0
 
 		private fun GridPane.populateGridWithMeshSettings(
 			visibleCheckBox: CheckBox,
@@ -237,7 +240,6 @@ class MeshSettingsController @JvmOverloads constructor(
 				is Region -> width?.let { node.prefWidth = it }
 			}
 		}
-
 		private fun setCoarsestAndFinestScaleLevelSliderListeners(
 			coarsestScaleLevelSlider: Slider,
 			finestScaleLevelSlider: Slider,
@@ -264,17 +266,16 @@ class MeshSettingsController @JvmOverloads constructor(
 	}
 }
 
-open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
 
+open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
 	private val hasIndividualSettings = CheckBox("Individual Settings")
 	private var isManaged = SimpleBooleanProperty()
 	private var controller: MeshSettingsController = MeshSettingsController(meshInfo.meshSettings)
+
 	private var progressBar = MeshProgressBar()
 
 	init {
-
-		hasIndividualSettings.selectedProperty().subscribe { hasIndivSettings -> isManaged.set(!hasIndivSettings) }
-		isManaged.subscribe { managed -> hasIndividualSettings.isSelected = !managed }
+		hasIndividualSettings.selectedProperty().bindBidirectional(isManaged)
 		bindProgressBar()
 		isExpanded = false
 		expandedProperty().subscribe { isExpanded ->
@@ -292,11 +293,10 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 
 	internal fun bindProgressBar() {
 		meshInfo.subscribeToMeshState(progressBar::unbind) {
-			it?.progress?.let {
-				progressBar.bindTo(it)
-			} ?: let {
+			if (it?.progress != null)
+				progressBar.bindTo(it.progress)
+			else
 				progressBar.unbind()
-			}
 		}
 	}
 
@@ -307,7 +307,6 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 		individualSettingsBox.spacing = 5.0
 		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty())
 		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty())
-		hasIndividualSettings.isSelected = !meshInfo.isManagedProperty.get()
 		isManaged.bindBidirectional(meshInfo.isManagedProperty)
 
 		return grid.apply {
@@ -315,7 +314,6 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 			add(individualSettingsBox, 0, rowCount, 2, 1)
 		}
 	}
-
 	private fun createExportMeshButton(): Button {
 		val exportMeshButton = Button("Export")
 		exportMeshButton.setOnAction { event ->
@@ -343,13 +341,7 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 		}
 		return exportMeshButton
 	}
-
-	companion object {
-		private val LOG = KotlinLogging.logger { }
-	}
 }
-
-private val LOG = KotlinLogging.logger { }
 fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) {
 	val meshExporter = result.meshExporter
 	val ids = result.meshKeys
@@ -465,7 +457,7 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 
 	private inner class MeshInfoListCell : ListCell<T>() {
 
-		var meshInfoPane : MeshInfoPane<K>? = null
+		var meshInfoPane: MeshInfoPane<K>? = null
 
 		init {
 			style = "-fx-padding: 0px"

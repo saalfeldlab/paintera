@@ -67,6 +67,7 @@ class LabelSourceStateMeshPaneNode(
 		)
 		private val totalProgressBar = MeshProgressBar().also {
 			it.bindTo(globalMeshProgress)
+			it.reversible = true
 		}
 
 		init {

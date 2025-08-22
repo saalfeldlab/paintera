@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh
 
 import javafx.css.PseudoClass
 import javafx.util.Subscription
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.paintera.meshes.MeshProgressState
 
@@ -29,16 +28,10 @@ class MeshProgressBar : AnimatedProgressBar() {
 
 		subscription?.unsubscribe()
 		this.meshProgress = meshProgress
-		val progressBinding = meshProgress.totalNumTasksProperty.createNonNullValueBinding(meshProgress.completedNumTasksProperty) {
-			meshProgress.numTotalTasks.takeIf { it > 0 }?.let {
-				meshProgress.numCompletedTasks.toDouble() / it
-			} ?: 1.0
-		}
+		val progressBinding = meshProgress.progressBinding
 
-		/* If initializing to (1.0), don't animate, just set it. */
-		if (progressBinding.get() == 1.0) {
-			progressProperty().set(1.0)
-		}
+		/* Don't animate the initialization, just set it to the current value */
+		progressProperty().set(progressBinding.get())
 
 		progressTargetProperty.bind(progressBinding)
 		subscription = Subscription {

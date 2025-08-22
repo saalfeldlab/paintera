@@ -271,7 +271,7 @@ public class ManagedMeshSettings<K> {
 					meshSettingsList.add(settingsMap);
 				}
 			}
-			if (meshSettingsList.size() > 0)
+			if (!meshSettingsList.isEmpty())
 				map.add(MESH_SETTINGS_KEY, meshSettingsList);
 			return map;
 		}

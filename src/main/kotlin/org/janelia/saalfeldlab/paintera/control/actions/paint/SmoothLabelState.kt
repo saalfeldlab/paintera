@@ -52,6 +52,8 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.PainteraUtils.viewerIntervalsInSourceSpace
 import org.janelia.saalfeldlab.util.*
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import java.util.concurrent.RejectedExecutionException
 import kotlin.math.roundToInt
 
@@ -164,7 +166,9 @@ internal class SmoothLabelState<D, T> :
 	}
 
 	fun blocksForLabels(scaleLevel: Int, labels: LongArray): List<Interval> {
-		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scaleLevel, it)).toList() }
+
+		val lbl =  sourceState.labelBlockLookup.takeIf { it !is LabelBlockLookupNoBlocks } ?: LabelBlockLookupAllBlocks.fromSource(sourceState.dataSource)
+		val blocksFromSource = labels.flatMap {lbl.read(LabelBlockLookupKey(scaleLevel, it)).toList() }
 
 		/* Read from canvas access (if in canvas) */
 		val cellGrid = maskedSource.getCellGrid(timepoint, scaleLevel)
@@ -256,13 +260,16 @@ internal class SmoothLabelState<D, T> :
 
 			for (nearestLabel in nearestLabelCursor) {
 				val distFullGrid = distancesFullGrid.getAt(nearestLabelCursor).realDouble
-				if (distFullGrid == 0.0) //If either is 0.0, they should both be 0.0, so only need to check one
-					continue
+//				if (distFullGrid == 0.0) //If either is 0.0, they should both be 0.0, so only need to check one
+//					continue
 
 				val distSmallGrid = distancesSmallGrid.getAt(nearestLabelCursor).realDouble
-				val labelRa = if (distFullGrid < distSmallGrid) labelFullGridRa else labelSmallGridRa
-				val label = labelRa.setPositionAndGet(nearestLabelCursor)
-				nearestLabel.set(label)
+				val minDist = distFullGrid.coerceAtMost(distSmallGrid)
+				if (minDist <= kernelSizeProperty.get()) {
+					val labelRa = if (distFullGrid < distSmallGrid) labelFullGridRa else labelSmallGridRa
+					val label = labelRa.setPositionAndGet(nearestLabelCursor)
+					nearestLabel.set(label)
+				}
 			}
 		}
 	}
@@ -309,25 +316,25 @@ internal class SmoothLabelState<D, T> :
 
 		val intervalsToSmoothOver = if (preview) viewerIntervalsInSourceSpace(intersectIntervals = blocksWithLabel) else blocksWithLabel
 
-		val levelResolution = getLevelResolution(scaleLevel)
-		val kernelSize = kernelSizeProperty.get()
-		val sigma = DoubleArray(3) { kernelSize / levelResolution[it] }
+//		val levelResolution = getLevelResolution(scaleLevel)
+//		val kernelSize = kernelSizeProperty.get()
+//		val sigma = DoubleArray(3) { kernelSize / levelResolution[it] }
 
 
 		val smoothedImg = smoothImg?.takeUnless { resmooth >= Resmooth.Full } ?: DiskCachedCellImgFactory(DoubleType(0.0)).create(labelMask)
 		smoothImg = smoothedImg
 		val mask = getNewSourceMask(maskedSource, MaskInfo(timepoint, scaleLevel))
-		val smoothDirection = smoothDirectionProperty.get()
-		val threshold = 0.5
-
-		val smoothShrink = smoothDirection == Shrink || smoothDirection == Both
-		val smoothExpand = smoothDirection == Expand || smoothDirection == Both
-
-
-		val halfKernels: Array<DoubleArray> = sigma.map { Gauss3.halfkernel(it, Gauss3.halfkernelsize(it), false) }.toTypedArray()
-		val unnormalizedGauss3 = SeparableKernelConvolution.convolution(*Kernel1D.symmetric(halfKernels))
-
-		val normalizeFastGauss: Convolution<RealType<*>> = FastGauss.convolution(sigma)
+//		val smoothDirection = smoothDirectionProperty.get()
+//		val threshold = 0.5
+//
+//		val smoothShrink = smoothDirection == Shrink || smoothDirection == Both
+//		val smoothExpand = smoothDirection == Expand || smoothDirection == Both
+//
+//
+//		val halfKernels: Array<DoubleArray> = sigma.map { Gauss3.halfkernel(it, Gauss3.halfkernelsize(it), false) }.toTypedArray()
+//		val unnormalizedGauss3 = SeparableKernelConvolution.convolution(*Kernel1D.symmetric(halfKernels))
+//
+//		val normalizeFastGauss: Convolution<RealType<*>> = FastGauss.convolution(sigma)
 
 		val smoothOverInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
 			val nearestBackgroundLabelsAccess = nearestBackgroundLabels?.randomAccess()
@@ -335,10 +342,10 @@ internal class SmoothLabelState<D, T> :
 				val smoothedSlice = smoothedImg.interval(slice)
 				if (resmooth == Resmooth.Full) {
 					runCatching {
-						if (!smoothShrink && smoothExpand)
-							unnormalizedGauss3.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
-						else
-							normalizeFastGauss.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
+//						if (!smoothShrink && smoothExpand)
+//							unnormalizedGauss3.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
+//						else
+//							normalizeFastGauss.process(labelMask.extendValue(DoubleType(0.0)), smoothedSlice)
 					}.exceptionOrNull()
 						?.takeIf { it is RejectedExecutionException && isActive }
 						?.let { throw it }
@@ -350,39 +357,40 @@ internal class SmoothLabelState<D, T> :
 				val maskBundleCursor = BundleView(mask.rai.extendValue(Label.INVALID)).interval(slice).cursor()
 				val nearestLabelsCursor = nearestLabels.extendValue(Label.INVALID).interval(slice).cursor()
 
-				val infillStrategy = infillStrategyProperty.get()
+//				val infillStrategy = infillStrategyProperty.get()
 				ensureActive()
-				val replaceLabel = replacementLabelProperty.get()
+//				val replaceLabel = replacementLabelProperty.get()
 				val emitUpdateAfter = slice.smallestContainingInterval.numElements() / 5
 				var count = 0L
-				while (smoothed.hasNext()) {
+				while (nearestLabelsCursor.hasNext()) {
 					(++count).takeIf { it % emitUpdateAfter == 0L }?.let { emit(0) }
 
-					val gaussian = runCatching { smoothed.next().get() }.getOrElse { cause ->
-						val cancellation = CancellationException("Gaussian Convolution Shutdown", cause)
-						cancel(cancellation)
-						throw cancellation
-					}
+//					val gaussian = runCatching { smoothed.next().get() }.getOrElse { cause ->
+//						val cancellation = CancellationException("Gaussian Convolution Shutdown", cause)
+//						cancel(cancellation)
+//						throw cancellation
+//					}
 
-					val labelMaskAccess = labels.next()
-					val wasLabel = labelMaskAccess.get().get() == 1.0
+//					val labelMaskAccess = labels.next()
+//					val wasLabel = labelMaskAccess.get().get() == 1.0
 					val nearest = nearestLabelsCursor.next()
 					val maskPos = maskBundleCursor.next()
 					val maskVal = maskPos.get()
-					when {
-						gaussian < threshold && smoothShrink && wasLabel ->
-							when (infillStrategy) {
-								InfillStrategy.Replace -> replaceLabel
-								InfillStrategy.Background -> Label.BACKGROUND
-								InfillStrategy.NearestLabel -> nearest.get()
-							}
-
-						gaussian > threshold && smoothExpand && !wasLabel ->
-							nearestBackgroundLabelsAccess!!.setPositionAndGet(nearestLabelsCursor).get()
-
-						maskVal.get() == replaceLabel -> Label.INVALID
-						else -> null
-					}?.let { newLabel -> maskVal.set(newLabel) }
+					maskVal.set(nearest.get())
+//					when {
+//						gaussian < threshold && smoothShrink && wasLabel ->
+//							when (infillStrategy) {
+//								InfillStrategy.Replace -> replaceLabel
+//								InfillStrategy.Background -> Label.BACKGROUND
+//								InfillStrategy.NearestLabel -> nearest.get()
+//							}
+//
+//						gaussian > threshold && smoothExpand && !wasLabel ->
+//							nearestBackgroundLabelsAccess!!.setPositionAndGet(nearestLabelsCursor).get()
+//
+//						maskVal.get() == replaceLabel -> Label.INVALID
+//						else -> null
+//					}?.let { newLabel -> maskVal.set(newLabel) }
 				}
 			}
 		}

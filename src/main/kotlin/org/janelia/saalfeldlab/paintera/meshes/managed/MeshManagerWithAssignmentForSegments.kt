@@ -359,8 +359,7 @@ class MeshManagerWithAssignmentForSegments(
 					key.smoothingIterations(),
 					key.minLabelRatio(),
 					key.overlap(),
-					key.min(),
-					key.max()
+					key.interval
 				)
 			)
 		}

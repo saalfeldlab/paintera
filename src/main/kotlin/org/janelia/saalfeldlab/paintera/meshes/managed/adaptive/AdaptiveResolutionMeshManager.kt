@@ -8,7 +8,6 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
-import javafx.collections.FXCollections
 import javafx.scene.Group
 import javafx.scene.Node
 import kotlinx.coroutines.*
@@ -57,7 +56,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
-	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
+	private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread { update() } }
 	private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
 	private val sceneUpdateService = ChannelLoop(name = "Scene Update Service", capacity = Channel.CONFLATED)
 	private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
@@ -79,12 +78,12 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			}
 		}
 
-		rendererSettings.sceneUpdateDelayMsecProperty.addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
+
+		rendererSettings.sceneUpdateDelayMsecProperty.subscribe { navigationUpdateDelay -> sceneUpdateHandler.setNavigationUpdateDelay(navigationUpdateDelay.toLong()) }
 		eyeToWorldTransform.addListener(sceneUpdateHandler)
-		val meshViewUpdateQueueListener =
-			InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
-		rendererSettings.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener)
-		rendererSettings.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener)
+		val meshViewUpdateQueueListener =  { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
+		rendererSettings.numElementsPerFrameProperty.subscribe(meshViewUpdateQueueListener)
+		rendererSettings.frameDelayMsecProperty.subscribe(meshViewUpdateQueueListener)
 	}
 
 	private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
@@ -149,28 +148,25 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	@Suppress("unused")
 	private val createMeshRunner = CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
 		val jobs = mutableListOf<Deferred<Pair<ObjectKey, MeshGenerator<ObjectKey>>>>()
-		var cancelAndUpdate = false
 		while (isActive) {
 			val createMeshGenerators = generateSequence { createMeshQueue.tryReceive().getOrNull() }
 
 			for ((key, update, generator) in createMeshGenerators) {
 				if (key !in meshes)
 					jobs += async { key to generator() }
-				cancelAndUpdate = cancelAndUpdate || update
 			}
 
 			val keyMeshMap = jobs.awaitAll().toMap()
+			if (!keyMeshMap.isEmpty()) {
+				meshes.putAll(keyMeshMap)
 
-			meshes.putAll(keyMeshMap)
-
-			InvokeOnJavaFXApplicationThread {
-				meshesGroup.children += keyMeshMap.values.map { it.root }
-				if (cancelAndUpdate)
-					cancelAndUpdate()
+				InvokeOnJavaFXApplicationThread {
+					meshesGroup.children += keyMeshMap.values.map { it.root }
+					update()
+				}
 			}
 
 			jobs.clear()
-			cancelAndUpdate = false
 
 			delay(100)
 		}
@@ -202,7 +198,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 					{ level: Int -> unshiftedWorldTransforms[level] },
 					managers,
 					workers,
-					state
+					state,
 				)
 				meshGenerator.bindToThis()
 
@@ -289,11 +285,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			}
 			synchronized(this) {
 				if (wasInterrupted.asBoolean) return
-				for ((blockTreeParametersKey, value) in blockTreeParametersKeysToMeshGenerators) {
-					val sceneBlockTreeForKey =
-						sceneBlockTrees[blockTreeParametersKey]
-					for (meshGenerator in value)
-						meshGenerator.update(sceneBlockTreeForKey, sceneUpdateParameters.rendererGrids)
+				for ((blockTreeParametersKey, meshGeneratorList) in blockTreeParametersKeysToMeshGenerators) {
+					val sceneBlockTreeForKey = sceneBlockTrees[blockTreeParametersKey]
+					for (meshGenerator in meshGeneratorList)
+						meshGenerator.updateMeshes(sceneBlockTreeForKey, sceneUpdateParameters.rendererGrids)
 				}
 			}
 		} finally {
@@ -303,7 +298,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	@Synchronized
 	private fun MeshGenerator<ObjectKey>.bindToThis() {
-		this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
+		this.state.showBlocksProperty().bind(rendererSettings.showBlockBoundariesProperty)
 		// Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
 		val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
 		meshesAndViewerEnabledBinding.addListener(listener)
@@ -312,7 +307,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	@Synchronized
 	private fun MeshGenerator<ObjectKey>.unbindFromThis() {
-		this.state.showBlockBoundariesProperty().unbind()
+		this.state.showBlocksProperty().unbind()
 		meshesAndViewerEnabledListenersInterruptGeneratorMap.remove(this)?.let { meshesAndViewerEnabledBinding.removeListener(it) }
 	}
 }

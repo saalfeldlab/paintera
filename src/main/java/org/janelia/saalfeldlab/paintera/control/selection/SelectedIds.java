@@ -14,8 +14,8 @@ import java.util.Arrays;
 import java.util.PrimitiveIterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.Supplier;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
@@ -24,7 +24,7 @@ public class SelectedIds extends ObservableWithListenersList {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final ReadWriteLock lock = new ReentrantReadWriteLock();
+	private final StampedLock lock = new StampedLock();
 	private final TLongHashSet selectedIds;
 
 	private long lastSelection = Label.INVALID;
@@ -43,21 +43,27 @@ public class SelectedIds extends ObservableWithListenersList {
 
 	private <T> T withReadLock(Supplier<T> operation) {
 
-		lock.readLock().lock();
+		var stamp = lock.tryOptimisticRead();
+		var result = operation.get();
+		if (lock.validate(stamp)) {
+			return result;
+		}
+
+		final long readStamp = lock.readLock();
 		try {
 			return operation.get();
 		} finally {
-			lock.readLock().unlock();
+			lock.unlockRead(readStamp);
 		}
 	}
 
 	private void withWriteLock(Runnable operation) {
 
-		lock.writeLock().lock();
+		final long stamp = lock.writeLock();
 		try {
 			operation.run();
 		} finally {
-			lock.writeLock().unlock();
+			lock.unlockWrite(stamp);
 		}
 	}
 
@@ -213,13 +219,14 @@ public class SelectedIds extends ObservableWithListenersList {
 				selectedIds.size(),
 				Spliterator.SIZED | Spliterator.DISTINCT | Spliterator.NONNULL | Spliterator.SUBSIZED | Spliterator.IMMUTABLE);
 
-		lock.readLock().lock();
+		final Lock readLock = lock.asReadLock();
+		readLock.lock();
 		try {
 			return StreamSupport
 					.longStream(spliterator, parallel)
-					.onClose(lock.readLock()::unlock);
+					.onClose(readLock::unlock);
 		} catch (final Exception e) {
-			lock.readLock().unlock();
+			readLock.unlock();
 			throw e;
 		}
 	}

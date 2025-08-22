@@ -122,7 +122,7 @@ public class LabelSourceStateIdSelectorHandler {
 					if (selectAllTask != null) {
 						selectAllTask.cancel(new CancellationException("Cancelled by User"));
 					}
-					selectAllTask = Tasks.createTask(() -> {
+					selectAllTask = Tasks.submit(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
 						selector.selectAll();
 						return null;
@@ -142,7 +142,7 @@ public class LabelSourceStateIdSelectorHandler {
 						selectAllTask.cancel(new CancellationException("Cancelled by User"));
 					}
 					final ViewerPanelFX viewer = getActiveViewer.get();
-					selectAllTask = Tasks.createTask(() -> {
+					selectAllTask = Tasks.submit(() -> {
 						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
 						selector.selectAllInCurrentView(viewer);
 						return null;

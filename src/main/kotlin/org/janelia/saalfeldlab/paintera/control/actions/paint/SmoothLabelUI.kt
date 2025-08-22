@@ -65,9 +65,11 @@ private enum class LabelSelectionUI(val strategy: LabelSelection, val makeNode: 
 					children += Pane().hGrow()
 				}
 				content = VBox(10.0).apply {
+					val toggleGroup = ToggleGroup()
 					children += LabelSelectionUI.entries
 						.map {
 							it.makeNode(state).apply {
+								this.toggleGroup = toggleGroup
 								if (state.labelSelectionProperty.value == it.strategy)
 									selectedProperty().set(true)
 							}
@@ -254,10 +256,10 @@ internal class SmoothLabelUI(val model: Model) : VBox(10.0) {
 	}
 
 	class Default : Model {
-		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveSegments)
+		override val labelSelectionProperty = SimpleObjectProperty(LabelSelection.ActiveFragments)
 		override val labelsToSmoothProperty = SimpleObjectProperty<LongArray?>()
 		override val infillStrategyProperty = SimpleObjectProperty(InfillStrategy.NearestLabel)
-		override val smoothDirectionProperty = SimpleObjectProperty(SmoothDirection.Both)
+		override val smoothDirectionProperty = SimpleObjectProperty(SmoothDirection.Shrink)
 		override val replacementLabelProperty = SimpleLongProperty(0L)
 
 		override val statusProperty = SimpleObjectProperty(SmoothStatus.Empty)

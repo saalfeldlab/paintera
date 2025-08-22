@@ -70,6 +70,7 @@
 
 		<!-- Imglib2 Versions -->
 		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
+		<imglib2-label-multisets.version>0.15.2-SNAPSHOT</imglib2-label-multisets.version>
 
 		<!-- Saalfx Versions -->
 		<saalfx.version>2.3.0-SNAPSHOT</saalfx.version>

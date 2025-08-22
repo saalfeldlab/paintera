@@ -93,7 +93,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 		} ?: LocalIdService(metadataState.reader.getAttribute(dataset, "maxId", Long::class.java) ?: 1L)
 	}
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = DataSourceDialogs.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = DataSourceDialogs.getLabelBlockLookupFromN5DataSource(container, dataset, source)
 
 	private object SerializationKeys {
 		const val CONTAINER = "container"

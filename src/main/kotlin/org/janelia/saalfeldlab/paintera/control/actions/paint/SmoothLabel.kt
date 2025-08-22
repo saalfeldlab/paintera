@@ -66,7 +66,10 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		/* these should only trigger on change */
 		val replacementLabelChangeSubscription = replacementLabelProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Partial) }
 		val infillStrategyChangeSubscription = infillStrategyProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Partial) }
-		val kernelSizeChangeSubscription = kernelSizeProperty.subscribe { _, _ -> resmoothNotification.trySend(Resmooth.Full) }
+		val kernelSizeChangeSubscription = kernelSizeProperty.subscribe { _, _ ->
+			updateSmoothMask = updateSmoothMaskFunction()
+			resmoothNotification.trySend(Resmooth.Full)
+		}
 		val smoothDirectionChangeSubscription = smoothDirectionProperty.subscribe { _, direction ->
 			val defaultKernelSize = direction.defaultKernelSize(getLevelResolution())
 			kernelSizeProperty.set(defaultKernelSize)

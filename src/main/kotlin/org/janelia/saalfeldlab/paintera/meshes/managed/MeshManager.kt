@@ -87,7 +87,7 @@ abstract class MeshManager<Key>(
 			coarsestScaleLevelProperty.addListener(managerCancelAndUpdate)
 			finestScaleLevelProperty.addListener(managerCancelAndUpdate)
 		}
-		meshStates += key to state
+		meshStates[key] = state
 	}
 
 	@Synchronized

@@ -898,7 +898,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			InvokeOnJavaFXApplicationThread.invoke(timeline::play);
 		};
 		ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) -> animateProgressBar.accept(newv.doubleValue());
-		return Tasks.createTask(() -> {
+		return Tasks.submit(() -> {
 			try {
 				nextState.accept("Persisting painted labels...");
 				InvokeOnJavaFXApplicationThread.invoke(() ->

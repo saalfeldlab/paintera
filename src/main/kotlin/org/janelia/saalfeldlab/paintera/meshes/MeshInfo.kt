@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
 import javafx.beans.property.BooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.util.Subscription
 import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager

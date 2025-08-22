@@ -126,7 +126,7 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 		final Source<T> source = this.source.getValue();
 		if (source == null) return;
 
-		final var job = Tasks.createTask(() -> stringConverterFromSource(source).apply(getVal(access)))
+		final var job = Tasks.submit(() -> stringConverterFromSource(source).apply(getVal(access)))
 				.onSuccess(result -> Platform.runLater(() -> submitValue.accept(result)))
 				.onEnd((result, cause) -> {
 

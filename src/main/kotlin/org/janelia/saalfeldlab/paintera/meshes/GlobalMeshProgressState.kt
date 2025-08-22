@@ -4,8 +4,7 @@ import javafx.beans.binding.*
 import javafx.collections.ObservableList
 import javafx.util.Subscription
 import kotlinx.coroutines.*
-import kotlinx.coroutines.javafx.awaitPulse
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 
 class GlobalMeshProgressState(
@@ -13,12 +12,18 @@ class GlobalMeshProgressState(
 	val disableUpdates: BooleanExpression,
 ) : MeshProgressState() {
 
-	private val meshInfos by meshInfosExpression.nonnullVal()
+	var progressBindingSubscription: Subscription = Subscription.EMPTY
 
 	init {
-		if (!disableUpdates.get())
-			updateCounts()
-		meshInfosExpression.subscribe { it -> updateCounts() }
+		meshInfosExpression.subscribe { it ->
+			it
+		}
+
+		meshInfosExpression
+			.`when`(disableUpdates.not())
+			.subscribe { meshInfos ->
+				updateCounts()
+			}
 	}
 
 	private fun chunkSize(size: Int): Int {
@@ -26,59 +31,83 @@ class GlobalMeshProgressState(
 		return (size / chunks).coerceAtLeast(500)
 	}
 
-	private fun sumOfProperties(properties: List<IntegerExpression>): Int {
+	private fun sumOfInts(properties: List<() -> Int>): Int {
 		val size = chunkSize(properties.size)
 		return if (properties.size <= size)
-			properties.sumOf { it.get() }
-
+			properties.sumOf { it() }
 		else runBlocking {
 			CoroutineScope(Dispatchers.Default + SupervisorJob()).async {
 				properties.chunked(size).map { chunk ->
-					async { chunk.sumOf { it.get() } }
+					async { chunk.sumOf { it() } }
 				}
 			}.await().awaitAll().sum()
 		}
 	}
 
+	private fun sumOfDoubles(properties: List<DoubleExpression>): Double {
+		val size = chunkSize(properties.size)
+		return if (properties.size <= size)
+			properties.sumOf { it() }
+		else runBlocking {
+			CoroutineScope(Dispatchers.Default + SupervisorJob()).async {
+				properties.chunked(size).map { chunk ->
+					async { chunk.sumOf { it() } }
+				}
+			}.await().awaitAll().sum()
+		}
+	}
+
+
+	private fun getProgressAverageBinding(meshProgressStates: List<MeshProgressState>): DoubleBinding {
+		val numMeshes = meshProgressStates.size
+		val progressBindings = meshProgressStates.map { it.progressBinding }
+		return Bindings.createDoubleBinding(
+			{ sumOfDoubles(progressBindings) / numMeshes },
+			*progressBindings.toTypedArray()
+		)
+	}
+
 	private fun getTotalSumBinding(meshProgressStates: List<MeshProgressState>): IntegerBinding {
-		val countProperties = meshProgressStates.map { it: MeshProgressState -> it.totalNumTasksProperty }
+		val bindings = meshProgressStates.map { it.progressBinding }
+		val countProperties = meshProgressStates.map { it: MeshProgressState -> { it.progressData.totalTasks } }
 		return Bindings.createIntegerBinding(
-			{ sumOfProperties(countProperties) },
-			*countProperties.toTypedArray()
+			{ sumOfInts(countProperties) },
+			*bindings.toTypedArray()
 		)
 	}
 
 	private fun getCompletedSumBinding(meshProgressStates: List<MeshProgressState>): IntegerBinding {
-		val countProperties = meshProgressStates.map { it: MeshProgressState -> it.completedNumTasksProperty }
+		val bindings = meshProgressStates.map { it.progressBinding }
+		val countProperties = meshProgressStates.map { it: MeshProgressState -> { it.progressData.completeTasks } }
 		return Bindings.createIntegerBinding(
-			{ sumOfProperties(countProperties) },
-			*countProperties.toTypedArray()
+			{ sumOfInts(countProperties) },
+			*bindings.toTypedArray()
 		)
 	}
 
-	var countSubscriptions: Subscription? = null
+	private fun resetProgress() = set(0, 0)
 
 	private fun updateCounts() {
-		countSubscriptions?.unsubscribe()
-		countSubscriptions = null
+		progressBindingSubscription.unsubscribe()
+		progressBindingSubscription = Subscription.EMPTY
+		resetProgress()
 
-		if (disableUpdates.get() || meshInfos.isEmpty()) return
+		val progressStates = meshInfosExpression.get().map { it.progressState }
 
-		val meshProgressStates = meshInfos.mapNotNull { it: SegmentMeshInfo -> it.progressState }
-		val totalSumBinding = getTotalSumBinding(meshProgressStates)
-		val completedSumBinding = getCompletedSumBinding(meshProgressStates)
-
-		val totalCountSub = totalSumBinding.subscribe { it -> writableTotalNumTasksProperty.set(it.toInt()) }
-		val completedCountSub = completedSumBinding.subscribe { it -> writableCompletedNumTasksProperty.set(it.toInt()) }
-
-		countSubscriptions = totalCountSub.and(completedCountSub)
-		// progressState is null until the mesh generator creates it.
-		//  However, this may initialize the UI prior to the MeshGenerator.
-		//  Just try again later.
-		if (meshInfos.size > meshProgressStates.size)
-			InvokeOnJavaFXApplicationThread {
-				awaitPulse()
+		when {
+			progressStates.isEmpty() -> Unit
+			progressStates.any { it == null } -> InvokeOnJavaFXApplicationThread {
+				delay(100)
 				updateCounts()
 			}
+
+			else -> {
+				val globalProgressBinding = getProgressAverageBinding(progressStates as List<MeshProgressState>)
+				progressProperty.bind(globalProgressBinding)
+				progressBindingSubscription = Subscription { progressProperty.unbind() }
+			}
+		}
+
+
 	}
 }

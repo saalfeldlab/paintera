@@ -1,13 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -18,6 +16,7 @@ import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Shape3D;
+import javafx.util.Subscription;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
@@ -26,10 +25,12 @@ import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
@@ -79,23 +80,14 @@ public class MeshGenerator<T> {
 			this.color.set(color);
 		}
 
-		public BooleanProperty showBlockBoundariesProperty() {
+		public BooleanProperty showBlocksProperty() {
 
 			return showBlockBoundaries;
 		}
 
-		public boolean isShowBlockBoundaries() {
-
-			return showBlockBoundaries.get();
-		}
-
-		public void setShowBlockBoundaries(final boolean isShowBlockBoundaries) {
-
-			showBlockBoundaries.set(isShowBlockBoundaries);
-		}
 	}
 
-	private static class SceneUpdateParameters {
+	public static class SceneUpdateParameters {
 
 		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 		final CellGrid[] rendererGrids;
@@ -140,11 +132,9 @@ public class MeshGenerator<T> {
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private final InvalidationListener updateInvalidationListener;
+	private Subscription subscriptions = initUnsubscribeSubscription();
 
 	private SceneUpdateParameters sceneUpdateParameters;
-
-	private final ChangeListener<Boolean> showBlockBoundariesListener;
 
 	public MeshGenerator(
 			final int numScaleLevels,
@@ -160,43 +150,10 @@ public class MeshGenerator<T> {
 		super();
 		this.state = state;
 		this.id = segmentId;
-
-		this.updateInvalidationListener = obs -> {
-			synchronized (this) {
-				sceneUpdateParameters = new SceneUpdateParameters(
-						sceneUpdateParameters == null ? null : sceneUpdateParameters.sceneBlockTree,
-						sceneUpdateParameters == null ? null : sceneUpdateParameters.rendererGrids,
-						this.state.settings.getSimplificationIterations(),
-						this.state.settings.getSmoothingLambda(),
-						this.state.settings.getSmoothingIterations(),
-						this.state.settings.getMinLabelRatio(),
-						this.state.settings.getOverlap()
-				);
-				updateMeshes();
-			}
-		};
-
-		this.state.settings.getSimplificationIterationsProperty().addListener(updateInvalidationListener);
-		this.state.settings.getSmoothingLambdaProperty().addListener(updateInvalidationListener);
-		this.state.settings.getSmoothingIterationsProperty().addListener(updateInvalidationListener);
-		this.state.settings.getMinLabelRatioProperty().addListener(updateInvalidationListener);
-		this.state.settings.getOverlapProperty().addListener(updateInvalidationListener);
-
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
-
-		this.showBlockBoundariesListener = (obs, oldv, newv) -> {
-			if (newv)
-				this.root.getChildren().add(this.blocksGroup);
-			else
-				this.root.getChildren().remove(this.blocksGroup);
-		};
-
 		this.root.visibleProperty().bind(this.state.getSettings().isVisibleProperty());
-
-		this.state.showBlockBoundaries.addListener(showBlockBoundariesListener);
-		showBlockBoundariesListener.changed(null, null, this.state.isShowBlockBoundaries());
 
 		this.manager = new MeshGeneratorJobManager<>(
 				numScaleLevels,
@@ -211,63 +168,51 @@ public class MeshGenerator<T> {
 				workers,
 				state.progress);
 
-		// initialize
-		updateInvalidationListener.invalidated(null);
 
-		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
-		{
-			if (change.wasRemoved()) {
-				if (change.getValueRemoved().getA() != null) {
-					final MeshView meshRemoved = change.getValueRemoved().getA();
-					((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
-					meshRemoved.drawModeProperty().unbind();
-					meshRemoved.cullFaceProperty().unbind();
-					meshRemoved.scaleXProperty().unbind();
-					meshRemoved.scaleYProperty().unbind();
-					meshRemoved.scaleZProperty().unbind();
-				}
+		subscriptions = subscriptions.and(initMeshAndBlockSubscription())
+				.and(initShowBlockBoundarySubscription())
+				.and(initUpdateMeshesSubscription());
+	}
 
-				if (change.getValueRemoved().getB() != null) {
-					final Node blockOutlineRemoved = change.getValueRemoved().getB();
-					final Material material;
-					if (blockOutlineRemoved instanceof PolygonMeshView)
-						material = ((PolygonMeshView) blockOutlineRemoved).getMaterial();
-					else if (blockOutlineRemoved instanceof Shape3D)
-						material = ((Shape3D) blockOutlineRemoved).getMaterial();
-					else
-						material = null;
-					if (material instanceof PhongMaterial)
-						((PhongMaterial) material).diffuseColorProperty().unbind();
-					blockOutlineRemoved.scaleXProperty().unbind();
-					blockOutlineRemoved.scaleYProperty().unbind();
-					blockOutlineRemoved.scaleZProperty().unbind();
-				}
-			}
+	@NotNull
+	private Subscription initUpdateMeshesSubscription() {
 
-			if (change.wasAdded()) {
-				if (change.getValueAdded().getA() != null) {
-					final MeshView meshAdded = change.getValueAdded().getA();
-					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
-					meshAdded.drawModeProperty().bind(this.state.settings.getDrawModeProperty());
-					meshAdded.cullFaceProperty().bind(this.state.settings.getCullFaceProperty());
-				}
-
-				if (change.getValueAdded().getB() != null) {
-					final Node blockOutlineAdded = change.getValueAdded().getB();
-					final Material material;
-					if (blockOutlineAdded instanceof PolygonMeshView)
-						material = ((PolygonMeshView) blockOutlineAdded).getMaterial();
-					else if (blockOutlineAdded instanceof Shape3D)
-						material = ((Shape3D) blockOutlineAdded).getMaterial();
-					else
-						material = null;
-					if (material instanceof PhongMaterial)
-						((PhongMaterial) material).diffuseColorProperty().bind(this.state.premultipliedColor);
-					blockOutlineAdded.setDisable(true);
-				}
+		return Bindings.createObjectBinding(UUID::randomUUID,
+				this.state.settings.getSimplificationIterationsProperty(),
+				this.state.settings.getSmoothingLambdaProperty(),
+				this.state.settings.getSmoothingIterationsProperty(),
+				this.state.settings.getMinLabelRatioProperty(),
+				this.state.settings.getOverlapProperty()
+		).subscribe(unused -> {
+			synchronized (this) {
+				updateMeshes(sceneUpdateParameters);
 			}
 		});
+	}
 
+	@NotNull
+	private Subscription initUnsubscribeSubscription() {
+
+		return () -> subscriptions = initUnsubscribeSubscription();
+	}
+
+	@NotNull
+	private Subscription initMeshAndBlockSubscription() {
+
+		final MeshAndBlockOutlineListener<T> meshAndBlockListener = new MeshAndBlockOutlineListener<>(this.state);
+		this.meshesAndBlocks.addListener(meshAndBlockListener);
+		return () -> this.meshesAndBlocks.removeListener(meshAndBlockListener);
+	}
+
+	@NotNull
+	private Subscription initShowBlockBoundarySubscription() {
+
+		return this.state.showBlocksProperty().subscribe(showBlockBoundary -> {
+			if (showBlockBoundary)
+				this.root.getChildren().add(this.blocksGroup);
+			else
+				this.root.getChildren().remove(this.blocksGroup);
+		});
 	}
 
 	public State getState() {
@@ -280,16 +225,31 @@ public class MeshGenerator<T> {
 		return isInterrupted.get();
 	}
 
-	public synchronized void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids) {
-
+	private void updateSceneUpdateParameters(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids) {
 		sceneUpdateParameters = new SceneUpdateParameters(
 				sceneBlockTree,
 				rendererGrids,
-				sceneUpdateParameters.meshSimplificationIterations,
-				sceneUpdateParameters.smoothingLambda,
-				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio,
-				sceneUpdateParameters.overlap);
+				this.state.settings.getSimplificationIterations(),
+				this.state.settings.getSmoothingLambda(),
+				this.state.settings.getSmoothingIterations(),
+				this.state.settings.getMinLabelRatio(),
+				this.state.settings.getOverlap());
+	}
+
+
+
+	public synchronized void updateMeshes(final SceneUpdateParameters sceneUpdateParameters) {
+
+		updateMeshes(
+				sceneUpdateParameters == null ? null : sceneUpdateParameters.sceneBlockTree,
+				sceneUpdateParameters == null ? null : sceneUpdateParameters.rendererGrids
+		);
+	}
+
+
+	public synchronized void updateMeshes(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids) {
+
+		updateSceneUpdateParameters(sceneBlockTree, rendererGrids);
 		updateMeshes();
 	}
 
@@ -305,11 +265,8 @@ public class MeshGenerator<T> {
 
 		manager.interrupt();
 
-		this.state.settings.getSimplificationIterationsProperty().removeListener(updateInvalidationListener);
-		this.state.settings.getSmoothingLambdaProperty().removeListener(updateInvalidationListener);
-		this.state.settings.getSmoothingIterationsProperty().removeListener(updateInvalidationListener);
-		this.state.settings.getMinLabelRatioProperty().removeListener(updateInvalidationListener);
-		this.state.showBlockBoundariesProperty().removeListener(showBlockBoundariesListener);
+		subscriptions.unsubscribe();
+		subscriptions = Subscription.EMPTY;
 	}
 
 	private synchronized void updateMeshes() {
@@ -342,5 +299,80 @@ public class MeshGenerator<T> {
 	public Node getRoot() {
 
 		return this.root;
+	}
+
+	private record MeshAndBlockOutlineListener<T>(State state) implements MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>> {
+
+		@Override
+		public void onChanged(Change<? extends ShapeKey<T>, ? extends Pair<MeshView, Node>> change) {
+
+			if (change.wasRemoved()) {
+				final MeshView removedMesh = change.getValueRemoved().getA();
+				if (removedMesh != null)
+					unbindRemovedMesh(removedMesh);
+
+				final Node removedBlockOutline = change.getValueRemoved().getB();
+				if (removedBlockOutline != null)
+					unbindRemovedBlockOutlineNode(removedBlockOutline);
+			}
+
+			if (change.wasAdded()) {
+				final MeshView addedMesh = change.getValueAdded().getA();
+				if (addedMesh != null)
+					bindAddedMesh(addedMesh);
+
+				final Node addedBlockOutline = change.getValueAdded().getB();
+				if (addedBlockOutline != null) {
+					bindAddedBlockOutlineNode(addedBlockOutline);
+				}
+			}
+		}
+
+		private void bindAddedBlockOutlineNode(Node addedBlockOutline) {
+
+			final Material material;
+			if (addedBlockOutline instanceof PolygonMeshView)
+				material = ((PolygonMeshView)addedBlockOutline).getMaterial();
+			else if (addedBlockOutline instanceof Shape3D)
+				material = ((Shape3D)addedBlockOutline).getMaterial();
+			else
+				material = null;
+			if (material instanceof PhongMaterial)
+				((PhongMaterial)material).diffuseColorProperty().bind(state.premultipliedColor);
+			addedBlockOutline.setDisable(true);
+		}
+
+		private void bindAddedMesh(MeshView addedMesh) {
+
+			((PhongMaterial)addedMesh.getMaterial()).diffuseColorProperty().bind(state.premultipliedColor);
+			addedMesh.drawModeProperty().bind(state.settings.getDrawModeProperty());
+			addedMesh.cullFaceProperty().bind(state.settings.getCullFaceProperty());
+		}
+
+		private void unbindRemovedBlockOutlineNode(Node blockOutlineRemoved) {
+
+			final Material material;
+			if (blockOutlineRemoved instanceof PolygonMeshView)
+				material = ((PolygonMeshView)blockOutlineRemoved).getMaterial();
+			else if (blockOutlineRemoved instanceof Shape3D)
+				material = ((Shape3D)blockOutlineRemoved).getMaterial();
+			else
+				material = null;
+			if (material instanceof PhongMaterial)
+				((PhongMaterial)material).diffuseColorProperty().unbind();
+			blockOutlineRemoved.scaleXProperty().unbind();
+			blockOutlineRemoved.scaleYProperty().unbind();
+			blockOutlineRemoved.scaleZProperty().unbind();
+		}
+
+		private void unbindRemovedMesh(final MeshView removedMesh) {
+
+			((PhongMaterial)removedMesh.getMaterial()).diffuseColorProperty().unbind();
+			removedMesh.drawModeProperty().unbind();
+			removedMesh.cullFaceProperty().unbind();
+			removedMesh.scaleXProperty().unbind();
+			removedMesh.scaleYProperty().unbind();
+			removedMesh.scaleZProperty().unbind();
+		}
 	}
 }
