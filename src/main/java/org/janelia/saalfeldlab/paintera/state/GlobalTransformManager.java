@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,10 +49,14 @@ public class GlobalTransformManager {
 		listeners.forEach(this::addListener);
 	}
 
-	public synchronized void setTransform(final AffineTransform3D affine, final Duration duration) {
+	public synchronized void setTransformAndAnimate(final AffineTransform3D affine, @Nullable final Duration duration) {
 
-		setTransform(affine, duration, () -> {
-		});
+		if (duration == null || Duration.ZERO.equals(duration)) {
+			setTransform(affine);
+		} else {
+			setTransformAndAnimate(affine, duration, null);
+		}
+
 	}
 
 	private Timeline animateSetTransform = null;
@@ -67,12 +72,16 @@ public class GlobalTransformManager {
 	 * @param duration to animate the transform update over
 	 * @param runAfterAnimation to run when the animation stops. This could either be when the global transform equals {@code affine} or if it was stopped early.
 	 */
-	public synchronized void setTransform(final AffineTransform3D affine, final Duration duration, final Runnable runAfterAnimation) {
+	public synchronized Timeline setTransformAndAnimate(
+			final AffineTransform3D affine,
+			@Nullable final Duration duration,
+			@Nullable final Runnable runAfterAnimation) {
 
-		if (duration == null || duration.toMillis() == 0.0) {
+		if (duration == null || Duration.ZERO.equals(duration)) {
 			setTransform(affine);
-			runAfterAnimation.run();
-			return;
+			if (runAfterAnimation != null)
+				runAfterAnimation.run();
+			return null;
 		}
 		final Timeline timeline = new Timeline(60.0);
 		timeline.setCycleCount(1);
@@ -83,8 +92,10 @@ public class GlobalTransformManager {
 		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.get(newv.doubleValue())));
 		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
-		timeline.onFinishedProperty().set(t -> runAfterAnimation.run());
+		if (runAfterAnimation != null)
+			timeline.onFinishedProperty().set(t -> runAfterAnimation.run());
 		timeline.play();
+		return timeline;
 	}
 
 	public synchronized void setTransform(final AffineTransform3D affine) {

@@ -4,10 +4,6 @@ import bdv.viewer.TransformListener;
 import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
 
 public class TranslationController {
 	private final GlobalTransformManager manager;
@@ -47,7 +43,7 @@ public class TranslationController {
 
 			translateFromViewer(globalTransform, globalToViewerTransform, delta);
 
-			manager.setTransform(globalTransform, duration != null ? duration : Duration.ZERO);
+			manager.setTransformAndAnimate(globalTransform, duration);
 		}
 
 	}

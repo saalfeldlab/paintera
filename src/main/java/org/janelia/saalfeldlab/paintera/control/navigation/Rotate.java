@@ -68,7 +68,7 @@ public class Rotate {
 			final double magnitude = Math.abs(speed);
 			if (magnitude > 1) {
 				busy = true;
-				manager.setTransform(rotatedGlobalTransform, Duration.millis(Math.log10(magnitude) * 100), () -> this.busy = false);
+				manager.setTransformAndAnimate(rotatedGlobalTransform, Duration.millis(Math.log10(magnitude) * 100), () -> this.busy = false);
 			} else {
 				manager.setTransform(rotatedGlobalTransform);
 			}

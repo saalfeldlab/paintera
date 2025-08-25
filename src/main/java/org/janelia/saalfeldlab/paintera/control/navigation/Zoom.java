@@ -55,7 +55,7 @@ public class Zoom {
 
 		if (animate != null) {
 			this.busy = true;
-			manager.setTransform(global, animate, () -> this.busy = false);
+			manager.setTransformAndAnimate(global, animate, () -> this.busy = false);
 		} else {
 			manager.setTransform(global);
 		}
