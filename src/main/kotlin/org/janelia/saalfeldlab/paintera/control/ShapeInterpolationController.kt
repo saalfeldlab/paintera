@@ -10,7 +10,6 @@ import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.scene.paint.Color
-import javafx.util.Duration
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
@@ -345,53 +344,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				isBusy = false
 			}
 		}
-	}
-
-	enum class EditSelectionChoice {
-		First,
-		Previous,
-		Next,
-		Last
-	}
-
-	private var currentMovementToTargetSlice : Pair<Job, SliceInfo>? = null
-
-	//TODO Caleb: Controller should not handle moving, let the tool/mode do that
-	fun editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
-
-		val fromSlice = currentMovementToTargetSlice?.let { (job, curTargetSlice) ->
-			currentMovementToTargetSlice = null
-			job.cancel()
-			controllerState = ControllerState.Select
-			curTargetSlice
-		} ?: slice
-
-		val slices = slicesAndInterpolants.slices
-		val depth = fromSlice?.globalTransform?.let { depthAt(it) } ?: currentDepth
-		val targetSlice = when (choice) {
-			EditSelectionChoice.First -> slices.getOrNull(0) /* move to first */
-			EditSelectionChoice.Previous -> slicesAndInterpolants.previousSlice(depth) ?: slices.getOrNull(0) /* move to previous, or first if none */
-			EditSelectionChoice.Next -> slicesAndInterpolants.nextSlice(depth) ?: slices.getOrNull(slices.size - 1) /* move to next, or last if none */
-			EditSelectionChoice.Last -> slices.getOrNull(slices.size - 1) /* move to last */
-		} ?: return
-
-
-		currentMovementToTargetSlice = moveToSlice(targetSlice) to targetSlice
-	}
-
-	fun moveTo(globalTransform: AffineTransform3D) = InvokeOnJavaFXApplicationThread {
-		paintera().manager().apply {
-			setTransform(globalTransform, Duration(300.0)) {
-				if (isActive)
-					transform = globalTransform
-					controllerState = ControllerState.Select
-			}
-		}
-	}
-
-	private fun moveToSlice(sliceInfo: SliceInfo): Job {
-		controllerState = ControllerState.Moving
-		return moveTo(sliceInfo.globalTransform)
 	}
 
 	@JvmOverloads
