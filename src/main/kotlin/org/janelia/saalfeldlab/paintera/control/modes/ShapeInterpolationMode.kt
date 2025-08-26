@@ -475,7 +475,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	private fun ShapeInterpolationController<*>.editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
 
 		val startSlice = currentMovementToTargetSlice?.let { (job, prevTargetSlice) ->
-			println("$job")
 			job.cancel()
 			prevTargetSlice
 		} ?: slice
