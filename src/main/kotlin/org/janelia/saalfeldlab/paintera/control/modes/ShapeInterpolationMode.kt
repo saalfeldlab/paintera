@@ -183,6 +183,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			},
 			painteraActionSet("paint return tool triggers", PaintActionType.Paint, ignoreDisable = true) {
+
+				val removeSliceKeys = listOf(SHAPE_INTERPOLATION__REMOVE_SLICE_1, SHAPE_INTERPOLATION__REMOVE_SLICE_2)
+
+				removeSliceKeys.forEach { removeSliceKeyBind ->
+					KEY_RELEASED(removeSliceKeyBind) {
+						name = "exit active tool instead of delete slice"
+						filter = true
+						verify(" Active Tool is not ShapeInterpolationTool") { activeTool !is ShapeInterpolationTool }
+						onAction {
+							switchTool(defaultTool)
+						}
+					}
+				}
+
+
 				KEY_RELEASED(paintBrushTool.keyTrigger) {
 					name = "switch back to shape interpolation tool from paint brush"
 					filter = true
@@ -774,7 +789,7 @@ internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
 	}
 }
 
-internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: ShapeInterpolationController.SliceInfo?, var locked: Boolean = false) {
+internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: SliceInfo?, var locked: Boolean = false) {
 	val preGenerated get() = sliceInfo == null
 	val globalToViewerTransform get() = renderState.transform
 
