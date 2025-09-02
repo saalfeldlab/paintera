@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import groovy.util.Eval.x
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
@@ -12,6 +13,8 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
 import kotlinx.coroutines.*
 import net.imglib2.Interval
+import net.imglib2.RandomAccessibleInterval
+import net.imglib2.type.logic.BoolType
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
@@ -127,7 +130,13 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 
 	@OptIn(ExperimentalCoroutinesApi::class)
-	internal fun executeFill2DAction(x: Double, y: Double, afterFill: (Interval) -> Unit = {}): Job? {
+	internal fun executeFill2DAction(
+		x: Double,
+		y: Double,
+		mask: ViewerMask? = null,
+		filter: RandomAccessibleInterval<BoolType>? = null,
+		afterFill: (Interval) -> Unit = {},
+	): Job? {
 
 		val applyIfMaskNotProvided = fill2D.viewerMask == null
 		if (applyIfMaskNotProvided) {
@@ -139,7 +148,14 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		paintera.baseView.disabledPropertyBindings[this] = fillIsRunningProperty
 		fillJob = CoroutineScope(Dispatchers.Default).async {
 			fillIsRunningProperty.set(true)
-			fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
+			when {
+				mask != null && filter != null ->
+					fill2D.fillViewerAt(x, y, fillLabel(), filter, mask)
+				mask != null ->
+					fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment, mask)
+				else ->
+					fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment)
+			}
 		}.also { job ->
 			job.invokeOnCompletion { cause ->
 				fillIsRunningProperty.set(false)
