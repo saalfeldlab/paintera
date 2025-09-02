@@ -92,7 +92,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
 		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
-		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer, MenuActionType.ResizeViewers, MenuActionType.ToggleSidePanel, MenuActionType.ResizePanel)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
 

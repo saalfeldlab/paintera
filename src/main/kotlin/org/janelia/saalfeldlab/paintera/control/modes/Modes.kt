@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.modes
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
-import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -42,6 +41,8 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 interface ControlMode {
 
@@ -140,42 +141,44 @@ interface ToolMode : SourceMode {
 	}
 
 	fun switchTool(tool: Tool?): Job? {
-		if (activeTool == tool)
-			return null
+		synchronized(this) {
+			if (activeTool == tool)
+				return null
 
-		LOG.debug { "Switch from $activeTool to $tool" }
-
-
-		val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
-			LOG.debug { "Deactivated $activeTool" }
-			activeTool?.deactivate()
-			(activeTool as? ViewerTool)?.removeFromAll()
+			LOG.debug { "Switch from $activeTool to $tool" }
 
 
-			/* If the mode was changed before we can activate, switch to null */
-			val activeMode = paintera.baseView.activeModeProperty.value
-			activeTool = when {
-				activeMode != this@ToolMode -> null // wrong mode
-				tool?.isValidProperty?.value == false -> null // tool is not currently valid
-				else -> tool?.apply {
-					activate()
-					LOG.debug { "Activated $activeTool" }
-				} // try to activate
+			val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
+				LOG.debug { "Deactivated $activeTool" }
+				activeTool?.deactivate()
+				(activeTool as? ViewerTool)?.removeFromAll()
+
+
+				/* If the mode was changed before we can activate, switch to null */
+				val activeMode = paintera.baseView.activeModeProperty.value
+				activeTool = when {
+					activeMode != this@ToolMode -> null // wrong mode
+					tool?.isValidProperty?.value == false -> null // tool is not currently valid
+					else -> tool?.apply {
+						activate()
+						LOG.debug { "Activated $activeTool" }
+					} // try to activate
+				}
 			}
-		}
-		switchToolJob.invokeOnCompletion { cause ->
-			when (cause) {
-				null -> InvokeOnJavaFXApplicationThread { showToolBars() }
-				is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
-				else -> LOG.error(cause) { "Switch to $tool failed" }
+			switchToolJob.invokeOnCompletion { cause ->
+				when (cause) {
+					null -> InvokeOnJavaFXApplicationThread { showToolBars() }
+					is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
+					else -> LOG.error(cause) { "Switch to $tool failed" }
+				}
 			}
-		}
 
-		ToolChange.scope.launch {
-			ToolChange.channel.send(switchToolJob)
-		}
+			ToolChange.scope.launch {
+				ToolChange.channel.send(switchToolJob)
+			}
 
-		return switchToolJob
+			return switchToolJob
+		}
 	}
 
 	private fun showToolBars(show: Boolean = true) {
@@ -204,7 +207,8 @@ interface ToolMode : SourceMode {
 					selected?.let {
 						(it.userData as? Tool)?.let { tool ->
 							if (activeTool != tool) {
-								if ((it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true) {
+								val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
+								if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
 									selectViewerBefore {
 										switchTool(tool)
 									}
@@ -241,8 +245,7 @@ interface ToolMode : SourceMode {
 	 */
 	fun selectViewerBefore(afterViewerIsSelected: () -> Unit) {
 		/* Ensure no active tools when prompting to select viewer*/
-		runBlocking { switchTool(null)?.join() }
-		/* To ensure it's done, */
+		runBlocking { switchTool(defaultTool)?.join() }
 		/* temporarily revoke permissions, so no actions are performed until we select a viewer  */
 		paintera.baseView.allowedActionsProperty().suspendPermisssions()
 
@@ -250,13 +253,25 @@ interface ToolMode : SourceMode {
 		this.statusProperty.set("Select a Viewer...")
 
 
-		val cleanup = SimpleBooleanProperty(false)
+		val cleanupProperty = SimpleBooleanProperty(false)
+		val viewerSelected = AtomicBoolean(false)
+
+		val selectViewerSubscriptions = AtomicReference(Subscription.EMPTY)
+
+		cleanupProperty.subscribe { _, cleanup ->
+			if (!cleanup)
+				return@subscribe
+
+			selectViewerSubscriptions.getAndSet(Subscription.EMPTY).unsubscribe()
+
+			if (viewerSelected.get())
+				afterViewerIsSelected()
+			else
+				switchTool(defaultTool)
+		}
 
 		paintera.baseView.orthogonalViews().views().forEach { view ->
 			with(view) {
-				/* defined later, but declared here for usage inside filters */
-				lateinit var resetFilterAndPermissions: () -> Unit
-
 				/* store the prev cursor, change to CROSSHAIR  */
 				val prevCursor = cursor
 
@@ -264,52 +279,53 @@ interface ToolMode : SourceMode {
 				val selectViewEvent = EventHandler<MouseEvent> {
 					it.consume()
 					paintera.baseView.currentFocusHolder.get()?.also {
-						/* trigger callback */
-						afterViewerIsSelected()
+						/* flag as selected */
+						viewerSelected.set(true)
 						/* then indicate cleanup  */
-						cleanup.set(true)
+						cleanupProperty.set(true)
 					}
 				}
 
 				/* In case ESC is pressed to cancel the selection, switch to the default tool  */
 				val escapeFilter = EventHandler<KeyEvent> {
 					if (it.code == KeyCode.ESCAPE) {
-						cleanup.set(true)
-						switchTool(defaultTool)
+						cleanupProperty.set(true)
 					}
 				}
 
-
-				val modeChangeListener = ChangeListener<ControlMode> { _, _, _ -> cleanup.set(true) }
-				val toolChangeListener = ChangeListener<Tool?> { _, _, _ -> cleanup.set(true) }
-
-				paintera.baseView.activeModeProperty.addListener(modeChangeListener)
-				activeToolProperty.addListener(toolChangeListener)
-
-				resetFilterAndPermissions = {
-					paintera.baseView.activeModeProperty.removeListener(modeChangeListener)
-					activeToolProperty.removeListener(toolChangeListener)
-					removeEventFilter(MOUSE_CLICKED, selectViewEvent)
-					removeEventFilter(KEY_PRESSED, escapeFilter)
-					paintera.baseView.allowedActionsProperty().restorePermisssions()
-					if (cursor == Cursor.CROSSHAIR) {
-						cursor = prevCursor
+				val modeChangeSubscription = paintera.baseView.activeModeProperty.subscribe { _, _ -> cleanupProperty.set(true) }
+				val toolChangeSubscription = activeToolProperty.subscribe { _, _ -> cleanupProperty.set(true) }
+				val eventPermissionsCursorSubscription = object : Subscription {
+					@Volatile
+					var once = false
+					override fun unsubscribe() {
+						if (once)
+							return
+						try {
+							removeEventFilter(MOUSE_CLICKED, selectViewEvent)
+							removeEventFilter(KEY_PRESSED, escapeFilter)
+							paintera.baseView.allowedActionsProperty().restorePermisssions()
+							if (cursor == Cursor.CROSSHAIR) {
+								cursor = prevCursor
+							}
+						} finally {
+							once = true
+						}
 					}
-				}
-
-				cleanup.addListener { _, _, cleanup ->
-					if (cleanup) resetFilterAndPermissions()
 				}
 
 				/* add filters, and update the cursor to indicate selection */
 				cursor = Cursor.CROSSHAIR
-
-
 				/* listen for the selection; block all mouse click events temporarily, so no other filters are called  */
 				addEventFilter(MOUSE_CLICKED, selectViewEvent)
-
 				/* listen for ESC if we wish to cancel*/
 				addEventFilter(KEY_PRESSED, escapeFilter)
+
+				val viewSubscriptions = modeChangeSubscription
+					.and(toolChangeSubscription)
+					.and(eventPermissionsCursorSubscription)
+
+				selectViewerSubscriptions.getAndUpdate { existingSub -> existingSub.and(viewSubscriptions) }
 			}
 		}
 	}
