@@ -318,7 +318,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 						BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
 							.showAndWaitForBookmark()
 							.ifPresent { bm ->
-								baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
+								baseView.manager().setTransformAndAnimate(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
 								baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
 							}
 					}

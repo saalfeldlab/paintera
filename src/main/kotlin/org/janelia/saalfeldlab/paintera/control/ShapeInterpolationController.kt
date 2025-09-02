@@ -10,7 +10,6 @@ import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.scene.paint.Color
-import javafx.util.Duration
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
@@ -156,17 +155,19 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	 *
 	 * @return the global interval of the mask just removed (useful for repainting after removing)
 	 */
-	fun deleteSliceOrInterpolant(depth: Double = currentDepth): RealInterval? {
+	fun deleteSliceOrInterpolant(depth: Double): RealInterval? {
 		val (slice1, slice2) = adjacentSlices(depth)
-		slicesAndInterpolants.removeIfInterpolantAt(depth)
-		val currentSlice = slicesAndInterpolants.removeSliceAtDepth(depth)
-		val repaintInterval = listOf(slice1, slice2, currentSlice)
+		val removedInterpolant = slicesAndInterpolants.removeIfInterpolantAt(depth)
+		var removedSlice: SliceInfo? = null
+		if (!removedInterpolant)
+			removedSlice = slicesAndInterpolants.removeSliceAtDepth(depth)
+		val repaintInterval = listOf(slice1, slice2, removedSlice)
 			.mapNotNull { it?.globalBoundingBox }
 			.reduceOrNull(Intervals::union)
 		return repaintInterval
 	}
 
-	fun deleteSliceAt(depth: Double = currentDepth, reinterpolate: Boolean = true): RealInterval? {
+	fun deleteSliceAt(depth: Double, reinterpolate: Boolean = true): RealInterval? {
 		return sliceAt(depth)
 			?.let { deleteSliceOrInterpolant(depth) }
 			?.also { repaintInterval ->
@@ -188,18 +189,29 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		if (controllerState == ControllerState.Off) return null
 		isBusy = true
 		val selectionDepth = depthAt(globalTransform)
-		if (replaceExistingSlice && slicesAndInterpolants.getSliceAtDepth(selectionDepth) != null)
-			deleteSliceAt(selectionDepth)
+		val currentSlice = slicesAndInterpolants.getSliceAtDepth(selectionDepth)
 
-		if (slicesAndInterpolants.getSliceAtDepth(selectionDepth) == null) {
+		fun newSlice(): SliceInfo {
 			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
 			slicesAndInterpolants.add(selectionDepth, slice)
-		} else {
-			slicesAndInterpolants.getSliceAtDepth(selectionDepth)!!.addSelection(maskIntervalOverSelection)
-			slicesAndInterpolants.clearInterpolantsAroundSlice(selectionDepth)
+			return slice
 		}
+
+		val slice = when {
+			currentSlice == null -> newSlice()
+			replaceExistingSlice -> {
+				deleteSliceAt(selectionDepth, false)
+				newSlice()
+			}
+			else -> {
+				currentSlice.addSelection(maskIntervalOverSelection)
+				slicesAndInterpolants.clearInterpolantsAroundSlice(selectionDepth)
+				currentSlice
+			}
+		}
+
 		interpolateBetweenSlices(false)
-		return slicesAndInterpolants.getSliceAtDepth(selectionDepth)!!
+		return slice
 	}
 
 	internal fun sliceAt(depth: Double) = slicesAndInterpolants.getSliceAtDepth(depth)
@@ -345,53 +357,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				isBusy = false
 			}
 		}
-	}
-
-	enum class EditSelectionChoice {
-		First,
-		Previous,
-		Next,
-		Last
-	}
-
-	private var currentMovementToTargetSlice : Pair<Job, SliceInfo>? = null
-
-	//TODO Caleb: Controller should not handle moving, let the tool/mode do that
-	fun editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
-
-		val fromSlice = currentMovementToTargetSlice?.let { (job, curTargetSlice) ->
-			currentMovementToTargetSlice = null
-			job.cancel()
-			controllerState = ControllerState.Select
-			curTargetSlice
-		} ?: slice
-
-		val slices = slicesAndInterpolants.slices
-		val depth = fromSlice?.globalTransform?.let { depthAt(it) } ?: currentDepth
-		val targetSlice = when (choice) {
-			EditSelectionChoice.First -> slices.getOrNull(0) /* move to first */
-			EditSelectionChoice.Previous -> slicesAndInterpolants.previousSlice(depth) ?: slices.getOrNull(0) /* move to previous, or first if none */
-			EditSelectionChoice.Next -> slicesAndInterpolants.nextSlice(depth) ?: slices.getOrNull(slices.size - 1) /* move to next, or last if none */
-			EditSelectionChoice.Last -> slices.getOrNull(slices.size - 1) /* move to last */
-		} ?: return
-
-
-		currentMovementToTargetSlice = moveToSlice(targetSlice) to targetSlice
-	}
-
-	fun moveTo(globalTransform: AffineTransform3D) = InvokeOnJavaFXApplicationThread {
-		paintera().manager().apply {
-			setTransform(globalTransform, Duration(300.0)) {
-				if (isActive)
-					transform = globalTransform
-					controllerState = ControllerState.Select
-			}
-		}
-	}
-
-	private fun moveToSlice(sliceInfo: SliceInfo): Job {
-		controllerState = ControllerState.Moving
-		return moveTo(sliceInfo.globalTransform)
 	}
 
 	@JvmOverloads
@@ -611,65 +576,28 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			activeViewer!!.state.getViewerTransform(it)
 		}
 
+	private fun newMask(targetMipMapLevel: Int) : ViewerMask {
+		val maskInfo = MaskInfo(0, targetMipMapLevel)
+		return source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
+	}
+
 	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
 
 		/* If we have a mask, get it; else create a new one */
-		currentViewerMask = (if (ignoreExisting) null else sliceAtCurrentDepth)?.let { oldSlice ->
-			val oldSliceBoundingBox = oldSlice.maskBoundingBox ?: let {
-				deleteSliceAt()
-				return@let null
+		val depth = currentDepth
+		val currentSlice = sliceAtCurrentDepth
+		val currentSliceBoundingBox = currentSlice?.maskBoundingBox
+
+ 		currentViewerMask = when {
+			/* No existing slice, or we are ignoring it; make a new one */
+			currentSlice == null || ignoreExisting -> newMask(targetMipMapLevel)
+			/* existing slice, but delete it since its empty */
+			currentSliceBoundingBox == null -> {
+				deleteSliceAt(depth, false)
+				newMask(targetMipMapLevel)
 			}
-
-			val oldMask = oldSlice.mask
-
-			if (oldMask.xScaleChange == 1.0) return@let oldMask
-
-			val maskInfo = MaskInfo(0, targetMipMapLevel)
-			val newMask = source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
-
-			val oldToNewMask = ViewerMask.maskToMaskTransformation(oldMask, newMask)
-
-			val oldIntervalInNew = oldToNewMask.estimateBounds(oldSliceBoundingBox)
-
-			val oldInNew = oldMask.viewerImg.wrappedSource
-				.interpolateNearestNeighbor()
-				.affine(oldToNewMask)
-				.interval(oldIntervalInNew)
-
-			val oldInNewVolatile = oldMask.volatileViewerImg.wrappedSource
-				.interpolateNearestNeighbor()
-				.affine(oldToNewMask)
-				.interval(oldIntervalInNew)
-
-
-			/* We want to use the old mask as the backing mask, and have a new writable one on top.
-			* So let's re-use the images this mask created, and replace them with the old mask images (transformed) */
-			val newImg = newMask.viewerImg.wrappedSource
-			val newVolatileImg = newMask.volatileViewerImg.wrappedSource
-
-			newMask.viewerImg.wrappedSource = oldInNew
-			newMask.volatileViewerImg.wrappedSource = oldInNewVolatile
-
-			/* then we push the `newMask` back in front, as a writable layer */
-			newMask.pushNewImageLayer(newImg to newVolatileImg)
-
-			/* Replace old slice info */
-			slicesAndInterpolants.removeSlice(oldSlice)
-			oldSlice.mask.shutdown?.run()
-
-			val newSlice = SliceInfo(
-				newMask,
-				paintera().manager().transform,
-				FinalRealInterval(
-					oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
-					oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
-				).smallestContainingInterval
-			)
-			slicesAndInterpolants.add(currentDepth, newSlice)
-			newMask
-		} ?: let {
-			val maskInfo = MaskInfo(0, targetMipMapLevel)
-			source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
+			/* wrap the existing, potentially at a different scale level; may return the same mask */
+			else -> wrapExistingSlice(currentSlice, targetMipMapLevel)
 		}
 		currentViewerMask?.setViewerMaskOnSource()
 
@@ -677,6 +605,57 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			copyInterpolationToMask()
 
 		return currentViewerMask!!
+	}
+
+	private fun wrapExistingSlice(existingSlice : SliceInfo, mipMapLevel: Int): ViewerMask? {
+		val existingBoundingBox = existingSlice.maskBoundingBox ?: return null
+
+		val existingMask = existingSlice.mask
+		if (existingMask.xScaleChange == 1.0) return existingMask
+
+		val maskInfo = MaskInfo(0, mipMapLevel)
+		val newMask = source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
+
+		val oldToNewMask = ViewerMask.maskToMaskTransformation(existingMask, newMask)
+
+		val oldIntervalInNew = oldToNewMask.estimateBounds(existingBoundingBox)
+
+		val oldInNew = existingMask.viewerImg.wrappedSource
+			.interpolateNearestNeighbor()
+			.affine(oldToNewMask)
+			.interval(oldIntervalInNew)
+
+		val oldInNewVolatile = existingMask.volatileViewerImg.wrappedSource
+			.interpolateNearestNeighbor()
+			.affine(oldToNewMask)
+			.interval(oldIntervalInNew)
+
+
+		/* We want to use the old mask as the backing mask, and have a new writable one on top.
+		* So let's re-use the images this mask created, and replace them with the old mask images (transformed) */
+		val newImg = newMask.viewerImg.wrappedSource
+		val newVolatileImg = newMask.volatileViewerImg.wrappedSource
+
+		newMask.viewerImg.wrappedSource = oldInNew
+		newMask.volatileViewerImg.wrappedSource = oldInNewVolatile
+
+		/* then we push the `newMask` back in front, as a writable layer */
+		newMask.pushNewImageLayer(newImg to newVolatileImg)
+
+		/* Replace old slice info */
+		slicesAndInterpolants.removeSlice(existingSlice)
+		existingSlice.mask.shutdown?.run()
+
+		val newSlice = SliceInfo(
+			newMask,
+			paintera().manager().transform,
+			FinalRealInterval(
+				oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
+				oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
+			).smallestContainingInterval
+		)
+		slicesAndInterpolants.add(currentDepth, newSlice)
+		return newMask
 	}
 
 	/**
@@ -999,7 +978,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		fun removeIfInterpolant(idx: Int): InterpolantInfo? {
-			return if (idx >= 0 && idx <= size - 1 && get(idx).isInterpolant) {
+			return if (idx in indices && get(idx).isInterpolant) {
 				LOG.trace { "Removing Interpolant: $idx" }
 				removeAt(idx).getInterpolant()
 			} else null
@@ -1125,9 +1104,17 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		fun removeIfInterpolantAt(depthInMaskDisplay: Double): Boolean {
 			synchronized(this) {
 				for (idx in this.indices) {
-					if (get(idx).isSlice && get(idx).sliceDepth > depthInMaskDisplay) {
-						if (removeIfInterpolant(idx - 1) != null)
-							return true
+					val sliceOrInterpolant = get(idx)
+					if (sliceOrInterpolant.isSlice) {
+						val sliceDepth = get(idx).sliceDepth
+						return when {
+							// We have a slice at this depth, so there is no interpolant
+							sliceDepth == depthInMaskDisplay ->  false
+							// we are at the next slice if there is an interpolant, remove it; return either way.
+							sliceDepth > depthInMaskDisplay -> removeIfInterpolant(idx - 1) != null
+							// we haven't reached the following slice yet, check the next one
+							else -> continue
+						}
 					}
 				}
 				return false

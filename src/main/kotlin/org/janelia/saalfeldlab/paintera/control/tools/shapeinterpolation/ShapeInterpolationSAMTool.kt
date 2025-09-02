@@ -34,19 +34,26 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 	override var currentDisplay: Boolean = true
 
 	override fun activate() {
+		val depth = controller.currentDepth
+
 		/* If we are requesting a new embedding that isn't already pre-cached,
 		 *  then likely the existing requests are no longer needed.
 		 *  Cancel any that have not yet returned. */
 		var drawPrompt = false
-		shapeInterpolationMode.samSliceCache[controller.currentDepth]?.let {
+		shapeInterpolationMode.samSliceCache[depth]?.let {
 			drawPrompt = true
 		} ?: let {
 			SamEmbeddingLoaderCache.cancelPendingRequests()
 		}
 
-		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(controller.currentDepth)
+		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
 		maskedSource?.resetMasks(false)
-		replaceExistingSlice = !info.locked
+		/* only replace existing if we are at a slice, and it's not locked.
+		 * The cases are:
+		 * - At a slice and not locked -> implies an auto-predicted SAM slice, so we replace it
+		 * - At a slice and locked -> implies a manual edit previously, don't replace
+		 * - Not at a slice -> desired behavior is to ADD to the interpolation at this location, so don't replace it. */
+		replaceExistingSlice = info.sliceInfo != null && !info.locked
 		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
 
 		super.activate()

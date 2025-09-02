@@ -149,7 +149,7 @@ object NavigationTool : ViewerTool() {
 
 	val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
 		RemoveRotation(viewerTransform, globalTransform, {
-			globalTransformManager.setTransform(it, Duration(300.0))
+			globalTransformManager.setTransformAndAnimate(it, Duration(300.0))
 		}, globalTransformManager)
 	}
 

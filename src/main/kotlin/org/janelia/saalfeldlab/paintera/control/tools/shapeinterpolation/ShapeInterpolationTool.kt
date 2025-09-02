@@ -223,8 +223,11 @@ internal class ShapeInterpolationTool(
 
 		val globalTransform = viewerMask.initialGlobalTransform.copy()
 
-		if (moveToSlice)
-			moveTo(globalTransform)
+		if (moveToSlice) {
+			shapeInterpolationMode.apply {
+				moveTo(globalTransform)
+			}
+		}
 
 		samTool.lastPredictionProperty.addListener { _, _, prediction ->
 			prediction ?: return@addListener

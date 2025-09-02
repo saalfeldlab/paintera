@@ -43,7 +43,7 @@ class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSE
 				start()
 				subscription = meshProgress.totalNumTasksProperty.subscribe { it ->
 					val numTasks = it.toInt()
-					handleUpdate = numTasks > 0 && meshProgress.numCompletedTasks < numTasks
+					handleUpdate = numTasks > 0 && meshProgress.numCompletedTasks.toInt() < numTasks
 				}
 			}
 
@@ -57,7 +57,7 @@ class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSE
 
 				if (handleUpdate && now - lastUpdate > updateIntervalMsec) {
 					lastUpdate = now
-					val numTotalTasks = meshProgress.numTotalTasks
+					val numTotalTasks = meshProgress.numTotalTasks.toInt()
 					val numCompletedTasks = meshProgress.numCompletedTasks
 
 					progress = numCompletedTasks.toDouble() / numTotalTasks

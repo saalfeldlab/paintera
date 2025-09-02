@@ -30,7 +30,7 @@ class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings",
 	private val scaleBarConfigNode = ScaleBarOverlayConfigNode(paintera.properties.scaleBarOverlayConfig)
 
 	private val bookmarkConfigNode = BookmarkConfigNode(paintera.properties.bookmarkConfig) {
-		paintera.baseView.manager().setTransform(it.globalTransformCopy, paintera.properties.bookmarkConfig.getTransitionTime())
+		paintera.baseView.manager().setTransformAndAnimate(it.globalTransformCopy, paintera.properties.bookmarkConfig.getTransitionTime())
 		paintera.baseView.viewer3D().setAffine(it.viewer3DTransformCopy, paintera.properties.bookmarkConfig.getTransitionTime())
 	}
 

@@ -12,7 +12,15 @@ import javafx.event.Event
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
+import javafx.util.Duration
 import javafx.util.Subscription
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.javafx.awaitPulse
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
 import net.imglib2.algorithm.labeling.ConnectedComponents
@@ -44,7 +52,8 @@ import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashab
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
@@ -66,6 +75,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.util.*
+import java.util.concurrent.CancellationException
 import kotlin.math.roundToLong
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
@@ -173,6 +183,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			},
 			painteraActionSet("paint return tool triggers", PaintActionType.Paint, ignoreDisable = true) {
+
+				val removeSliceKeys = listOf(SHAPE_INTERPOLATION__REMOVE_SLICE_1, SHAPE_INTERPOLATION__REMOVE_SLICE_2)
+
+				removeSliceKeys.forEach { removeSliceKeyBind ->
+					KEY_RELEASED(removeSliceKeyBind) {
+						name = "exit active tool instead of delete slice"
+						filter = true
+						verify(" Active Tool is not ShapeInterpolationTool") { activeTool !is ShapeInterpolationTool }
+						onAction {
+							switchTool(defaultTool)
+						}
+					}
+				}
+
+
 				KEY_RELEASED(paintBrushTool.keyTrigger) {
 					name = "switch back to shape interpolation tool from paint brush"
 					filter = true
@@ -438,6 +463,88 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 		}
 
+	private var currentMovementToTargetSlice: Pair<Job, SliceInfo>? = null
+
+	private enum class EditSelectionChoice {
+		First,
+		Previous,
+		Next,
+		Last
+	}
+
+	private fun ShapeInterpolationController<*>.editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
+
+		val startSlice = currentMovementToTargetSlice?.let { (job, prevTargetSlice) ->
+			job.cancel()
+			prevTargetSlice
+		} ?: slice
+
+		val depth = startSlice?.globalTransform?.let { depthAt(it) } ?: currentDepth
+		val (_, first) = adjacentSlices(-Double.MAX_VALUE)
+		val (last, _) = adjacentSlices(Double.MAX_VALUE)
+		val (prev, next) = adjacentSlices(depth)
+		val targetSlice = when (choice) {
+			EditSelectionChoice.First -> first /* move to first */
+			EditSelectionChoice.Previous -> prev ?: first /* move to previous, or first if none */
+			EditSelectionChoice.Next -> next ?: last /* move to next, or last if none */
+			EditSelectionChoice.Last -> last /* move to last */
+		} ?: return
+
+		if (depthAt(targetSlice.globalTransform) == currentDepth)
+			return
+
+
+		val newMoveToJob = moveToSlice(targetSlice)
+		newMoveToJob.invokeOnCompletion { cause ->
+
+			if (currentMovementToTargetSlice?.first == newMoveToJob)
+				currentMovementToTargetSlice = null
+		}
+		currentMovementToTargetSlice = newMoveToJob to targetSlice
+	}
+
+	fun ShapeInterpolationController<*>.moveTo(globalTransform: AffineTransform3D): Job {
+
+		lateinit var job: Job
+		job = CoroutineScope(Dispatchers.Main + SupervisorJob()).launch(start = CoroutineStart.LAZY) {
+			paintera.baseView.manager().apply {
+				var finished = false
+				val timeline = setTransformAndAnimate(globalTransform, Duration(300.0)) {
+					controllerState = ControllerState.Select
+					finished = true
+				}
+				job.invokeOnCompletion { cause ->
+					when (cause) {
+						null -> Unit
+						is CancellationException -> timeline.stop()
+						else -> LOG.error(cause) { "Error moving to slice $globalTransform" }
+					}
+				}
+				/* This ensures the job doesn't finish until the timeline is stopped .*/
+				while (!finished) {
+					awaitPulse()
+				}
+			}
+		}
+		job.start()
+		return job
+	}
+
+	private fun ShapeInterpolationController<*>.moveToSlice(sliceInfo: SliceInfo): Job {
+		controllerState = ControllerState.Moving
+		return moveTo(sliceInfo.globalTransform).apply {
+			/* If we leave the tool, cleanup*/
+			val stateSubscription = controllerStateProperty.subscribe { state ->
+				if (state == ControllerState.Off)
+					this.cancel()
+			}
+			invokeOnCompletion {
+				stateSubscription.unsubscribe()
+				controllerState = ControllerState.Select
+			}
+		}
+	}
+
 	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
 		return samSliceCache[depth] ?: with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
@@ -681,7 +788,7 @@ internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
 	}
 }
 
-internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: ShapeInterpolationController.SliceInfo?, var locked: Boolean = false) {
+internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: SliceInfo?, var locked: Boolean = false) {
 	val preGenerated get() = sliceInfo == null
 	val globalToViewerTransform get() = renderState.transform
 
