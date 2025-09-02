@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
@@ -9,6 +10,7 @@ import javafx.scene.input.MouseEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import net.imglib2.Interval
 import net.imglib2.RealInterval
@@ -31,13 +33,8 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.union
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 private data class Postion(var x: Double = 0.0, var y: Double = 0.0) {
 
@@ -110,10 +107,10 @@ class PaintClickOrDragController(
 	fun submitPaint(afterApply: (RealInterval) -> Unit) {
 		synchronized(this) {
 			when {
-				!isPainting -> LOG.debug("Not currently painting -- will not do anything")
-				paintIntoThis == null -> LOG.debug("No current source available -- will not do anything")
+				!isPainting -> LOG.debug { "Not currently painting -- will not do anything" }
+				paintIntoThis == null -> LOG.debug { "No current source available -- will not do anything" }
 				!submitMask -> {
-					LOG.debug("submitMask flag: $submitMask")
+					LOG.debug { "submitMask flag: $submitMask" }
 					isPainting = false
 				}
 
@@ -182,9 +179,9 @@ class PaintClickOrDragController(
 	}
 
 	fun startPaint(event: MouseEvent) {
-		LOG.debug("Starting New Paint")
+		LOG.debug { "Starting New Paint" }
 		if (isPainting) {
-			LOG.debug("Already painting -- will not start new paint.")
+			LOG.debug { "Already painting -- will not start new paint." }
 			return
 		}
 		synchronized(this) {
@@ -210,7 +207,7 @@ class PaintClickOrDragController(
 							viewerMask!!.setViewerMaskOnSource()
 						}
 
-						else -> LOG.trace("Viewer Mask was Provided, but source already has a mask. Doing Nothing. ")
+						else -> LOG.trace { "Viewer Mask was Provided, but source already has a mask. Doing Nothing. " }
 					}
 
 					isPainting = true
@@ -282,26 +279,26 @@ class PaintClickOrDragController(
 
 	fun extendPaint(event: MouseEvent) {
 		if (!isPainting) {
-			LOG.debug("Not currently painting -- will not paint")
+			LOG.debug { "Not currently painting -- will not paint" }
 			return
 		}
 		synchronized(this) {
 			val targetPosition = Postion(event)
 			if (targetPosition != position) {
 				try {
-					LOG.debug("Drag: paint at screen from $position to $targetPosition")
+					LOG.debug { "Drag: paint at screen from $position to $targetPosition" }
 					var draggedDistance: Double
 					val normalizedDragPos = (targetPosition linalgSubtract position).also {
-						//NOTE: Calculate distance before noramlizing
+						//NOTE: Calculate distance before normalizing
 						draggedDistance = LinAlgHelpers.length(it)
 						LinAlgHelpers.normalize(it)
 					}
-					LOG.debug("Number of paintings triggered {}", draggedDistance + 1)
+					LOG.debug { "Number of paintings triggered ${draggedDistance+1}" }
 					repeat(draggedDistance.toInt() + 1) {
 						paint(position)
 						position += normalizedDragPos
 					}
-					LOG.debug("Painting ${draggedDistance + 1} times with radius ${brushRadius()} took a total of {}ms")
+					LOG.debug { "Painting ${draggedDistance + 1} times with radius ${brushRadius()}" }
 				} finally {
 					position.update(event)
 				}
@@ -312,19 +309,21 @@ class PaintClickOrDragController(
 	@Synchronized
 	private fun paint(pos: Postion) = pos.run { paint(x, y) }
 
-	private var paintService: ExecutorService? = null
-		get() = if (field == null || field!!.isShutdown) {
-			field = Executors.newSingleThreadExecutor(NamedThreadFactory("PaintThread", true))
-			field
-		} else field
+	internal val paintJobs = mutableListOf<Job>()
 
 	@Synchronized
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private fun paint(viewerX: Double, viewerY: Double) {
 		LOG.trace("At {} {}", viewerX, viewerY)
 		when {
-			!isPainting -> LOG.debug("Not currently activated for painting, returning without action").also { return }
-			viewerMask == null -> LOG.debug("Current mask is null, returning without action").also { return }
+			!isPainting -> {
+				LOG.debug { "Not currently activated for painting, returning without action" }
+				return
+			}
+			viewerMask == null -> {
+				LOG.debug { "Current mask is null, returning without action" }
+				return
+			}
 		}
 
 
@@ -339,13 +338,15 @@ class PaintClickOrDragController(
 				)
 				paintIntervalInMask
 			}.also { job ->
+				synchronized(paintJobs) {
+					paintJobs += job
+				}
 				job.invokeOnCompletion { cause ->
 					cause ?: let {
 						job.getCompleted()?.let { paintedInterval ->
 							maskInterval = paintedInterval union maskInterval
 							mask.requestRepaint(paintedInterval)
 						}
-
 					}
 				}
 			}
@@ -363,7 +364,7 @@ class PaintClickOrDragController(
 	}
 
 	companion object {
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger {  }
 	}
 
 }

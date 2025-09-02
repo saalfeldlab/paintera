@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.animation.Interpolator
 import javafx.beans.Observable
 import javafx.beans.binding.Bindings
@@ -14,8 +15,12 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
 import javafx.scene.input.ScrollEvent
+import javafx.util.Subscription
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_ON
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
@@ -41,6 +46,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.lang.Double.min
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 private const val CHANGE_BRUSH_DEPTH = "change brush depth"
 private const val START_BACKGROUND_ERASE = "start background erase"
@@ -142,9 +148,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	}
 
 	override fun deactivate() {
-		paintClickOrDrag?.apply {
-			maskInterval?.let { submitPaint() }
-		}
+		paintClickOrDrag?.apply { busySubmitPaint() }
 		paint2D.setBrushOverlayVisible(false)
 		activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
 		setCurrentLabel(Label.INVALID)
@@ -156,8 +160,28 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	}
 
 	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {
+		runBlocking {
+			/* Don't change label until all current paint jobs are complete*/
+			paintClickOrDrag?.paintJobs?.joinAll()
+		}
+		if (currentLabelToPaint == label)
+			return
+
 		currentLabelToPaint = label
-		updateStatus()
+	}
+
+	@Synchronized
+	private fun MouseEvent.startPaint(label: Long) {
+		isPainting = true
+		setCurrentLabel(label)
+		paintClickOrDrag?.startPaint(this)
+	}
+
+	@Synchronized
+	private fun endPaint() {
+		paintClickOrDrag?.busySubmitPaint()
+		setCurrentLabel()
+		isPainting = false
 	}
 
 	protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint, ignoreDisable = true) {
@@ -167,28 +191,17 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			verify { isLabelValid }
-			onAction {
-				isPainting = true
-				paintClickOrDrag?.startPaint(it!!)
-			}
+			onAction { it!!.startPaint(currentLabelToPaint) }
 		}
 
 		MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
 			name = END_SELECTION_PAINT
-			verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
-			onAction {
-				paintClickOrDrag?.busySubmitPaint()
-				isPainting = false
-			}
+			onAction { endPaint() }
 		}
 
 		KEY_RELEASED(KeyCode.SPACE) {
 			name = END_SELECTION_PAINT
-			verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
-			onAction {
-				paintClickOrDrag?.submitPaint()
-				isPainting = false
-			}
+			onAction { endPaint() }
 		}
 
 		/* Handle Erasing */
@@ -197,11 +210,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			verify { KeyCode.SHIFT !in keyTracker()!!.getActiveKeyCodes(true) }
-			onAction {
-				isPainting = true
-				setCurrentLabel(Label.TRANSPARENT)
-				paintClickOrDrag?.startPaint(it!!)
-			}
+			onAction { it!!.startPaint(Label.TRANSPARENT) }
 		}
 		/* Handle painting background */
 		MOUSE_PRESSED(MouseButton.SECONDARY) {
@@ -209,50 +218,78 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			keysDown(KeyCode.SHIFT, exclusive = false)
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
-			onAction {
-				isPainting = true
-				setCurrentLabel(Label.BACKGROUND)
-				paintClickOrDrag?.startPaint(it!!)
-			}
+			onAction { it!!.startPaint(Label.BACKGROUND) }
 		}
 		MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
 			name = END_ERASE
-			onAction {
-				paintClickOrDrag?.busySubmitPaint()
-				setCurrentLabel()
-				isPainting = false
-			}
+			onAction { endPaint() }
 		}
 
 
-		/* Handle Common Mouse Move/Drag Actions*/
+		/* Handle Mouse Move/Drag Actions*/
 		MOUSE_DRAGGED {
+			name = "extend-paint-on-drag"
 			verify { isLabelValid }
+			verify { isPainting }
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			onAction { paintClickOrDrag?.extendPaint(it!!) }
 		}
+
+		/* If in drag state without triggering the mouse press, start paint/erase here */
+		MOUSE_DRAGGED {
+			name = "start-paint-on-drag"
+			verifyEventNotNull()
+			verifyPainteraNotDisabled()
+			verify { it!!.isPrimaryButtonDown}
+			onAction { it!!.startPaint(currentLabelToPaint) }
+		}
+		MOUSE_DRAGGED {
+			name = "start-erase-on-drag"
+			verifyEventNotNull()
+			verifyPainteraNotDisabled()
+			verify("RightClick without Shift") { it!!.isSecondaryButtonDown && !it.isShiftDown }
+			onAction { it!!.startPaint(Label.TRANSPARENT) }
+		}
+
+		MOUSE_DRAGGED {
+			name = "start-background-erase-on-drag"
+			verifyEventNotNull()
+			verifyPainteraNotDisabled()
+			verify("RightClick with Shift") { it!!.isSecondaryButtonDown && it.isShiftDown }
+			onAction { it!!.startPaint(Label.BACKGROUND) }
+		}
 	})
 
 	private fun PaintClickOrDragController.busySubmitPaint() {
-		isApplyingMaskProperty()?.apply {
-			if (submitMask) {
-				lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
-				setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
-					if (isBusy) {
-						paint2D.setBrushCursor(Cursor.WAIT)
-					} else {
-						paint2D.setBrushCursor(Cursor.NONE)
-						if (!paintera.keyTracker.areKeysDown(*keyTrigger.keyCodes.toTypedArray()) && !enteredWithoutKeyTrigger) {
-							InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+		fun submit() {
+			isApplyingMaskProperty()?.apply {
+				if (submitMask) {
+					val isBusySub = AtomicReference(Subscription.EMPTY)
+					paintera.baseView.isDisabledProperty.subscribe { _, isBusy ->
+						if (isBusy) {
+							paint2D.setBrushCursor(Cursor.WAIT)
+						} else {
+							paint2D.setBrushCursor(Cursor.NONE)
+							if (!paintera.keyTracker.areKeysDown(*keyTrigger.keyCodes.toTypedArray()) && !enteredWithoutKeyTrigger) {
+								InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+							}
+							isBusySub.getAndSet { Subscription.EMPTY }.unsubscribe()
 						}
-						obs.removeListener(setFalseAndRemoveListener)
-					}
+					}.also { isBusySub.set(it) }
 				}
-
-				paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
+				submitPaint()
 			}
-			submitPaint()
+		}
+
+		synchronized(paintJobs) {
+			runBlocking {
+				paintJobs.joinAll()
+				paintJobs.clear()
+			}
+			maskInterval?.let {
+				submit()
+			}
 		}
 	}
 
