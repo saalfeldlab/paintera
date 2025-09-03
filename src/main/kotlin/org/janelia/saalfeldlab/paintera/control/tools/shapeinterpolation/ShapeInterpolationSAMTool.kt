@@ -2,10 +2,12 @@ package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.control.ButtonBase
+import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -39,8 +41,12 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		/* If we are requesting a new embedding that isn't already pre-cached,
 		 *  then likely the existing requests are no longer needed.
 		 *  Cancel any that have not yet returned. */
+
 		var drawPrompt = false
-		shapeInterpolationMode.samSliceCache[depth]?.let {
+		shapeInterpolationMode.samSliceCache[depth]?.takeIf {
+			val currentGlobalToViewerTransform = AffineTransform3D().also { activeViewer?.state?.getViewerTransform(it) }
+			it.globalToViewerTransform.hashable() == currentGlobalToViewerTransform.hashable()
+		}?.let  {
 			drawPrompt = true
 		} ?: let {
 			SamEmbeddingLoaderCache.cancelPendingRequests()
