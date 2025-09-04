@@ -14,14 +14,8 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.util.Duration
 import javafx.util.Subscription
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
@@ -55,7 +49,6 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
-import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
@@ -92,7 +85,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	override val allowedActions = AllowedActions.AllowedActionsBuilder()
 		.add(PaintActionType.ShapeInterpolation, PaintActionType.Paint, PaintActionType.Erase, PaintActionType.SetBrushSize, PaintActionType.Fill, PaintActionType.SegmentAnything)
-		.add(MenuActionType.ToggleMaximizeViewer, MenuActionType.DetachViewer, MenuActionType.ResizeViewers, MenuActionType.ToggleSidePanel, MenuActionType.ResizePanel)
 		.add(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.Zoom)
 		.create()
 
@@ -545,18 +537,33 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 	}
 
+	private fun targetTransform(depth: Double, translate: Boolean): AffineTransform3D {
+		with(controller) {
+			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
+
+			val globalToViewerTransform = when {
+				translate -> calculateGlobalToViewerTransformAtDepth(depth)
+				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
+			}
+			return globalToViewerTransform
+		}
+	}
+
 	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
-		return samSliceCache[depth] ?: with(controller) {
+
+		val globalToViewerTransform = provideGlobalToViewerTransform ?: targetTransform(depth, translate)
+		val cachedSliceInfo = samSliceCache[depth]?.takeIf {
+			it.globalToViewerTransform.hashable() == globalToViewerTransform.hashable()
+		}
+		if (cachedSliceInfo != null)
+			return cachedSliceInfo
+
+
+		val newSliceInfo = with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
 			val viewer = viewerAndTransforms.viewer()!!
 			val width = viewer.width
 			val height = viewer.height
-
-			val globalToViewerTransform = when {
-				provideGlobalToViewerTransform != null -> provideGlobalToViewerTransform
-				translate -> calculateGlobalToViewerTransformAtDepth(depth)
-				else -> AffineTransform3D().also { viewerAndTransforms.viewer().state.getViewerTransform(it) }
-			}
 
 			val fallbackPrompt = listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0) to SparseLabel.IN)
 			val predictionPositions = provideGlobalToViewerTransform?.let { fallbackPrompt } ?: let {
@@ -583,6 +590,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				samSliceCache[depth] = it
 			}
 		}
+		return newSliceInfo
 	}
 
 	private fun ShapeInterpolationController<*>.calculateGlobalToViewerTransformAtDepth(depth: Double): AffineTransform3D {
@@ -643,7 +651,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		selectionIntervalOverMask: Interval,
 		viewerMask: ViewerMask = controller.currentViewerMask!!,
 		globalTransform: AffineTransform3D = viewerMask.currentGlobalTransform,
-		replaceExistingSlice: Boolean = false
+		replaceExistingSlice: Boolean = false,
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
 		val sliceDepth = controller.depthAt(globalToViewerTransform)
@@ -655,22 +663,15 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			if (diffTransform || diffMask) {
 				val depths = samSliceCache.keys.toList().sorted()
 				val depthIdx = depths.indexOf(sliceDepth.toFloat())
-				for (idx in depthIdx - 1 downTo 0) {
-					val depth = depths[idx]
-					if (samSliceCache[depth]?.preGenerated == true)
-						synchronized(samSliceCache) {
-							samSliceCache.remove(depth)
-						}
-					else break
-				}
+				val decreasingDepths = (depthIdx downTo 0).map { idx -> depths[idx] }
+				val increasingDepths = (depthIdx + 1 until depths.size).map { idx -> depths[idx] }
+				val depthsToRemove = listOf(decreasingDepths, increasingDepths)
+					.flatMap { depthRange ->
+						depthRange.takeWhile { depth -> samSliceCache[depth]?.preGenerated == true }
+					}
 
-				for (idx in depthIdx + 1 until depths.size) {
-					val depth = depths[idx]
-					if (samSliceCache[depth]?.preGenerated == true)
-						synchronized(samSliceCache) {
-							samSliceCache.remove(depth)
-						}
-					else break
+				synchronized(samSliceCache) {
+					depthsToRemove.forEach { depth -> samSliceCache.remove(depth) }
 				}
 			}
 		}

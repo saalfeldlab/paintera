@@ -45,7 +45,10 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val sideBarWidthProperty = painteraProperties.sideBarConfig.widthProperty
 
-	private val bottomGroup = Group()
+	private val bottomGroup = HBox().also {
+		it.isFillHeight = false
+		it.mouseTransparentProperty().set(true)
+	}
 
 	private val topLeftGroup = Group()
 	private val topRightGroup = Group()
@@ -60,7 +63,11 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val centerPaneTopRightAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_RIGHT) }
 
-	private val centerPaneBottomAlignGroup = Group().also { StackPane.setAlignment(it, Pos.BOTTOM_LEFT) }
+	private val centerPaneBottomAlignGroup = HBox().also {
+		StackPane.setAlignment(it, Pos.BOTTOM_LEFT)
+		it.isFillHeight = false
+		it.mouseTransparentProperty().set(true)
+	}
 
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
@@ -129,7 +136,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
 
 	@Suppress("unused")
-	private val statusBarParentProperty = SimpleObjectProperty<Group?>(null).apply {
+	private val statusBarParentProperty = SimpleObjectProperty<HBox?>(null).apply {
 		addListener { _, old, new ->
 			old?.children?.remove(statusBar)
 			new?.children?.add(statusBar)

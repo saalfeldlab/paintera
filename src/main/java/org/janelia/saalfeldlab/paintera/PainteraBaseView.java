@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -28,6 +27,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -179,10 +179,18 @@ public class PainteraBaseView {
 						.orElse(Interpolation.NLINEAR));
 
 		this.currentFocusHolder = Bindings.createObjectBinding(
-				() -> views.viewerAndTransforms().stream()
-						.filter(it -> it.viewer().focusedProperty().get())
-						.findFirst()
-						.orElse(null),
+				() -> {
+
+					final var visibleViewers = views.viewerAndTransforms().stream().filter(it -> it.viewer().isVisible()).toList();
+					if (visibleViewers.size() == 1) //If only one visible, and return it
+						return visibleViewers.getFirst();
+
+
+					return views.viewerAndTransforms().stream()
+							.filter(it -> it.viewer().focusedProperty().get())
+							.findFirst()
+							.orElse(null);
+				},
 				views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
 		);
 

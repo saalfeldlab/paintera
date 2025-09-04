@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 interface Tool {
 
@@ -97,7 +98,7 @@ const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
 abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
 
 	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = ConcurrentHashMap()
-	private var subscriptions: Subscription? = null
+	protected var subscriptions: Subscription = Subscription.EMPTY
 	override val isValidProperty = SimpleBooleanProperty(true)
 
 	override fun activate() {
@@ -105,26 +106,36 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 		/* this handles installing into the currently active viewer */
 		activeViewerProperty.get()?.viewer()?.let { installInto(it) }
 		/* This handles viewer changes while  activated */
-		subscriptions = activeViewerProperty.subscribe { old, new ->
+		val activeViewerSub = activeViewerProperty.subscribe { old, new ->
 			old?.viewer()?.let { removeFrom(it) }
 			new?.viewer()?.let { installInto(it) }
 		}
+		val firstTimeOnly = AtomicBoolean(true)
+		subscriptions = subscriptions
+			.and(activeViewerSub)
+			.and {
+				/* unsubscribing must be idempotent*/
+				if (!firstTimeOnly.getAndSet(false)) {
+					LOG.debug { "Tool deactivate ($this) called multiple times" }
+					return@and
+				}
+
+				if (installedInto.isNotEmpty()) removeFromAll()
+				if (activeViewerProperty.isBound) activeViewerProperty.unbind()
+				activeViewerProperty.set(null)
+			}
 	}
 
 	override fun deactivate() {
-		subscriptions?.let {
-			it.unsubscribe()
-			subscriptions = null
-		}
-		removeFromAll()
-		activeViewerProperty.unbind()
-		activeViewerProperty.set(null)
+		subscriptions.unsubscribe()
+		subscriptions = Subscription.EMPTY
 	}
 
 	override val statusProperty = SimpleStringProperty()
 
 	val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
+	@Synchronized
 	fun installInto(node: Node) {
 		installedInto.computeIfAbsent(node) {
 			LOG.debug { "installing $this" }
@@ -137,16 +148,16 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 		}
 	}
 
+	@Synchronized
 	fun removeFromAll() {
 		installedInto.keys.toSet().forEach { node ->
 			LOG.debug { "removing $this from all nodes" }
 			removeFrom(node)
 		}
-		synchronized(this) {
-			installedInto.clear()
-		}
+		installedInto.clear()
 	}
 
+	@Synchronized
 	fun removeFrom(node: Node) {
 		installedInto[node]?.let { actions ->
 			LOG.debug { "removing $this from node $node" }

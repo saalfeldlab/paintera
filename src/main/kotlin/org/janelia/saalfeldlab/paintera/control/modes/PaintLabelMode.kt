@@ -120,12 +120,8 @@ object PaintLabelMode : AbstractToolMode() {
 						paintera.baseView.changeMode(it)
 					}
 				}
-				when (event) {
-					null -> {
-						switchTool(null)
-						selectViewerBefore { switchModes() }
-					}
-
+				when {
+					event == null && paintera.baseView.currentFocusHolder.value == null -> selectViewerBefore { switchModes() }
 					else -> switchModes()
 				}
 			}

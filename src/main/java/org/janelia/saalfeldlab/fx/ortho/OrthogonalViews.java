@@ -1,11 +1,12 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
 import bdv.cache.CacheControl;
-import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.binding.BooleanBinding;
+import javafx.collections.ListChangeListener;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
@@ -15,6 +16,11 @@ import net.imglib2.RealInterval;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -44,6 +50,7 @@ public class OrthogonalViews<BR extends Node> {
 	private final TaskExecutor renderingTaskExecutor;
 
 	public void stop() {
+
 		renderingTaskExecutor.close();
 	}
 
@@ -64,11 +71,11 @@ public class OrthogonalViews<BR extends Node> {
 		private final TransformConcatenator globalToViewerTransformListener;
 
 		/**
-		 * @param viewer                  viewer
-		 * @param manager                 manages the transform from world coordinates to shared viewer space
-		 * @param displayTransform        accounts for scale after all other translations are applied
-		 * @param viewerSpaceToViewerTransform   transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
-		 *                                only, without scaling or rotation.
+		 * @param viewer                       viewer
+		 * @param manager                      manages the transform from world coordinates to shared viewer space
+		 * @param displayTransform             accounts for scale after all other translations are applied
+		 * @param viewerSpaceToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 *                                     only, without scaling or rotation.
 		 */
 		public ViewerAndTransforms(
 				final ViewerPanelFX viewer,
@@ -91,6 +98,7 @@ public class OrthogonalViews<BR extends Node> {
 		}
 
 		public AffineTransformWithListeners getGlobalToViewerTransform() {
+
 			return globalToViewerTransformListener;
 		}
 
@@ -167,8 +175,34 @@ public class OrthogonalViews<BR extends Node> {
 		this.bottomRight = bottomRight;
 		this.pane = new DynamicCellPane();
 		resetPane();
+		Paintera.whenPaintable(() -> {
+			listenOnResizePermissions(this.pane);
+		});
 
 		this.queue = cacheControl;
+	}
+
+	private void listenOnResizePermissions(DynamicCellPane pane) {
+
+		final PainteraBaseView paintera = Paintera.getPaintera().getBaseView();
+		final AllowedActionsProperty allowedActions = paintera.allowedActionsProperty();
+		final BooleanBinding resizeAllowedBinding = allowedActions.allowedActionBinding(MenuActionType.ResizeViewers);
+
+		/* when the items change, set the resizable status again */
+		pane.getItems().addListener((ListChangeListener<Node>)change -> {
+			setDividersResizable(pane, resizeAllowedBinding.getValue());
+		});
+
+		/* when the permissions change, update the resiable status */
+		resizeAllowedBinding.subscribe(resizeable -> setDividersResizable(pane, resizeable));
+
+	}
+
+	private void setDividersResizable(final DynamicCellPane pane, final boolean resizable) {
+
+		for (Node divider : pane.lookupAll(".split-pane-divider")) {
+			divider.setDisable(!resizable);
+		}
 	}
 
 	/**
@@ -214,6 +248,7 @@ public class OrthogonalViews<BR extends Node> {
 	}
 
 	public void drawOverlays() {
+
 		applyToAll(it -> it.getDisplay().drawOverlays());
 	}
 

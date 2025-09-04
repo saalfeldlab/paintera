@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -47,6 +48,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.sign
@@ -70,6 +72,8 @@ object NavigationControlMode : AbstractToolMode() {
 }
 
 object NavigationTool : ViewerTool() {
+
+	private val LOG = KotlinLogging.logger {  }
 
 	private const val DEFAULT = 1.0
 	private const val FAST = 10.0
@@ -104,17 +108,20 @@ object NavigationTool : ViewerTool() {
 			buttonRotationSpeedConfig.slow.bind(buttonRotationSpeeds.slow)
 			buttonRotationSpeedConfig.fast.bind(buttonRotationSpeeds.fast)
 		}
-		super.activate()
-	}
 
-	override fun deactivate() {
-		super.deactivate()
-		allowRotationsProperty.unbind()
-		buttonRotationSpeedConfig.apply {
-			regular.unbind()
-			slow.unbind()
-			fast.unbind()
+		val firstTimeOnly = AtomicBoolean(true)
+		subscriptions = subscriptions.and {
+			if (!firstTimeOnly.getAndSet(false)) {
+				LOG.debug { "Tool deactivate ($this) called multiple times" }
+				return@and
+			}
+			val properties = listOf(allowRotationsProperty, buttonRotationSpeedConfig.regular, buttonRotationSpeedConfig.slow, buttonRotationSpeedConfig.fast)
+			for (property in properties) {
+				if (property.isBound)
+					property.unbind()
+			}
 		}
+		super.activate()
 	}
 
 	override val graphic = { GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "navigation-tool" }) }

@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.ReadOnlyObjectProperty
-import javafx.beans.property.ReadOnlyObjectWrapper
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.ObservableValue
 import kotlinx.coroutines.CancellationException
@@ -15,16 +13,13 @@ import net.imglib2.RandomAccessible
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.fill.FloodFill
 import net.imglib2.algorithm.neighborhood.DiamondShape
-import net.imglib2.converter.Converters
 import net.imglib2.type.label.Label
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessibleOnGet
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
@@ -52,7 +47,7 @@ class FloodFill2D<T : IntegerType<T>>(
 		viewerMask = null
 	}
 
-	private fun getOrCreateViewerMask(): ViewerMask {
+	internal fun getOrCreateViewerMask(): ViewerMask {
 		return viewerMask ?: activeViewerProperty.value.let {
 			val level = it.state.bestMipMapLevel
 			val time = it.state.timepoint
@@ -61,11 +56,39 @@ class FloodFill2D<T : IntegerType<T>>(
 		}
 	}
 
-	suspend fun fillViewerAt(viewerSeedX: Double, viewerSeedY: Double, fill: Long, assignment: FragmentSegmentAssignment): Interval {
+	suspend fun fillViewerAt(
+		viewerSeedX: Double,
+		viewerSeedY: Double,
+		fill: Long,
+		assignment: FragmentSegmentAssignment,
+		mask: ViewerMask = getOrCreateViewerMask(),
+	): Interval {
 
-		val mask = getOrCreateViewerMask()
 		val maskPos = mask.displayPointToMask(viewerSeedX, viewerSeedY, true)
 		val filter = getBackgroundLabelMaskForAssignment(maskPos, mask, assignment, fill)
+
+		return fillViewerAt(maskPos, fill, filter, mask)
+	}
+
+	suspend fun fillViewerAt(
+		viewerSeedX: Double,
+		viewerSeedY: Double,
+		fill: Long,
+		filter: RandomAccessibleInterval<BoolType>,
+		mask: ViewerMask = getOrCreateViewerMask(),
+	): Interval {
+
+		val maskPos = mask.displayPointToMask(viewerSeedX, viewerSeedY, true)
+		return fillViewerAt(maskPos, fill, filter, mask)
+	}
+
+
+	suspend fun fillViewerAt(
+		maskPos: Point,
+		fill: Long,
+		filter: RandomAccessibleInterval<BoolType>,
+		mask: ViewerMask = getOrCreateViewerMask(),
+	): Interval {
 
 		val interval = fillMaskAt(maskPos, mask, fill, filter)
 		if (!coroutineContext.isActive) {
@@ -75,8 +98,7 @@ class FloodFill2D<T : IntegerType<T>>(
 		return interval
 	}
 
-
-	private suspend fun fillMaskAt(maskPos: Point, mask: ViewerMask, fill: Long, filter: RandomAccessibleInterval<BoolType>) : Interval {
+	suspend fun fillMaskAt(maskPos: Point, mask: ViewerMask, fill: Long, filter: RandomAccessibleInterval<BoolType>) : Interval {
 		if (fill == Label.INVALID) {
 			val reason = "Received invalid label -- will not fill"
 			LOG.warn { reason }

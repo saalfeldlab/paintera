@@ -4,6 +4,7 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.event.Event
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
@@ -11,7 +12,11 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
 import kotlinx.coroutines.Job
+import net.imglib2.Point
+import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.logic.BoolType
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -28,17 +33,18 @@ import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
-import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.modes.getInterpolantPrompt
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.get
 
@@ -46,7 +52,7 @@ internal class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
 	private val previousMode: ControlMode,
 	private val shapeInterpolationMode: ShapeInterpolationMode<*>,
-	private var fill2D: ShapeInterpolationFillTool
+	private var fill2D: ShapeInterpolationFillTool,
 ) : ViewerTool(shapeInterpolationMode) {
 
 
@@ -190,7 +196,7 @@ internal class ShapeInterpolationTool(
 		moveToSlice: Boolean = false,
 		refresh: Boolean = false,
 		provideGlobalToViewerTransform: AffineTransform3D? = null,
-		afterPrediction: (AffineTransform3D) -> Unit = {}
+		afterPrediction: (AffineTransform3D) -> Unit = {},
 	): AffineTransform3D {
 
 		val newPrediction = shapeInterpolationMode.samSliceCache[depth] == null
@@ -415,41 +421,117 @@ internal class ShapeInterpolationTool(
 							}
 						}
 					}
+					class SelectIdState : ActionState() {
+
+						lateinit var mask: ViewerMask
+						lateinit var event: MouseEvent
+						var fillFromViewerMask: Boolean = false
+
+
+						val pointInMask: Point
+							get() {
+								return mask.displayPointToMask(event.x, event.y, pointInCurrentDisplay = true)
+							}
+
+						val pointInSource: RealPoint
+							get() {
+								return pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
+							}
+
+						fun fillFromViewerMask(): Boolean {
+							val maskLabel = mask.viewerImg.extendValue(Label.INVALID)[pointInMask].integerLong
+							return maskLabel == interpolationId
+						}
+
+						fun fillFromSource(): Boolean {
+							val info = mask.info
+							val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
+							return sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
+						}
+
+						override fun <E : Event> Action<E>.verifyState() {
+							verify("Mouse Event required for getting fill seed position and checking mask value") { it ->
+								if (it !is MouseEvent)
+									return@verify false
+
+								event = it
+								true
+							}
+							verify(::mask, "getMask must provide ViewerMask from ShapeInterpolationController") {
+								source.resetMasks(false)
+								getMask()
+							}
+
+							verify("Fill from ViewerMask Or underlying soruce") {
+								if (it != event)
+									return@verify false
+
+								fillFromViewerMask = fillFromViewerMask()
+								true
+							}
+
+							verify("Seed Position is Valid for ViewerMask or underlying source") {
+								if (it == event)
+									return@verify true
+
+								fillFromViewerMask || fillFromSource()
+							}
+						}
+					}
 					MOUSE_CLICKED {
 						name = "select object in current slice"
-
 						verifyNoKeysDown()
 						verifyEventNotNull()
 						verify { !paintera.mouseTracker.isDragging }
 						verify { shapeInterpolationMode.activeTool !is Fill2DTool }
-						verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
+						verify { it!!.button == MouseButton.PRIMARY && !it.isControlDown } // respond to primary click
 						verify { controllerState != ShapeInterpolationController.ControllerState.Interpolate } // need to be in the select state
-						verify("Can't select BACKGROUND or higher MAX_ID ") { event ->
+						onAction(SelectIdState()) {
+							fun fillFromViewerMask() {
+								val prevSlice = controller.sliceAt(currentDepth)!!.also {
+									deleteSliceAt(currentDepth, reinterpolate = false)
+									source.resetMasks(false)
+									/* replace mask with new one after deleting slice */
+									mask = getMask()
+								}
 
-							source.resetMasks(false)
-							val mask = getMask()
+								val prevMask = prevSlice.mask
+								val filter = prevMask.viewerImg.convertRAI(BoolType()) { a, b -> b.set(a.integerLong == interpolationId) }
 
-							fill2D.fill2D.viewerMask = mask
-							val pointInMask = mask.displayPointToMask(event!!.x, event.y, pointInCurrentDisplay = true)
-							val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
-							val info = mask.info
-							val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
-							return@verify sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
-						}
-						onAction { event ->
-							val prevSlice = controller.sliceAt(currentDepth)?.also {
-								deleteSliceAt(currentDepth, reinterpolate = false)
-							}
-							/* get value at position */
-							currentJob = fillObjectInSlice(event!!, true)?.apply {
-								invokeOnCompletion { cause ->
-									prevSlice?.maskBoundingBox?.let { interval ->
-										cause?.let {
-											addSelection(interval, true, prevSlice.globalTransform, prevSlice.mask)
-										}
-									} ?: requestRepaint(prevSlice?.globalBoundingBox)
+								/* get value at position */
+								currentJob = fillObjectInSlice(event, mask, true, filter)?.apply {
+									invokeOnCompletion { cause ->
+										prevSlice.maskBoundingBox?.let { interval ->
+											cause?.let {
+												addSelection(interval, true, prevSlice.globalTransform, prevSlice.mask)
+											}
+										} ?: requestRepaint(prevSlice.globalBoundingBox)
+									}
 								}
 							}
+
+							fun fillFromSourceMask() {
+								val prevSlice = controller.sliceAt(currentDepth)?.also {
+									deleteSliceAt(currentDepth, reinterpolate = false)
+									source.resetMasks(false)
+									/* replace mask with new one after deleting slice */
+									mask = getMask()
+								}
+								/* get value at position */
+								currentJob = fillObjectInSlice(event, mask, true)?.apply {
+									invokeOnCompletion { cause ->
+										prevSlice?.maskBoundingBox?.let { interval ->
+											cause?.let {
+												addSelection(interval, true, prevSlice.globalTransform, prevSlice.mask)
+											}
+										} ?: requestRepaint(prevSlice?.globalBoundingBox)
+									}
+								}
+							}
+							if (fillFromViewerMask)
+								fillFromViewerMask()
+							else
+								fillFromSourceMask()
 						}
 					}
 					MOUSE_CLICKED {
@@ -462,8 +544,8 @@ internal class ShapeInterpolationTool(
 							val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker()!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
 							triggerByRightClick || triggerByCtrlLeftClick
 						}
-						onAction { event ->
-							currentJob = fillObjectInSlice(event!!)
+						onAction(SelectIdState()) { event ->
+							currentJob = fillObjectInSlice(event!!, mask)
 						}
 					}
 				},
@@ -525,17 +607,20 @@ internal class ShapeInterpolationTool(
 		}
 	}
 
-	private fun fillObjectInSlice(event: MouseEvent, replaceExistingSlice: Boolean = false): Job? {
+	private fun fillObjectInSlice(
+		event: MouseEvent,
+		mask: ViewerMask,
+		replaceExistingSlice: Boolean = false,
+		filter: RandomAccessibleInterval<BoolType>? = null,
+	): Job? {
 		with(controller) {
-			source.resetMasks(false)
-			val mask = getMask()
+			fill2D.fill2D.viewerMask = mask
 
 			/* If a current slice exists, try to preserve it if cancelled */
 			currentSliceMaskInterval?.also {
 				mask.pushNewImageLayer()
 			}
 
-			fill2D.fill2D.viewerMask = mask
 			val pointInMask = mask.displayPointToMask(event.x, event.y, pointInCurrentDisplay = true)
 			val pointInSource = pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
 			val info = mask.info
@@ -544,10 +629,10 @@ internal class ShapeInterpolationTool(
 				return null
 			}
 
-			val maskLabel = mask.rai.extendValue(Label.INVALID)[pointInMask].get()
+			val maskLabel = mask.viewerImg.extendValue(Label.INVALID)[pointInMask].integerLong
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
-			return fill2D.executeFill2DAction(event.x, event.y) { fillInterval ->
+			return fill2D.executeFill2DAction(event.x, event.y, mask, filter) { fillInterval ->
 				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSlice)?.also { it.locked = true }
 				currentJob = null
 				fill2D.fill2D.release()
