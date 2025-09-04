@@ -41,9 +41,7 @@ jobs:
           chmod +x /tmp/scijava-scripts/release-version.sh
           
       - name: Run Release Script
-        run: |
-          cd /tmp/scijava-scripts
-          ./release-version.sh --skip-license-update --skip-version-check ${{ github.workspace }} ${{ github.event.inputs.version }}
+        run: /tmp/scijava-scripts/release-version.sh --skip-license-update --skip-version-check ${{ github.event.inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_KEY_NAME: ${{ secrets.GPG_KEY_NAME }}
