@@ -212,7 +212,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		interpolateBetweenSlices(false)
-		return slice
+   		return slice
 	}
 
 	internal fun sliceAt(depth: Double) = slicesAndInterpolants.getSliceAtDepth(depth)
@@ -597,7 +597,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				deleteSliceAt(depth, false)
 				newMask(targetMipMapLevel)
 			}
-			/* wrap the existing, potentially at a different scale level; may return the same mask */
+		    /* No bounding box means current slice is empty, so nothing to reuse */
+		    currentSlice.maskBoundingBox == null -> null
+		    /* No scale change, so no need to scale and wrap with new mask */
+		    currentSlice.mask.xScaleChange == 1.0 -> currentSlice.mask
+			/* wrap the existing mask at a different scale level */
 			else -> wrapExistingSlice(currentSlice, targetMipMapLevel)
 		}
 		currentViewerMask?.setViewerMaskOnSource()
@@ -966,18 +970,22 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		private val list : MutableList<SliceOrInterpolant> = Collections.synchronizedList(mutableListOf())
 	) : List<SliceOrInterpolant> by list, Observable {
 
-		private val listenerProperty = SimpleObjectProperty(UUID.randomUUID())
+		private val listeners = mutableSetOf<InvalidationListener>()
 
 		override fun addListener(listener: InvalidationListener?) {
-			listenerProperty.addListener(listener)
+			listener?.let {
+				listeners.add(it)
+			}
 		}
 
-		override fun removeListener(listener: InvalidationListener?) {
-			listenerProperty.removeListener(listener)
+		override fun removeListener(listener: InvalidationListener?) : Unit {
+			listener?.let {
+				listeners.remove(listener)
+			}
 		}
 
 		private fun invalidate() {
-			listenerProperty.set(UUID.randomUUID())
+			listeners.forEach { it.invalidated(this) }
 		}
 
 		@Synchronized
