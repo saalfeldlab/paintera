@@ -537,7 +537,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 	}
 
-	private fun targetTransform(depth: Double, translate : Boolean) : AffineTransform3D {
+	private fun targetTransform(depth: Double, translate: Boolean): AffineTransform3D {
 		with(controller) {
 			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
 
@@ -651,7 +651,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		selectionIntervalOverMask: Interval,
 		viewerMask: ViewerMask = controller.currentViewerMask!!,
 		globalTransform: AffineTransform3D = viewerMask.currentGlobalTransform,
-		replaceExistingSlice: Boolean = false
+		replaceExistingSlice: Boolean = false,
 	): SamSliceInfo? {
 		val globalToViewerTransform = viewerMask.initialGlobalToMaskTransform
 		val sliceDepth = controller.depthAt(globalToViewerTransform)
@@ -663,22 +663,15 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			if (diffTransform || diffMask) {
 				val depths = samSliceCache.keys.toList().sorted()
 				val depthIdx = depths.indexOf(sliceDepth.toFloat())
-				for (idx in depthIdx - 1 downTo 0) {
-					val depth = depths[idx]
-					if (samSliceCache[depth]?.preGenerated == true)
-						synchronized(samSliceCache) {
-							samSliceCache.remove(depth)
-						}
-					else break
-				}
+				val decreasingDepths = (depthIdx downTo 0).map { idx -> depths[idx] }
+				val increasingDepths = (depthIdx + 1 until depths.size).map { idx -> depths[idx] }
+				val depthsToRemove = listOf(decreasingDepths, increasingDepths)
+					.flatMap { depthRange ->
+						depthRange.takeWhile { depth -> samSliceCache[depth]?.preGenerated == true }
+					}
 
-				for (idx in depthIdx + 1 until depths.size) {
-					val depth = depths[idx]
-					if (samSliceCache[depth]?.preGenerated == true)
-						synchronized(samSliceCache) {
-							samSliceCache.remove(depth)
-						}
-					else break
+				synchronized(samSliceCache) {
+					depthsToRemove.forEach { depth -> samSliceCache.remove(depth) }
 				}
 			}
 		}
