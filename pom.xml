@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.10.6-SNAPSHOT</version>
+	<version>1.10.6</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -623,7 +623,7 @@
 	<scm>
 		<connection>scm:git:https://github.com/saalfeldlab/paintera</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>paintera-1.10.6</tag>
 		<url>https://github.com/saalfeldlab/paintera</url>
 	</scm>
 
