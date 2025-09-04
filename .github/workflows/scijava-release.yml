@@ -1,0 +1,54 @@
+name: Scijava Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. MAJOR.MINOR.PATCH)'
+        required: true
+        type: string
+      confirm_release:
+        description: 'Type "release" to confirm you want to create a release'
+        required: true
+        default: ''
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm_release == 'release'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for release script
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+          
+      - name: Install SciJava Scripts
+        run: |
+          git clone https://github.com/scijava/scijava-scripts.git /tmp/scijava-scripts
+          chmod +x /tmp/scijava-scripts/release-version.sh
+          
+      - name: Run Release Script
+        run: |
+          cd /tmp/scijava-scripts
+          ./release-version.sh --skip-license-update --skip-version-check ${{ github.workspace }} ${{ github.event.inputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_KEY_NAME: ${{ secrets.GPG_KEY_NAME }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
+          OSSRH_PASS: ${{ secrets.OSSRH_PASS }}
+          SIGNING_ASC: ${{ secrets.SIGNING_ASC }}
