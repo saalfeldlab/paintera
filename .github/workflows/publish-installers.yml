@@ -36,8 +36,20 @@ jobs:
           else
             echo "PRERELEASE=true" >> $GITHUB_ENV
           fi
-      - name: Display structure of downloaded files
-        run: ls -R
+      - name: Generate Release Notes
+        if: env.PRERELEASE == 'false'
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: -l --strip header --output RELEASE_NOTES.md
+        env:
+          OUTPUT: RELEASE_NOTES.md
+      - name: Generate Prerelease Log
+        if: env.PRERELEASE == 'true'
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: -u --strip header --output RELEASE_NOTES.md
+        env:
+          OUTPUT: RELEASE_NOTES.md
       - name: Rename Artifacts
         run: |
           mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
@@ -51,6 +63,7 @@ jobs:
           name: Paintera ${{ env.VERSION }}
           tag_name: ${{ github.ref }}
           prerelease: ${{ env.PRERELEASE }}
+          body_path: RELEASE_NOTES.md
           files: |
             Paintera-${{ env.VERSION }}-Windows.msi
             Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
