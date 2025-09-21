@@ -210,7 +210,7 @@ class OpenSourceDialog(
 		errors += nameField.errorMessageProperty()
 		with(state) {
 			containerState ?: let { errors += SimpleStringProperty("No Valid Container") }
-			dimensionsBinding.get()?.takeIf { it.size > 4 }?.let { errors += SimpleStringProperty("Only 3 or 4 dimensions supported. Found ${it.size}") }
+//			dimensionsBinding.get()?.takeIf { it.size > 4 }?.let { errors += SimpleStringProperty("Only 3 or 4 dimensions supported. Found ${it.size}") }
 			activeNode ?: let { errors += SimpleStringProperty("No Dataset Selected") }
 		}
 		return errors

@@ -22,12 +22,6 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-//TODO Caleb: Determine if this comment is still relevant?
-// NB: If this ever becomes dataset dependent, we should create individual classes for
-//         - dataset
-//         - multi-scale group
-//         - paintera dataset
-
 class N5BackendChannel<D, T>(
 	override val metadataState: MetadataState,
 	override val channelSelection: IntArray,

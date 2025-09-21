@@ -267,7 +267,7 @@ public class MetaPanel {
 		this.max.getTextField().setPrefWidth(TEXTFIELD_WIDTH);
 		this.rawMeta.getChildren().add(rawMinMax);
 
-		listenOnDimensions(openSourceState.getDimensionsBinding());
+//		listenOnDimensions(openSourceState.getDimensionsBinding());
 		listenOnResolution(openSourceState.getResolutionProperty());
 		listenOnOffset(openSourceState.getTranslationProperty());
 		listenOnMinMax(openSourceState.getMinIntensityProperty(), openSourceState.getMaxIntensityProperty());

@@ -177,7 +177,7 @@ class OpenSourceState {
 				}
 			}
 
-			var backend = N5BackendRaw<T, V>(metadataState)
+			val backend = N5BackendRaw<T, V>(metadataState)
 			return ConnectomicsRawState(backend, sharedQueue, priority, openSourceState.sourceName).apply {
 				converter().min = openSourceState.minIntensity
 				converter().max = openSourceState.maxIntensity

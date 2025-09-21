@@ -50,7 +50,7 @@ public class N5OpenSourceHelper {
 			PainteraBaseView viewer) {
 
 		final DatasetAttributes attributes = Objects.requireNonNull(openSourceState.getDatasetAttributes());
-		if (attributes.getNumDimensions() != 3) {
+		if (false && attributes.getNumDimensions() != 3) {
 			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
 			final var channels = OpenSourceState.getChannels(openSourceState, channelSelection, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
