@@ -51,6 +51,7 @@ interface MetadataState {
 	var channelAxis: Pair<Axis, Int>?
 	var timeAxis: Pair<Axis, Int>?
 	var virtualCrop: Interval?
+	var slice3D: Slice3D?
 	var unit: String
 	var reader: N5Reader
 
@@ -87,6 +88,7 @@ interface MetadataState {
 			target.resolution = source.resolution.copyOf()
 			target.translation = source.translation.copyOf()
 			target.virtualCrop = source.virtualCrop?.let { FinalInterval(it.minAsLongArray(), it.maxAsLongArray()) }
+			target.slice3D = source.slice3D?.let { Slice3D(it.x, it.y, it.z, it.channel, it.timepoint, it.sliceMap) }
 			target.unit = source.unit
 			target.group = source.group
 		}
@@ -110,6 +112,7 @@ open class SingleScaleMetadataState(
 	override var channelAxis: Pair<Axis, Int>? = metadata.channelAxis
 	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
 	override var virtualCrop: Interval? = null
+	override var slice3D: Slice3D? = null
 	override var unit: String = metadata.unit()
 	override var reader = n5ContainerState.reader
 	override val writer: N5Writer?

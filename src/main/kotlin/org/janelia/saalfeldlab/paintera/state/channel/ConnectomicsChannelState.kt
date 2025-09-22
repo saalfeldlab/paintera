@@ -117,6 +117,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 		const val COMPOSITE = "composite"
 		const val CONVERTER = "converter"
 		const val VIRTUAL_CROP = "virtualCrop"
+		const val SLICE_3D = "slice3D"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
 		const val RESOLUTION = "resolution"

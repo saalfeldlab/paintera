@@ -70,6 +70,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.metadata.Slice3D
 import org.janelia.saalfeldlab.paintera.stream.*
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -561,11 +562,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val CONVERTER                       = "converter"
         const val CONVERTER_SEED                  = "seed"
 		const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
-		const val BACKGROUND_ID_VISIBLE          = "backgroundIdVisible"
+		const val BACKGROUND_ID_VISIBLE           = "backgroundIdVisible"
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
-        const val VIRTUAL_CROP                     = "virtualCrop"
+        const val VIRTUAL_CROP                    = "virtualCrop"
+		const val SLICE_3D                        = "slice3D"
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
@@ -599,6 +601,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				state.slice3D?.let { map.add(SLICE_3D, context[it]) }
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 			}
@@ -647,6 +650,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
 						backend.virtualCrop = virtualCrop
+
+						val slice3D = context.get<Slice3D?>(json, SLICE_3D)
+						backend.slice3D = slice3D
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(

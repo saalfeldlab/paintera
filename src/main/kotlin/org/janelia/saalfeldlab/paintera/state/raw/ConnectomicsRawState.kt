@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
 import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.Slice3D
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.CONVERTER
@@ -51,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Serializa
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.NAME
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.OFFSET
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RESOLUTION
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.SLICE_3D
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.VIRTUAL_CROP
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.util.Colors
@@ -62,7 +64,6 @@ import java.lang.reflect.Type
 import java.util.function.BiConsumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
-import kotlin.jvm.optionals.getOrNull
 
 typealias ARGBComoposite = Composite<ARGBType, ARGBType>
 
@@ -176,6 +177,7 @@ open class ConnectomicsRawState<D, T>(
 		const val IS_VISIBLE = "isVisible"
 		const val RESOLUTION = "resolution"
 		const val VIRTUAL_CROP = "virtualCrop"
+		const val SLICE_3D = "slice3D"
 		const val OFFSET = "offset"
 	}
 
@@ -199,6 +201,7 @@ open class ConnectomicsRawState<D, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				state.slice3D?.let { map.add(SLICE_3D, context[it]) }
 			}
 			return map
 		}
@@ -238,6 +241,8 @@ open class ConnectomicsRawState<D, T>(
 			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
 			backend.updateTransform(resolution, offset)
 			backend.virtualCrop = virtualCrop
+			val slice3D = context.get<Slice3D?>(json, SLICE_3D) as? Slice3D
+			backend.slice3D = slice3D
 
 			return ConnectomicsRawState(
 				backend,

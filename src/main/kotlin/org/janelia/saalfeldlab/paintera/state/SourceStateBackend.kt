@@ -6,6 +6,7 @@ import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.Slice3D
 
 interface SourceStateBackend<D, T> {
 
@@ -28,6 +29,8 @@ interface SourceStateBackend<D, T> {
 	val translation: DoubleArray
 
 	var virtualCrop: Interval?
+
+	var slice3D: Slice3D?
 
 	fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
 		val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)
