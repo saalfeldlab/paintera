@@ -25,6 +25,11 @@ jobs:
     needs: build_installers
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git-cliff
+  
       - name: Download Artifacts
         uses: actions/download-artifact@v4
       - name: Set Version
@@ -38,18 +43,16 @@ jobs:
           fi
       - name: Generate Release Notes
         if: env.PRERELEASE == 'false'
+        id: git-cliff
         uses: orhun/git-cliff-action@v4
         with:
-          args: -l --strip header --output RELEASE_NOTES.md
-        env:
-          OUTPUT: RELEASE_NOTES.md
+          args: -l --strip header
       - name: Generate Prerelease Log
         if: env.PRERELEASE == 'true'
+        id: git-cliff-pre
         uses: orhun/git-cliff-action@v4
         with:
-          args: -u --strip header --output RELEASE_NOTES.md
-        env:
-          OUTPUT: RELEASE_NOTES.md
+          args: -u --strip header
       - name: Rename Artifacts
         run: |
           mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
@@ -63,7 +66,7 @@ jobs:
           name: Paintera ${{ env.VERSION }}
           tag_name: ${{ github.ref }}
           prerelease: ${{ env.PRERELEASE }}
-          body_path: RELEASE_NOTES.md
+          body: ${{ steps.git-cliff.outputs.content || steps.git-cliff-pre.outputs.content }}
           files: |
             Paintera-${{ env.VERSION }}-Windows.msi
             Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
