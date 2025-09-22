@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.10.7-SNAPSHOT</version>
+	<version>1.10.8-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
