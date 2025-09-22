@@ -64,6 +64,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	private val centerPaneTopRightAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_RIGHT) }
 
 	private val centerPaneBottomAlignGroup = HBox().also {
+		it.alignment = Pos.BOTTOM_LEFT
 		StackPane.setAlignment(it, Pos.BOTTOM_LEFT)
 		it.isFillHeight = false
 		it.mouseTransparentProperty().set(true)

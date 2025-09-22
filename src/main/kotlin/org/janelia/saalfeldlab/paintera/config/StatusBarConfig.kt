@@ -7,8 +7,8 @@ import javafx.beans.property.SimpleObjectProperty
 class StatusBarConfig {
 
 	enum class Mode {
-		OVERLAY,
-		BOTTOM;
+		BOTTOM,
+		OVERLAY;
 
 		fun next() = next(this)
 
@@ -19,7 +19,7 @@ class StatusBarConfig {
 
 	private val _isVisible = SimpleBooleanProperty(true)
 
-	private val _mode = SimpleObjectProperty(Mode.OVERLAY)
+	private val _mode = SimpleObjectProperty(Mode.BOTTOM)
 
 	var isVisible: Boolean
 		get() = _isVisible.get()
