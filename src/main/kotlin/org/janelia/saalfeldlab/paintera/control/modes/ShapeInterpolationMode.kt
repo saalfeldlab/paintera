@@ -41,13 +41,12 @@ import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.FontIconPatched
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.EditSelectionChoice.*
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
@@ -70,7 +69,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.*
 import org.kordamp.ikonli.fontawesome.FontAwesome
-import org.kordamp.ikonli.javafx.FontIcon
 import java.util.concurrent.CancellationException
 import kotlin.math.roundToLong
 
@@ -230,10 +228,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				}
 			},
 			painteraActionSet("key slice navigation") {
-				keyPressEditSelectionAction(First, SHAPE_INTERPOLATION__SELECT_FIRST_SLICE)
-				keyPressEditSelectionAction(Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
-				keyPressEditSelectionAction(Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
-				keyPressEditSelectionAction(Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION__SELECT_FIRST_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION__SELECT_LAST_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION__SELECT_PREVIOUS_SLICE)
+				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION__SELECT_NEXT_SLICE)
 				//FIXME Caleb: There is a bug when navigating slices quickly that occasionally the correct action above will not
 				//  trigger. When the arrows keys are the expected trigger, this then triggers the parent/sibling nodes focuse traversal
 				//  and causes the focus to escape the active orthoslice. When this happens it appears that shape interpolation
@@ -357,25 +355,25 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(First) }
+								onAction { editSelection(EditSelectionChoice.First) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(Previous) }
+								onAction { editSelection(EditSelectionChoice.Previous) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(Next) }
+								onAction { editSelection(EditSelectionChoice.Next) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(Last) }
+								onAction { editSelection(EditSelectionChoice.Last) }
 							}
 						}
 					}
@@ -384,6 +382,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		).filterNotNull()
 	}
 
+	@Suppress("AssignedValueIsNeverRead")
 	internal fun applyShapeInterpolationAndExitMode() {
 		with(controller) {
 			var applyMaskTriggered = false
@@ -444,11 +443,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private var currentMovementToTargetSlice: Pair<Job, SliceInfo>? = null
 
-	private enum class EditSelectionChoice {
-		First,
-		Previous,
-		Next,
-		Last
+	enum class EditSelectionChoice(val style: StyleGroup) {
+		First(Style.FONT_ICON + "interpolation-first-slice"),
+		Previous(Style.FONT_ICON + "interpolation-previous-slice"),
+		Next(Style.FONT_ICON + "interpolation-next-slice"),
+		Last(Style.FONT_ICON + "interpolation-last-slice")
 	}
 
 	private fun ShapeInterpolationController<*>.editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {
