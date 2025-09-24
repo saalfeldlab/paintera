@@ -23,8 +23,8 @@ object PainteraUtils {
 		return viewerToSourceTransform.estimateBounds(screenInterval)
 	}
 
-	fun <S : SourceState<*, *>> S.viewerIntervalsInSourceSpace(time: Int = 0, scaleLevel : Int = 0, filterSourceInterval : ((RealInterval) -> RealInterval?)? = null) : List<RealInterval?> {
-		return paintera.baseView.orthogonalViews().viewerAndTransforms().mapNotNull { viewerAndTransform ->
+	fun <S : SourceState<*, *>> S.viewerIntervalsInSourceSpace(time: Int = 0, scaleLevel : Int = 0, filterSourceInterval : ((RealInterval) -> RealInterval?)? = null) : Set<RealInterval?> {
+		return paintera.baseView.orthogonalViews().viewerAndTransforms().mapNotNullTo(mutableSetOf()) { viewerAndTransform ->
 			viewerAndTransform.viewer().intervalInSourceSpace(this, scaleLevel, time)?.let {
 				filterSourceInterval?.invoke(it) ?: it
 			}

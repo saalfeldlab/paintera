@@ -15,7 +15,6 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
-import javafx.scene.layout.FlowPane
 import javafx.util.Subscription
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -26,11 +25,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.fx.extensions.nullableVal
-import org.janelia.saalfeldlab.fx.extensions.plus
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ModeToolActionBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -96,7 +91,7 @@ interface ToolMode : SourceMode {
 	var activeToolProperty: ObjectProperty<Tool?>
 	var activeTool: Tool?
 
-	val actionBar : ModeToolActionBar
+	val actionBar: ModeToolActionBar
 
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
@@ -131,39 +126,41 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-	@Synchronized
 	fun switchTool(tool: Tool?): Job? {
+		synchronized(this) {
+
 			if (activeTool == tool)
 				return null
 
 			LOG.debug { "Switch from $activeTool to $tool" }
 
 
-		val switchToolJob = ToolChange.submit {
-			LOG.debug { "Deactivated $activeTool" }
-			activeTool?.deactivate()
-			(activeTool as? ViewerTool)?.removeFromAll()
+			val switchToolJob = ToolChange.submit {
+				LOG.debug { "Deactivated $activeTool" }
+				activeTool?.deactivate()
+				(activeTool as? ViewerTool)?.removeFromAll()
 
 
-			/* If the mode was changed before we can activate, switch to null */
-			val activeMode = paintera.baseView.activeModeProperty.value
-			activeTool = when {
-				activeMode != this@ToolMode -> null // wrong mode
-				tool?.isValidProperty?.value == false -> null // tool is not currently valid
-				else -> tool?.apply {
-					activate()
-					LOG.debug { "Activated $activeTool" }
-				} // try to activate
+				/* If the mode was changed before we can activate, switch to null */
+				val activeMode = paintera.baseView.activeModeProperty.value
+				activeTool = when {
+					activeMode != this@ToolMode -> null // wrong mode
+					tool?.isValidProperty?.value == false -> null // tool is not currently valid
+					else -> tool?.apply {
+						activate()
+						LOG.debug { "Activated $activeTool" }
+					} // try to activate
+				}
 			}
-		}
-		switchToolJob.invokeOnCompletion { cause ->
-			when (cause) {
-				null -> InvokeOnJavaFXApplicationThread { showToolBars() }
-				is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
-				else -> LOG.error(cause) { "Switch to $tool failed" }
+			switchToolJob.invokeOnCompletion { cause ->
+				when (cause) {
+					null -> InvokeOnJavaFXApplicationThread { showToolBars() }
+					is CancellationException -> LOG.debug { "Switch to $tool cancelled" }
+					else -> LOG.error(cause) { "Switch to $tool failed" }
+				}
 			}
+			return switchToolJob
 		}
-		return switchToolJob
 	}
 
 	private fun showToolBars(show: Boolean = true) {
@@ -177,7 +174,8 @@ interface ToolMode : SourceMode {
 			selectedToggleProperty().subscribe { _, selected ->
 				selected?.let {
 					(it.userData as? Tool)?.let { tool ->
-						if (activeTool != tool) {val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
+						if (activeTool != tool) {
+							val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
 							if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
 								selectViewerBefore {
 									switchTool(tool)
