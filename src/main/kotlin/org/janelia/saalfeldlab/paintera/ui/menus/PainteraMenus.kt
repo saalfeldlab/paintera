@@ -18,13 +18,13 @@ import org.janelia.saalfeldlab.paintera.control.actions.ActionMenu
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
-import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth.SmoothLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodeLabel
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.kordamp.ikonli.fontawesome.FontAwesome
-import org.kordamp.ikonli.javafx.FontIcon
 
 private val currentSourceName by LazyForeignValue(::paintera) {
 	MenuItem(null).apply {
@@ -88,6 +88,8 @@ private val viewMenu by LazyForeignValue(::paintera) {
 }
 private val actionMenuItems by LazyForeignValue(::paintera) {
 	arrayOf(
+		DilateLabel.menuItem,
+		ErodeLabel.menuItem,
 		SmoothLabel.menuItem,
 		ReplaceLabel.replaceMenu().menuItem,
 		ReplaceLabel.deleteMenu().menuItem,
