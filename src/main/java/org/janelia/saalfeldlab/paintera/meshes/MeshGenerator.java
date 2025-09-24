@@ -6,6 +6,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -177,17 +178,22 @@ public class MeshGenerator<T> {
 	@NotNull
 	private Subscription initUpdateMeshesSubscription() {
 
-		return Bindings.createObjectBinding(UUID::randomUUID,
+		final ObjectBinding<UUID> aggregateChangeBinding = Bindings.createObjectBinding(UUID::randomUUID,
 				this.state.settings.getSimplificationIterationsProperty(),
 				this.state.settings.getSmoothingLambdaProperty(),
 				this.state.settings.getSmoothingIterationsProperty(),
 				this.state.settings.getMinLabelRatioProperty(),
 				this.state.settings.getOverlapProperty()
-		).subscribe(unused -> {
+		);
+		final ChangeListener<UUID> validatingChangeListener = (obs, prev, cur) -> {
+			obs.getValue(); //necessary to validate the binding for the next change
 			synchronized (this) {
 				updateMeshes(sceneUpdateParameters);
 			}
-		});
+		};
+		aggregateChangeBinding.addListener(validatingChangeListener);
+
+		return () -> aggregateChangeBinding.removeListener(validatingChangeListener);
 	}
 
 	@NotNull

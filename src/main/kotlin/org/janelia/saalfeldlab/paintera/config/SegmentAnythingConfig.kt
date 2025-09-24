@@ -56,7 +56,12 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 	@Transient
 	private val observableInvalidationBinding = serviceUrlProperty.createObservableBinding(modelLocationProperty, responseTimeoutProperty, compressEncodingProperty) {
 		UUID.randomUUID()
-	}.apply { subscribe { _ -> fireValueChangedEvent() } } //trigger the SegmentAnythingConfig listeners
+	}.apply {
+		subscribe { _ ->
+			this.get() // validate the UUID binding change
+			fireValueChangedEvent()
+		}
+	} //trigger the SegmentAnythingConfig listeners
 
 	override fun getValue() = this
 
