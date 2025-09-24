@@ -15,6 +15,21 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
+
+/**
+ * Error to indicate that a class implementing an interface intentionally doesn't implement a property or method.
+ * This is useful when wanted to use a delegate to provide a base implementation of an interface, but want to avoid
+ * running into multiple inheritance issues.
+ */
+class PartialDelegationError() : Error("Property or Method should be override, but was not")
+
+/**
+ * Base Paintera Action State to provide verifiable state to Paintera Actions.
+ *
+ * @property invalidIfDisabled
+ *
+ * @param delegates whose actionState can be combined with this actionState for validation
+ */
 open class PainteraActionState(vararg delegates : Any, var invalidIfDisabled : Boolean = true) : VerifiablePropertyActionState(*delegates) {
 
 	override fun <E : Event> verifyState(action: Action<E>) {
@@ -26,15 +41,35 @@ open class PainteraActionState(vararg delegates : Any, var invalidIfDisabled : B
 }
 
 
+/**
+ * ActionState that ensures valid Viewer and SourceState prior to triggering an action
+ *
+ * @param S the type of SourceState
+ *
+ * @param viewerActionState implementation of ViewerActionState
+ * @param sourceStateActionState implementation of SourceActionState
+ * @param additionalDelegates additional delegates to add if desired.
+ */
 open class ViewerAndSourceActionState<S : SourceState<*,*>>(
 	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
-	sourceStateActionState : SourceStateActionState<S> = SourceStateActionState.ActiveSource(),
+	sourceStateActionState : SourceStateActionState<S> = SourceStateActionState.FromActiveSource(),
 	vararg additionalDelegates : Any
 ) :
 	PainteraActionState(viewerActionState, sourceStateActionState, *additionalDelegates),
 	ViewerActionState by viewerActionState,
 	SourceStateActionState<S> by sourceStateActionState
 
+/**
+ * ActionState useful for validating common state needed for paint operations.
+ * Currently wraps a PaintContextActionState, but may combine later.
+ *
+ * @param S the paintable label state type
+ * @param D data type of the label state
+ * @param T volatile data type of the label state
+ *
+ * @param paintContextActionState paint context state, by default [FromCurrentMode]
+ * @param additionalDelegates
+ */
 open class PaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
 	paintContextActionState: PaintContextActionState<S, D, T> = PaintContextActionState.FromCurrentMode(),
 	vararg additionalDelegates : Any
@@ -43,6 +78,17 @@ open class PaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
 	PaintContextActionState<S, D, T> by paintContextActionState
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 
+/**
+ * Viewer and paintable source action state
+ *
+ * @param S the paintable label state
+ * @param D the data type of the label state
+ * @param T the volatile data type of the label state
+ *
+ * @param viewerActionState viewer action state, by default [MostRecentFocus]
+ * @param paintContextActionState paint context state, by default [FromCurrentMode]
+ * @param additionalDelegates
+ */
 open class ViewerAndPaintableSourceActionState<S : ConnectomicsLabelState<D, T>, D, T>(
 	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
 	paintContextActionState: PaintContextActionState<S, D, T> = PaintContextActionState.FromCurrentMode(),
@@ -52,9 +98,18 @@ open class ViewerAndPaintableSourceActionState<S : ConnectomicsLabelState<D, T>,
 	ViewerActionState by viewerActionState
 where D : IntegerType<D>, T : RealType<T>, T : Volatile<D>
 
+/**
+ * ActionState for verifying state used for navigation a source state
+ *
+ * @param S the source state to navigate
+ *
+ * @param viewerActionState viewer action state, by default [MostRecentFocus]
+ * @param sourceState source state action state, by default [FromActiveSource]
+ * @param additionalDelegates
+ */
 open class NavigationActionState<S : SourceState<*, *>>(
 	viewerActionState : ViewerActionState = ViewerActionState.MostRecentFocus(),
-	sourceState : SourceStateActionState<S> = SourceStateActionState.ActiveSource(),
+	sourceState : SourceStateActionState<S> = SourceStateActionState.FromActiveSource(),
 	vararg additionalDelegates : Any
 ) : ViewerAndSourceActionState<S>(viewerActionState, sourceState, *additionalDelegates) {
 

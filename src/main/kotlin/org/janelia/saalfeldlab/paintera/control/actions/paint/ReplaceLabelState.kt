@@ -86,7 +86,7 @@ class ReplaceLabelState<D, T> internal constructor(
 	mode: Mode,
 	paintContextProperty: Property<StatePaintContext<*, *>> = SimpleObjectProperty(),
 ) :
-	MaskedSourceActionState.ActiveSource<ConnectomicsLabelState<D, T>, D, T>(),
+	MaskedSourceActionState.FromActiveSource<ConnectomicsLabelState<D, T>, D, T>(),
 	ReplaceLabelUI.Model by PaintContextDelegate(mode, paintContextProperty::getValue)
 		where D : IntegerType<D>, T : RealType<T>, T : Volatile<D> {
 
