@@ -912,6 +912,7 @@
 								<configuration>
 									<toolName>jlink</toolName>
 									<removeDirectories>${project.build.directory}/jvm-image/</removeDirectories>
+									<!--suppress MavenModelInspection; imported from mvn-jpackage.properties -->
 									<addModules>${jvm.modules}</addModules>
 									<output>${project.build.directory}/jvm-image</output>
 									<args>
