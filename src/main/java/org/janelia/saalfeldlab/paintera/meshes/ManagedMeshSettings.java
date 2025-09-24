@@ -286,9 +286,9 @@ public class ManagedMeshSettings<K> {
 	private void bindBidirectionalToGlobalSettings(final MeshSettings settings, final boolean bind) {
 
 		if (bind)
-			settings.bindBidirectionalTo(globalSettings);
+			settings.bindBidirectional(globalSettings);
 		else
-			settings.unbindBidrectional(globalSettings);
+			settings.unbindBidirectional(globalSettings);
 	}
 
 }
