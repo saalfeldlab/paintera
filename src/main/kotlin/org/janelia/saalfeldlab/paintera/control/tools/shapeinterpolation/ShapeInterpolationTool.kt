@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.event.Event
 import javafx.css.PseudoClass
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
@@ -12,9 +11,7 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
 import kotlinx.coroutines.Job
-import net.imglib2.Point
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import org.janelia.saalfeldlab.fx.actions.*
@@ -416,63 +413,6 @@ internal class ShapeInterpolationTool(
 							}
 						}
 					}
-					class SelectIdState : ActionState() {
-
-						lateinit var mask: ViewerMask
-						lateinit var event: MouseEvent
-						var fillFromViewerMask: Boolean = false
-
-
-						val pointInMask: Point
-							get() {
-								return mask.displayPointToMask(event.x, event.y, pointInCurrentDisplay = true)
-							}
-
-						val pointInSource: RealPoint
-							get() {
-								return pointInMask.positionAsRealPoint().also { mask.initialMaskToSourceTransform.apply(it, it) }
-							}
-
-						fun fillFromViewerMask(): Boolean {
-							val maskLabel = mask.viewerImg.extendValue(Label.INVALID)[pointInMask].integerLong
-							return maskLabel == interpolationId
-						}
-
-						fun fillFromSource(): Boolean {
-							val info = mask.info
-							val sourceLabel = source.getInterpolatedDataSource(info.time, info.level, null).getAt(pointInSource).integerLong
-							return sourceLabel != Label.BACKGROUND && sourceLabel.toULong() <= Label.MAX_ID.toULong()
-						}
-
-						override fun <E : Event> Action<E>.verifyState() {
-							verify("Mouse Event required for getting fill seed position and checking mask value") { it ->
-								if (it !is MouseEvent)
-									return@verify false
-
-								event = it
-								true
-							}
-							verify(::mask, "getMask must provide ViewerMask from ShapeInterpolationController") {
-								source.resetMasks(false)
-								getMask()
-							}
-
-							verify("Fill from ViewerMask Or underlying soruce") {
-								if (it != event)
-									return@verify false
-
-								fillFromViewerMask = fillFromViewerMask()
-								true
-							}
-
-							verify("Seed Position is Valid for ViewerMask or underlying source") {
-								if (it == event)
-									return@verify true
-
-								fillFromViewerMask || fillFromSource()
-							}
-						}
-					}
 					MOUSE_CLICKED {
 						name = "select object in current slice"
 						verifyNoKeysDown()
@@ -481,7 +421,9 @@ internal class ShapeInterpolationTool(
 						verify { shapeInterpolationMode.activeTool !is Fill2DTool }
 						verify { it!!.button == MouseButton.PRIMARY && !it.isControlDown } // respond to primary click
 						verify { controllerState != ShapeInterpolationController.ControllerState.Interpolate } // need to be in the select state
-						onAction(SelectIdState()) {
+						onActionWithState({ ShapeInterpolationSelectIDToFillState() }) { event ->
+							event!! /* Safe because verifyNotNull. Would be nice to not need this */
+
 							fun fillFromViewerMask() {
 								val prevSlice = controller.sliceAt(currentDepth)!!.also {
 									deleteSliceAt(currentDepth, reinterpolate = false)
@@ -523,9 +465,9 @@ internal class ShapeInterpolationTool(
 									}
 								}
 							}
-							if (fillFromViewerMask)
+							if (fillFromViewer(event))
 								fillFromViewerMask()
-							else
+							else if (fillFromSource(event))
 								fillFromSourceMask()
 						}
 					}
@@ -539,7 +481,7 @@ internal class ShapeInterpolationTool(
 							val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker()!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
 							triggerByRightClick || triggerByCtrlLeftClick
 						}
-						onAction(SelectIdState()) { event ->
+						onActionWithState({ ShapeInterpolationSelectIDToFillState() }) { event ->
 							currentJob = fillObjectInSlice(event!!, mask)
 						}
 					}
