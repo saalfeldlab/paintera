@@ -177,7 +177,7 @@ class OpenSourceState {
 				}
 			}
 
-			var backend = N5BackendRaw<T, V>(metadataState)
+			val backend = N5BackendRaw<T, V>(metadataState)
 			return ConnectomicsRawState(backend, sharedQueue, priority, openSourceState.sourceName).apply {
 				converter().min = openSourceState.minIntensity
 				converter().max = openSourceState.maxIntensity
@@ -232,6 +232,10 @@ class OpenSourceState {
 				V : Volatile<T>, V : NativeType<V> {
 
 			val metadataState = openSourceState.metadataState!!.copy()
+			if (metadataState.datasetAttributes.numDimensions > 3) {
+				metadataState.n5ContainerState = metadataState.n5ContainerState.readOnlyCopy()
+				metadataState.isLabel = true
+			}
 			openSourceState.resolution?.let { resolution ->
 				openSourceState.translation?.let { translation ->
 					if (metadataState.resolution != resolution || metadataState.translation != translation)

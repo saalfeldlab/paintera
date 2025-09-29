@@ -10,9 +10,11 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
+import javafx.geometry.HPos;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -21,12 +23,16 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter.Change;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Window;
 import kotlin.Pair;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
@@ -42,6 +48,8 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -54,7 +62,7 @@ public class MetaPanel {
 
 	private static final double GRID_HGAP = 0;
 
-	private static final double TEXTFIELD_WIDTH = 100;
+	private static final double TEXTFIELD_WIDTH = 80;
 
 	private static final String X_STRING = "X";
 
@@ -153,6 +161,7 @@ public class MetaPanel {
 		});
 
 		formatLabels(empty, xLabel, yLabel, zLabel);
+
 		addToGrid(spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel);
 		addToGrid(
 				spatialInfo,
@@ -164,60 +173,101 @@ public class MetaPanel {
 				resolution.textZ()
 		);
 		addToGrid(spatialInfo, 0, 2, new Label("Offset (physical)"), offset.textX(), offset.textY(), offset.textZ());
-		spatialInfo.add(reverseButton, 3, 3);
-		reverseButton.setPrefWidth(TEXTFIELD_WIDTH);
-		final ColumnConstraints cc = new ColumnConstraints();
-		cc.setHgrow(Priority.ALWAYS);
-		spatialInfo.getColumnConstraints().addAll(cc);
+		spatialInfo.add(reverseButton, 0, 3, GridPane.REMAINING, 1);
+		GridPane.setHalignment(reverseButton, HPos.RIGHT);
+		final ColumnConstraints hGrow = new ColumnConstraints();
+		hGrow.setHgrow(Priority.ALWAYS);
+		spatialInfo.getColumnConstraints().addAll(hGrow);
 
 		final StackPane dimensionInfo = new StackPane();
 		// max num of labels
 
 		final StackPane channelInfoPane = new StackPane();
 
-		this.dimensionsProperty.addListener((obs, oldv, newv) -> {
-			if (newv == null) {
+		final Runnable clearChannelInfoPane = () -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+			channelInfoPane.getChildren().clear();
+			sizeWindowToScene(channelInfoPane);
+		});
+
+		final Consumer<Node> setChannelInfoPane = (channelInfoNode) -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+			channelInfoPane.getChildren().setAll(channelInfoNode);
+			sizeWindowToScene(channelInfoPane);
+		});
+
+		this.dimensionsProperty.addListener((obs, oldv, dimensions) -> {
+			if (dimensions == null) {
 				InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
 				InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
 			} else {
-				final Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+				final Label[] labels = Stream.generate(Label::new).limit(dimensions.length).toArray(Label[]::new);
 				Stream.of(labels).forEach(l -> {
+					l.setFont(Font.font(l.getFont().getFamily(), FontWeight.BOLD, l.getFont().getSize() + 2));
 					l.setTextAlignment(TextAlignment.CENTER);
 					l.setAlignment(Pos.BASELINE_CENTER);
 					l.setPrefWidth(TEXTFIELD_WIDTH);
 				});
 				final GridPane grid = new GridPane();
 				grid.setHgap(GRID_HGAP);
-				grid.getColumnConstraints().addAll(cc);
-				grid.add(new Label("Dimensions"), 0, 1);
+				grid.getColumnConstraints().addAll(hGrow);
+				final Label dimensionsTitle = new Label("Dimensions");
+				dimensionsTitle.setFont(Font.font(dimensionsTitle.getFont().getFamily(), FontWeight.BOLD, dimensionsTitle.getFont().getSize()));
+				grid.add(dimensionsTitle, 0, 0);
+				GridPane.setHalignment(dimensionsTitle, HPos.CENTER);
+				final int headerRow = 1;
+				final int sizeRow = headerRow + 2;
+				final int legendCol = 0;
+				final Label indexLabel = new Label("Index");
+				indexLabel.setFont(Font.font(indexLabel.getFont().getFamily(), FontWeight.BOLD, indexLabel.getFont().getSize()));
+				GridPane.setHalignment(indexLabel, HPos.RIGHT);
+				grid.add(indexLabel, legendCol, headerRow);
+				final Label sizeLabel = new Label("Size (px)");
+				sizeLabel.setFont(Font.font(sizeLabel.getFont().getFamily(), FontWeight.BOLD, sizeLabel.getFont().getSize()));
+				GridPane.setHalignment(sizeLabel, HPos.RIGHT);
+				grid.add(sizeLabel, legendCol, sizeRow);
 				final var metadataState = metadataStateBinding.get();
 				final Axis[] axes = metadataState != null ? MetadataUtils.getAxes(metadataState) : null;
-				for (int d = 0; d < newv.length; ++d) {
+				for (int d = 0; d < dimensions.length; ++d) {
 					final var text = axes != null ? axes[d].getName() : "" + d;
 					labels[d].setText(text);
-					final TextField lbl = new TextField("" + newv[d]);
+					final TextField lbl = new TextField("" + dimensions[d]);
+					lbl.setAlignment(Pos.BASELINE_RIGHT);
 					lbl.setEditable(false);
-					grid.add(labels[d], d + 1, 0);
-					grid.add(lbl, d + 1, 1);
+					lbl.setBackground(Background.EMPTY);
+					grid.add(labels[d], d + 1, headerRow);
+					grid.add(lbl, d + 1, sizeRow);
 					lbl.setPrefWidth(TEXTFIELD_WIDTH);
+				}
+
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					dimensionInfo.getChildren().setAll(grid);
+					sizeWindowToScene(dimensionInfo);
+				});
+
+				if (dimensions.length != 4) {
+					clearChannelInfoPane.run();
+					return;
 				}
 
 				final Pair<Axis, Integer> channelAxis = metadataState != null ? metadataState.getChannelAxis() : null;
 				final Integer channelIdx;
 				if (channelAxis != null)
 					channelIdx = channelAxis.getSecond();
-				else if (newv.length < 4)
-					channelIdx = null;
 				else
 					channelIdx = 3;
-				final int numChannels = channelIdx != null ? (int)newv[channelIdx] : 0;
+
+				final int numChannels = channelIdx != null ? (int)dimensions[channelIdx] : 0;
+				/* Currently, channels are only specifically supported in 4D datasets */
 				channelInfo.numChannelsProperty().set(numChannels);
-				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
-				if (channelInfo.numChannelsProperty().get() > 0) {
+				if (channelInfo.numChannelsProperty().get() <= 0)
+					clearChannelInfoPane.run();
+				else {
 					final Node channelInfoNode = channelInfo.getNode();
-					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
-				} else
-					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
+					dataType.isEqualTo(TYPE.RAW).subscribe( it -> {
+						channelInfoNode.setVisible(it);
+						channelInfoNode.setManaged(it);
+					});
+					setChannelInfoPane.accept(channelInfoNode);
+				}
 			}
 		});
 
@@ -226,13 +276,13 @@ public class MetaPanel {
 				dimensionInfo, new Separator(Orientation.HORIZONTAL),
 				channelInfoPane, new Separator(Orientation.HORIZONTAL));
 
-		this.dataType.addListener((obs, oldv, newv) -> {
-			if (newv != null)
+		this.dataType.addListener((obs, oldv, type) -> {
+			if (type != null)
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					final ObservableList<Node> children = this.content.getChildren();
 					children.removeAll(this.additionalMeta);
 					this.additionalMeta.clear();
-					switch (newv) {
+					switch (type) {
 					case RAW:
 						children.add(this.rawMeta);
 						this.additionalMeta.add(this.rawMeta);
@@ -244,11 +294,12 @@ public class MetaPanel {
 					default:
 						break;
 					}
+					sizeWindowToScene(content);
 				});
 		});
 
 		final GridPane rawMinMax = new GridPane();
-		rawMinMax.getColumnConstraints().add(cc);
+		rawMinMax.getColumnConstraints().add(hGrow);
 		rawMinMax.add(new Label("Intensity Range"), 0, 0);
 		rawMinMax.add(this.min.getTextField(), 1, 0);
 		rawMinMax.add(this.max.getTextField(), 2, 0);
@@ -276,6 +327,14 @@ public class MetaPanel {
 			openSourceState.getResolutionProperty().set(reverse(getResolution()));
 			openSourceState.getTranslationProperty().set(reverse(getOffset()));
 		});
+	}
+
+	private static void sizeWindowToScene(Node dimensionInfo) {
+
+		Optional.of(dimensionInfo)
+				.map(Node::getScene)
+				.map(Scene::getWindow)
+				.ifPresent(Window::sizeToScene);
 	}
 
 	private static double[] reverse(final double[] array) {

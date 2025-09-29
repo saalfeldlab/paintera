@@ -153,6 +153,8 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
 					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
+					if (metadataState.datasetAttributes.numDimensions > 3)
+						metadataState.n5ContainerState = n5ContainerState.readOnlyCopy()
 					N5BackendMultiScaleGroup<D, T>(
 						metadataState,
 						propagationExecutorService

@@ -50,7 +50,7 @@ public class N5OpenSourceHelper {
 			PainteraBaseView viewer) {
 
 		final DatasetAttributes attributes = Objects.requireNonNull(openSourceState.getDatasetAttributes());
-		if (attributes.getNumDimensions() != 3) {
+		if (attributes.getNumDimensions() == 4) {
 			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
 			final var channels = OpenSourceState.getChannels(openSourceState, channelSelection, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
@@ -66,10 +66,6 @@ public class N5OpenSourceHelper {
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
 			final OpenSourceState openSourceState,
 			final PainteraBaseView viewer) throws Exception {
-
-		final DatasetAttributes attributes = openSourceState.getDatasetAttributes();
-		if (attributes.getNumDimensions() > 3)
-			throw new Exception("Only 3D label data supported but got " + attributes.getNumDimensions() + " dimensions.");
 
 		final SourceState<D, T> rep = OpenSourceState.getLabels(
 				openSourceState,

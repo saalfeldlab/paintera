@@ -36,7 +36,7 @@ import kotlin.streams.asSequence
 
 interface MetadataState {
 
-	val n5ContainerState: N5ContainerState
+	var n5ContainerState: N5ContainerState
 
 	val metadata: N5Metadata
 	var datasetAttributes: DatasetAttributes
@@ -52,7 +52,7 @@ interface MetadataState {
 	var timeAxis: Pair<Axis, Int>?
 	var virtualCrop: Interval?
 	var unit: String
-	var reader: N5Reader
+	val reader: N5Reader
 
 	val writer: N5Writer?
 	var group: String
@@ -111,7 +111,8 @@ open class SingleScaleMetadataState(
 	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
 	override var virtualCrop: Interval? = null
 	override var unit: String = metadata.unit()
-	override var reader = n5ContainerState.reader
+	override val reader
+		get() = n5ContainerState.reader
 	override val writer: N5Writer?
 		get() = n5ContainerState.writer
 
@@ -149,7 +150,7 @@ open class SingleScaleMetadataState(
 
 
 open class MultiScaleMetadataState(
-	override val n5ContainerState: N5ContainerState,
+	override var n5ContainerState: N5ContainerState,
 	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 

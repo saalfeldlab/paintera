@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import java.net.URI
 
 class N5FactoryWithCache : N5Factory() {
@@ -58,7 +57,18 @@ class N5FactoryWithCache : N5Factory() {
 	}
 
 	override fun openReader(uri: String): N5Reader {
-		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: openReaderDefaultN5(uri).let {
+		return openReader(uri, allowWriter = true)
+	}
+
+	fun openReader(uri: String, allowWriter : Boolean): N5Reader {
+		/* Get the cached reader if present, and not also a writer (or allowed)*/
+		var reader: N5Reader? = getFromReaderCache(uri)?.takeIf { allowWriter || it !is N5Writer }
+		/* if allowWriter, grab the cached writer if present */
+		reader = reader ?: if (allowWriter) getFromWriterCache(uri) else null
+		/* try to create a new reader */
+		reader = reader ?: openReaderDefaultN5(uri)
+
+		return reader.also {
 			if (containerIsReadable(it)) {
 				readerCache[uri] = it
 				it
@@ -80,6 +90,10 @@ class N5FactoryWithCache : N5Factory() {
 	} catch (e : Exception) {
 		LOG.debug(e) {"Unable to open $uri as N5Writer"}
 		null
+	}
+
+	fun openReadOnlyN5(uri : String) : N5Reader {
+		return openReader(uri, allowWriter = false)
 	}
 
 	fun openReaderOrNull(uri : String) : N5Reader? = try {

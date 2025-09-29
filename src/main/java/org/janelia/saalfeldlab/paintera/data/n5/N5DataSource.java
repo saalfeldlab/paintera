@@ -115,9 +115,10 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
 	interpolation(MetadataState metadataState) {
 
-		return metadataState.isLabelMultiset()
-				? i -> new NearestNeighborInterpolatorFactory<>()
-				: (Function)realTypeInterpolation();
+		if (metadataState.isLabel() || metadataState.isLabelMultiset() )
+			return 	i -> new NearestNeighborInterpolatorFactory<>();
+		else
+			return (Function)realTypeInterpolation();
 	}
 
 	private static <T extends RealType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
