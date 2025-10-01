@@ -2,9 +2,11 @@ package org.janelia.saalfeldlab.paintera
 
 import ch.qos.logback.classic.Level
 import com.sun.javafx.application.PlatformImpl
+import com.sun.javafx.stage.StageHelper
 import com.sun.javafx.stage.WindowHelper
 import javafx.application.Application
 import javafx.application.Platform
+import javafx.application.Preloader
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.event.Event
 import javafx.event.EventHandler
@@ -15,7 +17,12 @@ import javafx.scene.control.ButtonType
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
+import javafx.stage.Window
 import javafx.stage.WindowEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
@@ -46,6 +53,9 @@ fun main(args: Array<String>) {
 	Application.launch(Paintera::class.java, *args)
 }
 
+/* should be null on first load, and only should be set and handled manually when re-loading a project */
+private var splashScreen: PainteraSplashScreen? = null
+
 class Paintera : Application() {
 
 	private lateinit var commandlineArguments: Array<String>
@@ -57,6 +67,34 @@ class Paintera : Application() {
 	init {
 		application = this
 		/* add window listener for scenes */
+	}
+
+	override fun start(primaryStage: Stage) {
+		start(primaryStage, null)
+	}
+
+	private fun start(primaryStage: Stage, windowPosition: WindowPosition?) {
+		primaryStage.scene = Scene(paintera.pane)
+		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+		registerStylesheets(primaryStage.scene)
+
+		windowPosition?.let { (x, y, width, height, fullscreen) ->
+			/* set the stage, and set the properties to align */
+			windowPosition.setOn(primaryStage)
+			paintera.properties.windowProperties.apply {
+				widthProperty.set(width.toInt())
+				heightProperty.set(height.toInt())
+				fullScreenProperty.set(fullscreen)
+			}
+		}
+		paintera.setupStage(primaryStage)
+
+		if (windowPosition == null && projectDir == null) {
+			primaryStage.sizeToScene()
+		}
+ 		primaryStage.show()
+
+		paintera.properties.viewer3DConfig.bindViewerToConfig(paintera.baseView.viewer3D())
 	}
 
 	override fun init() {
@@ -82,17 +120,17 @@ class Paintera : Application() {
 		}
 
 		projectPath?.let {
-			notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
+			notifySplashScreen(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
 			PainteraCache.RECENT_PROJECTS.appendLine(projectPath.canonicalPath, 10)
 		} ?: let {
-			notifyPreloader(SplashScreenUpdateNumItemsNotification(2, false))
-			notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
+			notifySplashScreen(SplashScreenUpdateNumItemsNotification(2, false))
+			notifySplashScreen(SplashScreenUpdateNotification("Launching Paintera...", true))
 		}
 		try {
 			paintera.deserialize()
 		} catch (error: Exception) {
 			LOG.error("Unable to deserialize Paintera project `{}'.", projectPath, error)
-			notifyPreloader(SplashScreenFinishPreloader())
+			notifySplashScreen(SplashScreenFinishPreloader())
 			PlatformImpl.runAndWait {
 				Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error).apply {
 					setOnHidden { exitProcess(0); }
@@ -104,8 +142,8 @@ class Paintera : Application() {
 			return
 		}
 		projectPath?.let {
-			notifyPreloader(SplashScreenUpdateNotification("Finalizing Project: ${it.path}"))
-		} ?: notifyPreloader(SplashScreenUpdateNotification("Launching Paintera...", true))
+			notifySplashScreen(SplashScreenUpdateNotification("Finalizing Project: ${it.path}"))
+		} ?:notifySplashScreen(SplashScreenUpdateNotification("Launching Paintera...", true))
 		paintable = true
 		runPaintable()
 		InvokeOnJavaFXApplicationThread.invokeAndWait {
@@ -125,7 +163,38 @@ class Paintera : Application() {
 				set(scales)
 			}
 		}
-		notifyPreloader(SplashScreenFinishPreloader())
+		notifySplashScreen(SplashScreenFinishPreloader())
+	}
+
+	private fun restartPreloader() {
+		InvokeOnJavaFXApplicationThread.invokeAndWait {
+			splashScreen = PainteraSplashScreen()
+		}
+
+		splashScreen?.init()
+
+		InvokeOnJavaFXApplicationThread.invokeAndWait {
+			val primaryStage = Stage()
+			StageHelper.setPrimary(primaryStage, true)
+			splashScreen?.start(primaryStage)
+		}
+		/* this initialization sequence mimics the sequence in `LauncherImpl` */
+		notifySplashScreen(Preloader.ProgressNotification(0.0))
+		notifySplashScreen(Preloader.ProgressNotification(1.0))
+		notifySplashScreen(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_LOAD, null))
+	}
+
+	private val defaultScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+	private fun restartPaintera(windowPosition: WindowPosition? = null) {
+		restartPreloader()
+		notifySplashScreen(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_INIT, application))
+		application.init()
+		notifySplashScreen(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_START, application))
+		InvokeOnJavaFXApplicationThread {
+			val stage = Stage()
+			application.start(stage, windowPosition)
+		}
 	}
 
 	private fun parsePainteraCommandLine(vararg args: String): Boolean {
@@ -156,27 +225,6 @@ class Paintera : Application() {
 			}
 		}
 		return projectDirAccess
-	}
-
-	override fun start(primaryStage: Stage) {
-
-		primaryStage.scene = Scene(paintera.pane)
-		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-		registerStylesheets(primaryStage.scene)
-
-		paintera.setupStage(primaryStage)
-		primaryStage.show()
-
-		paintera.properties.viewer3DConfig.bindViewerToConfig(paintera.baseView.viewer3D())
-
-		paintera.properties.windowProperties.apply {
-			primaryStage.width = widthProperty.get().toDouble()
-			primaryStage.height = heightProperty.get().toDouble()
-			widthProperty.bind(primaryStage.widthProperty())
-			heightProperty.bind(primaryStage.heightProperty())
-			fullScreenProperty.addListener { _, _, newv -> primaryStage.isFullScreen = newv }
-			primaryStage.isFullScreen = fullScreenProperty.value
-		}
 	}
 
 	fun loadProject(projectDirectory: String? = null) {
@@ -221,11 +269,14 @@ class Paintera : Application() {
 		if (!paintera.askSaveAndQuit()) {
 			return
 		}
+
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
 		n5Factory.clearCache()
 
+		var windowPosition : WindowPosition? = null
 		paintera.pane.scene.window.let { window ->
+			windowPosition = WindowPosition(window)
 			Platform.setImplicitExit(false)
 			window.onHiding = EventHandler { /*Typically exits paintera, but we don't want to here, so do nothing*/ }
 			window.onCloseRequest = EventHandler { /* typically asks to save and quite, but we ask above, so do nothing */ }
@@ -234,12 +285,29 @@ class Paintera : Application() {
 			Event.fireEvent(window, WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST))
 		}
 		application.commandlineArguments = projectDirectory?.let { arrayOf(it) } ?: emptyArray()
-		application.init()
-		InvokeOnJavaFXApplicationThread { application.start(Stage()) }
-
+		defaultScope.launch {
+			restartPaintera(windowPosition)
+		}
 	}
 
 	companion object {
+
+		private data class WindowPosition(val x: Double, val y: Double, val width: Double, val height: Double, val isFullscreen: Boolean) {
+			constructor(window: Window): this(window.x, window.y, window.width, window.height, (window as? Stage)?.isFullScreen ?: false)
+
+			fun setOn(stage: Stage) {
+				/* when fullscreen, don't manually try and position the window*/
+				if (isFullscreen)
+					stage.isFullScreen = true
+				else {
+					stage.x = x
+					stage.y = y
+					stage.width = width
+					stage.height = height
+					stage.isFullScreen = isFullscreen
+				}
+			}
+		}
 
 		@JvmStatic
 		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
@@ -339,6 +407,26 @@ class Paintera : Application() {
 
 		private fun registerPainteraStylesheets(styleable: Parent) {
 			styleable.stylesheets.addAll(stylesheets)
+		}
+
+		private fun Preloader.notifyRestartedPreloader(info: Preloader.PreloaderNotification) {
+			InvokeOnJavaFXApplicationThread.invokeAndWait {
+				when (info) {
+					is Preloader.StateChangeNotification -> handleStateChangeNotification(info)
+					is Preloader.ProgressNotification -> handleProgressNotification(info)
+					is Preloader.ErrorNotification -> handleErrorNotification(info)
+					else -> handleApplicationNotification(info)
+				}
+			}
+		}
+
+		@JvmStatic
+		@JvmName("notifySplashScreen")
+		internal fun notifySplashScreen(info: Preloader.PreloaderNotification) {
+
+			/* We should expect `splashScreen` to be null on the initial application startup, since the JavaFX Preloader will handle it the first time.
+			* Unfortunately, we need to do it ourselves the next time(s) since it's not really a supported usecase to re-trigger the preloader */
+			splashScreen?.notifyRestartedPreloader(info) ?: application.notifyPreloader(info)
 		}
 	}
 

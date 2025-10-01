@@ -36,7 +36,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TransformListener;
-import bdv.viewer.ViewerOptions;
+import bdv.viewer.ViewerOptions.Values;
 import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -56,6 +56,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ObservablePosition;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
+import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +97,7 @@ public class ViewerPanelFX
 
 	private final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
 
-	private final ViewerOptions.Values options;
+	private final Values options;
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
@@ -109,23 +110,23 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation,
 			final TaskExecutor taskExecutor) {
 
-		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation, taskExecutor);
+		this(sources, numTimePoints, cacheControl, OrthoViewerOptions.options(), interpolation, taskExecutor);
 	}
 
 	/**
 	 * Will create {@link ViewerPanelFX} without any data sources and a single time point.
 	 *
 	 * @param cacheControl  to control IO budgeting and fetcher queue.
-	 * @param optional      optional parameters. See {@link ViewerOptions#options()}.
+	 * @param options  Viewer parameters. See {@link OrthoViewerOptions#options()}.
 	 * @param interpolation Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final CacheControl cacheControl,
-			final ViewerOptions optional,
+			final OrthoViewerOptions options,
 			final Function<Source<?>, Interpolation> interpolation,
 			final TaskExecutor taskExecutor) {
 
-		this(1, cacheControl, optional, interpolation, taskExecutor);
+		this(1, cacheControl, options, interpolation, taskExecutor);
 	}
 
 	/**
@@ -133,17 +134,17 @@ public class ViewerPanelFX
 	 *
 	 * @param numTimepoints number of available timepoints.
 	 * @param cacheControl  to control IO budgeting and fetcher queue.
-	 * @param optional      optional parameters. See {@link ViewerOptions#options()}.
-	 * @param interpolation Get interpolation method for each data source.
+	 * @param options       Viewer parameters. See {@link OrthoViewerOptions#options()}.
+	 * @param interpolation Get the interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final int numTimepoints,
 			final CacheControl cacheControl,
-			final ViewerOptions optional,
+			final OrthoViewerOptions options,
 			final Function<Source<?>, Interpolation> interpolation,
 			final TaskExecutor taskExecutor) {
 
-		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation, taskExecutor);
+		this(new ArrayList<>(), numTimepoints, cacheControl, options, interpolation, taskExecutor);
 	}
 
 	/**
@@ -152,21 +153,21 @@ public class ViewerPanelFX
 	 * @param sources       the {@link SourceAndConverter sources} to display.
 	 * @param numTimepoints number of available timepoints.
 	 * @param cacheControl  to control IO budgeting and fetcher queue.
-	 * @param optional      optional parameters. See {@link ViewerOptions#options()}.
+	 * @param options      options parameters. See {@link OrthoViewerOptions#options()}.
 	 * @param interpolation Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
-			final ViewerOptions optional,
+			final OrthoViewerOptions options,
 			final Function<Source<?>, Interpolation> interpolation,
 			final TaskExecutor taskExecutor) {
 
 		super();
 		super.setBackground(Background.fill(Color.BLACK));
 		super.getChildren().setAll(canvasPane, overlayPane);
-		options = optional.values;
+		this.options = options.values;
 
 		threadGroup = new ThreadGroup(this.toString());
 		viewerTransform = new AffineTransform3D();
@@ -179,15 +180,19 @@ public class ViewerPanelFX
 				threadGroup,
 				this::getState,
 				interpolation,
-				options.getAccumulateProjectorFactory(),
+				this.options.getAccumulateProjectorFactory(),
 				cacheControl,
-				options.getTargetRenderNanos(),
+				this.options.getTargetRenderNanos(),
 				taskExecutor
 		);
 
 		startRenderAnimator();
-		setWidth(options.getWidth());
-		setHeight(options.getHeight());
+
+		/* initialize the prefWidth and width properties. */
+		setPrefWidth(this.options.getWidth());
+		setPrefHeight(this.options.getHeight());
+		setWidth(this.options.getWidth());
+		setHeight(this.options.getHeight());
 		widthProperty().subscribe(width -> renderUnit.setDimensions(width.longValue(), (long)getHeight()));
 		heightProperty().subscribe(height -> renderUnit.setDimensions((long)getWidth(), height.longValue()));
 

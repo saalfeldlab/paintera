@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera
 
-import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -9,9 +8,9 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
-import javafx.scene.Parent
 import javafx.scene.control.Alert
 import javafx.scene.image.Image
+import javafx.scene.layout.Region
 import javafx.stage.Stage
 import net.imglib2.realtransform.AffineTransform3D
 import org.controlsfx.control.Notifications
@@ -21,6 +20,7 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
@@ -49,7 +49,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val baseView = PainteraBaseView(
 		PainteraBaseView.reasonableNumFetcherThreads(),
-		ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
+		OrthoViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
 		KeyAndMouseConfig()
 	)
 
@@ -86,7 +86,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers
 
-	internal val pane: Parent
+	internal val pane: Region
 		get() = paneWithStatus.pane
 
 	private lateinit var newProjectSettings: JsonElement
@@ -263,7 +263,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	internal var wasQuit = false
-	fun setupStage(stage: Stage) {
+	internal fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
 		stage.icons.addAll(
@@ -275,6 +275,24 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			Image("/icon-128.png")
 		)
 		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty)
+
+		paintera.properties.windowProperties.apply {
+			/* listen for changes to update the windowProperties */
+			stage.widthProperty().subscribe { _, width -> widthProperty.set(width.toInt()) }
+			stage.heightProperty().subscribe { _, height -> heightProperty.set(height.toInt()) }
+			stage.fullScreenProperty().subscribe { _, fullscreen -> fullScreenProperty.set(fullscreen) }
+
+			/* On start set the window properties from the config */
+			if (fullScreenProperty.value)
+				stage.isFullScreen = true
+			else {
+				stage.width = widthProperty.get().toDouble()
+				stage.height = heightProperty.get().toDouble()
+				stage.isFullScreen = fullScreenProperty.value
+			}
+		}
+
+
 		wasQuit = false
 		stage.onCloseRequest = EventHandler { if (!doSaveAndQuit()) it.consume() }
 		stage.onHiding = EventHandler { if (!doSaveAndQuit()) it.consume() }

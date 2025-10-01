@@ -10,6 +10,7 @@ import javafx.scene.control.Tooltip
 import javafx.scene.layout.Background
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
 import javafx.scene.text.Font
 import net.imglib2.RealPoint
@@ -26,7 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 private const val NOT_APPLICABLE = "N/A"
 private val MONOSPACE = Font.font("Monospaced")
 
-internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidthBinding: ObservableDoubleValue) : HBox() {
+internal class StatusBar(backgroundBinding: ObjectProperty<Background>) : HBox() {
 
 	private val statusLabel = Label().apply {
 		tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
@@ -106,8 +107,13 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 		children += modeStatus
 		children += NamedNode.bufferNode()
 
+		parentProperty().subscribe { parent ->
+			prefWidthProperty().unbind()
+			(parent as? Region)?.let { parent ->
+				prefWidthProperty().bind(parent.widthProperty())
+			}
+		}
 		backgroundProperty().bind(backgroundBinding)
-		prefWidthProperty().bind(prefWidthBinding)
 	}
 
 	fun updateStatusBarNode(vararg nodes: Node) {
@@ -148,10 +154,9 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 	companion object {
 		fun createPainteraStatusBar(
 			backgroundProperty: ObjectProperty<Background>,
-			prefWidthProperty: ObservableDoubleValue,
 			visibilityBinding: ObservableBooleanValue? = null
 		): StatusBar {
-			return StatusBar(backgroundProperty, prefWidthProperty).apply {
+			return StatusBar(backgroundProperty).apply {
 				visibilityBinding?.let {
 					visibleProperty().bind(it)
 					managedProperty().bind(visibleProperty())

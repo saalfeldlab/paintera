@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
 import java.util.function.Supplier
-import kotlin.collections.set
 
 class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars) {
 
@@ -357,8 +356,8 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 				if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
 			}
 
-			borderPane.bottom =
-				createPainteraStatusBar(borderPane.backgroundProperty(), borderPane.widthProperty(), paintera.properties.statusBarConfig.isVisibleProperty())
+			val statusBarVisibleProperty = paintera.properties.statusBarConfig.isVisibleProperty()
+			borderPane.bottom = createPainteraStatusBar(borderPane.backgroundProperty(), statusBarVisibleProperty)
 		}
 
 
