@@ -224,19 +224,18 @@ class N5BackendPainteraDataset<D, T>(
 				with(GsonExtensions) {
 					var container = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
-					var n5ContainerState = N5ContainerState(container)
-					var metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)
+					var metadataState = MetadataUtils.createMetadataState(container, dataset)
 					while (metadataState == null) {
+						val n5Uri = container.uri.toString()
 						container = N5Helpers.promptForNewLocationOrRemove(
-							container.uri.toString(), N5DatasetDoesntExist(container.uri.toString(), dataset),
+							n5Uri, N5DatasetDoesntExist(n5Uri, dataset),
 							"Dataset not found",
 							"""
 								Expected dataset "${dataset.ifEmpty { "/" }}" not found at
-									${container.uri} 
+									$n5Uri 
 							""".trimIndent()
 						)
-						n5ContainerState = N5ContainerState(container)
-						metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)
+						metadataState = MetadataUtils.createMetadataState(container, dataset)
 					}
 					N5BackendPainteraDataset<D, T>(
 						metadataState,
