@@ -26,7 +26,7 @@ data class N5ContainerState(val reader: N5Reader) {
 		when {
 			readOnly -> null
 			reader is N5Writer -> reader
-			else -> Paintera.n5Factory.openWriter(reader.uri.toString())
+			else -> Paintera.n5Factory.openWriterOrNull(reader.uri.toString())
 		}
 	}
 

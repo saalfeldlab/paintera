@@ -270,13 +270,16 @@ class Paintera : Application() {
 			return
 		}
 
+		val isTempProject = paintera.projectDirectory.directory == null
+
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
 		n5Factory.clearCache()
 
 		var windowPosition : WindowPosition? = null
 		paintera.pane.scene.window.let { window ->
-			windowPosition = WindowPosition(window)
+			if (!isTempProject)
+				windowPosition = WindowPosition(window)
 			Platform.setImplicitExit(false)
 			window.onHiding = EventHandler { /*Typically exits paintera, but we don't want to here, so do nothing*/ }
 			window.onCloseRequest = EventHandler { /* typically asks to save and quite, but we ask above, so do nothing */ }
