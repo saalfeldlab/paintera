@@ -400,7 +400,7 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
-			val container = StorageFormat.parseUri(n5container).b.toString() ?: n5container
+			val container = StorageFormat.parseUri(n5container).b.toString()
 
 			val newContainerState by lazy {
 				Paintera.n5Factory.openWriterOrReaderOrNull(n5container)?.let {

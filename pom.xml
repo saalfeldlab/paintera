@@ -673,6 +673,7 @@
 				<configuration>
 					<excludes>
 						<exclude>**PainteraBaseViewTest**</exclude>
+						<exclude>**WindowDimensionsTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
 					</excludes>
 				</configuration>

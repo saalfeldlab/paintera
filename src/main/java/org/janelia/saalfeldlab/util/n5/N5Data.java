@@ -334,7 +334,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithTransform<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
