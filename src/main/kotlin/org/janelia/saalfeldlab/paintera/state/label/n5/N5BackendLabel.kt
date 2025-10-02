@@ -30,7 +30,7 @@ interface N5BackendLabel<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBa
 				      T : NativeType<T> {
 
 			val metadataState = MetadataUtils.createMetadataState(container, dataset)!!
-			/* We are a label backend, so we know this metadata should be a a label type. So set it if it isn't */
+			/* We are a label backend, so we know this metadata should be a label type. So set it if it isn't */
 			metadataState.isLabel = true
 			return createFrom(metadataState, propagationQueue)
 		}

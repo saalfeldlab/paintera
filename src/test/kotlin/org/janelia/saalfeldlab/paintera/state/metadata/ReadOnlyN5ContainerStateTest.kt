@@ -20,7 +20,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class MetadataStateTest {
+class ReadOnlyN5ContainerStateTest {
 
 	companion object {
 		private val DIMS = longArrayOf(10, 20, 30)
@@ -33,11 +33,11 @@ class MetadataStateTest {
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
 			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.Companion.getJsonAdapter())
-			Paintera.Companion.n5Factory.gsonBuilder(builder)
+			Paintera.n5Factory.gsonBuilder(builder)
 		}
 
 		private fun writer(tmp: Path): N5Writer =
-			Paintera.Companion.n5Factory.newWriter(tmp.toAbsolutePath().toString())
+			Paintera.n5Factory.newWriter(tmp.toAbsolutePath().toString())
 
 		private fun createDataset(
 			n5: N5Writer,

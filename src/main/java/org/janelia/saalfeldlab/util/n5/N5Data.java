@@ -271,7 +271,8 @@ public class N5Data {
 				metadataState.getTransform(),
 				xyzAxes,
 				queue,
-				priority);
+				priority,
+				metadataState.isLabel());
 	}
 
 	/**
@@ -684,6 +685,11 @@ public class N5Data {
 
 		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage
 				= N5LabelMultisets.openLabelMultiset(n5, dataset, LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND));
+
+		final int dimensions = cachedLabelMultisetImage.numDimensions();
+		if (dimensions != 3) {
+			throw new UnsupportedOperationException("Label Multiset Type is only supported for 3D data, but " + dataset + " iss " + dimensions + " dimensional");
+		}
 
 		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
 		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(

@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.junit.jupiter.api.BeforeAll
@@ -15,10 +16,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class MetadataStateNDIntegrationTest {
+class SlicedSourceMetadataTest {
 
 	companion object {
 		private val BLOCK_SIZE = intArrayOf(32, 32, 32)
@@ -295,6 +297,7 @@ class MetadataStateNDIntegrationTest {
 		assertNotNull(sources)
 		assertEquals(1, sources.size)
 
+		metadataState.n5ContainerState = metadataState.n5ContainerState.readOnlyCopy()
 		assertReadOnly(metadataState.n5ContainerState)
 	}
 
@@ -328,7 +331,9 @@ class MetadataStateNDIntegrationTest {
 		assertNotNull(sources4d)
 		assertEquals(3, sources4d[0].data.numDimensions())
 
+		state4d.n5ContainerState = state3d.n5ContainerState.readOnlyCopy()
 		assertReadOnly(state4d.n5ContainerState)
+
 		assertWritable(state3d.n5ContainerState)
 	}
 
@@ -339,14 +344,17 @@ class MetadataStateNDIntegrationTest {
 		val dims = longArrayOf(50, 60, 3, 70, 2)
 		createLabelDataset(n5, dataset, dims, intArrayOf(32, 32, 1, 32, 1))
 
-		n5.setAttribute(dataset, "axes", arrayOf("x", "y", "c", "z", "t"))
-
 		val path = tmp.toAbsolutePath().toString()
 		val metadataState = MetadataUtils.createMetadataState(path, dataset)
 
 		assertNotNull(metadataState)
 		assertEquals(5, metadataState.datasetAttributes.numDimensions)
 
+		metadataState.spatialAxes = mapOf<Axis, Int>(
+			Axis(Axis.SPACE, "x") to 0,
+			Axis(Axis.SPACE, "y") to 1,
+			Axis(Axis.SPACE, "z") to 3
+		)
 		val spatialAxes = metadataState.spatialAxes
 		assertEquals(3, spatialAxes.size)
 
@@ -359,9 +367,38 @@ class MetadataStateNDIntegrationTest {
 	}
 
 	@Test
-	fun `test 4D label multiset INT8 sliced to 3D`(@TempDir tmp: Path) {
+	fun `test 4D scalar label sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
-		val dataset = "test4d_label_int8"
+		val dataset = "test4d_label_scalar"
+		val dims = longArrayOf(50, 60, 70, 3)
+		val blockSize = intArrayOf(32, 32, 32, 1)
+		val attrs = DatasetAttributes(dims, blockSize, DataType.UINT64, RawCompression())
+		n5.createDataset(dataset, attrs)
+		n5.setAttribute(dataset, "resolution", RES)
+		n5.setAttribute(dataset, "offset", OFFSET)
+		// Note: No isLabelMultiset attribute - this makes it a scalar label dataset
+
+		val path = tmp.toAbsolutePath().toString()
+		val metadataState = MetadataUtils.createMetadataState(path, dataset)
+
+		assertNotNull(metadataState)
+		assertEquals(4, metadataState.datasetAttributes.numDimensions)
+		assertEquals(DataType.UINT64, metadataState.datasetAttributes.dataType)
+		assertEquals(true, metadataState.isLabel)
+		assertEquals(false, metadataState.isLabelMultiset)
+
+		val sources = getSources(metadataState)
+
+		assertNotNull(sources)
+		assertEquals(1, sources.size)
+
+		assertSource3D(sources[0], 50, 60, 70)
+	}
+
+	@Test
+	fun `test 4D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
+		val n5 = writer(tmp)
+		val dataset = "test4d_label_multiset"
 		val dims = longArrayOf(50, 60, 70, 3)
 		val blockSize = intArrayOf(32, 32, 32, 1)
 		val attrs = DatasetAttributes(dims, blockSize, DataType.INT8, RawCompression())
@@ -377,12 +414,40 @@ class MetadataStateNDIntegrationTest {
 		assertEquals(4, metadataState.datasetAttributes.numDimensions)
 		assertEquals(DataType.INT8, metadataState.datasetAttributes.dataType)
 		assertEquals(true, metadataState.isLabel)
+		assertEquals(true, metadataState.isLabelMultiset)
 
-		val sources = getSources(metadataState)
+		// Attempting to get sources should throw UnsupportedOperationException
+		// because LabelMultiset is only supported for 3D data
+		assertFailsWith<UnsupportedOperationException> {
+			getSources(metadataState)
+		}
+	}
 
-		assertNotNull(sources)
-		assertEquals(1, sources.size)
+	@Test
+	fun `test 5D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
+		val n5 = writer(tmp)
+		val dataset = "test5d_label_multiset"
+		val dims = longArrayOf(50, 60, 70, 3, 2)
+		val blockSize = intArrayOf(32, 32, 32, 1, 1)
+		val attrs = DatasetAttributes(dims, blockSize, DataType.INT8, RawCompression())
+		n5.createDataset(dataset, attrs)
+		n5.setAttribute(dataset, "resolution", RES)
+		n5.setAttribute(dataset, "offset", OFFSET)
+		n5.setAttribute(dataset, "isLabelMultiset", true)
 
-		assertSource3D(sources[0], 50, 60, 70)
+		val path = tmp.toAbsolutePath().toString()
+		val metadataState = MetadataUtils.createMetadataState(path, dataset)
+
+		assertNotNull(metadataState)
+		assertEquals(5, metadataState.datasetAttributes.numDimensions)
+		assertEquals(DataType.INT8, metadataState.datasetAttributes.dataType)
+		assertEquals(true, metadataState.isLabel)
+		assertEquals(true, metadataState.isLabelMultiset)
+
+		// Attempting to get sources should throw UnsupportedOperationException
+		// because LabelMultiset is only supported for 3D data
+		assertFailsWith<UnsupportedOperationException> {
+			getSources(metadataState)
+		}
 	}
 }
