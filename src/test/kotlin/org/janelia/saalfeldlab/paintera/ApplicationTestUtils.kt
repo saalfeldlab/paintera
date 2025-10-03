@@ -10,10 +10,6 @@ import javafx.application.Preloader.ProgressNotification
 import javafx.application.Preloader.StateChangeNotification.Type.*
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.Companion.invokeAndWait
-import java.lang.AutoCloseable
-import java.util.stream.Stream
-import kotlin.reflect.KFunction
-import kotlin.reflect.full.findAnnotation
 
 object ApplicationTestUtils {
 
@@ -95,9 +91,6 @@ object ApplicationTestUtils {
 
 	@JvmStatic
 	fun painteraTestApp() : PainteraTestApplication = launchApplication<Paintera, PainteraTestApplication>()
-
-	@JvmStatic
-	fun painteraTestAppParameter(): Stream<PainteraTestApplication> = Stream.of(painteraTestApp())
 }
 
 open class TestApplication<T : Application>(val app : T, val stage : Stage) : AutoCloseable {

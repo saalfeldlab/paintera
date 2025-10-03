@@ -11,7 +11,7 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.test.assertTrue
 
-class PainteraMainWindowTest {
+class N5FactoryWithCacheTest {
 
 	@Test
 	fun `no extension, no scheme, should be N5`(@TempDir tmpPath: Path ) {
