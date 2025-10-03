@@ -53,7 +53,14 @@ class N5FactoryWithCache : N5Factory() {
 
 	private fun openReaderDefaultN5(uri: String) : N5Reader {
 		val (format, asUri) = parseUriWithN5Default(uri)
-		return super.openReader(format, asUri)
+		try {
+
+			return super.openReader(format, asUri)
+		} catch (e: N5Exception.N5IOException) {
+			if (e.message?.startsWith("No container exists at ") == true)
+				throw N5ContainerDoesntExist(uri, e)
+			else throw e
+		}
 	}
 
 	override fun openReader(uri: String): N5Reader {
@@ -69,12 +76,10 @@ class N5FactoryWithCache : N5Factory() {
 		reader = reader ?: openReaderDefaultN5(uri)
 
 		return reader.also {
-			if (containerIsReadable(it)) {
-				readerCache[uri] = it
-				it
-			} else {
+			if (!containerIsReadable(it))
 				throw N5ContainerDoesntExist(uri)
-			}
+
+			readerCache[uri] = it
 		}
 	}
 
@@ -214,7 +219,7 @@ class N5FactoryWithCache : N5Factory() {
 	}
 }
 
-class N5DatasetDoesntExist : N5Exception {
+class N5DatasetDoesntExist : N5Exception.N5IOException {
 
 	companion object {
 		private fun displayDataset(dataset: String) = N5URI.normalizeGroupPath(dataset).ifEmpty { "/" }
@@ -224,7 +229,7 @@ class N5DatasetDoesntExist : N5Exception {
 	constructor(uri: String, dataset : String, cause: Throwable) : super("Dataset \"${displayDataset(dataset)}\" not found in container $uri", cause)
 }
 
-class N5ContainerDoesntExist : N5Exception {
+class N5ContainerDoesntExist : N5Exception.N5IOException {
 
 	constructor(location: String) : super("Cannot Open $location")
 	constructor(location: String, cause: Throwable) : super("Cannot Open $location", cause)
