@@ -410,7 +410,6 @@ class MetadataUtils {
 			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(container) {
 				newContainerState
 			} ?: newContainerState ?: return null
-
 			return createMetadataState(containerState, dataset)
 		}
 
@@ -426,7 +425,9 @@ class MetadataUtils {
 				.filter { node: N5TreeNode -> (normalizedPath == N5URI.normalizeGroupPath(node.path) || normalizedPath == node.nodeName) && metadataIsValid(node.metadata) }
 				.map { obj: N5TreeNode -> obj.metadata }
 				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
-				.firstOrNull()
+				.firstOrNull()?.also {
+					LOG.debug { "Metadata State created for $n5ContainerState:$dataset ($it)" }
+				}
 		}
 
 		/**

@@ -5,9 +5,9 @@ import javafx.scene.control.CheckBox
 import javafx.scene.control.Label
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.GridPane
-import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.ui.DoubleField
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 
 class NavigationConfigNode(
 	private val coordinateConfig: CoordinateConfigNode = CoordinateConfigNode(),
@@ -28,10 +28,11 @@ class NavigationConfigNode(
 
 		config?.let { bind(it) }
 
-		val vbox = VBox()
-
-		vbox.children.add(this.coordinateConfig.getContents())
-		vbox.children.add(rotationsConfig())
+		val vbox = VBox().apply {
+			isFillWidth = true
+			children += coordinateConfig.getContents()
+			children += rotationsConfig()
+		}
 
 		contents.content = vbox
 		contents.isExpanded = false
@@ -60,41 +61,25 @@ class NavigationConfigNode(
 		rotations.graphic = allowRotationsCheckBox
 		rotations.collapsibleProperty().bind(allowRotationsCheckBox.selectedProperty())
 
-		run {
-			val grid = GridPane()
-			val keyRotations = TitledPane("Key Rotation Speeds", grid)
-			keyRotations.isExpanded = false
-			var row = 0
-			val doubleFieldWith = 60.0
+		val grid = GridPane()
+		val keyRotations = TitledPane("Key Rotation Speeds", grid)
+		keyRotations.isExpanded = false
+		var row = 0
+		val doubleFieldWith = 60.0
 
-			run {
-				val label = Label("Slow")
-				GridPane.setHgrow(label, Priority.ALWAYS)
-				keyRotationSlow.textField().maxWidth = doubleFieldWith
-				grid.add(label, 0, row)
-				grid.add(keyRotationSlow.textField(), 1, row)
-				++row
-			}
+		data class KeyRotation(val label: String, val textField: DoubleField)
 
-			run {
-				val label = Label("Regular")
-				GridPane.setHgrow(label, Priority.ALWAYS)
-				keyRotationRegular.textField().maxWidth = doubleFieldWith
-				grid.add(label, 0, row)
-				grid.add(keyRotationRegular.textField(), 1, row)
-				++row
-			}
-
-			run {
-				val label = Label("Fast")
-				GridPane.setHgrow(label, Priority.ALWAYS)
-				keyRotationFast.textField().maxWidth = doubleFieldWith
-				grid.add(label, 0, row)
-				grid.add(keyRotationFast.textField(), 1, row)
-				++row
-			}
-			contents.children.add(keyRotations)
+		listOf(
+			KeyRotation("Slow", keyRotationSlow),
+			KeyRotation("Regular", keyRotationRegular),
+			KeyRotation("Fast", keyRotationFast)
+		).forEach { (label, textField) ->
+			grid.add(Label(label).hGrow(), 0, ++row)
+			grid.add(textField.textField(), 1, row)
+			textField.textField().maxWidth = doubleFieldWith
 		}
+
+		contents.children.add(keyRotations)
 		return rotations
 	}
 

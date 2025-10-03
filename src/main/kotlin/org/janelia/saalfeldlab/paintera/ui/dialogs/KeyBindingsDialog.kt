@@ -6,12 +6,9 @@ import javafx.stage.Modality
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 
 internal object KeyBindingsDialog {
-
-	private val LOG = LoggerFactory.getLogger(this::class.java)
 
 	val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, paintera.baseView.sourceInfo()).makeNode()
 
@@ -20,8 +17,8 @@ internal object KeyBindingsDialog {
 		it.isCollapsible = false
 	}
 	val dialog: Alert by lazy {
-		PainteraAlerts.information("_Close", true).apply {
-			PainteraAlerts.initAppDialog(this, Modality.NONE)
+		PainteraAlerts.information("_Close").apply {
+			initModality(Modality.NONE)
 			dialogPane.content = keyBindingsPane
 			graphic = null
 			headerText = null

@@ -86,7 +86,7 @@ public class IdSelector {
 			return;
 		}
 		LOG.debug("Collected {} ids", allIds.size());
-		selectedIds.activate(allIds.toArray());
+		selectedIds.activateAlso(allIds.toArray());
 	}
 
 	private void selectAllLabelMultisetType(final TLongSet allIds) {

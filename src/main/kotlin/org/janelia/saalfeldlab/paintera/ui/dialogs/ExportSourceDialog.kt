@@ -8,14 +8,15 @@ import javafx.scene.control.*
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
 import javafx.util.StringConverter
 import net.imglib2.type.numeric.RealType
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
+import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.paintera.Constants
@@ -24,14 +25,15 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.namedCombinationsCopy
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
+import kotlin.jvm.optionals.getOrNull
 
 object ExportSourceDialog {
 
@@ -46,8 +48,8 @@ object ExportSourceDialog {
 			return
 
 		val state = ExportSourceState()
-		if (newDialog(state).showAndWait().nullable == ButtonType.OK) {
-			state.exportSource(true)
+		when (newDialog(state).showAndWait().getOrNull()) {
+			ButtonType.OK -> state.exportSource(true)
 		}
 	}
 
@@ -72,20 +74,20 @@ object ExportSourceDialog {
 		return smallestType
 	}
 
-	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL, true).apply {
+	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL).apply {
 		val choiceBox = createSourceChoiceBox().apply {
 			maxWidth = Double.MAX_VALUE
 		}
 
-		choiceBox.selectionModel.selectedItemProperty().subscribe { (_, _, backend) ->
-			backend.metadataState.apply {
+		choiceBox.selectionModel.selectedItemProperty().subscribe { sourceState ->
+
+			val backend = sourceState.backend as? SourceStateBackendN5<*, *>
+			backend?.metadataState?.apply {
 				state.maxIdProperty.value = reader[dataset, MAX_ID_KEY] ?: -1
 			}
 		}
 
-		state.sourceProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.first })
-		state.sourceStateProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.second })
-		state.backendProperty.bind(choiceBox.selectionModel.selectedItemProperty().map { it.third })
+		state.sourceStateProperty.bind(choiceBox.selectionModel.selectedItemProperty())
 
 		headerText = DIALOG_HEADER
 		dialogPane.content = GridPane().apply {
@@ -110,16 +112,26 @@ object ExportSourceDialog {
 			val containerPathField = TextField().apply {
 				promptText = "Enter the container path"
 				maxWidth = Double.MAX_VALUE
-				state.exportLocationProperty.bind(textProperty())
+				state.exportLocationProperty.bindBidirectional(textProperty())
 			}
 			add(containerPathField, 2, 1, 2, 1)
-			add(Button("Browse").apply {
-				setOnAction {
-					val directoryChooser = DirectoryChooser()
-					val selectedDirectory = directoryChooser.showDialog(null)
-					selectedDirectory?.let {
-						containerPathField.text = it.absolutePath
+			add(HBox().apply {
+				children += Button("Browse").apply {
+					setOnAction {
+						val directoryChooser = DirectoryChooser()
+						val selectedDirectory = directoryChooser.showDialog(null)
+						selectedDirectory?.let {
+							containerPathField.text = it.absolutePath
+						}
 					}
+				}
+				PainteraCache.RECENT_EXPORT_LOCATIONS.readLines().reversed().takeIf { it.isNotEmpty() }?.let { recentExports ->
+					containerPathField.text = recentExports.firstOrNull()
+					containerPathField.prefColumnCount *= 2
+					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {
+						containerPathField.text = it
+					}
+					children += recentMatcher
 				}
 			}, 3, 1)
 
@@ -157,12 +169,13 @@ object ExportSourceDialog {
 
 
 			var prevScaleLevels: ObservableList<Int>? = null
-			val scaleLevelsBinding = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { (source, _, _) ->
-				if (prevScaleLevels != null && prevScaleLevels!!.size == source.numMipmapLevels)
+			val scaleLevelsBinding = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { state ->
+				val numMipmapLevels = state.dataSource.numMipmapLevels
+				if (prevScaleLevels != null && prevScaleLevels!!.size == numMipmapLevels)
 					return@createNonNullValueBinding prevScaleLevels
 
 				FXCollections.observableArrayList<Int>().also {
-					for (i in 0 until source.numMipmapLevels) {
+					for (i in 0 until numMipmapLevels) {
 						it.add(i)
 					}
 					prevScaleLevels = it
@@ -198,37 +211,29 @@ object ExportSourceDialog {
 		}
 	}
 
-	private fun createSourceChoiceBox(): ChoiceBox<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>> {
+	private fun createSourceChoiceBox(): ChoiceBox<ConnectomicsLabelState<*, *>> {
 		val choices = getValidExportSources()
 
 		return ChoiceBox(choices).apply {
-			val curChoiceIdx = choices.indexOfFirst { it.second == paintera.currentSource }
+			val curChoiceIdx = choices.indexOfFirst { it == paintera.baseView.sourceInfo().currentState() }
 			if (curChoiceIdx != -1)
 				selectionModel.select(curChoiceIdx)
 			else
 				selectionModel.selectFirst()
 			maxWidth = Double.MAX_VALUE
-			converter = object : StringConverter<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>>() {
-				override fun toString(`object`: Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>?): String = `object`?.second?.nameProperty()?.get() ?: "Select a Source..."
-				override fun fromString(string: String?) = choices.first { it.second.nameProperty().get() == string }
+			converter = object : StringConverter<ConnectomicsLabelState<*, *>>() {
+				override fun toString(`object`: ConnectomicsLabelState<*, *>?): String = `object`?.nameProperty()?.get() ?: "Select a Source..."
+				override fun fromString(string: String?) = choices.first { it.nameProperty().get() == string }
 			}
 		}
 	}
 
-	internal fun getValidExportSources(): ObservableList<Triple<MaskedSource<*, *>, ConnectomicsLabelState<*, *>, N5BackendLabel<*, *>>> {
+	internal fun getValidExportSources(): ObservableList<ConnectomicsLabelState<*, *>> {
 		return paintera.baseView.sourceInfo().trackSources()
 			.asSequence()
-			.filterIsInstance<MaskedSource<*, *>>()
-			.mapNotNull { source ->
-				(paintera.baseView.sourceInfo().getState(source) as? ConnectomicsLabelState<*, *>)?.let { state ->
-					source to state
-				}
-			}
-			.mapNotNull { (source, state) ->
-				(state.backend as? N5BackendLabel<*, *>)?.let { backend ->
-					Triple(source, state, backend)
-				}
-			}.toCollection(FXCollections.observableArrayList())
+			.filterIsInstance<DataSource<*, *>>()
+			.mapNotNull { source -> (paintera.baseView.sourceInfo().getState(source) as? ConnectomicsLabelState<*, *>) }
+			.toCollection(FXCollections.observableArrayList())
 	}
 
 	fun exportSourceDialogAction(

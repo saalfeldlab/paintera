@@ -37,26 +37,6 @@ public class SceneBlockTree {
 
 	}
 
-	public static BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> createSceneBlockTree(
-			final DataSource<?, ?> source,
-			final ViewFrustum viewFrustum,
-			final AffineTransform3D eyeToWorldTransform,
-			final int levelOfDetail,
-			final int coarsestScaleLevel,
-			final int finestScaleLevel,
-			final CellGrid[] rendererGrids) {
-
-		return createSceneBlockTree(
-				source,
-				viewFrustum,
-				eyeToWorldTransform,
-				levelOfDetail,
-				coarsestScaleLevel,
-				finestScaleLevel,
-				rendererGrids,
-				() -> false
-		);
-	}
 
 	public static BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> createSceneBlockTree(
 			final DataSource<?, ?> source,

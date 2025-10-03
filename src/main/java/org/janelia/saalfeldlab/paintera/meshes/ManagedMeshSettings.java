@@ -271,7 +271,7 @@ public class ManagedMeshSettings<K> {
 					meshSettingsList.add(settingsMap);
 				}
 			}
-			if (meshSettingsList.size() > 0)
+			if (!meshSettingsList.isEmpty())
 				map.add(MESH_SETTINGS_KEY, meshSettingsList);
 			return map;
 		}
@@ -286,9 +286,9 @@ public class ManagedMeshSettings<K> {
 	private void bindBidirectionalToGlobalSettings(final MeshSettings settings, final boolean bind) {
 
 		if (bind)
-			settings.bindBidirectionalTo(globalSettings);
+			settings.bindBidirectional(globalSettings);
 		else
-			settings.unbindBidrectional(globalSettings);
+			settings.unbindBidirectional(globalSettings);
 	}
 
 }

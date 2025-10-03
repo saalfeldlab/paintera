@@ -1,0 +1,110 @@
+.root {
+    -icons-color: black;
+    -accept: green;
+    -reject: #e30000;
+    -refresh-blue: #2DA3FF;
+    -help-blue: #0078D7;
+    -reset-blue: #007BFF;
+}
+
+/* This helps resolve an issue with flickering between incorrect sizes.
+ * To change the size of an icon, don't use font size, use `-fx-icon-size` */
+.ikonli-font-icon {
+    -fx-text-fill: -icons-color;
+    -fx-fill: -icons-color;
+    -fx-font-size: 1em;
+}
+
+
+.notification-bar .ikonli-font-icon {
+    -icons-color: -reset-blue;
+    -fx-icon-size: 1.5em;
+}
+
+.menu-item > .ikonli-font-icon {
+    -fx-fill: -icons-color;
+    -fx-text-fill: -icons-color;
+    -fx-icon-size: 2.0em;
+}
+
+
+/*.font-icon.button {*/
+/*    -fx-skin: "org.janelia.saalfeldlab.paintera.FontIconGraphicButtonSkin";*/
+/*}*/
+/**/
+/*.font-icon.toggle-button {*/
+/*    -fx-skin: "org.janelia.saalfeldlab.paintera.FontIconGraphicButtonSkin";*/
+/*}*/
+
+
+.font-icon > .ikonli-font-icon {
+    -fx-icon-size: 2em;
+}
+
+.button.font-icon {
+    -size: 2em;
+    -fx-max-width: -size;
+    -fx-max-height: -size;
+    -fx-min-width: -size;
+    -fx-min-height: -size;
+}
+
+.button.font-icon > .ikonli-font-icon {
+    -fx-icon-size: 2em;
+}
+
+.accept .ikonli-font-icon, .accept.ikonli-font-icon {
+    -icons-color: -accept;
+    -fx-icon-code: "fa-check";
+}
+
+.reject .ikonli-font-icon, .reject.ikonli-font-icon {
+    -icons-color: -reject;
+    -fx-icon-code: "fa-remove";
+}
+
+.remove .ikonli-font-icon, .remove.ikonli-font-icon {
+    -icons-color: -reject;
+    -fx-icon-code: "fa-minus";
+}
+
+.add .ikonli-font-icon, .add.ikonli-font-icon {
+    -icons-color: -accept;
+    -fx-icon-code: "fa-plus";
+}
+
+.refresh .ikonli-font-icon, .refresh.ikonli-font-icon {
+    -icons-color: -refresh-blue;
+    -fx-icon-code: "fa-refresh";
+}
+
+.help .ikonli-font-icon, .help.ikonli-font-icon {
+    -icons-color: gray;
+    -fx-icon-size: 1.5em;
+    -fx-icon-code: "fa-question";
+}
+
+.reset .ikonli-font-icon, .reset.ikonli-font-icon {
+    -fx-icon-code: "fa-undo";
+}
+
+.save .ikonli-font-icon, .save.ikonli-font-icon {
+    -icons-color: -help-blue;
+    -fx-icon-code: "fa-floppy-o";
+}
+
+.close .ikonli-font-icon, .close.ikonli-font-icon {
+    -fx-icon-code: "fa-close";
+}
+
+.visibility:visible .ikonli-font-icon, .visibility.ikonli-font-icon {
+    -fx-icon-code: "fa-eye";
+    -icons-color: black;
+    -fx-stroke: -icons-color;
+}
+
+.visibility .ikonli-font-icon, .visibility.ikonli-font-icon {
+    -fx-icon-code: "fa-eye-slash";
+    -icons-color: gray;
+    -fx-stroke: -icons-color;
+}

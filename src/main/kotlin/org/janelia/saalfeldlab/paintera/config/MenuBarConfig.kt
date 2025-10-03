@@ -6,25 +6,31 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 
 class MenuBarConfig {
 
+	val isVisibleProperty = SimpleBooleanProperty(true)
+	var isVisible: Boolean by isVisibleProperty.nonnull()
+
+	val modeProperty = SimpleObjectProperty<Mode>(Mode.OVERLAY)
+	var mode: Mode by modeProperty.nonnull()
+
+	fun toggleIsVisible() {
+		isVisible = !isVisible
+	}
+
+	fun cycleModes() {
+		mode = mode.next()
+	}
+
 	enum class Mode {
 		OVERLAY,
 		TOP;
 
-		fun next() = next(this)
-
-		companion object {
-			fun next(mode: Mode) = values()[(mode.ordinal + 1) % values().size]
-		}
+		fun next() = Mode.entries[(ordinal + 1) % Mode.entries.size]
 	}
 
-	val isVisibleProperty = SimpleBooleanProperty(true)
-	var isVisible: Boolean by isVisibleProperty.nonnull()
+	companion object {
+		private data class Config( val isVisible: Boolean = true, val mode: Mode = Mode.OVERLAY)
+		private val Default = Config()
 
-	val modeProperty = SimpleObjectProperty(Mode.OVERLAY)
-	var mode: Mode by modeProperty.nonnull()
-
-	fun toggleIsVisible() = this.isVisibleProperty.set(!this.isVisible)
-
-	fun cycleModes() = this.modeProperty.set(this.mode.next())
-
+		fun MenuBarConfig.isDefault() = Config(isVisible, mode) == Default
+	}
 }

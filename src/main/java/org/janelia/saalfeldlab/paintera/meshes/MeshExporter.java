@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.SimpleIntegerProperty;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
@@ -15,7 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 
 public abstract class MeshExporter<T> {
@@ -78,8 +82,7 @@ public abstract class MeshExporter<T> {
 					meshSettings.getSmoothingIterations(),
 					meshSettings.getMinLabelRatio(),
 					meshSettings.getOverlap(),
-					Intervals.minAsLongArray(block),
-					Intervals.maxAsLongArray(block)
+					new FinalInterval(block)
 			));
 		}
 

@@ -1,16 +1,32 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import javafx.beans.binding.Bindings
-import javafx.beans.property.SimpleIntegerProperty
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import javafx.beans.property.ReadOnlyDoubleProperty
+import javafx.beans.property.SimpleDoubleProperty
 
 abstract class MeshProgressState {
 
-	protected val writableTotalNumTasksProperty = SimpleIntegerProperty(0)
-	val totalNumTasksProperty = Bindings.createIntegerBinding(writableTotalNumTasksProperty::get, writableTotalNumTasksProperty)
-	val numTotalTasks by totalNumTasksProperty.nonnullVal()
+	data class Progress(val totalTasks: Int, val completeTasks: Int)
 
-	protected val writableCompletedNumTasksProperty = SimpleIntegerProperty(0)
-	val completedNumTasksProperty = Bindings.createIntegerBinding(writableCompletedNumTasksProperty::get, writableCompletedNumTasksProperty)
-	val numCompletedTasks by completedNumTasksProperty.nonnullVal()
+	protected open val progressProperty = SimpleDoubleProperty(0.0)
+	val progressBinding: ReadOnlyDoubleProperty = ReadOnlyDoubleProperty.readOnlyDoubleProperty(progressProperty)
+
+	@Volatile
+	var progressData = Progress(0, 0)
+		private set(value) {
+			field = value
+			progressProperty.set(field.completeTasks.toDouble() / (field.totalTasks.takeUnless { it == 0 } ?: 1))
+		}
+
+	fun set(total : Int?, completed : Int?) {
+		progressData = Progress(
+			total ?: progressData.totalTasks,
+			completed ?: progressData.completeTasks)
+	}
+
+	@JvmOverloads
+	fun increment(total: Int = 0, completed: Int = 1) {
+		val (curTotal, curCompleted) = progressData
+		progressData = Progress(curTotal + total, curCompleted + completed)
+	}
+
 }

@@ -20,7 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

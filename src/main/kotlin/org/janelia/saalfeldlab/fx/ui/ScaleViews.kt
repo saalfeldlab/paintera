@@ -1,32 +1,7 @@
 package org.janelia.saalfeldlab.fx.ui
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.css.*
 import javafx.scene.shape.Circle
-
-class GlyphScaleView(var child : FontAwesomeIconView) : ScaleView() {
-
-	init {
-		styleClass += "glyph-scale-pane"
-		children.setAll(child)
-		requestLayout()
-		paneWidthProperty.addListener { _, _, new -> new?.let { width ->
-			prefWidth = width.toDouble()
-			child.glyphSize = prefWidth
-			requestLayout()
-		} }
-		paneHeightProperty.addListener { _, _, new -> new?.let { height ->
-			prefHeight = height.toDouble()
-			child.glyphSize = prefHeight
-			requestLayout()
-		} }
-	}
-
-	override fun layoutChildren() {
-		super.layoutChildren()
-		child.relocate(0.0, 0.0)
-	}
-}
 
 class CircleScaleView(var child : Circle) : ScaleView(), Styleable {
 

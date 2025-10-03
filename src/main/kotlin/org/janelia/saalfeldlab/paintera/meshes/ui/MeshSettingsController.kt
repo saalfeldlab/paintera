@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.meshes.ui
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
 import javafx.collections.FXCollections
+import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
-import javafx.event.EventHandler
 import javafx.geometry.HPos
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -13,18 +13,21 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
+import javafx.util.Subscription
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
-import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -32,15 +35,20 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExportResult
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import java.util.concurrent.CancellationException
+import kotlin.jvm.optionals.getOrNull
 import kotlin.math.max
 import kotlin.math.min
+
+private val LOG = KotlinLogging.logger { }
 
 class MeshSettingsController @JvmOverloads constructor(
 	val numScaleLevels: Int,
@@ -55,7 +63,7 @@ class MeshSettingsController @JvmOverloads constructor(
 	private val drawMode: Property<DrawMode>,
 	private val cullFace: Property<CullFace>,
 	private val isVisible: BooleanProperty,
-	private val refreshMeshes: Runnable? = null
+	private val refreshMeshes: Runnable? = null,
 ) {
 
 	@JvmOverloads
@@ -75,9 +83,10 @@ class MeshSettingsController @JvmOverloads constructor(
 		refreshMeshes
 	)
 
+
 	fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
+		val minLabelRatioSlider: NumericSliderWithField? = if (addMinLabelRatioSlider) NumericSliderWithField(0.0, 1.0, 0.0) else null
 		return GridPane().populateGridWithMeshSettings(
-			addMinLabelRatioSlider,
 			CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
 			NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
 			NumericSliderWithField(
@@ -91,10 +100,10 @@ class MeshSettingsController @JvmOverloads constructor(
 			NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).apply { slider.valueProperty().bindBidirectional(finestScaleLevel) },
 			NumericSliderWithField(0.0, 1.00, 1.0).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
 			NumericSliderWithField(0, 10, 1).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
-			NumericSliderWithField(0.0, 1.0, 0.5).apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
+			minLabelRatioSlider?.apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
 			CheckBox().also { it.selectedProperty().bindBidirectional(overlap) },
-			ComboBox(FXCollections.observableArrayList(*DrawMode.values())).apply { valueProperty().bindBidirectional(drawMode) },
-			ComboBox(FXCollections.observableArrayList(*CullFace.values())).apply { valueProperty().bindBidirectional(cullFace) })
+			ComboBox(FXCollections.observableArrayList(*DrawMode.entries.toTypedArray())).apply { valueProperty().bindBidirectional(drawMode) },
+			ComboBox(FXCollections.observableArrayList(*CullFace.entries.toTypedArray())).apply { valueProperty().bindBidirectional(cullFace) })
 	}
 
 
@@ -102,18 +111,12 @@ class MeshSettingsController @JvmOverloads constructor(
 	fun createTitledPane(
 		addMinLabelRatioSlider: Boolean,
 		isEnabled: BooleanProperty,
-		helpDialogSettings: HelpDialogSettings = HelpDialogSettings(),
 		titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings(),
 		withGridPane: GridPane.() -> Unit = {},
 	): TitledPane {
 
 		val contents = createContents(addMinLabelRatioSlider)
 		withGridPane.invoke(contents) /* Used to add costume components to the GridPane */
-
-		val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				headerText = helpDialogSettings.headerText
-				contentText = helpDialogSettings.contentText
-			}
 
 		val tpGraphics = HBox(
 			Label(titledPaneGraphicsSettings.labelText),
@@ -122,12 +125,15 @@ class MeshSettingsController @JvmOverloads constructor(
 				selectedProperty().bindBidirectional(isEnabled)
 				tooltip = Tooltip("Toggle meshes on/off")
 			},
-			Buttons.withTooltip(null, "Refresh Meshes") { refreshMeshes?.run() }.apply {
-				graphic = makeReloadSymbol()
+			Buttons.withTooltip(null, "Refresh Meshes") {
+				refreshMeshes?.run()
+
+			}.apply {
+				addStyleClass(Style.REFRESH_ICON)
 				isVisible = refreshMeshes != null
 				isManaged = refreshMeshes != null
-			},
-			Button("?").apply { onAction = EventHandler { helpDialog.show() } }).apply {
+			}
+		).apply {
 			alignment = Pos.CENTER
 		}
 
@@ -140,26 +146,16 @@ class MeshSettingsController @JvmOverloads constructor(
 		}
 	}
 
-	data class HelpDialogSettings(
-		val headerText: String = "Mesh Settings",
-		val contentText: String = "TODO"
-	)
-
 	data class TitledPaneGraphicsSettings(val labelText: String = "Mesh Settings")
 
-	companion object {
 
+	companion object {
 		const val TEXT_FIELD_WIDTH = 48.0
+
+
 		const val CHOICE_WIDTH = 95.0
 
-
-		private fun makeReloadSymbol() = RefreshButton
-			.createFontAwesome(scale = 2.0)
-			.also { it.rotate = 45.0 }
-
-
 		private fun GridPane.populateGridWithMeshSettings(
-			addMinLabelratioSlider: Boolean,
 			visibleCheckBox: CheckBox,
 			opacitySlider: NumericSliderWithField,
 			levelOfDetailSlider: NumericSliderWithField,
@@ -167,7 +163,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			finestScaleLevelSlider: NumericSliderWithField,
 			smoothingLambdaSlider: NumericSliderWithField,
 			smoothingIterationsSlider: NumericSliderWithField,
-			minLabelRatioSlider: NumericSliderWithField,
+			minLabelRatioSlider: NumericSliderWithField?,
 			overlapToggle: CheckBox,
 			drawModeChoice: ComboBox<DrawMode>,
 			cullFaceChoice: ComboBox<CullFace>,
@@ -181,7 +177,12 @@ class MeshSettingsController @JvmOverloads constructor(
 			val row = rowCount
 
 			// arrange the grid as 4 columns to fine-tune size and layout of the elements
-			(0..2).forEach { _ -> columnConstraints.add(ColumnConstraints()) }
+			columnConstraints.add(ColumnConstraints())
+			columnConstraints.add(ColumnConstraints().also {
+				it.maxWidth = Double.MAX_VALUE
+				it.hgrow = Priority.ALWAYS
+			})
+			columnConstraints.add(ColumnConstraints())
 			columnConstraints.add(ColumnConstraints(TEXT_FIELD_WIDTH))
 
 			add(Labels.withTooltip("Visible"), 0, row)
@@ -196,7 +197,7 @@ class MeshSettingsController @JvmOverloads constructor(
 			addGridOption("Iterations", smoothingIterationsSlider, "Smoothing Iterations")
 
 			// min label ratio slider only makes sense for sources of label multiset type
-			if (addMinLabelratioSlider) {
+			if (minLabelRatioSlider != null) {
 				val tooltipText = "Min label percentage for a pixel to be filled." + System.lineSeparator() +
 						"0.0 means that a pixel will always be filled if it contains the given label."
 				addGridOption("Min label ratio", minLabelRatioSlider, tooltipText)
@@ -239,7 +240,6 @@ class MeshSettingsController @JvmOverloads constructor(
 				is Region -> width?.let { node.prefWidth = it }
 			}
 		}
-
 		private fun setCoarsestAndFinestScaleLevelSliderListeners(
 			coarsestScaleLevelSlider: Slider,
 			finestScaleLevelSlider: Slider,
@@ -266,41 +266,38 @@ class MeshSettingsController @JvmOverloads constructor(
 	}
 }
 
-open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
 
+open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
 	private val hasIndividualSettings = CheckBox("Individual Settings")
 	private var isManaged = SimpleBooleanProperty()
 	private var controller: MeshSettingsController = MeshSettingsController(meshInfo.meshSettings)
+
 	private var progressBar = MeshProgressBar()
 
 	init {
-		hasIndividualSettings.selectedProperty().addListener { _, _, newv -> isManaged.set(!newv) }
-		isManaged.addListener { _, _, newv -> hasIndividualSettings.isSelected = !newv }
-		isManaged.set(!hasIndividualSettings.isSelected)
+		hasIndividualSettings.selectedProperty().bindBidirectional(isManaged)
+		bindProgressBar()
 		isExpanded = false
-		expandedProperty().addListener { _, _, isExpanded ->
+		expandedProperty().subscribe { isExpanded ->
 			if (isExpanded && content == null) {
 				content = createMeshInfoGrid()
 			}
 		}
-		progressBar.prefWidth = 200.0
-		progressBar.minWidth = Control.USE_PREF_SIZE
-		progressBar.maxWidth = Control.USE_PREF_SIZE
-		progressBar.text = "" + meshInfo.key
-		InvokeOnJavaFXApplicationThread {
-			var progressState = meshInfo.progressState
-			var count = 20
-			while (progressState == null || count <= 0) {
-				awaitPulse()
-				progressState = meshInfo.progressState
-				count--
-			}
-			progressState?.let { (progressBar.bindTo(it)) }
+		graphic = HBox(10.0, Label("${meshInfo.key}").hGrow { maxWidth = Double.MAX_VALUE }, progressBar.hGrow()).apply {
+			minWidthProperty().set(0.0)
+			alignment = Pos.CENTER_LEFT
+			isFillHeight = true
+			graphicsOnly(this)
 		}
-		meshInfo.progressState?.let {
-			progressBar.bindTo(it)
+	}
+
+	internal fun bindProgressBar() {
+		meshInfo.subscribeToMeshState(progressBar::unbind) {
+			if (it?.progress != null)
+				progressBar.bindTo(it.progress)
+			else
+				progressBar.unbind()
 		}
-		graphic = progressBar
 	}
 
 	protected open fun createMeshInfoGrid(grid: GridPane = GridPane()): GridPane {
@@ -310,7 +307,6 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 		individualSettingsBox.spacing = 5.0
 		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty())
 		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty())
-		hasIndividualSettings.isSelected = !meshInfo.isManagedProperty.get()
 		isManaged.bindBidirectional(meshInfo.isManagedProperty)
 
 		return grid.apply {
@@ -318,23 +314,21 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 			add(individualSettingsBox, 0, rowCount, 2, 1)
 		}
 	}
-
 	private fun createExportMeshButton(): Button {
 		val exportMeshButton = Button("Export")
 		exportMeshButton.setOnAction { event ->
-			val exportDialog = MeshExporterDialog(meshInfo)
+			val model = MeshExportModel
+				.fromMeshInfos(meshInfo)
+				.initFromProject()
+			val exportDialog = MeshExportDialog(model)
 			val result = exportDialog.showAndWait()
 			if (!result.isPresent) return@setOnAction
 
 			val manager: MeshManager<T> = meshInfo.manager
 			val parameters = result.get()
-			manager.exportMeshWithProgressPopup(parameters)
-
 			val meshExporter = parameters.meshExporter
-
 			val ids = parameters.meshKeys
 			val filePath = parameters.filePath
-
 			if (meshExporter is MeshExporterObj) {
 				meshExporter.exportMaterial(
 					filePath,
@@ -342,39 +336,39 @@ open class MeshInfoPane<T>(private val meshInfo: MeshInfo<T>) : TitledPane(null,
 					arrayOf(meshInfo.manager.getStateFor(ids[0])?.color ?: Color.WHITE)
 				)
 			}
+			manager.exportMeshWithProgressPopup(parameters)
+
 		}
 		return exportMeshButton
 	}
-
-	companion object {
-		private val LOG = KotlinLogging.logger { }
-	}
 }
-
-private val LOG = KotlinLogging.logger { }
-fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>) {
+fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) {
 	val meshExporter = result.meshExporter
-	val blocksProcessed = meshExporter.blocksProcessed
 	val ids = result.meshKeys
 	if (ids.isEmpty()) return
-	val (getBlocks, getMesh) = when(this) {
+	val (getBlocks, getMesh) = when (this) {
 		is MeshManagerWithAssignmentForSegments -> getBlockListForSegment as GetBlockListFor<T> to getMeshForLongKey as GetMeshFor<T>
 		else -> getBlockListFor to getMeshFor
 	}
 	val totalBlocks = ids.sumOf { getBlocks.getBlocksFor(result.scale, it).count() }
-	val labelProp = SimpleStringProperty().apply {
-		bind(blocksProcessed.createNonNullValueBinding { "Blocks processed: ${it}/$totalBlocks" })
-	}
-	val progressProp = SimpleDoubleProperty(0.0).apply {
-		bind(blocksProcessed.createNonNullValueBinding { it.toDouble() / totalBlocks })
-	}
+
+	val labelProp = SimpleStringProperty()
+	val progressProp = SimpleDoubleProperty(0.0)
+
 	val progressUpdater = AnimatedProgressBarAlert(
 		"Export Mesh",
 		"Exporting Mesh",
 		labelProp,
-		progressProp
+		progressProp,
+		cancellable = true
 	)
-	val exportJob = CoroutineScope(Dispatchers.Default).async {
+
+	val uiSubscription = meshExporter.blocksProcessed.subscribe { count ->
+		labelProp.set("Blocks processed: $count/$totalBlocks")
+		progressProp.set(count.toDouble() / totalBlocks)
+	}
+
+	val exportJob = CoroutineScope(Dispatchers.IO).async {
 		meshExporter.exportMesh(
 			getBlocks,
 			getMesh,
@@ -385,6 +379,7 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 		)
 	}
 	exportJob.invokeOnCompletion { cause ->
+		uiSubscription.unsubscribe()
 		cause?.let {
 			if (it is CancellationException) {
 				LOG.info { "Export Mesh Cancelled by User" }
@@ -400,10 +395,11 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 			}
 		} ?: progressUpdater.finish()
 	}
+
 	InvokeOnJavaFXApplicationThread {
 		if (exportJob.isActive) {
-			progressUpdater.showAndWait()
-			if (progressUpdater.cancelled)
+			val buttonType = progressUpdater.showAndWait().getOrNull()
+			if (buttonType == ButtonType.CANCEL || progressUpdater.cancelled)
 				meshExporter.cancel()
 		}
 
@@ -411,15 +407,41 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result : MeshExportResult<T>)
 }
 
 abstract class MeshInfoList<T : MeshInfo<K>, K>(
-	protected val meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
-	manager: MeshManager<K>
+	meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
+	manager: MeshManager<K>,
 ) : ListView<T>(meshInfoList) {
 
 
-	val meshInfos: ReadOnlyListWrapper<T> = ReadOnlyListWrapper(meshInfoList)
-
 	init {
 		setCellFactory { MeshInfoListCell() }
+		/*remove individual subscriptions when infos are removed */
+		var itemsRemovalSubscription: Subscription? = null
+		itemsProperty().subscribe { items ->
+			val changeListener = { change: ListChangeListener.Change<out T> ->
+				while (change.next()) {
+					change.removed.forEach {
+						it.unsubscribe()
+					}
+				}
+			}
+
+			items.addListener(changeListener)
+
+			itemsRemovalSubscription = Subscription {
+				items.forEach { it.unsubscribe() }
+				items.removeListener(changeListener)
+			}
+		}
+
+		/* remove all prior subscriptions if we change the collection*/
+		itemsProperty().subscribe { prev, cur ->
+			itemsRemovalSubscription?.let {
+				itemsRemovalSubscription = null
+				it.unsubscribe()
+			}
+		}
+
+
 		manager.managedSettings.isMeshListEnabledProperty.addListener { _, _, enabled ->
 			if (!enabled) {
 				itemsProperty().set(FXCollections.emptyObservableList())
@@ -429,9 +451,14 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 		}
 	}
 
-	open fun meshNodeFactory(meshInfo: T): Node = MeshInfoPane(meshInfo)
+	open fun meshNodeFactory(meshInfo: T): MeshInfoPane<K> {
+		val meshInfoPane: MeshInfoPane<K> = MeshInfoPane(meshInfo)
+		return meshInfoPane
+	}
 
 	private inner class MeshInfoListCell : ListCell<T>() {
+
+		var meshInfoPane: MeshInfoPane<K>? = null
 
 		init {
 			style = "-fx-padding: 0px"
@@ -442,10 +469,20 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 			text = null
 			if (empty || item == null) {
 				graphic = null
+				meshInfoPane?.let {
+					it.meshInfo.unsubscribe()
+					meshInfoPane = null
+				}
 			} else {
-				InvokeOnJavaFXApplicationThread {
-					graphic = meshNodeFactory(item).apply {
-						prefWidthProperty().addListener { _, _, pref -> prefWidth = pref.toDouble() }
+				graphic = meshInfoPane?.takeIf { it.meshInfo.key == item.key }?.also {
+					/* If we are re-using an existing pane, we need to re-bind it,
+					* since it may have been unbound in the meantime (probably it was) */
+					it.bindProgressBar()
+				} ?: let {
+					meshInfoPane?.meshInfo?.unsubscribe()
+					meshNodeFactory(item).apply {
+						prefWidthProperty().subscribe { pref -> prefWidth = pref.toDouble() }
+						meshInfoPane = this
 					}
 				}
 			}

@@ -8,6 +8,7 @@ public enum MenuActionType implements ActionType {
 	ChangeActiveSource,
 	ToggleSidePanel,
 	ResizePanel,
+	ToggleToolBarMode,
 	ToggleToolBarVisibility,
 	ToggleMenuBarVisibility,
 	ToggleMenuBarMode,

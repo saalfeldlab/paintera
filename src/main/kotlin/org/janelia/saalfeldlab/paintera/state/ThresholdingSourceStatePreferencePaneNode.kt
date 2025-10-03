@@ -16,12 +16,16 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.meshes.ui.exportMeshWithProgressPopup
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel
+import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.initFromProject
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
 
@@ -58,9 +62,8 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		GridPane.setHgrow(background, Priority.ALWAYS)
 
 
-		val helpDialog = PainteraAlerts
-			.alert(Alert.AlertType.INFORMATION, true).apply {
-				PainteraAlerts.initAppDialog(this, Modality.NONE)
+		val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+				initModality(Modality.NONE)
 				headerText = "Threshold"
 				contentText = "TODO" /* TODO */
 			}
@@ -69,7 +72,11 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		val tpGraphics = HBox(
 			Label("Threshold"),
 			NamedNode.bufferNode(),
-			Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+			Button("").apply {
+				addStyleClass(Style.HELP_ICON)
+				setOnAction { helpDialog.show() }
+			}
+		)
 			.also { it.alignment = Pos.CENTER }
 
 		return TitledPanes
@@ -86,21 +93,24 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		false,
 		state.meshManager.managedSettings.meshesEnabledProperty,
 		titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
-		helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
 	).also {
 		it.content = VBox(it.content).apply {
 			val exportMeshButton = Button("Export all")
 			exportMeshButton.setOnAction { _ ->
-				val exportDialog = MeshExporterDialog(MeshInfo(state.meshManager.meshKey, state.meshManager))
+				val meshInfo = MeshInfo(state.meshManager.meshKey, state.meshManager)
+				val model = MeshExportModel
+					.fromMeshInfos(meshInfo)
+					.initFromProject()
+				val exportDialog = MeshExportDialog(model)
 				val result = exportDialog.showAndWait()
 				if (result.isPresent) {
-					state.meshManager.exportMeshWithProgressPopup(result.get())
 					result.get().run {
-						if (meshExporter.isCancelled()) return@run
+						if (meshExporter.isCancelled) return@run
 						(meshExporter as? MeshExporterObj<*>)?.run {
 							exportMaterial(filePath, arrayOf(""), arrayOf(state.colorProperty().get()))
 						}
 					}
+					state.meshManager.exportMeshWithProgressPopup(result.get())
 				}
 			}
 			val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }

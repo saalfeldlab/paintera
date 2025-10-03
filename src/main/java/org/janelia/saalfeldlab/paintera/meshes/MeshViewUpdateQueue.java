@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.util.HashPriorityQueue;
 import org.slf4j.Logger;
@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * Throttles mesh updates on the FX thread to keep the application responsive.
@@ -51,7 +49,6 @@ public class MeshViewUpdateQueue<T> {
 
 	private final HashPriorityQueue<MeshWorkerPriority, ShapeKey<T>> priorityQueue = new HashPriorityQueue<>(Comparator.naturalOrder());
 	private final Map<ShapeKey<T>, MeshViewQueueEntry> keysToEntries = new HashMap<>();
-	private final Timer timer = new Timer(true);
 
 	private int numElementsPerFrame = Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE;
 	private long frameDelayMsec = Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE;
@@ -75,10 +72,8 @@ public class MeshViewUpdateQueue<T> {
 		final MeshViewQueueEntry entry = new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
 		keysToEntries.put(key, entry);
 
-		final boolean queueWasEmpty = priorityQueue.isEmpty();
 		priorityQueue.addOrUpdate(priority, key);
-		if (queueWasEmpty)
-			scheduleTask();
+		timer.start();
 	}
 
 	/**
@@ -115,20 +110,32 @@ public class MeshViewUpdateQueue<T> {
 		LOG.debug("Update mesh update queue limits to numElementsPerFrame={}, frameDelayMsec={}", numElementsPerFrame, frameDelayMsec);
 	}
 
-	private synchronized void scheduleTask() {
+	private AnimationTimer timer = new AnimationTimer() {
 
-		final TimerTask task = new TimerTask() {
+		private static final int MIN_ELEMENTS_PER_FRAME = 1000;
+		private static final long TARGET_FRAME_TIME = 16_666_667;
+		long lastFrameTime = 0;
+		int elementsPerFrame = 10 * MIN_ELEMENTS_PER_FRAME;
 
-			@Override
-			public void run() {
 
-				InvokeOnJavaFXApplicationThread.invoke(MeshViewUpdateQueue.this::addMeshImpl);
-			}
-		};
-		timer.schedule(task, frameDelayMsec);
-	}
+		private void updateNumElementsPerFrame(long frameTime) {
 
-	private void addMeshImpl() {
+			if (frameTime > TARGET_FRAME_TIME)
+				elementsPerFrame = (int)(elementsPerFrame * .8);
+			else
+				elementsPerFrame = (int)(elementsPerFrame * 1.2);
+
+			elementsPerFrame = Math.max(MIN_ELEMENTS_PER_FRAME, elementsPerFrame);
+		}
+
+		@Override public void handle(long now) {
+			updateNumElementsPerFrame(now - lastFrameTime);
+			lastFrameTime = now;
+			addMeshImpl(elementsPerFrame);
+		}
+	};
+
+	private void addMeshImpl(int elementsPerFrame) {
 
 		assert Platform.isFxApplicationThread();
 
@@ -136,7 +143,7 @@ public class MeshViewUpdateQueue<T> {
 		int numElements = 0;
 
 		synchronized (this) {
-			while (!priorityQueue.isEmpty() && numElements <= numElementsPerFrame && numElements != -1) {
+			while (!priorityQueue.isEmpty() && numElements <= elementsPerFrame && numElements != -1) {
 				final ShapeKey<T> nextKey = priorityQueue.peek();
 				final MeshViewQueueEntry nextQueueEntry = keysToEntries.get(nextKey);
 				final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
@@ -146,7 +153,7 @@ public class MeshViewUpdateQueue<T> {
 					final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
 					final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
 					final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
-					if (!entriesToAdd.isEmpty() && numElements + nextNumElements > numElementsPerFrame)
+					if (!entriesToAdd.isEmpty() && numElements + nextNumElements > elementsPerFrame)
 						break;
 
 					numElements += nextNumElements;
@@ -160,8 +167,8 @@ public class MeshViewUpdateQueue<T> {
 				priorityQueue.poll();
 			}
 
-			if (!priorityQueue.isEmpty())
-				scheduleTask();
+			if (priorityQueue.isEmpty())
+				timer.stop();;
 		}
 
 		LOG.debug("Adding {} meshes which all together contain {} elements (vertices+normals+faces", entriesToAdd.size(), numElements);
