@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
@@ -29,6 +30,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.o
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.spatialAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.timeAxis
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
@@ -36,7 +38,7 @@ import kotlin.streams.asSequence
 
 interface MetadataState {
 
-	val n5ContainerState: N5ContainerState
+	var n5ContainerState: N5ContainerState
 
 	val metadata: N5Metadata
 	var datasetAttributes: DatasetAttributes
@@ -52,7 +54,7 @@ interface MetadataState {
 	var timeAxis: Pair<Axis, Int>?
 	var virtualCrop: Interval?
 	var unit: String
-	var reader: N5Reader
+	val reader: N5Reader
 
 	val writer: N5Writer?
 	var group: String
@@ -111,7 +113,8 @@ open class SingleScaleMetadataState(
 	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
 	override var virtualCrop: Interval? = null
 	override var unit: String = metadata.unit()
-	override var reader = n5ContainerState.reader
+	override val reader
+		get() = n5ContainerState.reader
 	override val writer: N5Writer?
 		get() = n5ContainerState.writer
 
@@ -149,7 +152,7 @@ open class SingleScaleMetadataState(
 
 
 open class MultiScaleMetadataState(
-	override val n5ContainerState: N5ContainerState,
+	override var n5ContainerState: N5ContainerState,
 	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
@@ -397,23 +400,24 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
-			val n5 = Paintera.n5Factory.openWriterOrReaderOrNull(n5container) ?: return null
-			return createMetadataState(n5, dataset)
+			val container = StorageFormat.parseUri(n5container).b.toString()
+
+			val newContainerState by lazy {
+				Paintera.n5Factory.openWriterOrReaderOrNull(n5container)?.let {
+					N5ContainerState(it)
+				}
+			}
+			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(container) {
+				newContainerState
+			} ?: newContainerState ?: return null
+			return createMetadataState(containerState, dataset)
 		}
 
 		@JvmStatic
-		fun createMetadataState(reader: N5Reader, dataset: String = ""): MetadataState? {
-			val n5ContainerState = N5ContainerState(reader)
-			return createMetadataState(n5ContainerState, dataset)
-		}
-
-		@JvmStatic
-		@JvmOverloads
-		fun createMetadataState(
-			n5ContainerState: N5ContainerState,
-			dataset: String = "",
-			metadataRoot: N5TreeNode = discoverAndParseRecursive(n5ContainerState.reader),
-		): MetadataState? {
+		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String, datasetTreeNode: N5TreeNode? = null): MetadataState? {
+			val metadataFromParam by lazy { datasetTreeNode?.takeIf { N5URI.normalizeGroupPath(dataset) == N5URI.normalizeGroupPath(it.path) } }
+			val metadataFromParser by lazy { discoverAndParseRecursive(n5ContainerState.reader, dataset) }
+			val metadataRoot = metadataFromParam ?: metadataFromParser
 
 			val normalizedPath = N5URI.normalizeGroupPath(dataset)
 			return N5TreeNode.flattenN5Tree(metadataRoot)
@@ -424,6 +428,25 @@ class MetadataUtils {
 				.firstOrNull()?.also {
 					LOG.debug { "Metadata State created for $n5ContainerState:$dataset ($it)" }
 				}
+		}
+
+		/**
+		 * Creates a metadata state from the given N5Reader and dataset path.
+		 *
+		 * @param reader The N5Reader to access the container
+		 * @param dataset The path to the dataset within the container
+		 * @return MetadataState if successfully created, null otherwise
+		 */
+		@JvmStatic
+
+		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState? {
+			val newContainerState by lazy { N5ContainerState(reader) }
+			/* Realistically, the null case should never be triggered, but the return type of `getOrPut` is nullable,
+			 * so this is the safe thing to do. In either case, it should be the same result. */
+			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(reader.uri.toString()) { newContainerState }
+				?: newContainerState
+
+			return createMetadataState(containerState, dataset)
 		}
 
 		fun transformFromResolutionOffset(resolution: DoubleArray, offset: DoubleArray): AffineTransform3D {

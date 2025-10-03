@@ -6,15 +6,18 @@ import bdv.viewer.Interpolation;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.UncheckedVolatileCache;
 import net.imglib2.img.NativeImg;
-import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.interpolation.InterpolatorFactory;
@@ -27,6 +30,8 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -35,6 +40,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.LabelMultisetUtilsKt;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -55,6 +61,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -84,11 +91,13 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) throws IOException {
 
+		final var xyzAxes = new int[]{0,1,2};
 		return openRaw(
 				reader,
 				dataset,
 				N5Helpers.getResolution(reader, dataset),
 				N5Helpers.getOffset(reader, dataset),
+				xyzAxes,
 				queue,
 				priority);
 	}
@@ -216,7 +225,7 @@ public class N5Data {
 
 		return N5Helpers.isMultiScale(reader, dataset)
 				? openRawMultiscale(reader, dataset, transform, queue, priority)
-				: new ImagesWithTransform[]{openRaw(reader, dataset, transform, queue, priority)};
+				: new ImagesWithTransform[]{openRaw(reader, dataset, transform, new int[]{0,1,2}, queue, priority)};
 
 	}
 
@@ -226,6 +235,7 @@ public class N5Data {
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
+			final int[] xyzAxes,
 			final SharedQueue queue,
 			final int priority) throws IOException {
 
@@ -235,7 +245,7 @@ public class N5Data {
 				0, resolution[1], 0, offset[1],
 				0, 0, resolution[2], offset[2]
 		);
-		return openRaw(reader, dataset, transform, queue, priority);
+		return openRaw(reader, dataset, transform, xyzAxes, queue, priority);
 	}
 
 	/**
@@ -251,16 +261,48 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
 
-		return openRaw(metadataState.getReader(), metadataState.getGroup(), metadataState.getTransform(), queue, priority);
+		final var xyzAxes = getXyzAxes(metadataState);
+		return openRaw(
+				metadataState.getReader(),
+				metadataState.getGroup(),
+				metadataState.getTransform(),
+				xyzAxes,
+				queue,
+				priority,
+				metadataState.isLabel());
 	}
+
+	/**
+	 * @param metadataState to read the xyz axes from
+	 * @return an int[3] with the indices corresponding to the x,y,z dimensions, in that order.
+	 */
+	private static int[] getXyzAxes(MetadataState metadataState) {
+
+		final Map<Axis, Integer> spatialAxes = metadataState.getSpatialAxes();
+		final var xyzAxes = new int[]{-1,-1,-1};
+		spatialAxes.forEach((axis, idx) -> {
+			final String name = axis.getName().toLowerCase();
+
+			if (name.equals("x")) xyzAxes[0] = idx;
+			if (name.equals("y")) xyzAxes[1] = idx;
+			if (name.equals("z")) xyzAxes[2] = idx;
+		});
+		for (int idx : xyzAxes) {
+			assert idx >= 0;
+		}
+		return xyzAxes;
+	}
+
+
 
 	/**
 	 * @param reader    N5Reader
 	 * @param dataset   dataset
 	 * @param transform transforms voxel data into real world coordinates
+	 * @param xyzAxes int[] whose only three elements are indices of the corresponding X, Y, Z dimensions of the dataset
 	 * @param priority  in fetching queue
-	 * @param <T>       data type
-	 * @param <V>       viewer type
+	 * @param <T> data type
+	 * @param <V> viewer type
 	 * @return image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
@@ -270,20 +312,109 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final int[] xyzAxes,
 			final SharedQueue queue,
 			final int priority) throws IOException {
+
+		return openRaw(reader, dataset, transform, xyzAxes, queue, priority, false);
+	}
+
+	/**
+	 * @param reader    N5Reader
+	 * @param dataset   dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param xyzAxes int[] whose only three elements are indices of the corresponding X, Y, Z dimensions of the dataset
+	 * @param priority  in fetching queue
+	 * @param forceSlice3D by default, slicing only happens for dimensionality > 4; if true, even 4D will be sliced to 3D
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
+	ImagesWithTransform<T, V> openRaw(
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final int[] xyzAxes,
+			final SharedQueue queue,
+			final int priority,
+			final boolean forceSlice3D) throws IOException {
 
 
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
+
+			final CachedCellImg<T, ?> rawImg;
+			/* this MAY return the input unchanged if slicing is not applicable  */
+			rawImg = slice3D(raw, xyzAxes, forceSlice3D);
+
+
 			final TmpVolatileHelpers.RaiWithInvalidate<V> vraw = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
-					(CachedCellImg)raw,
+					(CachedCellImg)rawImg,
 					queue,
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-				return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
+				return new ImagesWithTransform<>(rawImg, vraw.getRai(), transform, rawImg.getCache(), vraw.getInvalidate());
 		} catch (final Exception e) {
 			throw e instanceof IOException ? (IOException)e : new IOException(e);
 		}
+	}
+
+	/**
+	 * slice an nD image (for n > 4) to a 3D image, taking the first position (0) as the slice value for
+	 * all sliced dimensions. If 4D then slicing will not occur (assumed to be channels, and handled as
+	 * a special case elsewhere) Unless `forceSlice3D` is true.
+	 *
+	 * @param nDImg to slice to 3D
+	 * @param xyzAxes spatial axes to retain after slicing
+	 * @return 3D image slice of an nD image
+	 */
+	private static <T extends NativeType<T>> CachedCellImg<T, ?> slice3D(CachedCellImg<T, ?> nDImg, int[] xyzAxes, boolean forceSlice3D) {
+		final long[] imgSizeND = nDImg.dimensionsAsLongArray();
+		if (imgSizeND.length == 4 && !forceSlice3D) {
+			return nDImg;
+		}
+
+		final RandomAccessible<T> extendedNDImg = (RandomAccessible<T>)Views.extendZero((RandomAccessibleInterval)nDImg);
+
+		final HashSet<Integer> spatialDims = new HashSet<>();
+		for (int axis : xyzAxes) {
+			spatialDims.add(axis);
+		}
+
+		RandomAccessible<T> hyperSliceImg = extendedNDImg;
+		for (int dimIdx = extendedNDImg.numDimensions() - 1; dimIdx >= 0; dimIdx--) {
+			if (spatialDims.contains(dimIdx)) {
+				continue;
+			}
+
+			hyperSliceImg = Views.hyperSlice(hyperSliceImg, dimIdx, 0);
+		}
+
+		final RandomAccessible<T> hyperSlice3D = hyperSliceImg;
+
+		final var imgSize3D = new long[3];
+
+		final int[] cellSizeND = nDImg.getCellGrid().getCellDimensions();
+		final var cellSize3D = new int[3];
+
+		for (int i = 0; i < xyzAxes.length; i++) {
+			final int spatialAxis = xyzAxes[i];
+			imgSize3D[i] = imgSizeND[spatialAxis];
+			cellSize3D[i] = cellSizeND[spatialAxis];
+		}
+
+		var options = new DiskCachedCellImgOptions().cellDimensions(cellSize3D);
+		return new DiskCachedCellImgFactory<T>(nDImg.getType(), options).create(imgSize3D, cell -> {
+
+			final IntervalView<T> hypersliceOverCell = Views.interval(hyperSlice3D, cell);
+			final Cursor<T> sliceCursor = hypersliceOverCell.cursor();
+			final Cursor<T> cellCursor = cell.cursor();
+			while (cellCursor.hasNext()) {
+				cellCursor.next().set(sliceCursor.next());
+			}
+		});
 	}
 
 	/**
@@ -361,10 +492,12 @@ public class N5Data {
 
 		final var ssTransforms = metadataState.getScaleTransforms();
 		final N5Reader reader = metadataState.getReader();
+		final int[] xyzAxes = getXyzAxes(metadataState);
+		final boolean isLabel = metadataState.isLabel();
 		IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 			/* get the metadata state for the respective child */
 			LOG.debug("Populating scale level {}", scaleIdx);
-			imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], queue, priority);
+			imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], xyzAxes, queue, priority, isLabel);
 				LOG.debug("Populated scale level {}", scaleIdx);
 			return true;
 		})::get)));
@@ -398,6 +531,7 @@ public class N5Data {
 		);
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasets.length];
+		final var xyzAxes = new int[]{0,1,2};
 		for (int scale = 0; scale < scaleDatasets.length; ++scale) {
 			final int fScale = scale;
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
@@ -411,7 +545,7 @@ public class N5Data {
 						transform.copy(),
 						downsamplingFactors,
 						initialDonwsamplingFactors);
-				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, scaleTransform, queue, priority);
+				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, scaleTransform, xyzAxes, queue, priority);
 
 				LOG.debug("Populated scale level {}", fScale);
 				return true;
@@ -464,7 +598,8 @@ public class N5Data {
 			final String name,
 			final AffineTransform3D transform) throws IOException {
 
-		return new N5DataSource<>(
+		return new
+				N5DataSource<>(
 				Objects.requireNonNull(metadataState),
 				name,
 				queue,
@@ -545,19 +680,17 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) {
 
-
 		final var cachedLabelMultisetImage = LabelMultisetUtilsKt.openLabelMultiset(n5, dataset);
-//		final var cachedLabelMultisetImage = N5LabelMultisets.openLabelMultiset(
-//				n5,
-//				dataset,
-//				LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND)
-//		);
+		final var vcache = new WeakRefVolatileCache(
+				cachedLabelMultisetImage.getCache(),
+				queue,
+				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
 
-		final var vcache = new WeakRefVolatileCache(cachedLabelMultisetImage.getCache(), queue, new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
+		final int dimensions = cachedLabelMultisetImage.numDimensions();
+		if (dimensions != 3) {
+			throw new UnsupportedOperationException("Label Multiset Type is only supported for 3D data, but " + dataset + " iss " + dimensions + " dimensional");
+		}
 
-
-
-		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
 		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);

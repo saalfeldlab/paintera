@@ -169,7 +169,8 @@ class ExportSourceState {
 				"Export Label Source",
 				"Exporting data...",
 				labelProp,
-				progressProp
+				progressProp,
+				cancellable = true
 			)
 		} else null
 

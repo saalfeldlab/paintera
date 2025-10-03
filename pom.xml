@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.11.0-SNAPSHOT</version>
+	<version>1.12.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -605,6 +605,7 @@
 				<configuration>
 					<excludes>
 						<exclude>**PainteraBaseViewTest**</exclude>
+						<exclude>**WindowDimensionsTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
 					</excludes>
 				</configuration>

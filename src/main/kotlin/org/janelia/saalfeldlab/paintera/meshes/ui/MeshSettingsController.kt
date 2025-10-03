@@ -359,7 +359,8 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) 
 		"Export Mesh",
 		"Exporting Mesh",
 		labelProp,
-		progressProp
+		progressProp,
+		cancellable = true
 	)
 
 	val uiSubscription = meshExporter.blocksProcessed.subscribe { count ->

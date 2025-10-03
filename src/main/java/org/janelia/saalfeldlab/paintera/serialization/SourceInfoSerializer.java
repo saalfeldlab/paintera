@@ -135,7 +135,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			IOException {
 
 		final int numStates = serializedStates.size();
-		Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNumItemsNotification(numStates, true));
+		Paintera.notifySplashScreen(new SplashScreenUpdateNumItemsNotification(numStates, true));
 
 		final TIntHashSet[] dependsOn = new TIntHashSet[numStates];
 		LOG.debug("Deserializing {}", serializedStates);
@@ -170,14 +170,14 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 					if (Stream.of(dependencies).noneMatch(Objects::isNull)) {
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
 
-						/* In-place conversion of `state` containaing an deprecated source state to a valid one. */
+						/* In-place conversion of `state` containing a deprecated source state to a valid one. */
 						final String stateType = state.getAsJsonPrimitive(STATE_TYPE_KEY).getAsString();
 						if (DEPRECATED_STATE_CONVERTERS.containsKey(stateType)) {
 							DEPRECATED_STATE_CONVERTERS.get(stateType).accept(gson, state);
 						}
 
 						final var stateName = state.getAsJsonObject(STATE_KEY).get(STATE_NAME_KEY).getAsString();
-						Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNotification("Loading Source: " + stateName));
+						Paintera.notifySplashScreen(new SplashScreenUpdateNotification("Loading Source: " + stateName));
 
 						@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>)Class
 								.forName(state.get(STATE_TYPE_KEY).getAsString());

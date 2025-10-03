@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -64,9 +65,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 	override fun createIdService(source: DataSource<D, T>): IdService {
 		return metadataState.writer?.let {
 			N5Helpers.idService(it, dataset, Supplier { DataSourceDialogs.getN5IdServiceFromData(it, dataset, source) })
-		} ?: let {
-			IdService.IdServiceNotProvided()
-		}
+		} ?: LocalIdService()
 	}
 
 
@@ -150,8 +149,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 				with(GsonExtensions) {
 					val container: N5Reader = N5Helpers.deserializeFrom(json.asJsonObject)
 					val dataset: String = json[DATASET]!!
-					val n5ContainerState = N5ContainerState(container)
-					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
+					val metadataState = MetadataUtils.createMetadataState(container, dataset)!!
 
 					N5BackendSingleScaleDataset<D, T>(
 						metadataState,

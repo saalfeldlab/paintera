@@ -934,7 +934,7 @@ public class MultiResolutionRendererGeneric<T> {
 
 		return "3d-affine: \n" +
 				m00 + ", " + m01 + ", " + m02 + ", " + m03 + ",\n" +
-				m10 + ", " + m11 + ", " + m12 + ", " + m13 + ",\n " +
+				m10 + ", " + m11 + ", " + m12 + ", " + m13 + ",\n" +
 				m20 + ", " + m21 + ", " + m22 + ", " + m23 + "  ";
 	}
 

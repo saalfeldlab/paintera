@@ -295,9 +295,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						false
 					)
 
-					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
-						val containerState = N5ContainerState(writer)
-						createMetadataState(containerState, dataset)?.also { metadataStateProp.set(it) }
+					N5Helpers.parseMetadata(writer, dataset, ignoreCache = true)?.let { (containerState, metadataNode) ->
+						createMetadataState(containerState, dataset, metadataNode)?.also { metadataStateProp.set(it) }
 					}
 				} catch (ex: Exception) {
 					alertIfError(ex)

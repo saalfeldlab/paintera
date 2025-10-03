@@ -70,6 +70,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.stream.*
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -646,6 +647,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				with(GsonExtensions) {
 					with(json) {
 						val backend = context.fromClassInfo<ConnectomicsLabelBackend<D, T>>(json, BACKEND)!!
+						/* We know we are a label, make sure the backend state knows */
+						(backend as? N5BackendLabel<D,T>)?.metadataState?.isLabel = true
 						val name = json[NAME] ?: backend.name
 						val resolution = context[json, RESOLUTION] ?: backend.resolution
 						val offset = context[json, OFFSET] ?: backend.translation

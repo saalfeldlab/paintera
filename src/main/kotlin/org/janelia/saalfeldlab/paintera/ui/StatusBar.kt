@@ -114,6 +114,14 @@ internal class StatusBar() : HBox() {
 		children += sourceCoordinateStatusLabel
 		children += statusValueLabel.hGrow()
 		children += modeStatus.apply { alignment = Pos.CENTER_RIGHT }
+
+//TODO Caleb: Remove this?
+//		parentProperty().subscribe { parent ->
+//			prefWidthProperty().unbind()
+//			(parent as? Region)?.let { parent ->
+//				prefWidthProperty().bind(parent.widthProperty())
+//			}
+//		}
 	}
 
 	internal fun setViewerCoordinateStatus(point: RealPoint?) {

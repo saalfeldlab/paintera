@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera;
 import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -28,6 +27,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
+import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -89,7 +89,7 @@ public class PainteraBaseView {
 
 	private final GlobalTransformManager manager = new GlobalTransformManager();
 
-	private final ViewerOptions viewerOptions;
+	private final OrthoViewerOptions viewerOptions;
 
 	private final Viewer3DFX viewer3D = new Viewer3DFX(1, 1);
 
@@ -156,13 +156,13 @@ public class PainteraBaseView {
 	public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
 
 	/**
-	 * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
+	 * delegates to {@link #PainteraBaseView(int, OrthoViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
 	 */
 	public PainteraBaseView(
 			final int numFetcherThreads,
 			final KeyAndMouseConfig keyAndMouseBindings) {
 
-		this(numFetcherThreads, ViewerOptions.options(), keyAndMouseBindings);
+		this(numFetcherThreads, OrthoViewerOptions.options(), keyAndMouseBindings);
 	}
 
 	/**
@@ -171,7 +171,7 @@ public class PainteraBaseView {
 	 */
 	public PainteraBaseView(
 			final int numFetcherThreads,
-			final ViewerOptions viewerOptions,
+			final OrthoViewerOptions viewerOptions,
 			final KeyAndMouseConfig keyAndMouseBindings) {
 
 		super();
@@ -530,6 +530,8 @@ public class PainteraBaseView {
 	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
 	 */
 	public void stop() {
+		/* removes any unexpected windows configurations before we restart */
+		orthogonalViews().resetPane();
 		// exit current mode, and don't active another when shutting down;
 		final ControlMode currentMode = activeModeProperty.get();
 		if (currentMode != null) currentMode.exit();

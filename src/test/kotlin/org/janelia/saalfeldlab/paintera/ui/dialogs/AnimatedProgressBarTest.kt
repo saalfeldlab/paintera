@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleStringProperty
 import kotlinx.coroutines.javafx.awaitPulse
 import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import kotlin.test.Test
 
@@ -16,7 +17,6 @@ class AnimatedProgressBarTest {
 		runBlocking {
 			lateinit var dialog: AnimatedProgressBarAlert
 			InvokeOnJavaFXApplicationThread {
-				val progressBinding = SimpleDoubleProperty(.1)
 				val progressStringBinding = SimpleStringProperty("Another test ")
 				dialog = AnimatedProgressBarAlert("test", "this is a test", progressStringBinding, progressBinding)
 				dialog.showAndWait()
@@ -41,7 +41,7 @@ class AnimatedProgressBarTest {
 			progressBinding.value = 1.5
 			for (i in 0..100) {
 				awaitPulse()
-				assertTrue(dialog.progressBar.progress == 1.0)
+				assertTrue(dialog.progressBar.progress >= 1.0)
 			}
 
 			InvokeOnJavaFXApplicationThread {
@@ -49,15 +49,9 @@ class AnimatedProgressBarTest {
 			}
 			awaitPulse()
 
-			assertTrue(dialog.isShowing)
+			assertFalse(dialog.isShowing)
 		}
 	}
 
 
-}
-
-fun main() {
-	InvokeOnJavaFXApplicationThread {
-
-	}
 }

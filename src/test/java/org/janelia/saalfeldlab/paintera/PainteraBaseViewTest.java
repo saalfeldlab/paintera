@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -29,8 +30,8 @@ import java.util.function.Supplier;
 
 public class PainteraBaseViewTest {
 
-	@PainteraApplicationTest(reuseInstance = true)
-	public void testAddSingleScaleLabelSource(final PainteraTestApplication app) {
+	@Test
+	public void testAddSingleScaleLabelSource(@PainteraTestApp PainteraTestApplication app) {
 
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
@@ -42,8 +43,8 @@ public class PainteraBaseViewTest {
 				"singleScaleLabelSource", new LabelBlockLookupNoBlocks());
 	}
 
-	@PainteraApplicationTest(reuseInstance = true)
-	public void testAddSingleScaleConnectomicsRawSource(final PainteraTestApplication app) {
+	@Test
+	public void testAddSingleScaleConnectomicsRawSource(@PainteraTestApp PainteraTestApplication app) {
 
 		final Random random = new Random();
 		final RandomAccessibleInterval<UnsignedLongType> rawData =
@@ -64,8 +65,8 @@ public class PainteraBaseViewTest {
 		);
 	}
 
-	@PainteraApplicationTest(reuseInstance = true)
-	public void testAddMultiScaleConnectomicsRawSource(final PainteraTestApplication app) {
+	@Test
+	public void testAddMultiScaleConnectomicsRawSource(@PainteraTestApp PainteraTestApplication app) {
 
 		var random = new Random();
 		final double[] center2D = new double[]{500, 500};
@@ -108,8 +109,8 @@ public class PainteraBaseViewTest {
 		});
 	}
 
-	@PainteraApplicationTest(reuseInstance = true)
-	public void testAddMultiScaleConnectomicsLabelSource(final PainteraTestApplication app) throws InterruptedException {
+	@Test
+	public void testAddMultiScaleConnectomicsLabelSource(@PainteraTestApp PainteraTestApplication app) {
 
 		final Random random = new Random();
 
@@ -130,12 +131,6 @@ public class PainteraBaseViewTest {
 				"multiscale-label",
 				new LabelBlockLookupAllBlocks(multiscale.dims, multiscale.blocks)
 		);
-	}
-
-	public static void main(String[] args) {
-
-		final var painteraTestApp = PainteraTestAppProvider.launchPaintera();
-		new PainteraBaseViewTest().testAddSingleScaleConnectomicsRawSource(painteraTestApp);
 	}
 
 	private static class GeneratedMultiscaleImage<T> {

@@ -4,6 +4,7 @@ import bdv.viewer.Source;
 import javafx.collections.ListChangeListener;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -33,7 +34,7 @@ public class FitToInterval {
 				.toArray();
 		final AffineTransform3D tf = new AffineTransform3D();
 		tf.translate(translation);
-		tf.scale(width.getAsDouble() / interval.dimension(0));
+		tf.scale(width.getAsDouble() / (interval.dimension(0)));
 		manager.setTransform(tf);
 	}
 
@@ -65,14 +66,9 @@ public class FitToInterval {
 			while (change.next()) {
 				if (change.wasAdded() && change.getList().size() == 1) {
 					final Source<?> addedSource = change.getAddedSubList().get(0);
-					final double[] min = Arrays.stream(Intervals.minAsLongArray(addedSource.getSource(
-							0,
-							0
-					))).asDoubleStream().toArray();
-					final double[] max = Arrays.stream(Intervals.maxAsLongArray(addedSource.getSource(
-							0,
-							0
-					))).asDoubleStream().toArray();
+					final RandomAccessibleInterval<?> source = addedSource.getSource( 0, 0 );
+					final double[] min = Arrays.stream(Intervals.minAsLongArray(source)).asDoubleStream().toArray();
+					final double[] max = Arrays.stream(Intervals.maxAsLongArray(source)).asDoubleStream().toArray();
 					final AffineTransform3D tf = new AffineTransform3D();
 					addedSource.getSourceTransform(0, 0, tf);
 					tf.apply(min, min);

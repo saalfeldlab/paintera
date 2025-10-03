@@ -71,7 +71,7 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 				cause?.printStackTrace()
 			}
 
-			AnimatedProgressBarAlert(title, "", progressTextProperty, progressProperty).apply {
+			AnimatedProgressBarAlert(title, "", progressTextProperty, progressProperty, cancellable = true).apply {
 
 				val cancelOrDone = canCancel.and(progressProperty.lessThan(1.0))
 				canCancelProperty.bind(cancelOrDone)

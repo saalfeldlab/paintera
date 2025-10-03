@@ -7,8 +7,8 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 class StatusBarConfig {
 
 	enum class Mode {
-		OVERLAY,
-		BOTTOM;
+		BOTTOM,
+		OVERLAY;
 
 		fun next() = Mode.entries[(ordinal + 1) % Mode.entries.size]
 	}

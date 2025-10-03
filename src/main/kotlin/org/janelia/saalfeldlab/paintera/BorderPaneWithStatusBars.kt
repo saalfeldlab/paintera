@@ -108,7 +108,12 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
-	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopVBox, centerPaneBottomVBox)
+	private val centerPane = let {
+		val orthoViewsPane = center.orthogonalViews().pane()
+		StackPane(center.orthogonalViews().pane(), centerPaneTopVBox, centerPaneBottomVBox).apply {
+			setPrefSize(orthoViewsPane.prefWidth, orthoViewsPane.prefHeight)
+		}
+	}
 
 	private val orthoSlicesManager = OrthoSlicesManager(
 		center.viewer3D().sceneGroup,
@@ -136,6 +141,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		hbarPolicy = ScrollBarPolicy.NEVER
 		vbarPolicy = ScrollBarPolicy.AS_NEEDED
 		padding = Insets.EMPTY
+		prefWidthProperty().bind(sideBarWidthProperty)
 		content = VBox(sourcesContents, settingsView).apply {
 			isFillWidth = true
 			maxWidth = Double.MAX_VALUE
@@ -158,9 +164,22 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		children += rightTopGroup
 		children += scrollPane
 		managedProperty().bind(visibleProperty())
+
 	}
 
-	val pane = BorderPane(centerPane, null, rightGroup, bottomVBox, null)
+	val pane = BorderPane(centerPane, null, rightGroup, bottomVBox, null).apply {
+		/* Normally, the side bar slides left into the orthoviews, shrinking the orthoviews. That's
+		* fine during normal operation, as the alternative is to resize the window to the right, which either
+		* may not be possible, or may be jarring.
+		*
+		* However, on startup, we want the orthoviews to have the desired initial size. During initialization,
+		*   if the sidebar is configured to be visible at start, we should expand the pane prefWidth to be the
+		*   currentPrefWidth + the expanded sidebar width
+		* */
+
+		val initSideBarWidth = scrollPane.prefWidth.takeIf { painteraProperties.sideBarConfig.isVisible } ?: 0.0
+		prefWidth = centerPane.prefWidth + initSideBarWidth
+	}
 
 	@Suppress("unused")
 	private val resizeSideBar = ResizeOnLeftSide(rightGroup, sideBarWidthProperty).apply {
@@ -170,6 +189,22 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	}
 
 	private val statusBar = createPainteraStatusBar(painteraProperties.statusBarConfig.isVisibleProperty)
+
+//TODO: Remove?
+//	@Suppress("unused")
+//	private val statusBarParentProperty = SimpleObjectProperty<HBox?>(null).apply {
+//		addListener { _, old, new ->
+//			old?.children?.remove(statusBar)
+//			new?.children?.add(statusBar)
+//		}
+//		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
+//			when (it!!) {
+//				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
+//				StatusBarConfig.Mode.BOTTOM -> bottomGroup
+//			}
+//		}
+//		bind(replaceParentBinding)
+//	}
 
 	init {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)

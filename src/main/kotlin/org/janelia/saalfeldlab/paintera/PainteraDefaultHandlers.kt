@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
 import java.util.function.Supplier
-import kotlin.collections.set
 
 class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars) {
 

@@ -11,14 +11,6 @@ import javafx.application.Preloader.StateChangeNotification.Type.*
 import javafx.stage.Stage
 import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ApplicationTestUtils.launchApplication
-import org.junit.jupiter.api.extension.ExtensionContext
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.ArgumentsProvider
-import org.junit.jupiter.params.provider.ArgumentsSource
-import org.junit.jupiter.params.support.AnnotationConsumer
-import java.util.stream.Stream
 
 object ApplicationTestUtils {
 
@@ -105,6 +97,8 @@ object ApplicationTestUtils {
 
 
 	inline fun <reified T : Application, reified A : TestApplication<T>> launchApplication(args: Array<String> = emptyArray()) = launchApplication<T, A>(null, null, args)
+	@JvmStatic
+	fun painteraTestApp() : PainteraTestApplication = launchApplication<Paintera, PainteraTestApplication>()
 }
 
 open class TestApplication<T : Application>(val app: T, val stage: Stage) : AutoCloseable {
@@ -139,43 +133,4 @@ class PainteraTestApplication(paintera: Paintera, stage: Stage) : TestApplicatio
 
 interface LocalPreloader {
 	var preloader: Preloader?
-}
-
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
-@ParameterizedTest
-@ArgumentsSource(PainteraTestAppProvider::class)
-annotation class PainteraApplicationTest(val reuseInstance: Boolean = false)
-
-class PainteraTestAppProvider : ArgumentsProvider, AnnotationConsumer<PainteraApplicationTest> {
-	var reuseInstance = false
-
-	override fun provideArguments(context: ExtensionContext?): Stream<out Arguments?>? {
-		val app = when {
-			reuseInstance && previousInstance != null -> previousInstance
-			reuseInstance -> launchPaintera().also {
-				it.dontClose = true
-				previousInstance = it
-			}
-
-			else -> let {
-				launchPaintera()
-				previousInstance?.dontClose = false
-				previousInstance?.close()
-				previousInstance = null
-			}
-		}
-		return Stream.of(Arguments.of(app))
-	}
-
-	override fun accept(t: PainteraApplicationTest) {
-		reuseInstance = t.reuseInstance
-	}
-
-	companion object {
-		private var previousInstance: PainteraTestApplication? = null
-
-		@JvmStatic
-		fun launchPaintera() = launchApplication<Paintera, PainteraTestApplication>()
-	}
 }

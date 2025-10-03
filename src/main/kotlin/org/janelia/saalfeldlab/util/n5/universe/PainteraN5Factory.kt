@@ -10,7 +10,6 @@ import org.janelia.saalfeldlab.n5.universe.N5FactoryWithCache
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import java.net.URI
 import java.nio.file.Paths
-import kotlin.Throws
 
 class PainteraN5Factory : N5FactoryWithCache() {
 
@@ -20,11 +19,31 @@ class PainteraN5Factory : N5FactoryWithCache() {
 
 	@Throws(N5ContainerDoesntExist::class)
 	override fun openReader(format: StorageFormat?, uri: URI): N5Reader {
+		return openReader(format, uri, allowWriter = true)
+	}
+
+	@JvmSynthetic
+	internal fun openReader(uri: String, allowWriter: Boolean) = StorageFormat.parseUri(uri).run { openReader(a, b, allowWriter) }
+
+	@JvmSynthetic
+	internal fun openReader(format: StorageFormat?, uri: URI, allowWriter: Boolean): N5Reader {
 		val normalUri = normalizeUri(uri)
-		return getReaderFromCache(format, normalUri)
-			?: getWriterFromCache(format, normalUri)
-			?: super.openReader(format, uri)
-			?: throw N5ContainerDoesntExist(uri.toString())
+		val n5ReaderFromCache by lazy { getReaderFromCache(format, normalUri) }
+		val n5WriterFromCache by lazy {
+			if (allowWriter) getWriterFromCache(format, normalUri)
+			else null
+		}
+		val newReader by lazy {
+			runCatching {
+				super.openReader(format, uri)
+			}.onFailure { exception ->
+				(exception as? N5Exception.N5IOException)?.message?.startsWith("No container exists at")?.let {
+					throw N5ContainerDoesntExist(uri.toString(), exception)
+				}
+			}.getOrNull()
+		}
+		return n5ReaderFromCache ?: n5WriterFromCache ?: newReader ?: throw N5ContainerDoesntExist(uri.toString())
+
 	}
 
 	@Throws(N5ContainerDoesntExist::class)
@@ -35,7 +54,7 @@ class PainteraN5Factory : N5FactoryWithCache() {
 	fun newWriter(uri: String): N5Writer =
 		runCatching { openWriter(uri) }.getOrNull()
 			?: StorageFormat.parseUri(uri).let {
-				super.openWriter(it.a ,it.b) /* must be the last `openWriter` that doesn't call an override version */
+				super.openWriter(it.a, it.b) /* must be the last `openWriter` that doesn't call an override version */
 			}
 
 	fun openWriterOrNull(uri: String): N5Writer? =
@@ -43,8 +62,8 @@ class PainteraN5Factory : N5FactoryWithCache() {
 			.onFailure { LOG.debug(it) { "Unable to open $uri as N5Writer" } }
 			.getOrNull()
 
-	fun openReaderOrNull(uri: String): N5Reader? =
-		runCatching { openReader(uri) }
+	fun openReaderOrNull(uri: String, allowWriter: Boolean = true): N5Reader? =
+		runCatching { openReader(uri, allowWriter) }
 			.onFailure { LOG.debug(it) { "Unable to open $uri as N5Reader" } }
 			.getOrNull()
 

@@ -23,6 +23,7 @@ class AnimatedProgressBarAlert(
 	header: String,
 	private var progressLabelBinding: StringExpression,
 	private val progressBinding: DoubleExpression,
+	cancellable: Boolean = false
 ) : Alert(CONFIRMATION) {
 
 	val progressBar = AnimatedProgressBar().apply {
@@ -30,7 +31,7 @@ class AnimatedProgressBarAlert(
 		prefWidth = 300.0
 	}
 
-	val canCancelProperty = SimpleBooleanProperty(true)
+	val canCancelProperty = SimpleBooleanProperty(cancellable)
 	private val inProgressBinding = progressBar.progressProperty().greaterThanOrEqualTo(1.0).not()
 	private val canCloseBinding = inProgressBinding.not().or(canCancelProperty)
 	var cancelled = false
@@ -40,23 +41,19 @@ class AnimatedProgressBarAlert(
 		initAppDialog()
 		this.title = title
 		this.headerText = header
-		onCloseRequest = EventHandler {
-			if (progressBar.progress < 1.0)
-				cancelled = true
-			stop()
+		setOnCloseRequest {
+			if (!canCloseBinding.get())
+				it.consume()
+			else
+				stop()
 		}
 		(dialogPane.lookupButton(ButtonType.OK) as Button).apply {
 			disableProperty().bind(inProgressBinding)
 		}
 
-		onCloseRequest = EventHandler {
-			if (!canCloseBinding.get())
-				it.consume()
-		}
-
 		(dialogPane.lookupButton(ButtonType.CANCEL) as Button).apply {
 			disableProperty().bind(canCancelProperty.not())
-			onAction = EventHandler {
+			setOnAction {
 				cancelled = true
 				stopAndClose()
 			}

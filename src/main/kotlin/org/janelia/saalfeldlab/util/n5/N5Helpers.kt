@@ -37,8 +37,10 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
@@ -47,7 +49,6 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.P
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
-import java.util.Optional
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
@@ -82,8 +83,6 @@ object N5Helpers {
 		N5SingleScaleMetadataParser(),
 		N5GenericSingleScaleMetadataParser()
 	)
-	private val N5_METADATA_CACHE = HashMap<String, N5TreeNode?>()
-
 	/**
 	 * Check if a group is a paintera data set:
 	 *
@@ -203,15 +202,19 @@ object N5Helpers {
 
 	@JvmStatic
 	@JvmOverloads
-	fun parseMetadata(n5: N5Reader, ignoreCache: Boolean = false): Optional<N5TreeNode> {
-		//TODO Caleb: use [OpenSourceState.ParserContainerCache] here
-		val uri = n5.uri.toString()
-		if (!ignoreCache && N5_METADATA_CACHE.containsKey(uri)) {
-			return Optional.ofNullable(N5_METADATA_CACHE[uri])
+	fun parseMetadata(n5: N5Reader, dataset: String = "/", ignoreCache: Boolean = false): Pair<N5ContainerState, N5TreeNode?>? {
+
+		if (ignoreCache)
+			return N5ContainerState(n5).let { it to discoverAndParseRecursive(it.reader, dataset) }
+
+
+		val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(n5.uri.toString()) {
+			N5ContainerState(n5)
+		} ?: return null
+		val node = containerState.let { container ->
+			discoverAndParseRecursive(container.reader, dataset)
 		}
-		val n5TreeNode = discoverAndParseRecursive(n5)
-		N5_METADATA_CACHE[uri] = n5TreeNode
-		return Optional.ofNullable(n5TreeNode)
+		return containerState to node
 	}
 
 	/**
