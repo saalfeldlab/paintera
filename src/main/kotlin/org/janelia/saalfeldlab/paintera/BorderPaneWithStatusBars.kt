@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.ObservableList
 import javafx.geometry.Insets
@@ -72,7 +71,12 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
-	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup)
+	private val centerPane = let {
+		val orthoViewsPane = center.orthogonalViews().pane()
+		StackPane(orthoViewsPane, centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup).apply {
+			setPrefSize(orthoViewsPane.prefWidth, orthoViewsPane.prefHeight)
+		}
+	}
 
 	private val orthoSlicesManager = OrthoSlicesManager(
 		center.viewer3D().sceneGroup,
@@ -116,10 +120,21 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		prefWidthProperty().bind(sideBarWidthProperty)
 		visibleProperty().bind(painteraProperties.sideBarConfig.isVisibleProperty)
 		managedProperty().bind(visibleProperty())
-
 	}
 
-	val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
+	val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null).apply {
+		/* Normally, the side bar slides left into the orthoviews, shrinking the orthoviews. That's
+		* fine during normal operation, as the alternative is to resize the window to the right, which either
+		* may not be possible, or may be jarring.
+		*
+		* However, on startup, we want the orthoviews to have the desired initial size. During initialization,
+		*   if the sidebar is configured to be visible at start, we should expand the pane prefWidth to be the
+		*   currentPrefWidth + the expanded sidebar width
+		* */
+
+		val initSideBarWidth = scrollPane.prefWidth.takeIf { painteraProperties.sideBarConfig.isVisible } ?: 0.0
+		prefWidth = centerPane.prefWidth + initSideBarWidth
+	}
 
 	@Suppress("unused")
 	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply {
@@ -127,14 +142,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		install()
 	}
 
-	private val statusBarPrefWidth = Bindings.createDoubleBinding(
-		{ pane.width - if (painteraProperties.sideBarConfig.isVisible) painteraProperties.sideBarConfig.width else 0.0 },
-		painteraProperties.sideBarConfig.isVisibleProperty,
-		pane.widthProperty(),
-		sideBarWidthProperty
-	)
-
-	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
+	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), painteraProperties.statusBarConfig.isVisibleProperty())
 
 	@Suppress("unused")
 	private val statusBarParentProperty = SimpleObjectProperty<HBox?>(null).apply {

@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 import bdv.viewer.Source
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.application.Platform
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.LongProperty
@@ -52,7 +51,6 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
@@ -297,9 +295,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 						false
 					)
 
-					N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
-						val containerState = N5ContainerState(writer)
-						createMetadataState(containerState, dataset)?.also { metadataStateProp.set(it) }
+					N5Helpers.parseMetadata(writer, dataset, ignoreCache = true)?.let { (containerState, metadataNode) ->
+						createMetadataState(containerState, dataset, metadataNode)?.also { metadataStateProp.set(it) }
 					}
 				} catch (ex : Exception) {
 					alertIfError(ex)

@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import java.net.URI
 
 class N5FactoryWithCache : N5Factory() {
@@ -54,17 +53,33 @@ class N5FactoryWithCache : N5Factory() {
 
 	private fun openReaderDefaultN5(uri: String) : N5Reader {
 		val (format, asUri) = parseUriWithN5Default(uri)
-		return super.openReader(format, asUri)
+		try {
+
+			return super.openReader(format, asUri)
+		} catch (e: N5Exception.N5IOException) {
+			if (e.message?.startsWith("No container exists at ") == true)
+				throw N5ContainerDoesntExist(uri, e)
+			else throw e
+		}
 	}
 
 	override fun openReader(uri: String): N5Reader {
-		return getFromReaderCache(uri) ?: getFromWriterCache(uri) ?: openReaderDefaultN5(uri).let {
-			if (containerIsReadable(it)) {
-				readerCache[uri] = it
-				it
-			} else {
+		return openReader(uri, allowWriter = true)
+	}
+
+	fun openReader(uri: String, allowWriter : Boolean): N5Reader {
+		/* Get the cached reader if present, and not also a writer (or allowed)*/
+		var reader: N5Reader? = getFromReaderCache(uri)?.takeIf { allowWriter || it !is N5Writer }
+		/* if allowWriter, grab the cached writer if present */
+		reader = reader ?: if (allowWriter) getFromWriterCache(uri) else null
+		/* try to create a new reader */
+		reader = reader ?: openReaderDefaultN5(uri)
+
+		return reader.also {
+			if (!containerIsReadable(it))
 				throw N5ContainerDoesntExist(uri)
-			}
+
+			readerCache[uri] = it
 		}
 	}
 
@@ -80,6 +95,10 @@ class N5FactoryWithCache : N5Factory() {
 	} catch (e : Exception) {
 		LOG.debug(e) {"Unable to open $uri as N5Writer"}
 		null
+	}
+
+	fun openReadOnlyN5(uri : String) : N5Reader {
+		return openReader(uri, allowWriter = false)
 	}
 
 	fun openReaderOrNull(uri : String) : N5Reader? = try {
@@ -200,7 +219,7 @@ class N5FactoryWithCache : N5Factory() {
 	}
 }
 
-class N5DatasetDoesntExist : N5Exception {
+class N5DatasetDoesntExist : N5Exception.N5IOException {
 
 	companion object {
 		private fun displayDataset(dataset: String) = N5URI.normalizeGroupPath(dataset).ifEmpty { "/" }
@@ -210,7 +229,7 @@ class N5DatasetDoesntExist : N5Exception {
 	constructor(uri: String, dataset : String, cause: Throwable) : super("Dataset \"${displayDataset(dataset)}\" not found in container $uri", cause)
 }
 
-class N5ContainerDoesntExist : N5Exception {
+class N5ContainerDoesntExist : N5Exception.N5IOException {
 
 	constructor(location: String) : super("Cannot Open $location")
 	constructor(location: String, cause: Throwable) : super("Cannot Open $location", cause)

@@ -43,7 +43,6 @@ public class WindowPropertiesSerializer implements PainteraSerialization.Painter
 				properties.setHeight(map.get(HEIGHT_KEY).getAsInt());
 			if (map.has(IS_FULL_SCREEN_KEY))
 				properties.setFullScreen(map.get(IS_FULL_SCREEN_KEY).getAsBoolean());
-			properties.clean();
 		}
 		return properties;
 	}

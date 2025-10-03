@@ -36,7 +36,7 @@ import java.lang.reflect.Type
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-typealias ARGBComoposite = org.janelia.saalfeldlab.paintera.composition.Composite<ARGBType, ARGBType>
+typealias ARGBComposite = org.janelia.saalfeldlab.paintera.composition.Composite<ARGBType, ARGBType>
 
 private fun ARGBCompositeColorConverter.InvertingImp0<*, *, *>.setIntensityFrom(metadataState: MetadataState) {
 	setMaxs { metadataState.maxIntensity }
@@ -63,7 +63,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 
 	val numChannels = source.numChannels()
 
-	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(ARGBCompositeAlphaAdd())
+	private val _composite: ObjectProperty<ARGBComposite> = SimpleObjectProperty(ARGBCompositeAlphaAdd())
 	var composite: ARGBComposite
 		get() = _composite.value
 		set(composite) = _composite.set(composite)

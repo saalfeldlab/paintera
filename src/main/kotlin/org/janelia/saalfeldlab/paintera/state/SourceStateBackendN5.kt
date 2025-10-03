@@ -25,7 +25,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
-import javax.xml.transform.Source
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	val metadataState : MetadataState

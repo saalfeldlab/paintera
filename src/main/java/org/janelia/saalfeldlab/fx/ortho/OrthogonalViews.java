@@ -4,7 +4,6 @@ import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
 import javafx.event.Event;
@@ -144,14 +143,14 @@ public class OrthogonalViews<BR extends Node> {
 	/**
 	 * @param manager       manages the transform from world coordinates to shared viewer space and is shared by all {@link ViewerPanelFX viewers}.
 	 * @param cacheControl  shared between all {@link ViewerPanelFX viewers}
-	 * @param optional      Options for {@link ViewerPanelFX}
+	 * @param options      Options for {@link ViewerPanelFX}
 	 * @param bottomRight   bottom right child
 	 * @param interpolation {@link Interpolation interpolation} lookup for every {@link Source}
 	 */
 	public OrthogonalViews(
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
-			final ViewerOptions optional,
+			final OrthoViewerOptions options,
 			final BR bottomRight,
 			final Function<Source<?>, Interpolation> interpolation) {
 
@@ -166,14 +165,17 @@ public class OrthogonalViews<BR extends Node> {
 		};
 
 		final int maxNumThreads = Math.max(Runtime.getRuntime().availableProcessors() - 2, 1);
-		var numRenderingThreads = Math.min(optional.values.getNumRenderingThreads(), maxNumThreads);
+		var numRenderingThreads = Math.min(options.values.getNumRenderingThreads(), maxNumThreads);
 		final ForkJoinPool rendererService = new ForkJoinPool(numRenderingThreads, factory, null, false);
 		this.renderingTaskExecutor = TaskExecutors.forExecutorService(rendererService);
-		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, renderingTaskExecutor);
-		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, renderingTaskExecutor);
-		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation, renderingTaskExecutor);
+		this.topLeft = create(this.manager, cacheControl, options, ViewerAxis.Z, interpolation, renderingTaskExecutor);
+		this.topRight = create(this.manager, cacheControl, options, ViewerAxis.X, interpolation, renderingTaskExecutor);
+		this.bottomLeft = create(this.manager, cacheControl, options, ViewerAxis.Y, interpolation, renderingTaskExecutor);
 		this.bottomRight = bottomRight;
 		this.pane = new DynamicCellPane();
+		final int orthoViewPrefWidth = options.values.getWidth();
+		final int orthoViewPrefHeight = options.values.getHeight();
+		this.pane.setPrefSize(orthoViewPrefWidth * 2, orthoViewPrefHeight * 2);
 		resetPane();
 		Paintera.whenPaintable(() -> {
 			listenOnResizePermissions(this.pane);
@@ -356,7 +358,7 @@ public class OrthogonalViews<BR extends Node> {
 	private static ViewerAndTransforms create(
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
-			final ViewerOptions optional,
+			final OrthoViewerOptions options,
 			final ViewerAxis axis,
 			final Function<Source<?>, Interpolation> interpolation,
 			final TaskExecutor taskExecutor) {
@@ -366,7 +368,7 @@ public class OrthogonalViews<BR extends Node> {
 		final ViewerPanelFX viewer = new ViewerPanelFX(
 				1,
 				cacheControl,
-				optional,
+				options,
 				interpolation,
 				taskExecutor
 		);
