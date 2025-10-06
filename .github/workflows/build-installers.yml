@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         # currently macos-14 is M1 and macos-13 is intel
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-13]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout

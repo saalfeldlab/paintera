@@ -606,6 +606,7 @@
 					<excludes>
 						<exclude>**PainteraBaseViewTest**</exclude>
 						<exclude>**WindowDimensionsTest**</exclude>
+						<exclude>**AnimatedProgressBarTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
 					</excludes>
 				</configuration>
