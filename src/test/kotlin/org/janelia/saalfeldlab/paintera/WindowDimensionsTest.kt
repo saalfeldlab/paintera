@@ -1,7 +1,8 @@
 package org.janelia.saalfeldlab.paintera
 
+import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.Companion.invokeAndWait
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.SideBarConfig
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -11,7 +12,7 @@ class WindowDimensionsTest {
 
 	@Test
 	fun `test default window dimensions on startup`(@PainteraTestApp app: PainteraTestApplication) {
-		invokeAndWait { }
+		waitForFxThread()
 		val orthoViewerOptions = OrthoViewerOptions.options().values
 		val defaultWidth = orthoViewerOptions.width * 2 + SideBarConfig().width
 		val statusBarHeight = 45.0
@@ -25,7 +26,7 @@ class WindowDimensionsTest {
 	fun `test window properties match stage dimensions`(@PainteraTestApp app: PainteraTestApplication) {
 		val painteraMainWindow = Paintera.getPaintera()
 
-		invokeAndWait { }
+		waitForFxThread()
 		val windowProps = painteraMainWindow.properties.windowProperties
 
 		assertEquals(app.stage.width.toInt(), windowProps.width, "WindowProperties width should match stage")
@@ -37,12 +38,12 @@ class WindowDimensionsTest {
 	fun `test window properties update when stage resizes`(@PainteraTestApp app: PainteraTestApplication) {
 		val paintera = Paintera.getPaintera()
 
-		invokeAndWait {
+		InvokeOnJavaFXApplicationThread {
 			app.stage.width = 1024.0
 			app.stage.height = 768.0
 		}
 
-		invokeAndWait { }
+		waitForFxThread()
 
 		val windowProps = paintera.properties.windowProperties
 
@@ -54,11 +55,12 @@ class WindowDimensionsTest {
 	fun `test window properties update when entering fullscreen`(@PainteraTestApp app: PainteraTestApplication) {
 		val paintera = Paintera.getPaintera()
 
-		invokeAndWait {
+		InvokeOnJavaFXApplicationThread {
 			app.stage.isFullScreen = true
 		}
+		waitForFxThread()
 
-		invokeAndWait { }
+
 		val windowProps = paintera.properties.windowProperties
 
 		assertEquals(true, windowProps.isFullScreen, "WindowProperties fullscreen should update")
@@ -68,16 +70,19 @@ class WindowDimensionsTest {
 	fun `test window properties bidirectional binding`(@PainteraTestApp app: PainteraTestApplication) {
 		val paintera = Paintera.getPaintera()
 
-		invokeAndWait {
-			val initialWidth = app.stage.width
-			val initialHeight = app.stage.height
-
+		// Change stage dimensions
+		InvokeOnJavaFXApplicationThread {
 			// Change stage dimensions
-			app.stage.width = initialWidth + 100
-			app.stage.height = initialHeight + 50
+			val initialWidth1 = app.stage.width
+			val initialHeight1 = app.stage.height
+			// Change stage dimensions
+			app.stage.width = initialWidth1 + 100
+			// Change stage dimensions
+			app.stage.height = initialHeight1 + 50
 		}
 
-		invokeAndWait { }
+		waitForFxThread()
+		
 		val windowProps = paintera.properties.windowProperties
 
 		// Verify WindowProperties updated
@@ -89,5 +94,9 @@ class WindowDimensionsTest {
 			app.stage.height.toInt(), windowProps.height,
 			"WindowProperties should reflect stage height changes"
 		)
+	}
+
+	private fun waitForFxThread() {
+		runBlocking { InvokeOnJavaFXApplicationThread { }.join() }
 	}
 }

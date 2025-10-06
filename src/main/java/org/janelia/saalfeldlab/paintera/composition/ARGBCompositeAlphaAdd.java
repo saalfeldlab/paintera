@@ -37,8 +37,6 @@ public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType> {
 
 		final double aA = ARGBType.alpha(argbA) / 255.0;
 		final double aB = ARGBType.alpha(argbB) / 255.0;
-		//		final double aB = ( rB == gB || gB == bB ) ? ARGBType.alpha( argbB ) / 255.0 : ARGBType.alpha( argbB )
-		// / 255.0 * 0.125;
 
 		final double aTarget = aA + aB - aA * aB;
 

@@ -1,10 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.source
 
 import bdv.viewer.Source
-import javafx.beans.property.SimpleDoubleProperty
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
-import javafx.geometry.Insets
 import javafx.scene.Node
 import javafx.scene.control.ButtonType
 import javafx.scene.control.TitledPane
@@ -15,7 +13,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -23,29 +21,24 @@ import java.util.stream.Collectors
 import kotlin.jvm.optionals.getOrNull
 
 
-class SourceTabs(private val info: SourceInfo) {
-
-	val widthProperty = SimpleDoubleProperty()
-
-	private val contents = VBox().apply {
-		padding = Insets(0.0, 0.0, 0.0, 10.4)
-		minWidthProperty().bind(widthProperty)
-		maxWidthProperty().bind(widthProperty)
-		prefWidthProperty().bind(widthProperty)
-		widthProperty().addListener { _, _, new -> LOG.debug("contents width is {} ({})", new, widthProperty) }
-	}
+class SourceTabs(private val info: SourceInfo) : VBox() {
 
 	private val statePaneCache = mutableMapOf<Source<*>, StatePane>()
 
-	private val statePanes = FXCollections.observableArrayList<StatePane>().also { p ->
-		p.addListener(ListChangeListener {
-			InvokeOnJavaFXApplicationThread { this@SourceTabs.contents.children.setAll(p.map { it.pane }) }
+	private val statePanes = FXCollections.observableArrayList<StatePane>().also { obs ->
+		obs.addListener(ListChangeListener {
+			InvokeOnJavaFXApplicationThread {
+				this@SourceTabs.children.setAll(obs.map { it.pane }) }
 		})
 	}
-	private val activeSourceToggleGroup = ToggleGroup()
-
-	val node: Node
-		get() = contents
+	private val activeSourceToggleGroup = ToggleGroup().apply {
+		selectedToggleProperty().map { it?.userData as? Source<*> }.subscribe { source ->
+			info.currentSourceProperty().set(source)
+		}
+		info.currentSourceProperty().subscribe { source ->
+			toggles.firstOrNull { it?.userData == source }?.let { selectToggle(it) } ?: selectToggle(null)
+		}
+	}
 
 	init {
 		LOG.debug("Constructing {}", SourceTabs::class.java.name)
@@ -62,12 +55,9 @@ class SourceTabs(private val info: SourceInfo) {
 	private fun makeStatePane(source: Source<*>): StatePane {
 		val p = StatePane(
 			info.getState(source),
-			info,
-			activeSourceToggleGroup,
-			{ removeDialog(info, it, node.scene?.window) },
-			widthProperty
-		)
-		addDragAndDropListener(p.pane, info, contents.children)
+			activeSourceToggleGroup
+		) { removeDialog(info, it, this.scene?.window) }
+		addDragAndDropListener(p.pane, info, this.children)
 		return p
 	}
 
@@ -78,7 +68,7 @@ class SourceTabs(private val info: SourceInfo) {
 		private fun removeDialog(info: SourceInfo, source: Source<*>, window: Window?) {
 			val name = info.getState(source)?.nameProperty()?.get() ?: source.name
 			val index = info.indexOf(source)
-			PainteraAlerts.confirmation("_Remove", "_Cancel", true).apply {
+			PainteraAlerts.confirmation("_Remove", "_Cancel").apply {
 				contentText = "Remove source #$index `$name?'"
 				headerText = null
 			}.showAndWait().filter { it -> ButtonType.OK == it }.getOrNull()?.let {

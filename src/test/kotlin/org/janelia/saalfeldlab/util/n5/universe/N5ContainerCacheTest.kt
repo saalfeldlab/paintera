@@ -21,16 +21,16 @@ import kotlin.concurrent.thread
 
 class N5ContainerCacheTest {
 
-	private lateinit var n5Factory: N5FactoryWithCache
+	private lateinit var n5Factory: PainteraN5Factory
 	
 	@BeforeEach
 	fun setUp() {
-		n5Factory = N5FactoryWithCache()
+		n5Factory = PainteraN5Factory()
 	}
 	
 	@AfterEach
 	fun tearDown() {
-		n5Factory.clearCache()
+		n5Factory.clear()
 	}
 	
 	@Test
@@ -79,7 +79,7 @@ class N5ContainerCacheTest {
 		val writer = n5Factory.newWriter(uri)
 		val reader = n5Factory.openReader(uri)
 		
-		n5Factory.clearKey(uri)
+		n5Factory.remove(uri)
 		
 		// New instances should be created
 		val newWriter = n5Factory.openWriter(uri)
@@ -97,7 +97,7 @@ class N5ContainerCacheTest {
 		val writer1 = n5Factory.newWriter(uri1)
 		val writer2 = n5Factory.newWriter(uri2)
 		
-		n5Factory.clearCache()
+		n5Factory.clear()
 		
 		val newWriter1 = n5Factory.openWriter(uri1)
 		val newWriter2 = n5Factory.openWriter(uri2)
@@ -177,7 +177,7 @@ class N5ContainerCacheTest {
 		initialWriter.setAttribute("/", "test", "value")
 		
 		// Clear cache to simulate fresh start
-		n5Factory.clearCache()
+		n5Factory.clear()
 		
 		// Now test the method - it should try writer first, then fall back to reader
 		val result = n5Factory.openWriterElseOpenReader(uri)
@@ -289,7 +289,7 @@ class N5ContainerCacheTest {
 							// Test cache clearing - only for one specific URI to avoid affecting other threads
 							if (i % 20 == 0) { // Less frequent to avoid too much disruption
 								val clearUri = uris.last()
-								n5Factory.clearKey(clearUri)
+								n5Factory.remove(clearUri)
 								// Verify we can still get a new instance
 								val newReader = n5Factory.openReader(clearUri)
 								assertNotNull(newReader, "Should get new instance after clear")

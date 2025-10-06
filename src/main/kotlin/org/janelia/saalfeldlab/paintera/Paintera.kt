@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.janelia.saalfeldlab.fx.SaalFxStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
@@ -32,10 +33,11 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintableRunnables
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.util.debug.DebugModeProperty
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.janelia.saalfeldlab.util.n5.universe.N5FactoryWithCache
+import org.janelia.saalfeldlab.util.n5.universe.PainteraN5Factory
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -66,7 +68,6 @@ class Paintera : Application() {
 
 	init {
 		application = this
-		/* add window listener for scenes */
 	}
 
 	override fun start(primaryStage: Stage) {
@@ -74,7 +75,9 @@ class Paintera : Application() {
 	}
 
 	private fun start(primaryStage: Stage, windowPosition: WindowPosition?) {
-		primaryStage.scene = Scene(paintera.pane)
+
+		primaryStage.title = Constants.NAME
+		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0, true)
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		registerStylesheets(primaryStage.scene)
 
@@ -99,6 +102,7 @@ class Paintera : Application() {
 
 	override fun init() {
 		paintable = false
+
 		if (!::commandlineArguments.isInitialized) {
 			commandlineArguments = parameters?.raw?.toTypedArray() ?: emptyArray()
 		}
@@ -146,37 +150,43 @@ class Paintera : Application() {
 		} ?:notifySplashScreen(SplashScreenUpdateNotification("Launching Paintera...", true))
 		paintable = true
 		runPaintable()
-		InvokeOnJavaFXApplicationThread.invokeAndWait {
-			paintera.properties.loggingConfig.apply {
-				painteraArgs.logLevel?.let { rootLoggerLevel = it }
-				painteraArgs.logLevelsByName?.forEach { (name, level) -> name?.let { setLogLevelFor(it, level) } }
-			}
-			painteraArgs.addToViewer(paintera.baseView) { paintera.projectDirectory.actualDirectory?.absolutePath }
+		runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				paintera.properties.loggingConfig.apply {
+					painteraArgs.logLevel?.let { rootLoggerLevel = it }
+					painteraArgs.logLevelsByName?.forEach { (name, level) -> name?.let { setLogLevelFor(it, level) } }
+				}
+				painteraArgs.addToViewer(paintera.baseView) { paintera.projectDirectory.actualDirectory?.absolutePath }
 
-			if (painteraArgs.wereScreenScalesProvided())
-				paintera.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
+				if (painteraArgs.wereScreenScalesProvided())
+					paintera.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
 
-			// TODO figure out why this update is necessary?
-			paintera.properties.screenScalesConfig.screenScalesProperty().apply {
-				val scales = ScreenScalesConfig.ScreenScales(*get().scalesCopy.clone())
-				set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
-				set(scales)
-			}
+				// TODO figure out why this update is necessary?
+				paintera.properties.screenScalesConfig.screenScalesProperty().apply {
+					val scales = ScreenScalesConfig.ScreenScales(*get().scalesCopy.clone())
+					set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
+					set(scales)
+				}
+			}.join()
 		}
 		notifySplashScreen(SplashScreenFinishPreloader())
 	}
 
 	private fun restartPreloader() {
-		InvokeOnJavaFXApplicationThread.invokeAndWait {
-			splashScreen = PainteraSplashScreen()
+		runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				splashScreen = PainteraSplashScreen()
+			}.join()
 		}
 
 		splashScreen?.init()
 
-		InvokeOnJavaFXApplicationThread.invokeAndWait {
-			val primaryStage = Stage()
-			StageHelper.setPrimary(primaryStage, true)
-			splashScreen?.start(primaryStage)
+		runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				val primaryStage = Stage()
+				StageHelper.setPrimary(primaryStage, true)
+				splashScreen?.start(primaryStage)
+			}.join()
 		}
 		/* this initialization sequence mimics the sequence in `LauncherImpl` */
 		notifySplashScreen(Preloader.ProgressNotification(0.0))
@@ -274,7 +284,7 @@ class Paintera : Application() {
 
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
-		n5Factory.clearCache()
+		n5Factory.clear()
 
 		var windowPosition : WindowPosition? = null
 		paintera.pane.scene.window.let { window ->
@@ -313,18 +323,9 @@ class Paintera : Application() {
 		}
 
 		@JvmStatic
-		internal var debugMode = System.getenv("PAINTERA_DEBUG")?.equals("1") ?: false
-
-		@JvmStatic
-		val n5Factory = N5FactoryWithCache()
+		val n5Factory = PainteraN5Factory()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
-		@JvmStatic
-		fun main(args: Array<String>) {
-			System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
-			launch(Paintera::class.java, *args)
-		}
 
 		@JvmStatic
 		fun getPaintera() = paintera
@@ -394,7 +395,10 @@ class Paintera : Application() {
 		}
 
 		private val stylesheets: List<String> = listOf(
-			"style/glyphs.css",
+			"style/graphics.css",
+			"style/ikonli.css",
+			"style/menubar.css",
+			"style/statusbar.css",
 			"style/toolbar.css",
 			"style/navigation.css",
 			"style/interpolation.css",
@@ -405,21 +409,29 @@ class Paintera : Application() {
 		)
 
 		private fun registerPainteraStylesheets(styleable: Scene) {
+			DynamicCssProperty.register(styleable.stylesheets)
 			styleable.stylesheets.addAll(stylesheets)
 		}
 
 		private fun registerPainteraStylesheets(styleable: Parent) {
+			DynamicCssProperty.register(styleable.stylesheets)
 			styleable.stylesheets.addAll(stylesheets)
 		}
 
+		@JvmStatic
+		internal var debugMode by DebugModeProperty.nonnull()
+
+
 		private fun Preloader.notifyRestartedPreloader(info: Preloader.PreloaderNotification) {
-			InvokeOnJavaFXApplicationThread.invokeAndWait {
-				when (info) {
-					is Preloader.StateChangeNotification -> handleStateChangeNotification(info)
-					is Preloader.ProgressNotification -> handleProgressNotification(info)
-					is Preloader.ErrorNotification -> handleErrorNotification(info)
-					else -> handleApplicationNotification(info)
-				}
+			runBlocking {
+				InvokeOnJavaFXApplicationThread {
+					when (info) {
+						is Preloader.StateChangeNotification -> handleStateChangeNotification(info)
+						is Preloader.ProgressNotification -> handleProgressNotification(info)
+						is Preloader.ErrorNotification -> handleErrorNotification(info)
+						else -> handleApplicationNotification(info)
+					}
+				}.join()
 			}
 		}
 

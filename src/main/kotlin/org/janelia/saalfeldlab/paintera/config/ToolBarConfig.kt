@@ -2,26 +2,47 @@ package org.janelia.saalfeldlab.paintera.config
 
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.config.ToolBarConfig.Companion.isDefault
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
 class ToolBarConfig {
 
-	val isVisibleProperty = SimpleBooleanProperty(true)
+	val isVisibleProperty = SimpleBooleanProperty(Default.isVisible)
 	var isVisible: Boolean by isVisibleProperty.nonnull()
 
-	fun toggleIsVisible() = this.isVisibleProperty.set(!this.isVisible)
+	val modeProperty = SimpleObjectProperty<Mode>(Default.mode)
+	var mode: Mode by modeProperty.nonnull()
 
-	companion object {
-		private const val DEFAULT_WIDTH = 350.0
+	fun toggleIsVisible() {
+		isVisible = !isVisible
 	}
 
+	fun cycleModes() {
+		mode = mode.next()
+	}
+
+	enum class Mode {
+		OVERLAY,
+		RIGHT;
+
+		fun next() = Mode.entries[(ordinal + 1) % Mode.entries.size]
+	}
+
+	companion object {
+		private data class Config( val isVisible: Boolean = true, val mode: Mode = Mode.OVERLAY)
+		private val Default = Config()
+
+		fun ToolBarConfig.isDefault() = Config(isVisible, mode) == Default
+	}
 }
 
 @Plugin(type = PainteraSerialization.PainteraAdapter::class)
@@ -30,14 +51,15 @@ class ToolBarConfigSerializer : PainteraSerialization.PainteraAdapter<ToolBarCon
 		src: ToolBarConfig,
 		typeOfSrc: Type?,
 		context: JsonSerializationContext?,
-	) = JsonObject().apply {
+	) = if (src.isDefault()) JsonNull.INSTANCE else JsonObject().apply {
 		addProperty(IS_VISIBLE_KEY, src.isVisible)
 	}
 
 	override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): ToolBarConfig {
-		val config = ToolBarConfig()
-		with(GsonExtensions) {
-			json?.getBooleanProperty(IS_VISIBLE_KEY)?.let { config.isVisible = it }
+		json ?: return ToolBarConfig()
+		val config = ToolBarConfig().apply {
+			json.get<String>(IS_VISIBLE_KEY)?.let { isVisible = it.toBoolean() }
+			json.get<String>(MODE_KEY)?.runCatching { mode = ToolBarConfig.Mode.valueOf(this) }
 		}
 		return config
 	}
@@ -48,6 +70,7 @@ class ToolBarConfigSerializer : PainteraSerialization.PainteraAdapter<ToolBarCon
 
 	companion object {
 		private const val IS_VISIBLE_KEY = "isVisible"
+		private const val MODE_KEY = "mode"
 	}
 }
 

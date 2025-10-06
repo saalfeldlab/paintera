@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d
 
 import bdv.viewer.TransformListener
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.animation.Interpolator
 import javafx.animation.KeyFrame
 import javafx.animation.KeyValue
@@ -19,16 +20,15 @@ import javafx.scene.transform.Transform
 import javafx.scene.transform.Translate
 import javafx.stage.FileChooser
 import javafx.util.Duration
+import kotlinx.coroutines.runBlocking
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
+import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator
 import org.janelia.saalfeldlab.util.fx.Transforms
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
-import java.lang.invoke.MethodHandles
 import javax.imageio.ImageIO
 
 class Viewer3DFX(width: Double, height: Double) : Pane() {
@@ -102,9 +102,9 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 	private fun setupContextMenu(): ContextMenu {
 		val contextMenu = ContextMenu()
 		contextMenu.items.addAll(
-			PainteraMenuItems.RESET_3D_LOCATION_MENU_ITEM.menu,
-			PainteraMenuItems.CENTER_3D_LOCATION_MENU_ITEM.menu,
-			PainteraMenuItems.SAVE_3D_PNG_MENU_ITEM.menu
+			PainteraMenuItems.RESET_3D_LOCATION.menu,
+			PainteraMenuItems.CENTER_3D_LOCATION.menu,
+			PainteraMenuItems.SAVE_3D_PNG.menu
 		)
 		contextMenu.isAutoHide = true
 		return contextMenu
@@ -116,14 +116,17 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		fileChooser.title = "Save 3d snapshot "
 		val fileProperty = SimpleObjectProperty<File?>()
 
-		try {
-			InvokeOnJavaFXApplicationThread.invokeAndWait {
+		runBlocking {
+			InvokeOnJavaFXApplicationThread {
 				val showSaveDialog = fileChooser.showSaveDialog(root.sceneProperty().get().window)
 				fileProperty.set(showSaveDialog)
-			}
-		} catch (e: InterruptedException) {
-			e.printStackTrace()
+			}.apply {
+				invokeOnCompletion { cause ->
+					cause?.let { LOG.error(it) { } }
+				}
+			}.join()
 		}
+
 		fileProperty.get()?.let { file ->
 			if (!file.name.endsWith(".png")) {
 				val png = File(file.absolutePath + ".png")
@@ -191,6 +194,6 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 	}
 
 	companion object {
-		val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		val LOG = KotlinLogging.logger { }
 	}
 }

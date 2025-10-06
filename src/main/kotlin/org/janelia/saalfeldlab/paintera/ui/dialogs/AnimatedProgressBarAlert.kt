@@ -5,57 +5,67 @@ import javafx.beans.binding.StringExpression
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.event.EventHandler
 import javafx.scene.control.Alert
+import javafx.scene.control.Alert.AlertType.CONFIRMATION
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
+import javafx.scene.control.DialogEvent
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
-import kotlinx.coroutines.CancellationException
-import org.janelia.saalfeldlab.fx.extensions.nullable
+import kotlinx.coroutines.javafx.awaitPulse
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
+import java.util.concurrent.CancellationException
 
 class AnimatedProgressBarAlert(
 	title: String,
 	header: String,
 	private var progressLabelBinding: StringExpression,
 	private val progressBinding: DoubleExpression,
-) {
+	cancellable: Boolean = false
+) : Alert(CONFIRMATION) {
 
-	private val progressBar = AnimatedProgressBar().apply {
+	val progressBar = AnimatedProgressBar().apply {
 		progressTargetProperty.bind(progressBinding)
+		prefWidth = 300.0
 	}
 
-	private val canCloseBinding = SimpleBooleanProperty(true)
+	val canCancelProperty = SimpleBooleanProperty(cancellable)
+	private val inProgressBinding = progressBar.progressProperty().greaterThanOrEqualTo(1.0).not()
+	private val canCloseBinding = inProgressBinding.not().or(canCancelProperty)
 	var cancelled = false
 		private set
 
-	private val progressAlert : Alert  = PainteraAlerts.confirmation("Ok", "Cancel", false).apply {
+	init {
+		initAppDialog()
 		this.title = title
 		this.headerText = header
-		val progressBar = progressBar.apply {
-			prefWidth = 300.0
-		}
-
-		onCloseRequest = EventHandler {
-			if (progressBar.progress < 1.0)
-				cancelled = true
+		setOnCloseRequest {
+			if (!canCloseBinding.get())
+				it.consume()
+			else
 				stop()
 		}
-
 		(dialogPane.lookupButton(ButtonType.OK) as Button).apply {
-			disableProperty().bind(canCloseBinding.not())
+			disableProperty().bind(inProgressBinding)
 		}
 
-		(dialogPane.lookupButton(ButtonType.CANCEL) as Button).onAction = EventHandler {
-			cancelled = true
-			stopAndClose()
+		(dialogPane.lookupButton(ButtonType.CANCEL) as Button).apply {
+			disableProperty().bind(canCancelProperty.not())
+			setOnAction {
+				cancelled = true
+				stopAndClose()
+			}
 		}
 
 		val doneLabel = Label("Done!")
 		doneLabel.visibleProperty().bind(progressBar.progressProperty().greaterThanOrEqualTo(1.0))
 		dialogPane.content = VBox(10.0, createProgressLabel(), progressBar, HBox(doneLabel))
+		dialogPane.addEventFilter(DialogEvent.DIALOG_CLOSE_REQUEST) {
+			if (!canCloseBinding.get())
+				it.consume()
+		}
 		isResizable = true
 	}
 
@@ -63,14 +73,17 @@ class AnimatedProgressBarAlert(
 		textProperty().bind(progressLabelBinding)
 	}
 
-
 	/**
 	 * Show Dialog and wait for it to finish. Should be called on the JavaFx Thread.
 	 *
 	 */
-	fun showAndWait() = InvokeOnJavaFXApplicationThread{
-		canCloseBinding.set(false)
-		when (progressAlert.showAndWait().nullable) {
+	fun showProgressAndWait() = InvokeOnJavaFXApplicationThread {
+		/* effectivelyShowAndWait, but doesn't block the thread from processing other InvokeOnJavaFx coroutines*/
+		show()
+		while (result == null) {
+			awaitPulse()
+		}
+		when (result) {
 			ButtonType.OK -> Unit
 			ButtonType.CANCEL -> throw CancellationException("Progress Dialog was Cancelled")
 			else -> throw RuntimeException("Unexpected button type")
@@ -78,30 +91,25 @@ class AnimatedProgressBarAlert(
 	}
 
 	/**
-	 * Set progress to the end, and allow the dialog to be closed
+	 * finish the progressBar and close the dialog
 	 *
 	 */
-	fun finish() = InvokeOnJavaFXApplicationThread {
-		progressBar.finish()
-		canCloseBinding.set(true)
-	}
+	fun finish() = progressBar.finish()
 
 	/**
 	 * Stop progress at its current state without finishing and close the dialog
 	 *
 	 */
-	fun stopAndClose() = InvokeOnJavaFXApplicationThread {
+	fun stopAndClose() {
 		progressBar.stop()
-		canCloseBinding.set(true)
-		progressAlert.close()
+		close()
 	}
 
 	/**
 	 * Stop progress without finishing, leave the dialog open, but allow it to be closed.
 	 *
 	 */
-	fun stop() = InvokeOnJavaFXApplicationThread {
+	fun stop() {
 		progressBar.stop()
-		canCloseBinding.set(true)
 	}
 }

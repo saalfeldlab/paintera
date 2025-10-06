@@ -29,6 +29,8 @@ import net.imglib2.view.Views;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
+import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
@@ -129,6 +131,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		this.meshes.getManagedSettings().getMeshesEnabledProperty().set(false);
 	}
 
+	@Override public ControlMode getDefaultMode() {
+
+		return new RawSourceMode();
+	}
+
 	private void updateThreshold() {
 		/* These need to be regenerated, if we are changing the threshold */
 		affectedBlocskByLevel.clear();
@@ -208,7 +215,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return this.meshes;
 	}
 
-	private SourceState<D, T> getUnderlyingSource() {
+	public SourceState<D, T> getUnderlyingSource() {
 
 		return this.underlyingSource;
 	}
@@ -413,8 +420,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		public boolean test(final T t) {
 
 			final double val = t.getRealDouble();
-			final boolean isWithinMinMax = val < this.max && val > this.min;
-			return isWithinMinMax;
+			final boolean withinRangeInclusive = min <= val && val <= max;
+			return withinRangeInclusive;
 		}
 
 		private void update() {

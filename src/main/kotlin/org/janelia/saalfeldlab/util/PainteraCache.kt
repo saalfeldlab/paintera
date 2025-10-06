@@ -19,9 +19,12 @@ private fun getCachePath(groupKey: String?, cacheKey : String) = Paths.get(Paint
 
 enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 	RECENT_PROJECTS(RECENT_CACHE_DIR, "projects"),
-	RECENT_CONTAINERS(RECENT_CACHE_DIR, "containers");
+	RECENT_CONTAINERS(RECENT_CACHE_DIR, "containers"),
+	RECENT_EXPORT_LOCATIONS(RECENT_CACHE_DIR, "export_containers");
 
 	val cachePath: Path = getCachePath(groupKey, cacheKey)
+
+	fun newestEntry() = readLines().lastOrNull()
 
 	fun readLines() : List<String> {
 		val cacheFile = mapFromDeprecatedCacheFiles(cachePath)
@@ -35,7 +38,7 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 			return emptyList()
 		}
 	}
-	fun appendLine(line : String, maxNumLines : Int) {
+	fun appendLine(line : String, maxNumLines : Int = 10) {
 		val lines: MutableList<String> = readLines().toMutableList().apply {
 			remove(line)
 			add(line)

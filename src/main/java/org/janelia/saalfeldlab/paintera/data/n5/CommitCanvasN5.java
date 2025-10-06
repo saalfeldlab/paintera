@@ -655,29 +655,75 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final BlockSpec blockSpec,
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
-		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
-		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("write-blocks-label-multiset-%d").build();
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
+		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData =
+				N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
+
+		final ThreadFactory build = new ThreadFactoryBuilder()
+				.setNameFormat("write-blocks-label-multiset-%d")
+				.build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(
+				Runtime.getRuntime().availableProcessors(), build);
+
+		// Calculate optimal chunk size - balance between memory usage and synchronization overhead
+		final int chunkSize = Math.max(1, Math.min(blocks.length / (Runtime.getRuntime().availableProcessors() * 2), 100));
 		final ArrayList<Future<?>> futures = new ArrayList<>();
-		for (final long blockId : blocks) {
+
+		// Process blocks in chunks
+		for (int chunkStart = 0; chunkStart < blocks.length; chunkStart += chunkSize) {
+			final int chunkEnd = Math.min(chunkStart + chunkSize, blocks.length);
+			final int finalChunkStart = chunkStart;
+
 			final Future<?> submit = threadPool.submit(() -> {
-				final var blockSpecCopy = new BlockSpec(blockSpec);
-				blockSpecCopy.fromLinearIndex(blockId);
-				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), blockSpecCopy.asInterval());
-				final int numElements = (int)Intervals.numElements(backgroundWithCanvas);
-				final byte[] byteData = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
-				if (byteData == null)
-					datasetSpec.container.deleteBlock(datasetSpec.dataset, blockSpecCopy.pos);
-				else {
-					final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), blockSpecCopy.pos, byteData);
-					datasetSpec.container.writeBlock(datasetSpec.dataset, datasetSpec.attributes, dataBlock);
+				// Local storage for this chunk's block diffs
+				final TLongObjectHashMap<BlockDiff> localBlockDiffs = new TLongObjectHashMap<>();
+
+				// Process all blocks in this chunk
+				for (int i = finalChunkStart; i < chunkEnd; i++) {
+					final long blockId = blocks[i];
+
+					try {
+						final var blockSpecCopy = new BlockSpec(blockSpec);
+						blockSpecCopy.fromLinearIndex(blockId);
+						final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas =
+								Views.interval(Views.pair(highestResolutionData, canvas), blockSpecCopy.asInterval());
+
+						final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
+						final byte[] byteData = LabelUtils.serializeLabelMultisetTypes(
+								new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
+
+						if (byteData == null) {
+							datasetSpec.container.deleteBlock(datasetSpec.dataset, blockSpecCopy.pos);
+						} else {
+							final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(
+									Intervals.dimensionsAsIntArray(backgroundWithCanvas),
+									blockSpecCopy.pos,
+									byteData);
+							datasetSpec.container.writeBlock(datasetSpec.dataset, datasetSpec.attributes, dataBlock);
+						}
+
+						// Store block diff locally (no synchronization needed yet)
+						localBlockDiffs.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+
+					} catch (Exception e) {
+						LOG.error("Error processing block {}", blockId, e);
+						// Continue processing other blocks in this chunk
+					}
 				}
-				synchronized (blockDiff) {
-					blockDiff.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+
+				// Single synchronized operation to merge all chunk results
+				if (!localBlockDiffs.isEmpty()) {
+					synchronized (blockDiff) {
+						localBlockDiffs.forEachEntry((blockId, diff) -> {
+							blockDiff.put(blockId, diff);
+							return true; // continue iteration
+						});
+					}
 				}
 			});
 			futures.add(submit);
 		}
+
+		// Wait for all chunks to complete
 		for (Future<?> future : futures) {
 			try {
 				future.get();
@@ -685,6 +731,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 				throw new RuntimeException(e);
 			}
 		}
+
 		threadPool.shutdown();
 	}
 
@@ -697,17 +744,75 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
 
 		final RandomAccessibleInterval<I> highestResolutionData = N5Utils.open(datasetSpec.container, datasetSpec.dataset);
-		final I i = highestResolutionData.getType().createVariable();
-		for (final long blockId : blocks) {
-			blockSpec.fromLinearIndex(blockId);
-			final RandomAccessibleInterval<Pair<I, UnsignedLongType>> backgroundWithCanvas = Views
-					.interval(Views.pair(highestResolutionData, canvas), blockSpec.asInterval());
-			final RandomAccessibleInterval<I> mergedData = Converters
-					.convert(backgroundWithCanvas, (s, t) -> pickFirstIfSecondIsInvalid(s.getA(), s.getB(), t), i.createVariable());
-			N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes, blockSpec.pos);
-			blockDiff.put(blockId, createBlockDiffFromCanvasIntegerType(backgroundWithCanvas));
+		final I type = highestResolutionData.getType();
+
+		final ThreadFactory build = new ThreadFactoryBuilder()
+				.setNameFormat("write-blocks-integer-%d")
+				.build();
+		final ExecutorService threadPool = Executors.newFixedThreadPool(
+				Runtime.getRuntime().availableProcessors(), build);
+
+		// Calculate optimal chunk size - balance between memory usage and synchronization overhead
+		final int chunkSize = Math.max(1, Math.min(blocks.length / (Runtime.getRuntime().availableProcessors() * 2), 100));
+		final ArrayList<Future<?>> futures = new ArrayList<>();
+
+		// Process blocks in chunks
+		for (int chunkStart = 0; chunkStart < blocks.length; chunkStart += chunkSize) {
+			final int chunkEnd = Math.min(chunkStart + chunkSize, blocks.length);
+			final int finalChunkStart = chunkStart;
+
+			final Future<?> submit = threadPool.submit(() -> {
+				// Local storage for this chunk's block diffs
+				final TLongObjectHashMap<BlockDiff> localBlockDiffs = new TLongObjectHashMap<>();
+
+				// Process all blocks in this chunk
+				for (int i = finalChunkStart; i < chunkEnd; i++) {
+					final long blockId = blocks[i];
+
+					try {
+						final var blockSpecCopy = new BlockSpec(blockSpec);
+						blockSpecCopy.fromLinearIndex(blockId);
+						final RandomAccessibleInterval<Pair<I, UnsignedLongType>> backgroundWithCanvas = Views
+								.interval(Views.pair(highestResolutionData, canvas), blockSpecCopy.asInterval());
+						final RandomAccessibleInterval<I> mergedData = Converters
+								.convert(backgroundWithCanvas, (s, t) -> pickFirstIfSecondIsInvalid(s.getA(), s.getB(), t),
+										type.createVariable());
+						N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes, blockSpecCopy.pos);
+
+						// Store block diff locally (no synchronization needed yet)
+						localBlockDiffs.put(blockId, createBlockDiffFromCanvasIntegerType(backgroundWithCanvas));
+
+					} catch (Exception e) {
+						LOG.error("Error processing block {}", blockId, e);
+						// Continue processing other blocks in this chunk
+					}
+				}
+
+				// Single synchronized operation to merge all chunk results
+				if (!localBlockDiffs.isEmpty()) {
+					synchronized (blockDiff) {
+						localBlockDiffs.forEachEntry((blockId, diff) -> {
+							blockDiff.put(blockId, diff);
+							return true; // continue iteration
+						});
+					}
+				}
+			});
+			futures.add(submit);
 		}
+
+		// Wait for all chunks to complete
+		for (Future<?> future : futures) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		threadPool.shutdown();
 	}
+
 
 	private static void downsampleAndWriteBlocksLabelMultisetType(
 			final long[] affectedTargetBlocks,

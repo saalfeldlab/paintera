@@ -12,7 +12,6 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
-import javafx.stage.Modality
 import javafx.util.converter.NumberStringConverter
 import net.imglib2.type.label.Label.*
 import org.janelia.saalfeldlab.fx.Labels
@@ -21,7 +20,9 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.TriangleButton
 import org.slf4j.LoggerFactory
 import java.lang.Long.parseLong
@@ -193,7 +194,11 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			val tpGraphics = HBox(
 				Label("Color Conversion"),
 				NamedNode.bufferNode(),
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
+			)
 				.also { it.alignment = Pos.CENTER }
 
 			return with(TitledPaneExtensions) {

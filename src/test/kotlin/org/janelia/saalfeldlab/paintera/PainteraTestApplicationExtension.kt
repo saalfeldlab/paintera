@@ -9,7 +9,7 @@ import org.junit.jupiter.api.extension.*
  * Usage:
  * ```kotlin
  * @Test
- * fun myTest(@PainteraApp app: PainteraTestApplication) {
+ * fun myTest(@PainteraTestApp app: PainteraTestApplication) {
  *     // use the app
  * }
  * ```

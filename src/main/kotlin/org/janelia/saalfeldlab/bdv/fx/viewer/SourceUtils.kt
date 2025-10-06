@@ -11,8 +11,8 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolati
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileType
 
 //FIXME Caleb: These are both private because imho this is a bit of a hack.
-// We want to Paintera's DataSource implemenet Source over the volatile type,
-// and the corrsponding SourceAndConverter has a convert also over the volatile type
+// We want Paintera's DataSource to implement Source over the volatile type,
+// and the corresponding SourceAndConverter has a converter also over the volatile type
 // This makes it not possible get a non-volatile SourceAndConverter over the DataSource.
 // So what we do here is manually unwrap, but we still want it to play nicely with the
 // volatile renderer, so we need it to "equal" it's volatile version.

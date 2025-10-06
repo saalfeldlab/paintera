@@ -1,28 +1,28 @@
-@import url(glyphs.css);
+@import url(ikonli.css);
 
 
-.glyph-icon.toggle-on {
-    -glyph-name: "TOGGLE_ON";
+.font-icon.toggle-preview > .ikonli-font-icon {
+    -fx-icon-code: "fa-toggle-off";
 }
 
-.glyph-icon.toggle-off {
-    -glyph-name: "TOGGLE_OFF";
+.font-icon.toggle-preview:preview > .ikonli-font-icon {
+    -fx-icon-code: "fa-toggle-on";
 }
 
-.glyph-icon.interpolation-first-slice {
-    -glyph-name: "FAST_BACKWARD";
+.font-icon.interpolation-first-slice > .ikonli-font-icon {
+    -fx-icon-code: "fa-fast-backward";
 }
 
-.glyph-icon.interpolation-previous-slice {
-    -glyph-name: "STEP_BACKWARD";
+.font-icon.interpolation-previous-slice > .ikonli-font-icon {
+    -fx-icon-code: "fa-step-backward";
 }
 
-.glyph-icon.interpolation-next-slice {
-    -glyph-name: "STEP_FORWARD";
+.font-icon.interpolation-next-slice > .ikonli-font-icon {
+    -fx-icon-code: "fa-step-forward";
 }
 
-.glyph-icon.interpolation-last-slice {
-    -glyph-name: "FAST_FORWARD";
+.font-icon.interpolation-last-slice > .ikonli-font-icon {
+    -fx-icon-code: "fa-fast-forward";
 }
 
 

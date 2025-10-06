@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.fx.ui
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.scene.control.Tab
 import javafx.scene.control.TabPane
 import javafx.scene.control.TextArea
@@ -8,6 +7,8 @@ import javafx.scene.web.WebView
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 
 class MarkdownPane() : TabPane() {
 
@@ -22,7 +23,7 @@ class MarkdownPane() : TabPane() {
 		selectionModel.selectedItemProperty().addListener { _, _, new -> if (new === renderedTab) updateMarkdown() }
 		this.tabs.addAll(editTab, renderedTab)
 		this.tabClosingPolicy = TabClosingPolicy.UNAVAILABLE
-		renderedTab.graphic = FontAwesomeIconView().also { it.styleClass += listOf("refresh") }
+		renderedTab.addStyleClass(Style.REFRESH_ICON)
 		edit.isWrapText = false
 	}
 

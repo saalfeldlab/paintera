@@ -30,6 +30,8 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
@@ -69,8 +71,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -541,6 +541,7 @@ public class MultiResolutionRendererGeneric<T> {
 						//TODO Caleb: Debug why this case can happen...
 						return -1;
 					}
+
 					final T unusedBuffer = display.setBufferedImageAndTransform(renderTarget, currentProjectorTransform);
 					if (doubleBuffered) {
 						if (unusedBuffer != null) {
@@ -1031,4 +1032,5 @@ public class MultiResolutionRendererGeneric<T> {
 	private synchronized ArrayDeque<T> getScreenImages(final int scale) {
 		return screenImages.get(scale);
 	}
+
 }

@@ -3,30 +3,31 @@ package org.janelia.saalfeldlab.paintera.control.actions;
 import java.util.EnumSet;
 
 public enum LabelActionType implements ActionType {
-	Toggle(true),
-	Append(true ),
+	View(false),
+	Toggle(false),
+	Append(false ),
 	CreateNew,
-	Lock(true),
+	Lock(false),
 	Merge,
 	Split,
-	SelectAll(true),
+	SelectAll(false),
 	Replace,
 	Delete;
 
 	//TODO Caleb: consider moving this to ActionType. Maybe others too
-	private final boolean readOnly;
+	private final boolean writeRequired;
 
 	LabelActionType() {
-		this(false);
+		this(true);
 	}
 
-	LabelActionType(boolean readOnly) {
-		this.readOnly = readOnly;
+	LabelActionType(boolean requiresWrite) {
+		this.writeRequired = requiresWrite;
 	}
 
-	public boolean isReadOnly() {
+	public boolean isWriteRequired() {
 
-		return readOnly;
+		return writeRequired;
 	}
 
 	public static EnumSet<LabelActionType> of(final LabelActionType first, final LabelActionType... rest) {
@@ -42,7 +43,9 @@ public enum LabelActionType implements ActionType {
 	public static EnumSet<LabelActionType> readOnly() {
 
 		var readOnly = EnumSet.noneOf(LabelActionType.class);
-		all().stream().filter(LabelActionType::isReadOnly).forEach(readOnly::add);
+		all().stream()
+				.filter(action -> !action.writeRequired)
+				.forEach(readOnly::add);
 		return readOnly;
 	}
 

@@ -21,11 +21,15 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
+fun RealInterval.isEmpty() = Intervals.isEmpty(this)
+fun RealInterval.isNotEmpty() = !isEmpty()
 infix fun Interval.union(other: Interval?): Interval = other?.let { Intervals.union(this, other) } ?: this
 infix fun Interval.intersect(other: Interval?): Interval = other?.let { Intervals.intersect(this, other) } ?: this
 infix fun RealInterval.union(other: RealInterval?): RealInterval = other?.let { Intervals.union(this, other) } ?: this
 infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.let { Intervals.intersect(this, other) }
 	?: this
+
+fun Interval.numElements() = Intervals.numElements(this)
 
 fun RealInterval.shape() = maxAsDoubleArray().zip(minAsDoubleArray()).map { (max, min) -> max - min + 1 }.toDoubleArray()
 fun RealInterval.center() = DoubleArray(numDimensions()) { i -> (realMin(i) + realMax(i)) / 2.0 }

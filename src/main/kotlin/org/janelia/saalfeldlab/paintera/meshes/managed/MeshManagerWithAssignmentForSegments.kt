@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
-import com.google.common.collect.HashBiMap
 import gnu.trove.set.hash.TLongHashSet
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.cache.Invalidate
@@ -30,13 +29,12 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.HashWrapper
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Arrays
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import kotlin.coroutines.coroutineContext
 import kotlin.math.min
 
@@ -86,47 +84,39 @@ class MeshManagerWithAssignmentForSegments(
 		fun release() = colorUpdater.unsubscribe()
 	}
 
-	private val updateExecutors = Executors.newSingleThreadExecutor(
-		NamedThreadFactory(
-			"meshmanager-with-assignment-update-%d",
-			true
-		)
-	).asCoroutineDispatcher()
+	private val updateExecutors = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 	private var currentTask: Job? = null
 
 	// setMeshesCompleted is only visible to enclosing manager if
 	// _meshUpdateObservable is private
 	// https://kotlinlang.org/docs/reference/object-declarations.html
 	// That's why we need a private val and a public val that just exposes it
-	private val _meshUpdateObservable = object : ObservableWithListenersList() {
+	private val meshUpdateObservable = object : ObservableWithListenersList() {
 		fun meshUpdateCompleted() = stateChanged()
 	}
-	val meshUpdateObservable = _meshUpdateObservable
 
-	private val segmentFragmentBiMap = HashBiMap.create<Long, Fragments>()
+	private val segmentFragmentBiMap = ConcurrentHashMap<Long, Fragments>()
 	private val relevantBindingsAndPropertiesMap = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, RelevantBindingsAndProperties>())
 
+	@Synchronized
 	override fun releaseMeshState(key: Long, state: MeshGenerator.State) {
-		synchronized(this) {
-			segmentFragmentBiMap.remove(key)
-			relevantBindingsAndPropertiesMap.remove(key)?.release()
-			super.releaseMeshState(key, state)
-		}
+		segmentFragmentBiMap.remove(key)
+		relevantBindingsAndPropertiesMap.remove(key)?.release()
+		super.releaseMeshState(key, state)
 	}
 
 	fun setMeshesToSelection() {
 
 		currentTask?.cancel()
-		runBlocking {
-			currentTask = launch(updateExecutors) { setMeshesToSelectionImpl() }
+		currentTask = updateExecutors.launch {
+			setMeshesToSelectionImpl()
 		}
 	}
 
 	private suspend fun setMeshesToSelectionImpl() {
-		yield()
-
+		coroutineContext.ensureActive()
 		val (selectedSegments, presentSegments) = synchronized(this) {
-			val selectedSegments = Segments(selectedSegments.getSelectedSegments())
+			val selectedSegments = Segments(selectedSegments.segments)
 			val presentSegments = Segments().also { set -> segmentFragmentBiMap.keys.forEach { set.add(it) } }
 			selectedSegments to presentSegments
 		}
@@ -172,20 +162,33 @@ class MeshManagerWithAssignmentForSegments(
 		if (!segmentsToAdd.isEmpty || !segmentsToRemove.isEmpty)
 			manager.requestCancelAndUpdate()
 
-		this._meshUpdateObservable.meshUpdateCompleted()
+		this.meshUpdateObservable.meshUpdateCompleted()
 	}
 
+	@OptIn(ExperimentalCoroutinesApi::class)
 	private suspend fun createMeshes(segments: Segments) {
-		for (segment in segments) {
-			yield()
-			if (segment in segmentFragmentBiMap) return
-			selectedSegments.assignment.getFragments(segment)
-				?.takeUnless { it.isEmpty }
-				?.let { fragments ->
-					segmentFragmentBiMap[segment] = fragments
-					createMeshFor(segment)
-				}
+		coroutineContext.ensureActive()
+
+		val tIterator = segments.iterator()
+		object : Iterator<Long> {
+			override fun hasNext() = tIterator.hasNext()
+			override fun next() = tIterator.next()
 		}
+			.asSequence()
+			.asFlow()
+			.flowOn(Dispatchers.Default)
+			.flatMapMerge(Runtime.getRuntime().availableProcessors()) { segment ->
+				flow {
+					if (!segmentFragmentBiMap.containsKey(segment))
+						selectedSegments.assignment.getFragments(segment)
+							?.takeUnless { it.isEmpty }
+							?.let { fragments ->
+								segmentFragmentBiMap[segment] = fragments
+								createMeshFor(segment)
+							}
+					emit(Unit)
+				}
+			}.collect()
 	}
 
 	override suspend fun createMeshFor(key: Long) {
@@ -208,19 +211,19 @@ class MeshManagerWithAssignmentForSegments(
 	@Synchronized
 	override fun removeMesh(key: Long) {
 		super.removeMesh(key)
-		_meshUpdateObservable.meshUpdateCompleted()
+		meshUpdateObservable.meshUpdateCompleted()
 	}
 
 	@Synchronized
 	override fun removeMeshes(keys: Iterable<Long>) {
 		super.removeMeshes(keys)
-		_meshUpdateObservable.meshUpdateCompleted()
+		meshUpdateObservable.meshUpdateCompleted()
 	}
 
 	@Synchronized
 	override fun removeAllMeshes() {
 		super.removeAllMeshes()
-		_meshUpdateObservable.meshUpdateCompleted()
+		meshUpdateObservable.meshUpdateCompleted()
 	}
 
 	override fun refreshMeshes() {
@@ -247,7 +250,7 @@ class MeshManagerWithAssignmentForSegments(
 			meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 		): MeshManagerWithAssignmentForSegments {
 			LOG.debug("Data source is type {}", dataSource.javaClass)
-			val actualLookup = (dataSource as? MaskedSource<D ,*>)
+			val actualLookup = (dataSource as? MaskedSource<D, *>)
 				?.let { LabelBlockLookupWithMaskedSource.create(labelBlockLookup, it) }
 				?: labelBlockLookup
 
@@ -356,8 +359,7 @@ class MeshManagerWithAssignmentForSegments(
 					key.smoothingIterations(),
 					key.minLabelRatio(),
 					key.overlap(),
-					key.min(),
-					key.max()
+					key.interval
 				)
 			)
 		}

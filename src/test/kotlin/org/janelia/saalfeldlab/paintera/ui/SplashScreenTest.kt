@@ -23,7 +23,7 @@ class SplashScreenTest {
 
 		override fun init() {
 			ApplicationTestUtils.run {
-				Tasks.createTask {
+				Tasks.invoke {
 					preloader!!.handleApplicationNotification(SplashScreenUpdateNumItemsNotification(10))
 					for (i in 0..10) {
 						Thread.sleep(100)

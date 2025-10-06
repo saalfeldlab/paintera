@@ -4,6 +4,9 @@ import bdv.viewer.Source;
 import javafx.scene.Scene;
 import javafx.scene.SubScene;
 import javafx.util.Pair;
+import net.imglib2.Volatile;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -65,7 +68,7 @@ public class CreateDatasetHandler {
 		}
 	}
 
-	private static void createAndAddNewLabelDataset(
+	private static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & NativeType<T>> void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
 			final Supplier<String> projectDirectory,
 			final Source<?> currentSource,
@@ -80,11 +83,8 @@ public class CreateDatasetHandler {
 		final Optional<Pair<MetadataState, String>> metaAndName = cd.showDialog(projectDirectory.get());
 		if (metaAndName.isPresent()) {
 			final var metadataState = metaAndName.get().getKey();
-			final var backend = N5BackendLabel.createFrom(
-					metadataState,
-					pbv.getPropagationQueue());
-			//noinspection rawtypes
-			pbv.addState(new ConnectomicsLabelState(
+			final var backend = N5BackendLabel.<D, T>createFrom( metadataState, pbv.getPropagationQueue());
+			pbv.addState(new ConnectomicsLabelState<>(
 					backend,
 					pbv.viewer3D().getMeshesGroup(),
 					pbv.viewer3D().getViewFrustumProperty(),

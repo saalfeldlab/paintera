@@ -5,17 +5,16 @@ import java.util.stream.LongStream;
 
 public class LocalIdService implements IdService {
 
-	private long next;
-	private long nextTemp = IdService.FIRST_TEMPORARY_ID;
+	private long current;
 
 	public LocalIdService() {
 
 		this(1);
 	}
 
-	public LocalIdService(final long next) {
+	public LocalIdService(final long current) {
 
-		this.next = next;
+		this.current = current;
 	}
 
 	@Override public long nextTemporary() {
@@ -33,31 +32,37 @@ public class LocalIdService implements IdService {
 	@Override
 	public synchronized void invalidate(final long id) {
 
-		next = IdService.max(next, id + 1);
+		current = IdService.max(current, id + 1);
 	}
 
-	public void setNext(final long id) {
+	public void setCurrent(final long id) {
 
-		next = id;
+		current = id;
+	}
+
+	@Override
+	public synchronized long current() {
+
+		/* this should always return the previous value of `next()`.
+		* That is `next() == current()` should always be true. */
+		return current;
 	}
 
 	@Override
 	public synchronized long next() {
 
-		return next++;
+		return ++current;
 	}
 
 	@Override
 	public synchronized long[] next(final int n) {
 
-		final long[] ids = LongStream.range(next, next + n).toArray();
-		next += n;
-		return ids;
+		return LongStream.range(1 + current, 1 + (current += n)).toArray();
 	}
 
 	@Override
 	public synchronized boolean isInvalidated(final long id) {
 
-		return id < this.next;
+		return id < this.current;
 	}
 }

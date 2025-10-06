@@ -25,7 +25,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -348,7 +348,7 @@ class PaintClickOrDragController(
 		private val LOG = KotlinLogging.logger { }
 
 		private fun busyMaskResetPrompt(currentSource: MaskedSource<*, *>) {
-			PainteraAlerts.confirmation("Yes", "No", true).apply {
+			PainteraAlerts.confirmation("Yes", "No", true, null).apply {
 				headerText = "Unable to paint."
 
 				contentText = """
