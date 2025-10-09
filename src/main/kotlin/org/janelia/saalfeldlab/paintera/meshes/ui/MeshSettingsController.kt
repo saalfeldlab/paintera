@@ -428,7 +428,6 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 			items.addListener(changeListener)
 
 			itemsRemovalSubscription = Subscription {
-				items.forEach { it.unsubscribe() }
 				items.removeListener(changeListener)
 			}
 		}

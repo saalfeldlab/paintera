@@ -335,7 +335,7 @@ public class MeshGeneratorJobManager<T> {
 				meshesAndBlocks.clear();
 				interruptTasks(tasks.keySet());
 
-				meshProgress.set(0, 0);
+				meshProgress.reset();
 			}
 		}));
 	}

@@ -85,7 +85,7 @@ class GlobalMeshProgressState(
 		)
 	}
 
-	private fun resetProgress() = set(0, 0)
+	private fun resetProgress() = reset()
 
 	private fun updateCounts() {
 		progressBindingSubscription.unsubscribe()

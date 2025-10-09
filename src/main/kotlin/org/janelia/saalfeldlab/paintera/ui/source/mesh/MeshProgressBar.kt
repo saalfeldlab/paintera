@@ -7,7 +7,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshProgressState
 
 class MeshProgressBar : AnimatedProgressBar() {
 	private var meshProgress: MeshProgressState? = null
-	private var subscription : Subscription? = null
+	private var subscription: Subscription? = null
 
 	init {
 		setCssProperties()
