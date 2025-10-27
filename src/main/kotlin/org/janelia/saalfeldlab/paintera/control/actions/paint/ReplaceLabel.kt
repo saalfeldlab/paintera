@@ -50,7 +50,11 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 
 	init {
 		verifyPermission(*mode.permissions)
-		onActionWithState({ ReplaceLabelState(mode) }) {
+
+		onActionWithState({
+			val replaceLabelState = ReplaceLabelState<Nothing, Nothing>(mode)
+			replaceLabelState
+		}) {
 			val title = "${mode.name} Labels"
 			getDialog(title).showAndWait()
 				.getOrNull()

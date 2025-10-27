@@ -421,7 +421,7 @@ internal class ShapeInterpolationTool(
 						verify { shapeInterpolationMode.activeTool !is Fill2DTool }
 						verify { it!!.button == MouseButton.PRIMARY && !it.isControlDown } // respond to primary click
 						verify { controllerState != ShapeInterpolationController.ControllerState.Interpolate } // need to be in the select state
-						onActionWithState({ ShapeInterpolationSelectIDToFillState() }) { event ->
+						onActionWithState({ ShapeInterpolationSelectIDToFillState<Nothing, Nothing>() }) { event ->
 							event!! /* Safe because verifyNotNull. Would be nice to not need this */
 
 							fun fillFromViewerMask() {
@@ -481,7 +481,7 @@ internal class ShapeInterpolationTool(
 							val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker()!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
 							triggerByRightClick || triggerByCtrlLeftClick
 						}
-						onActionWithState({ ShapeInterpolationSelectIDToFillState() }) { event ->
+						onActionWithState({ ShapeInterpolationSelectIDToFillState<Nothing, Nothing>() }) { event ->
 							currentJob = fillObjectInSlice(event!!, mask)
 						}
 					}

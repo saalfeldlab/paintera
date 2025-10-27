@@ -40,7 +40,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 
 open class PaintLabelMode : ViewLabelMode() {
 
-	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
+	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext<Nothing, Nothing>(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)

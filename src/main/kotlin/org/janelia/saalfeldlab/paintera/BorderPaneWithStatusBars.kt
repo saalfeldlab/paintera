@@ -190,22 +190,6 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 	private val statusBar = createPainteraStatusBar(painteraProperties.statusBarConfig.isVisibleProperty)
 
-//TODO: Remove?
-//	@Suppress("unused")
-//	private val statusBarParentProperty = SimpleObjectProperty<HBox?>(null).apply {
-//		addListener { _, old, new ->
-//			old?.children?.remove(statusBar)
-//			new?.children?.add(statusBar)
-//		}
-//		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
-//			when (it!!) {
-//				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
-//				StatusBarConfig.Mode.BOTTOM -> bottomGroup
-//			}
-//		}
-//		bind(replaceParentBinding)
-//	}
-
 	init {
 		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
 		initCrossHairs()

@@ -1,10 +1,12 @@
-package org.janelia.saalfeldlab.paintera.serialization;
+package org.janelia.saalfeldlab.paintera.serialization.config;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.janelia.saalfeldlab.paintera.serialization.WindowProperties;
 import org.scijava.plugin.Plugin;
 
 import java.lang.reflect.Type;

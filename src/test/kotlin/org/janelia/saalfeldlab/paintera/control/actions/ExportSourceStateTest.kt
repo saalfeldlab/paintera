@@ -59,11 +59,11 @@ class ExportSourceStateTest {
 
 	val metadataState = MetadataUtils.createMetadataState(EXPORT_TEST_N5, LABEL_MULTISET_DATASET)!! as PainteraDataMultiscaleMetadataState
 	val metadata = metadataState.metadata as N5PainteraLabelMultiScaleGroup
-	val labelBackend = N5BackendLabel.createFrom(metadataState, Executors.newSingleThreadExecutor()) as N5BackendPainteraDataset
+	val labelBackend = N5BackendLabel.createFrom<Nothing, Nothing>(metadataState, Executors.newSingleThreadExecutor()) as N5BackendPainteraDataset
 
 	val source = let {
 		val queue = SharedQueue(1)
-		val dataSource = N5DataSource(metadataState, "export_test", queue, 1)
+		val dataSource = N5DataSource<Nothing, Nothing>(metadataState, "export_test", queue, 1)
 		val canvasPath = "$TEMP_TEST_N5/cache"
 		Masks.maskedSource(dataSource, queue, canvasPath, { canvasPath }, CommitCanvasN5(metadataState), Executors.newSingleThreadExecutor()) as MaskedSource
 	}

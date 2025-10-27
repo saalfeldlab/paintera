@@ -17,6 +17,8 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.hGrow
+import org.python.antlr.ast.Subscript
+import java.util.concurrent.atomic.AtomicBoolean
 
 private data class ToggleActionBarItem(val node: Node, val toggle: Toggle? = null)
 
@@ -62,18 +64,23 @@ class ModeToolActionBar : FlowPane() {
 	fun addToolBarItems(items: List<ToolBarItem>, group: ToggleGroup = ToggleGroup()): Subscription {
 		return addItems(group, items.toolBarButtons())
 	}
-
 	private fun addItems(group: ToggleGroup = ToggleGroup(), controls: List<Labeled>): Subscription {
 		val toggles = controls.map { ToggleActionBarItem(it, it as? Toggle) }
 		toggles.forEach { (_, toggle) -> toggle?.toggleGroup = group }
 		toggleGroups.merge(group, toggles) { l, r -> l + r }
 		children.addAll(controls)
-		return Subscription {
-			InvokeOnJavaFXApplicationThread {
-				children.removeAll(controls)
-				removeToggleGroup(group)
+
+		/* Subscription must be idempotent*/
+		val runOnce  = AtomicBoolean(true)
+		fun removeItems() {
+			if (runOnce.getAndSet(false)) {
+				InvokeOnJavaFXApplicationThread {
+					children.removeAll(controls)
+					removeToggleGroup(group)
+				}
 			}
 		}
+		return Subscription { removeItems() }
 	}
 
 	companion object {

@@ -42,7 +42,7 @@ abstract class PaintTool(
 
 	protected val activeState by activeSourceStateProperty.nullableVal()
 
-	private val activePaintContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
+	private val activePaintContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext<Nothing, Nothing>(it) }
 	val statePaintContext by activePaintContextBinding.nullableVal()
 
 	val brushPropertiesBinding = activePaintContextBinding.createNullableValueBinding { it?.brushProperties }
