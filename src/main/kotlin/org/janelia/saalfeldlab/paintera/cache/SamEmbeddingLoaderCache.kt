@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
@@ -212,19 +213,30 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			useVolatileIfAvailable = false
 		)
 
-		val predictionImagePngInputStream = PipedInputStream()
-		val predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
+		val predictionImageInputStream = PipedInputStream()
+		val predictionImageOutputStream = PipedOutputStream(predictionImageInputStream)
 
 		imageRenderer.renderedImageProperty.subscribe { _, result ->
 			result.image?.let { img ->
-				ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
-				predictionImagePngOutputStream.close()
+				/* jpg is not compatible with images with `alpha` */
+				val rgbImage = BufferedImage(
+					img.width.toInt(),
+					img.height.toInt(),
+					BufferedImage.TYPE_INT_RGB
+				)
+				val encodedImg = SwingFXUtils.fromFXImage(img, rgbImage)
+				val written = ImageIO.write(encodedImg, "jpg", predictionImageOutputStream)
+				if (!written)
+					LOG.warn { "Failed to write prediction image to output stream" }
+
+				predictionImageOutputStream.flush()
+				predictionImageOutputStream.close()
 				sharedQueue.shutdown()
 				imageRenderer.stopRendering()
 			}
 		}
 		imageRenderer.requestRepaint()
-		return predictionImagePngInputStream
+		return predictionImageInputStream
 	}
 
 	fun request(viewer: ViewerPanelFX, globalToViewerTransform: AffineTransform3D): Deferred<OnnxTensor> {
@@ -320,7 +332,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	private fun getImageEmbedding(inputImage: PipedInputStream, sessionId: String? = null): OnnxTensor {
 		val entityBuilder = MultipartEntityBuilder.create()
-		entityBuilder.addBinaryBody("image", inputImage, ContentType.APPLICATION_OCTET_STREAM, "null")
+		entityBuilder.addBinaryBody("image", inputImage, ContentType.IMAGE_JPEG, "image.jpg")
 		sessionId?.let { id ->
 			entityBuilder.addTextBody("session_id", id);
 			entityBuilder.addTextBody("cancel_pending", "true");
