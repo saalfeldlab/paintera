@@ -1,12 +1,14 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh
 
+import javafx.beans.binding.DoubleExpression
 import javafx.css.PseudoClass
+import javafx.scene.control.ProgressIndicator
 import javafx.util.Subscription
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
-import org.janelia.saalfeldlab.paintera.meshes.MeshProgressState
 
-class MeshProgressBar : AnimatedProgressBar() {
-	private var meshProgress: MeshProgressState? = null
+private typealias ReverseBehavior = AnimatedProgressBar.Companion.ReverseBehavior
+
+class MeshProgressBar(reverseBehavior: ReverseBehavior = ReverseBehavior.SKIP) : AnimatedProgressBar(reverseBehavior) {
 	private var subscription: Subscription? = null
 
 	init {
@@ -21,19 +23,14 @@ class MeshProgressBar : AnimatedProgressBar() {
 		}
 	}
 
-	fun bindTo(meshProgress: MeshProgressState) {
-		/* don't rebind if already bound */
-		if (meshProgress == this.meshProgress)
-			return
-
+	fun bindTo(meshProgress: DoubleExpression) {
 		subscription?.unsubscribe()
-		this.meshProgress = meshProgress
-		val progressBinding = meshProgress.progressBinding
 
 		/* Don't animate the initialization, just set it to the current value */
-		progressProperty().set(progressBinding.get())
+		progressProperty().set(meshProgress.get())
 
-		progressTargetProperty.bind(progressBinding)
+		progressTargetProperty.value = meshProgress.value
+		progressTargetProperty.bind(meshProgress)
 		subscription = Subscription {
 			subscription = null
 			unbind()
@@ -48,7 +45,6 @@ class MeshProgressBar : AnimatedProgressBar() {
 		subscription = null
 		stop()
 		progressTargetProperty.unbind()
-		meshProgress = null
-		progress = Double.MIN_VALUE
+		progress = ProgressIndicator.INDETERMINATE_PROGRESS
 	}
 }

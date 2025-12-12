@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 
 import javafx.application.Platform
-import javafx.beans.InvalidationListener
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -109,6 +108,9 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		}
 	}
 
+	val meshManagerScope = CoroutineScope(PainteraDispatchers.MeshManagerDispatcher + SupervisorJob()) + CoroutineName("MeshManager")
+	internal var currentMeshJob: Job? = null
+
 	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) {
 
 		val keysAndGenerators = synchronized(this) {
@@ -119,24 +121,28 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 		val removedRoots = Collections.synchronizedSet(mutableSetOf<Node>())
 
-		CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
-			keysAndGenerators.map { (key, generator) ->
-				launch {
-					generator.run {
-						interrupt()
-						unbindFromThis()
-						root.visibleProperty().unbind()
-						releaseState(key, state)
-						removedRoots += root
+		currentMeshJob = meshManagerScope.launch {
+			supervisorScope {
+				keysAndGenerators.map { (key, generator) ->
+					launch {
+						generator.run {
+							interrupt()
+							unbindFromThis()
+							root.visibleProperty().unbind()
+							releaseState(key, state)
+							removedRoots += root
+						}
 					}
 				}
-			}.joinAll()
-		}.invokeOnCompletion { cause ->
-			InvokeOnJavaFXApplicationThread {
-				// The roots list has to be converted to array first and then passed as vararg
-				// to use the implementation in ObservableList instead of the Kotlin extension
-				// function.
-				meshesGroup.children.removeAll(*removedRoots.toTypedArray())
+			}
+		}.also {
+			it.invokeOnCompletion {
+				InvokeOnJavaFXApplicationThread {
+					// The roots list has to be converted to array first and then passed as vararg
+					// to use the implementation in ObservableList instead of the Kotlin extension
+					// function.
+					meshesGroup.children.removeAll(*removedRoots.toTypedArray())
+				}
 			}
 		}
 	}
@@ -146,7 +152,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val createMeshQueue = Channel<CreateMeshGenerator<ObjectKey>>(capacity = Channel.UNLIMITED)
 
 	@Suppress("unused")
-	private val createMeshRunner = CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+	private val createMeshRunner = meshManagerScope.launch {
 		val jobs = mutableListOf<Deferred<Pair<ObjectKey, MeshGenerator<ObjectKey>>>>()
 		while (isActive) {
 			val createMeshGenerators = generateSequence { createMeshQueue.tryReceive().getOrNull() }

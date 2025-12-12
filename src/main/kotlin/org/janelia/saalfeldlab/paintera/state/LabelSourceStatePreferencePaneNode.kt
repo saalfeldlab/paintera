@@ -67,7 +67,7 @@ class LabelSourceStatePreferencePaneNode(
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(composite)
 
-			var meshInfos = SegmentMeshInfoList(emptyList(), meshManager)
+			val meshInfos = SegmentMeshInfoList(meshManager)
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
 				meshInfos.selectedSegmentsProperty.set(selectedSegments.segments.toArray().toList())
 			}

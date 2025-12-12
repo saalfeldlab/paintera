@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes
 
 import javafx.beans.property.ReadOnlyDoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.invalidate
 
 abstract class MeshProgressState {
 
@@ -18,13 +17,7 @@ abstract class MeshProgressState {
 	 */
 	data class Progress(val totalTasks: Int, val completeTasks: Int)
 
-	protected open val progressProperty = object : SimpleDoubleProperty(0.0) {
-		override fun set(newValue: Double) {
-			if (newValue >= 1.0)
-				println("?")
-			super.set(newValue)
-		}
-	}
+	protected open val progressProperty = SimpleDoubleProperty(0.0)
 	val progressBinding: ReadOnlyDoubleProperty = ReadOnlyDoubleProperty.readOnlyDoubleProperty(progressProperty)
 
 	@Volatile

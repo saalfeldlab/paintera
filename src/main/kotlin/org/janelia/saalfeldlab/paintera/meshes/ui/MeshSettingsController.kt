@@ -3,9 +3,8 @@ package org.janelia.saalfeldlab.paintera.meshes.ui
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.*
 import javafx.collections.FXCollections
-import javafx.collections.ListChangeListener
-import javafx.collections.ObservableList
 import javafx.geometry.HPos
+import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
@@ -16,13 +15,13 @@ import javafx.scene.shape.DrawMode
 import javafx.util.Subscription
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -50,7 +49,7 @@ import kotlin.math.min
 
 private val LOG = KotlinLogging.logger { }
 
-class MeshSettingsController @JvmOverloads constructor(
+class MeshSettingsController(
 	val numScaleLevels: Int,
 	private val opacity: DoubleProperty,
 	private val levelOfDetail: IntegerProperty,
@@ -66,7 +65,6 @@ class MeshSettingsController @JvmOverloads constructor(
 	private val refreshMeshes: Runnable? = null,
 ) {
 
-	@JvmOverloads
 	constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
 		meshSettings.numScaleLevels,
 		meshSettings.opacityProperty,
@@ -238,28 +236,41 @@ class MeshSettingsController @JvmOverloads constructor(
 				is Region -> width?.let { node.prefWidth = it }
 			}
 		}
+
 		private fun setCoarsestAndFinestScaleLevelSliderListeners(
-			coarsestScaleLevelSlider: Slider,
-			finestScaleLevelSlider: Slider,
+			coarsestScaleLevelProperty: DoubleProperty,
+			finestScaleLevelProperty: DoubleProperty,
 		) {
 
-			coarsestScaleLevelSlider.valueProperty().addListener { _ ->
-				if (!coarsestScaleLevelSlider.value.isNaN() && finestScaleLevelSlider.value.isNaN()) {
-					finestScaleLevelSlider.value = min(
-						coarsestScaleLevelSlider.value,
-						finestScaleLevelSlider.value
-					)
+
+			fun setCoarseAndFineRange() {
+				val coarse = coarsestScaleLevelProperty.value
+				val fine = finestScaleLevelProperty.value
+				when {
+					coarse.isNaN() && fine.isNaN() -> {
+						coarsestScaleLevelProperty.value = 0.0
+						finestScaleLevelProperty.value = 0.0
+					}
+
+					coarse.isNaN() -> {
+						coarsestScaleLevelProperty.value = fine
+						finestScaleLevelProperty.value = fine
+					}
+
+					fine.isNaN() -> {
+						coarsestScaleLevelProperty.value = coarse
+						finestScaleLevelProperty.value = coarse
+					}
+
+					else -> {
+						coarsestScaleLevelProperty.value = max(coarse, fine)
+						finestScaleLevelProperty.value = min(coarse, fine)
+					}
 				}
 			}
 
-			finestScaleLevelSlider.valueProperty().addListener { _ ->
-				if (!coarsestScaleLevelSlider.value.isNaN() && finestScaleLevelSlider.value.isNaN()) {
-					coarsestScaleLevelSlider.value = max(
-						coarsestScaleLevelSlider.value,
-						finestScaleLevelSlider.value
-					)
-				}
-			}
+			coarsestScaleLevelProperty.addListener { _ -> setCoarseAndFineRange() }
+			finestScaleLevelProperty.addListener { _ -> setCoarseAndFineRange() }
 		}
 	}
 }
@@ -267,51 +278,95 @@ class MeshSettingsController @JvmOverloads constructor(
 
 open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null, null) {
 	private val hasIndividualSettings = CheckBox("Individual Settings")
-	private var isManaged = SimpleBooleanProperty()
+	private var isManagedProperty = SimpleBooleanProperty()
 	private var controller: MeshSettingsController = MeshSettingsController(meshInfo.meshSettings)
 
 	private var progressBar = MeshProgressBar()
 
 	init {
-		hasIndividualSettings.selectedProperty().bindBidirectional(isManaged)
-		bindProgressBar()
+		hasIndividualSettings.selectedProperty().bindBidirectional(isManagedProperty)
 		isExpanded = false
-		expandedProperty().subscribe { isExpanded ->
-			if (isExpanded && content == null) {
-				content = createMeshInfoGrid()
+		val meshKeyLabel = TextField("${meshInfo.key}").also {
+			it.isEditable = false
+			it.background = Background.EMPTY
+			it.prefWidth = 10 * it.font.size
+		}
+		graphic = HBox(
+			meshKeyLabel, progressBar.hGrow()
+		).also {
+			it.alignment = Pos.CENTER
+			it.padding = Insets(0.0, 30.0, 0.0, 10.0)
+			it.minWidthProperty().bind(this.widthProperty().subtract(10.0))
+			graphicsOnly(it)
+		}
+	}
+
+	internal fun initContent() {
+		content = createMeshInfoGrid()
+	}
+
+	private var subscription: Subscription? = null
+
+	internal fun unbindProgressBar() {
+		subscription?.let {
+			it.unsubscribe()
+			subscription = null
+		}
+	}
+
+	@Synchronized
+	internal fun bindProgressBar() {
+		unbindProgressBar()
+		val meshProgress = SimpleDoubleProperty(ProgressIndicator.INDETERMINATE_PROGRESS)
+		val meshStateSubscription = meshInfo.meshStateProperty.subscribe { state ->
+			meshProgress.unbind()
+			when (state) {
+				null -> meshProgress.set(ProgressIndicator.INDETERMINATE_PROGRESS)
+				else -> {
+					meshProgress.value = state.progress.progressBinding.value
+					meshProgress.bind(state.progress.progressBinding)
+				}
 			}
 		}
-		graphic = HBox(10.0, Label("${meshInfo.key}").hGrow { maxWidth = Double.MAX_VALUE }, progressBar.hGrow()).apply {
-			minWidthProperty().set(0.0)
-			alignment = Pos.CENTER_LEFT
-			isFillHeight = true
-			graphicsOnly(this)
+		val progressBarSubscription = progressBar.bindTo(meshProgress).let {
+			Subscription { progressBar.unbind() }
 		}
+		subscription += progressBarSubscription + meshStateSubscription
 	}
 
-	internal fun bindProgressBar() {
-		meshInfo.subscribeToMeshState(progressBar::unbind) {
-			if (it?.progress != null)
-				progressBar.bindTo(it.progress)
-			else
-				progressBar.unbind()
-		}
+	private val settingsNode by lazy {
+		val isLabelMultiset = meshInfo.manager.source.getDataType() is LabelMultisetType
+		controller.createContents(isLabelMultiset)
 	}
 
-	protected open fun createMeshInfoGrid(grid: GridPane = GridPane()): GridPane {
+	protected open fun createMeshInfoGrid(): Node {
 
-		val settingsGrid = controller.createContents(meshInfo.manager.source.getDataType() is LabelMultisetType)
-		val individualSettingsBox = VBox(hasIndividualSettings, settingsGrid)
-		individualSettingsBox.spacing = 5.0
-		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty())
-		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty())
-		isManaged.bindBidirectional(meshInfo.isManagedProperty)
-
-		return grid.apply {
-			add(createExportMeshButton(), 0, rowCount, 2, 1)
-			add(individualSettingsBox, 0, rowCount, 2, 1)
+		isManagedProperty.bindBidirectional(meshInfo.isManagedProperty)
+		val individualSettingsBox = TitledPane()
+		individualSettingsBox.addStyleClass("individual-mesh-settings")
+		individualSettingsBox.isCollapsible = false
+		individualSettingsBox.graphic = HBox(
+			hasIndividualSettings,
+			Region().apply {
+				maxWidth = Double.MAX_VALUE
+				HBox.setHgrow(this, Priority.ALWAYS)
+			},
+			createExportMeshButton()
+		).also { titleRegion ->
+			titleRegion.alignment = Pos.CENTER
+			titleRegion.padding = Insets(0.0, 10.0, 0.0, 00.0)
+			titleRegion.minWidthProperty().bind(individualSettingsBox.widthProperty().subtract(10.0))
 		}
+		hasIndividualSettings.selectedProperty().subscribe { individualSettings ->
+			if (individualSettings && individualSettingsBox.content == null)
+				individualSettingsBox.content = settingsNode
+			individualSettingsBox.isCollapsible = true
+			individualSettingsBox.isExpanded = individualSettings
+			individualSettingsBox.isCollapsible = false
+		}
+		return individualSettingsBox
 	}
+
 	private fun createExportMeshButton(): Button {
 		val exportMeshButton = Button("Export")
 		exportMeshButton.setOnAction { event ->
@@ -339,6 +394,7 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 		}
 		return exportMeshButton
 	}
+
 }
 fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) {
 	val meshExporter = result.meshExporter
@@ -404,52 +460,18 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) 
 	}
 }
 
-abstract class MeshInfoList<T : MeshInfo<K>, K>(
-	meshInfoList: ObservableList<T> = FXCollections.observableArrayList(),
-	manager: MeshManager<K>,
-) : ListView<T>(meshInfoList) {
+abstract class MeshInfoList<T : MeshInfo<K>, K> : ListView<T>() {
 
 
 	init {
 		setCellFactory { MeshInfoListCell() }
-		/*remove individual subscriptions when infos are removed */
-		var itemsRemovalSubscription: Subscription? = null
-		itemsProperty().subscribe { items ->
-			val changeListener = { change: ListChangeListener.Change<out T> ->
-				while (change.next()) {
-					change.removed.forEach {
-						it.unsubscribe()
-					}
-				}
-			}
-
-			items.addListener(changeListener)
-
-			itemsRemovalSubscription = Subscription {
-				items.removeListener(changeListener)
-			}
-		}
-
-		/* remove all prior subscriptions if we change the collection*/
-		itemsProperty().subscribe { prev, cur ->
-			itemsRemovalSubscription?.let {
-				itemsRemovalSubscription = null
-				it.unsubscribe()
-			}
-		}
-
-
-		manager.managedSettings.isMeshListEnabledProperty.addListener { _, _, enabled ->
-			if (!enabled) {
-				itemsProperty().set(FXCollections.emptyObservableList())
-			} else {
-				itemsProperty().set(meshInfoList)
-			}
-		}
 	}
+
+	abstract fun updateItems(meshesEnable: Boolean)
 
 	open fun meshNodeFactory(meshInfo: T): MeshInfoPane<K> {
 		val meshInfoPane: MeshInfoPane<K> = MeshInfoPane(meshInfo)
+		meshInfoPane.initContent()
 		return meshInfoPane
 	}
 
@@ -459,6 +481,18 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 
 		init {
 			style = "-fx-padding: 0px"
+			sceneProperty().subscribe { scene ->
+				if (scene == null) {
+					releaseState()
+				}
+			}
+		}
+
+		private fun releaseState() {
+			meshInfoPane?.apply {
+				unbindProgressBar()
+			}
+			meshInfoPane = null
 		}
 
 		override fun updateItem(item: T?, empty: Boolean) {
@@ -466,22 +500,15 @@ abstract class MeshInfoList<T : MeshInfo<K>, K>(
 			text = null
 			if (empty || item == null) {
 				graphic = null
-				meshInfoPane?.let {
-					it.meshInfo.unsubscribe()
-					meshInfoPane = null
-				}
+				releaseState()
 			} else {
-				graphic = meshInfoPane?.takeIf { it.meshInfo.key == item.key }?.also {
-					/* If we are re-using an existing pane, we need to re-bind it,
-					* since it may have been unbound in the meantime (probably it was) */
-					it.bindProgressBar()
-				} ?: let {
-					meshInfoPane?.meshInfo?.unsubscribe()
-					meshNodeFactory(item).apply {
-						prefWidthProperty().subscribe { pref -> prefWidth = pref.toDouble() }
-						meshInfoPane = this
+				if (meshInfoPane == null || meshInfoPane?.meshInfo?.key != item.key) {
+					releaseState()
+					meshInfoPane = meshNodeFactory(item).also {
+						it.bindProgressBar()
 					}
 				}
+				graphic = meshInfoPane
 			}
 		}
 	}

@@ -1,7 +1,0 @@
-.mesh-status-bar {
-    -fx-accent: #FC766AFF;
-}
-
-.mesh-status-bar:complete {
-    -fx-accent: #5B84B1FF;
-}

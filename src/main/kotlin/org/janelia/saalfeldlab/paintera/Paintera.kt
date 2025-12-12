@@ -405,7 +405,7 @@ class Paintera : Application() {
 			"style/sam.css",
 			"style/paint.css",
 			"style/raw-source.css",
-			"style/mesh-status-bar.css"
+			"style/mesh.css"
 		)
 
 		private fun registerPainteraStylesheets(styleable: Scene) {

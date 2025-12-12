@@ -154,7 +154,7 @@ class MeshSettings @JvmOverloads constructor(
 		}
 	}
 
-	fun bindTo(that: MeshSettings) {
+	fun bind(that: MeshSettings) {
 		InvokeOnJavaFXApplicationThread {
 			levelOfDetailProperty.bind(that.levelOfDetailProperty)
 			coarsestScaleLevelProperty.bind(that.coarsestScaleLevelProperty)
@@ -185,40 +185,6 @@ class MeshSettings @JvmOverloads constructor(
 			drawModeProperty.unbind()
 			cullFaceProperty.unbind()
 			isVisibleProperty.unbind()
-		}
-	}
-
-	fun bindBidirectional(that: MeshSettings) {
-		InvokeOnJavaFXApplicationThread {
-			levelOfDetailProperty.bindBidirectional(that.levelOfDetailProperty)
-			coarsestScaleLevelProperty.bindBidirectional(that.coarsestScaleLevelProperty)
-			finestScaleLevelProperty.bindBidirectional(that.finestScaleLevelProperty)
-			simplificationIterationsProperty.bindBidirectional(that.simplificationIterationsProperty)
-			smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
-			smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
-			minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
-			overlapProperty.bindBidirectional(that.overlapProperty)
-			opacityProperty.bindBidirectional(that.opacityProperty)
-			drawModeProperty.bindBidirectional(that.drawModeProperty)
-			cullFaceProperty.bindBidirectional(that.cullFaceProperty)
-			isVisibleProperty.bindBidirectional(that.isVisibleProperty)
-		}
-	}
-
-	fun unbindBidirectional(that: MeshSettings) {
-		InvokeOnJavaFXApplicationThread {
-			levelOfDetailProperty.unbindBidirectional(that.levelOfDetailProperty)
-			coarsestScaleLevelProperty.unbindBidirectional(that.coarsestScaleLevelProperty)
-			finestScaleLevelProperty.unbindBidirectional(that.finestScaleLevelProperty)
-			simplificationIterationsProperty.unbindBidirectional(that.simplificationIterationsProperty)
-			smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
-			smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
-			minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
-			overlapProperty.unbindBidirectional(that.overlapProperty)
-			opacityProperty.unbindBidirectional(that.opacityProperty)
-			drawModeProperty.unbindBidirectional(that.drawModeProperty)
-			cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
-			isVisibleProperty.unbindBidirectional(that.isVisibleProperty)
 		}
 	}
 }

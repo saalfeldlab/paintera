@@ -1,0 +1,17 @@
+.mesh-status-bar {
+    -fx-accent: #FC766AFF;
+}
+
+.mesh-status-bar:complete {
+    -fx-accent: #5B84B1FF;
+}
+
+.individual-mesh-settings > .title {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.individual-mesh-settings > .content {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}

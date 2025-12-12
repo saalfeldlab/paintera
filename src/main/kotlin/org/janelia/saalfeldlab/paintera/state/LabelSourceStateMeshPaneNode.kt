@@ -12,9 +12,9 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.expandIfEnabled
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar.Companion.ReverseBehavior.SET
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgressState
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj
@@ -41,33 +41,33 @@ class LabelSourceStateMeshPaneNode(
 		get() = makeNode()
 
 	private fun makeNode(): Node {
-		val settings = manager.globalSettings
-		val tp = MeshSettingsController(settings, manager::refreshMeshes).createTitledPane(
+		val globalMeshSettings = manager.globalSettings
+		val meshSettingsController = MeshSettingsController(globalMeshSettings, manager::refreshMeshes)
+		val meshSettingsTitlePane = meshSettingsController.createTitledPane(
 			source.dataType is LabelMultisetType,
 			manager.managedSettings.meshesEnabledProperty,
 			titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
-		)
-		with(tp.content.asVBox()) {
-			tp.content = this
-			children.add(MeshSettingsPane(manager, meshInfos))
-			return tp
+		).apply {
+			content = content.asVBox().apply {
+				children += GlobalMeshSettingsPane(manager, meshInfos)
+			}
 		}
+
+		return meshSettingsTitlePane
 	}
 
-	private class MeshSettingsPane(
+	private class GlobalMeshSettingsPane(
 		private val manager: MeshManagerWithAssignmentForSegments,
-		private val meshInfoList: SegmentMeshInfoList,
+		private val meshInfoList: SegmentMeshInfoList
 	) : TitledPane("Mesh List", null) {
 
-		private val isMeshListEnabledCheckBox = CheckBox()
-		private val disabledMeshesBinding = isMeshListEnabledCheckBox.selectedProperty().not()
+		private val disabledMeshesBinding = manager.managedSettings.meshesEnabledProperty.not()
 		private val globalMeshProgress = GlobalMeshProgressState(
 			ReadOnlyObjectWrapper.objectExpression(meshInfoList.itemsProperty()),
 			disabledMeshesBinding
 		)
-		private val totalProgressBar = MeshProgressBar().also {
-			it.bindTo(globalMeshProgress)
-			it.reversible = true
+		private val totalProgressBar = MeshProgressBar(SET).also {
+			it.bindTo(globalMeshProgress.progressBinding)
 		}
 
 		init {
@@ -100,20 +100,15 @@ class LabelSourceStateMeshPaneNode(
 			val meshesBox = VBox(meshInfoList, Separator(Orientation.HORIZONTAL), buttonBox)
 			listOf(meshesBox, meshInfoList).forEach { it.padding = Insets.EMPTY }
 
-			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(manager.managedSettings.isMeshListEnabledProperty) }
-
 			val tpGraphics = HBox(
 				10.0,
 				Label("Mesh List"),
 				totalProgressBar.hGrow(),
-				isMeshListEnabledCheckBox
 			).apply {
 				minWidthProperty().set(0.0)
 				alignment = Pos.CENTER_LEFT
 				isFillHeight = true
 			}
-
-			expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
 			graphicsOnly(tpGraphics)
 			alignment = Pos.CENTER_RIGHT
 			meshInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })

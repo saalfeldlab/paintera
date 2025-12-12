@@ -111,7 +111,7 @@ class MeshManagerWithAssignmentForSegments(
 	}
 
 	private suspend fun setMeshesToSelectionImpl() {
-		coroutineContext.ensureActive()
+		currentCoroutineContext().ensureActive()
 		val (selectedSegments, presentSegments) = synchronized(this) {
 			val selectedSegments = Segments(selectedSegments.segments)
 			val presentSegments = Segments().also { set -> segmentFragmentBiMap.keys.forEach { set.add(it) } }
@@ -164,7 +164,7 @@ class MeshManagerWithAssignmentForSegments(
 
 	@OptIn(ExperimentalCoroutinesApi::class)
 	private suspend fun createMeshes(segments: Segments) {
-		coroutineContext.ensureActive()
+		currentCoroutineContext().ensureActive()
 
 		val tIterator = segments.iterator()
 		object : Iterator<Long> {
@@ -190,13 +190,13 @@ class MeshManagerWithAssignmentForSegments(
 
 	override suspend fun createMeshFor(key: Long) {
 		super.createMeshFor(key)
-		if (!coroutineContext.isActive) {
+		if (!currentCoroutineContext().isActive) {
 			removeMesh(key)
 		}
 	}
 
 	override fun setupMeshState(key: Long, state: MeshGenerator.State) {
-		state.settings.bindTo(managedSettings.getMeshSettings(key, true))
+		state.settings.bind(managedSettings.getMeshSettings(key, false))
 		val relevantBindingsAndProperties = relevantBindingsAndPropertiesMap.computeIfAbsent(key) {
 			RelevantBindingsAndProperties(key, argbStream)
 		}

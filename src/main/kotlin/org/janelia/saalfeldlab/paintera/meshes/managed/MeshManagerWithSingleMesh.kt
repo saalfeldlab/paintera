@@ -55,7 +55,7 @@ class MeshManagerWithSingleMesh<Key>(
 	override fun setupMeshState(key: Key, state: State) {
 		with(state) {
 			colorProperty().bind(colorProperty)
-			settings.bindTo(this@MeshManagerWithSingleMesh.globalSettings)
+			settings.bind(this@MeshManagerWithSingleMesh.globalSettings)
 		}
 		super.setupMeshState(key, state)
 	}

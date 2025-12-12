@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.fx.ui
 
-import groovyjarjarantlr4.v4.runtime.misc.MurmurHash.finish
 import javafx.animation.KeyFrame
 import javafx.animation.KeyValue
 import javafx.animation.Timeline
@@ -11,9 +10,17 @@ import javafx.util.Duration
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.time.Duration.Companion.milliseconds
 
-open class AnimatedProgressBar : ProgressBar() {
+open class AnimatedProgressBar(
+	val reverseBehavior: ReverseBehavior = ReverseBehavior.SKIP
+) : ProgressBar() {
 
 	companion object {
+		enum class ReverseBehavior {
+			SKIP,
+			SET,
+			ANIMATE
+		}
+
 		private const val END_CUE = "END"
 	}
 
@@ -31,7 +38,6 @@ open class AnimatedProgressBar : ProgressBar() {
 
 	private val timeline = Timeline()
 
-	var reversible = false
 	var baseDuration: Duration = Duration.seconds(1.0)
 
 	private val conflatedPulseLoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop(10)
@@ -45,48 +51,57 @@ open class AnimatedProgressBar : ProgressBar() {
 	private var lastUpdateTime: Long? = null
 	private var runningAverageBetweenUpdates = 0.0
 
+	private fun animateProgress(target: Double) {
 
-	protected open fun updateTimeline(newTarget: Double) {
-
-		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
-		runningAverageBetweenUpdates = runningAverageBetweenUpdates / 2.0 + thisPortion
-		lastUpdateTime = System.currentTimeMillis()
-
-		timeline.stop()
 		val progressProperty = progressProperty()
-		if (newTarget == 0.0) {
-			progressProperty.value = 0.0
-			return
-		}
-
-
-		if (!reversible && newTarget <= progressProperty.get()) return
-
-		val resultDuration : Duration =
-			if (newTarget >= 1.0) {
-				val ms = minOf(finishAnimationDuration.inWholeMilliseconds, runningAverageBetweenUpdates.toLong())
-				Duration.millis(ms.toDouble())
-			}
-			else {
-				baseDuration.add(Duration.millis(runningAverageBetweenUpdates))
-			}
-
+		val resultDuration: Duration = calculateTargetDuration(target)
 		if (resultDuration.toMillis() <= 0)
-			finish()
-
-
+			finish(target)
 		timeline.keyFrames.setAll(
 			KeyFrame(Duration.ZERO, KeyValue(progressProperty, progressProperty.value)),
-			KeyFrame(resultDuration, KeyValue(progressProperty, newTarget))
+			KeyFrame(resultDuration, KeyValue(progressProperty, target))
 		)
 		timeline.cuePoints[END_CUE] = resultDuration
 		timeline.play()
 	}
 
-	fun finish() = InvokeOnJavaFXApplicationThread {
+
+	protected open fun updateTimeline(newTarget: Double) {
+
+		timeline.stop()
+		val curProgress = progress
+		when {
+			newTarget == curProgress -> return /* nothing to do */
+			newTarget == 0.0 -> progress = 0.0 /* immediately set to zero */
+			newTarget == INDETERMINATE_PROGRESS -> progress = INDETERMINATE_PROGRESS /* immediately set to INDETERMINATE value */
+			newTarget > curProgress -> animateProgress(newTarget) /* normal case; animate to newTarget*/
+			newTarget < curProgress -> when (reverseBehavior) {
+				ReverseBehavior.SKIP -> Unit
+				ReverseBehavior.SET -> progress = newTarget
+				ReverseBehavior.ANIMATE -> animateProgress(newTarget)
+			}
+		}
+	}
+
+	private fun calculateTargetDuration(newTarget: Double): Duration {
+		val thisPortion = lastUpdateTime?.let { System.currentTimeMillis() - it }?.div(2.0) ?: 0.0
+		runningAverageBetweenUpdates = runningAverageBetweenUpdates / 2.0 + thisPortion
+		lastUpdateTime = System.currentTimeMillis()
+
+		val resultDuration: Duration =
+			if (newTarget >= 1.0) {
+				val ms = minOf(finishAnimationDuration.inWholeMilliseconds, runningAverageBetweenUpdates.toLong())
+				Duration.millis(ms.toDouble())
+			} else {
+				baseDuration.add(Duration.millis(runningAverageBetweenUpdates))
+			}
+		return resultDuration
+	}
+
+	fun finish(progress: Double = 1.0) = InvokeOnJavaFXApplicationThread {
 		timeline.stop()
 		progressProperty().unbind()
-		progressProperty().value = 1.0
+		progressProperty().value = progress
 	}
 
 	fun stop() {

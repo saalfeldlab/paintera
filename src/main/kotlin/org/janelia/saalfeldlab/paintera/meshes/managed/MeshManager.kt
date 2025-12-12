@@ -5,14 +5,13 @@ import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ObservableValue
-import javafx.collections.FXCollections.*
+import javafx.collections.FXCollections.observableMap
+import javafx.collections.FXCollections.synchronizedObservableMap
 import javafx.collections.MapChangeListener
 import javafx.collections.ObservableMap
 import javafx.scene.Group
 import javafx.util.Subscription
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.PainteraDispatchers
@@ -45,7 +44,6 @@ abstract class MeshManager<Key>(
 		viewFrustumProperty,
 		eyeToWorldTransformProperty,
 		viewerEnabledProperty,
-		managers,
 		workers,
 		meshViewUpdateQueue
 	)
@@ -58,15 +56,20 @@ abstract class MeshManager<Key>(
 
 	val meshesGroup: Group = manager.meshesGroup
 
+	private val meshStateListeners: ObservableMap<Key, MutableList<(MeshGenerator.State?) -> Unit>?> = synchronizedObservableMap(observableMap(mutableMapOf()))
+	private val meshStateChangeListener = MapChangeListener<Key, MeshGenerator.State?> { change ->
+
+		meshStateListeners[change.key]?.forEach { listener ->
+			/* change.valueAdded is the value if a value was added, or is `null` if the entry was removed */
+			listener(change.valueAdded)
+		}
+	}
 	protected val meshStates: ObservableMap<Key, MeshGenerator.State> = synchronizedObservableMap(observableMap(mutableMapOf()))
 
-	// TODO This listener is added to all mesh states. This is a problem if a lot of ids are selected
-	//  and all use global mesh settings. Whenever the global mesh settings are changed, the
-	//  managerCancelAndUpdate would be notified for each of the meshes, which can temporarily slow down
-	//  the UI for quite some time (tens of seconds). A smarter way might be a single thread executor that
-	//  executes only the last request and has a delay.
-	//  This may be fixed now by using manager.requestCancelAndUpdate(), which submits a task
-	//  to a LatestTaskExecutor with a delay of 100ms.
+	init {
+		meshStates.addListener(meshStateChangeListener)
+	}
+
 	protected val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
 
 	open fun getStateFor(key: Key) = manager.getStateFor(key)
@@ -116,29 +119,31 @@ abstract class MeshManager<Key>(
 		manager.removeMeshesFor(keys) { key, state -> releaseMeshState(key, state) }
 	}
 
+	protected val meshManagerScope = CoroutineScope(PainteraDispatchers.MeshManagerDispatcher + SupervisorJob())
+
 	open fun refreshMeshes() {
 		val keys = manager.meshKeys
 		this.removeAllMeshes()
 		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-		runBlocking {
-			launch {
-				keys.forEach {
-					createMeshFor(it)
-				}
+		meshManagerScope.launch {
+			keys.forEach {
+				createMeshFor(it)
 			}
 		}
 	}
 
 	open fun subscribeToMeshState(key: Key, valueListener: (MeshGenerator.State?) -> Unit): Subscription {
-		val listener = MapChangeListener<Key, MeshGenerator.State> { change ->
-			when {
-				change.key != key -> Unit //Nothing if not the key we care about
-				change.wasAdded() -> valueListener(change.valueAdded)
-				change.wasRemoved() -> valueListener(null)
+		/* track the listener */
+		synchronized(this) {
+			meshStateListeners.compute(key) { _, listeners -> (listeners ?: mutableListOf()).also { it += valueListener } }
+		}
+		/* trigger with current value*/
+		valueListener(meshStates[key])
+		/* removal Subscription */
+		return Subscription {
+			synchronized(this) {
+				meshStateListeners.compute(key) { _, listeners -> listeners?.also { it -= valueListener }?.takeUnless { it.isEmpty() } }
 			}
 		}
-		meshStates.addListener(listener)
-		valueListener(meshStates[key])
-		return Subscription { meshStates.removeListener(listener) }
 	}
 }
