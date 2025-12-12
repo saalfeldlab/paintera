@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.event.EventHandler

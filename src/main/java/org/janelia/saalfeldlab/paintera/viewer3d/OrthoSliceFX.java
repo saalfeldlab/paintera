@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.PixelBufferWritableImage;
-import bdv.fx.viewer.render.ViewerRenderUnit;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.ViewerRenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;

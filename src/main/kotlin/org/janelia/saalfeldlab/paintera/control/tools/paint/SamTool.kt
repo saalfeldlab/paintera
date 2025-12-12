@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtException
-import bdv.fx.viewer.render.RenderUnitState
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
 import javafx.beans.Observable

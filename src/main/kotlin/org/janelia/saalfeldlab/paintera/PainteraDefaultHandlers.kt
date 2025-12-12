@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
-import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import javafx.beans.InvalidationListener

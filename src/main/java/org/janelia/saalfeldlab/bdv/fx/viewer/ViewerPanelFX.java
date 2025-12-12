@@ -30,7 +30,7 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.render.ViewerRenderUnit;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.ViewerRenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;

@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import bdv.fx.viewer.render.RenderUnitState
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ChangeListener

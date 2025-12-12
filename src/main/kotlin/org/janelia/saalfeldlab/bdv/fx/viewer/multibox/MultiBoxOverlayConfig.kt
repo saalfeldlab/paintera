@@ -1,4 +1,4 @@
-package bdv.fx.viewer.multibox
+package org.janelia.saalfeldlab.bdv.fx.viewer.multibox
 
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
