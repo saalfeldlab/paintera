@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>40.0.0</version>
+		<version>43.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -60,29 +60,18 @@
 
 		<!-- JavaFx Versions -->
 		<javafx.version>22.0.1</javafx.version>
-		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
-		<n5-universe.version>2.3.0</n5-universe.version>
-		<n5.version>3.5.1</n5.version>
-		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
-		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
-		<n5-zarr.version>1.5.1</n5-zarr.version>
-		<n5-hdf5.version>2.2.1</n5-hdf5.version>
-
-		<!-- Imglib2 Versions -->
-		<imglib2-algorithm.version>0.18.0</imglib2-algorithm.version>
-		<imglib2-label-multisets.version>0.15.1</imglib2-label-multisets.version>
 
 		<!-- Saalfx Versions -->
 		<saalfx.version>2.3.0-SNAPSHOT</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
-		<logback.version>1.4.12</logback.version>
-		<slf4j.version>2.0.17</slf4j.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
-	</properties>
 
+		<!-- SciJava Overrides -->
+		<logback.version>1.4.12</logback.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -108,7 +97,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-universe</artifactId>
-			<version>${n5-universe.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>junit</groupId>
@@ -159,10 +147,6 @@
 			<groupId>org.jetbrains.kotlin</groupId>
 			<artifactId>kotlin-stdlib</artifactId>
 			<version>${kotlin.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-aws-s3</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>io.github.oshai</groupId>
