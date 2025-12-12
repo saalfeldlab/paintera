@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import kotlin.Triple;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;
@@ -73,19 +73,19 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 	@Override
 	public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
 
-		final M c = t.getC();
+		final M c = t.getThird();
 		if (pickThird.test(c)) {
 			converter.convert(c, scalarValue);
 			return scalarValue;
 		}
 
-		final M b = t.getB();
+		final M b = t.getSecond();
 		if (pickSecond.test(b, c)) {
 			converter.convert(b, scalarValue);
 			return scalarValue;
 		}
 
-		return t.getA();
+		return t.getFirst();
 
 	}
 

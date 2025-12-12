@@ -5,8 +5,7 @@ import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 import javafx.geometry.Point3D;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
-import org.janelia.saalfeldlab.net.imglib2.util.ValueTriple;
+import kotlin.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +79,7 @@ public class Convert {
 				triangleIndices.add(triangleIndex);
 			}
 		}
-		return new ValueTriple<>(
+		return new Triple<>(
 				vertices,
 				vertexTriangleLUT,
 				triangleVertexLUT

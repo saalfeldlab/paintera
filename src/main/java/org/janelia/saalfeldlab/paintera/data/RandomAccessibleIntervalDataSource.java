@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
+import kotlin.Triple;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -9,8 +10,6 @@ import net.imglib2.cache.Invalidate;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
-import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
@@ -93,7 +92,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
 			final String name) {
 
-		this(data.getA(), data.getB(), data::getC, invalidate, dataInterpolation, interpolation, name);
+		this(data.getFirst(), data.getSecond(), data::getThird, invalidate, dataInterpolation, interpolation, name);
 	}
 
 	@SuppressWarnings("unchecked")
