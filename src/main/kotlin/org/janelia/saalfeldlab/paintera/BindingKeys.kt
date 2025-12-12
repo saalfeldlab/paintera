@@ -7,27 +7,25 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyCombination.*
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
-import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.entries
-import org.janelia.saalfeldlab.paintera.RawSourceStateKeys.entries
 
-private fun KeyCode.asCombination() = KeyCodeCombination(this)
-private fun Modifier.asCombination() = NamedKeyCombination.OnlyModifierKeyCombination(this)
+internal fun KeyCode.asCombination() = KeyCodeCombination(this)
+internal fun Modifier.asCombination() = NamedKeyCombination.OnlyModifierKeyCombination(this)
 
 private infix fun String.byKeyCombo(keyCode: KeyCode) = this byKeyCombo keyCode.asCombination()
 private infix fun String.byKeyCombo(modifier: Modifier) = this byKeyCombo modifier.asCombination()
 private infix fun String.byKeyCombo(combo: KeyCombination) = NamedKeyCombination(this, combo)
 
-private operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
-private operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
+internal operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
+internal operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
 
-private operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
-private operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
+internal operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
+internal operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
 
-private operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
-private operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
+internal operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
+internal operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 
 
-private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
+internal operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
 
 //@formatter:off
 
@@ -64,7 +62,7 @@ object PainteraBaseKeys {
     const val SAVE_3D_PNG                      = "Save 3D As PNG"
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
-        OPEN_SOURCE                                 byKeyCombo CONTROL_DOWN + O,
+        OPEN_SOURCE                  byKeyCombo CONTROL_DOWN + O,
         EXPORT_SOURCE                               byKeyCombo CONTROL_DOWN + E,
         SAVE                                        byKeyCombo CONTROL_DOWN + S,
         SAVE_AS                                     byKeyCombo CONTROL_DOWN + SHIFT_DOWN + S,

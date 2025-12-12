@@ -96,31 +96,27 @@ interface ToolMode : SourceMode {
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
 	 */
-	var subscriptions: Subscription
+	var subscriptions: Subscription?
 
 	override fun enter() {
-		/* Keep default tool selected if nothing else */
-		val activeToolSubscription = activeToolProperty.subscribe { activeTool ->
+		/* Keep the default tool selected if nothing else */
+		subscriptions += activeToolProperty.subscribe { activeTool ->
 			(activeTool ?: defaultTool)?.let { switchTool(it) }
 		}
-		val activeViewerSubscription = activeViewerProperty.subscribe { old, new ->
+		subscriptions += activeViewerProperty.subscribe { old, new ->
 			/* remove the actions from old, add to new */
 			activeViewerActions.forEach { actionSet ->
 				old?.viewer()?.removeActionSet(actionSet)
 				new?.viewer()?.installActionSet(actionSet)
 			}
 		}
-
-		subscriptions = subscriptions
-			.and(activeToolSubscription)
-			.and(activeViewerSubscription)
 		super.enter()
 	}
 
 	override fun exit() {
 		super.exit()
-		subscriptions.unsubscribe()
-		subscriptions = Subscription.EMPTY
+		subscriptions?.unsubscribe()
+		subscriptions = null
 		runBlocking {
 			switchTool(null)?.join()
 		}
@@ -146,9 +142,9 @@ interface ToolMode : SourceMode {
 				activeTool = when {
 					activeMode != this@ToolMode -> null // wrong mode
 					tool?.isValidProperty?.value == false -> null // tool is not currently valid
-					else -> tool?.apply {
-						activate()
-						LOG.debug { "Activated $activeTool" }
+					else -> tool?.also {
+						it.activate()
+						LOG.debug { "Activated $it" }
 					} // try to activate
 				}
 			}
@@ -171,7 +167,7 @@ interface ToolMode : SourceMode {
 	fun bindTogglesForActiveTool() {
 		var prevActiveToolSubscription = AtomicReference<Subscription?>(null)
 		actionBar.modeToolsGroup.apply {
-			selectedToggleProperty().subscribe { _, selected ->
+			subscriptions += selectedToggleProperty().subscribe { _, selected ->
 				selected?.let {
 					(it.userData as? Tool)?.let { tool ->
 						if (activeTool != tool) {
@@ -188,10 +184,10 @@ interface ToolMode : SourceMode {
 						}
 					}
 				} ?: switchTool(defaultTool)
-			}.also { subscriptions = subscriptions + it }
+			}
 
 			/* when the active tool changes, update the toggle to reflect the active tool */
-			activeToolProperty.subscribe { tool ->
+			subscriptions += activeToolProperty.subscribe { tool ->
 				tool?.let { newTool ->
 					toggles.firstOrNull { it.userData == newTool }?.let { toggleForTool -> selectToggle(toggleForTool) }
 					val toolActionSets = newTool.actionSets.toList()
@@ -200,19 +196,19 @@ interface ToolMode : SourceMode {
 							prev?.unsubscribe()
 							actionBar.addActionSets(toolActionSets, actionBar.toolActionsGroup)
 						}
-						subscriptions = subscriptions + prevActiveToolSubscription.get()
+						subscriptions += prevActiveToolSubscription.get()
 					}
 				}
-			}.also { subscriptions = subscriptions + it }
+			}
 		}
 	}
 
 	fun createToolBar(): ModeToolActionBar = actionBar.apply {
 		/* Add modeTools to toolbar */
-		subscriptions = subscriptions + addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
+		subscriptions += addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
 
 		/* add modeActions toolbar*/
-		subscriptions = subscriptions + addActionSets(activeViewerActions.toList(), modeActionsGroup)
+		subscriptions += addActionSets(activeViewerActions.toList(), modeActionsGroup)
 
 		/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
 		bindTogglesForActiveTool()
@@ -446,7 +442,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	final override var activeTool by activeToolProperty.nullable()
 
 	override val actionBar: ModeToolActionBar = ModeToolActionBar()
-	override var subscriptions: Subscription = Subscription.EMPTY
+	override var subscriptions: Subscription? = null
 
 	override val statusProperty: StringProperty = SimpleStringProperty()
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
@@ -471,7 +467,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 				}
 			}
 		}
-		subscriptions = subscriptions.and(activeToolStatusSub)
+		subscriptions += activeToolStatusSub
 	}
 
 	override fun exit() {

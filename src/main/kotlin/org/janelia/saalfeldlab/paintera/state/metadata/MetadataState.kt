@@ -402,7 +402,7 @@ class MetadataUtils {
 		fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
 			val container = StorageFormat.parseUri(n5container).b.toString()
 
-			val newContainerState by lazy {
+			val newContainerState by lazy(LazyThreadSafetyMode.NONE) {
 				Paintera.n5Factory.openWriterOrReaderOrNull(n5container)?.let {
 					N5ContainerState(it)
 				}
@@ -415,8 +415,8 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String, datasetTreeNode: N5TreeNode? = null): MetadataState? {
-			val metadataFromParam by lazy { datasetTreeNode?.takeIf { N5URI.normalizeGroupPath(dataset) == N5URI.normalizeGroupPath(it.path) } }
-			val metadataFromParser by lazy { discoverAndParseRecursive(n5ContainerState.reader, dataset) }
+			val metadataFromParam = datasetTreeNode?.takeIf { N5URI.normalizeGroupPath(dataset) == N5URI.normalizeGroupPath(it.path) }
+			val metadataFromParser by lazy(LazyThreadSafetyMode.NONE) { discoverAndParseRecursive(n5ContainerState.reader, dataset) }
 			val metadataRoot = metadataFromParam ?: metadataFromParser
 
 			val normalizedPath = N5URI.normalizeGroupPath(dataset)
@@ -440,7 +440,7 @@ class MetadataUtils {
 		@JvmStatic
 
 		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState? {
-			val newContainerState by lazy { N5ContainerState(reader) }
+			val newContainerState by lazy(LazyThreadSafetyMode.NONE) { N5ContainerState(reader) }
 			/* Realistically, the null case should never be triggered, but the return type of `getOrPut` is nullable,
 			 * so this is the safe thing to do. In either case, it should be the same result. */
 			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(reader.uri.toString()) { newContainerState }

@@ -37,12 +37,8 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
-import org.janelia.saalfeldlab.paintera.DeviceManager
-import org.janelia.saalfeldlab.paintera.FontIconPatched
+import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
-import org.janelia.saalfeldlab.paintera.Style
-import org.janelia.saalfeldlab.paintera.StyleGroup
-import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
@@ -66,7 +62,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeIn
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.*
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.util.concurrent.CancellationException

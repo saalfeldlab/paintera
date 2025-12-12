@@ -16,7 +16,6 @@ import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initOwnerWithDefault
 import java.io.File
 import java.io.IOException
-import java.util.function.Function
 import kotlin.jvm.optionals.getOrNull
 
 object PainteraAlerts {
@@ -140,10 +139,10 @@ object PainteraAlerts {
 			""".trimIndent()
 		}
 		try {
-			projectDirectory.setDirectory(directory, Function { it: LockFile.UnableToCreateLock? ->
+			projectDirectory.setDirectory(directory) {
 				useItProperty.set(alert.showAndWait().getOrNull() == ButtonType.OK)
 				useItProperty.get()
-			})
+			}
 		} catch (e: LockFile.UnableToCreateLock) {
 			if (logFailure) {
 				LOG.error(e) { "Unable to ignore lock file" }

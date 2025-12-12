@@ -28,21 +28,21 @@ class PainteraN5Factory : N5FactoryWithCache() {
 	@JvmSynthetic
 	internal fun openReader(format: StorageFormat?, uri: URI, allowWriter: Boolean): N5Reader {
 		val normalUri = normalizeUri(uri)
-		val n5ReaderFromCache by lazy { getReaderFromCache(format, normalUri) }
-		val n5WriterFromCache by lazy {
+		val n5ReaderFromCache by lazy(LazyThreadSafetyMode.NONE) { getReaderFromCache(format, normalUri) }
+		val n5WriterFromCache by lazy(LazyThreadSafetyMode.NONE) {
 			if (allowWriter) getWriterFromCache(format, normalUri)
 			else null
 		}
-		val newReader by lazy {
-			runCatching {
+		val newReader by lazy(LazyThreadSafetyMode.NONE) {
+			try {
 				super.openReader(format, uri)
-			}.onFailure { exception ->
-				(exception as? N5Exception.N5IOException)?.message?.startsWith("No container exists at")?.let {
-					throw N5ContainerDoesntExist(uri.toString(), exception)
-				}
-			}.getOrNull()
+			} catch (e: N5Exception.N5IOException) {
+				if (e.message?.startsWith("No container exists at") == true)
+					throw N5ContainerDoesntExist(uri.toString(), e)
+				throw e
+			}
 		}
-		return n5ReaderFromCache ?: n5WriterFromCache ?: newReader ?: throw N5ContainerDoesntExist(uri.toString())
+		return n5ReaderFromCache ?: n5WriterFromCache ?: newReader
 
 	}
 
