@@ -219,8 +219,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setCursorWhenDoneApplying = ChangeListener { observable, _, _ ->
 			observable.removeListener(setCursorWhenDoneApplying)
 		}
-		paintera.properties.segmentAnythingConfig.subscribe { it ->
-			isValidProperty.set(SamEmbeddingLoaderCache.canReachServer)
+		val healthCheckScope = CoroutineScope(Dispatchers.IO)
+		paintera.properties.segmentAnythingConfig.subscribe { _ ->
+			isValidProperty.set(false)
+			healthCheckScope.launch {
+				supervisorScope {
+					isValidProperty.set(SamEmbeddingLoaderCache.canReachServer)
+				}
+			}
 		}
 	}
 
