@@ -18,7 +18,7 @@ jobs:
     if: github.event.inputs.confirm_release == 'release'
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history needed for release script
           ssh-key: ${{secrets.DEPLOY_KEY}} # needed for scijava-release script to push the version bump back to master 
@@ -29,7 +29,7 @@ jobs:
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
