@@ -213,9 +213,9 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = data[0].data.getType().createVariable();
-		T t = data[0].vdata.getType().createVariable();
-		long numChannels = data[0].data.dimension(channelDimension);
+		D d = data[0].data().getType().createVariable();
+		T t = data[0].vdata().getType().createVariable();
+		long numChannels = data[0].data().dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 		extendData.accept(d);
@@ -286,9 +286,9 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = data[0].data.getType().createVariable();
-		T t = data[0].vdata.getType().createVariable();
-		long numChannels = data[0].data.dimension(channelDimension);
+		D d = data[0].data().getType().createVariable();
+		T t = data[0].vdata().getType().createVariable();
+		long numChannels = data[0].data().dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 		extendData.accept(d);

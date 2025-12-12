@@ -838,8 +838,8 @@ public class N5Data {
 				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-				imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
-						imagesWithInvalidate[fScale].transform.copy(),
+				imagesWithInvalidate[fScale].transform().set(N5Helpers.considerDownsampling(
+						imagesWithInvalidate[fScale].transform().copy(),
 						downsamplingFactors,
 						initialDonwsamplingFactors));
 				LOG.debug("Populated scale level {}", fScale);

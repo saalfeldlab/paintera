@@ -164,13 +164,13 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public static <D, T>
 	RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> asDataWithInvalidate(final ImagesWithTransform<D, T>[] imagesWithTransform) {
 
-		final RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
-		final RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);
-		final AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform).toArray(AffineTransform3D[]::new);
+		final RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data()).toArray(RandomAccessibleInterval[]::new);
+		final RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata()).toArray(RandomAccessibleInterval[]::new);
+		final AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform()).toArray(AffineTransform3D[]::new);
 		final Invalidate<Long> invalidate = new InvalidateDelegates<>(
 				Stream
 						.of(imagesWithTransform)
-						.flatMap(iwt -> Stream.of(iwt.invalidateData, iwt.invalidateVData)).filter(Objects::nonNull)
+						.flatMap(iwt -> Stream.of(iwt.invalidateData(), iwt.invalidateVData())).filter(Objects::nonNull)
 						.collect(Collectors.toList()));
 		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidate);
 	}

@@ -483,7 +483,7 @@ public class MeshGeneratorJobManager<T> {
 				assert task.priority != null : "Started to execute task but its priority is null: " + key;
 
 				task.state = TaskState.RUNNING;
-				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera);
+				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera());
 			}
 
 			final PainteraTriangleMesh verticesAndNormals;
