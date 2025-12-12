@@ -26,7 +26,6 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
@@ -115,14 +114,6 @@ public class PainteraBaseView {
 			.trackVisibleSourcesAndConverters();
 
 	private final ListChangeListener<SourceAndConverter<?>> vsacUpdate;
-
-	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool(
-			3,
-			new NamedThreadFactory("paintera-thread-%d", true));
-
-	private final ExecutorService meshManagerExecutorService = Executors.newFixedThreadPool(
-			3,
-			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
 	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkerExecutorService = new HashPriorityQueueBasedTaskExecutor<>(
 			Comparator.naturalOrder(),
@@ -459,7 +450,6 @@ public class PainteraBaseView {
 				viewer3D().getMeshesGroup(),
 				viewer3D().getViewFrustumProperty(),
 				viewer3D().getEyeToWorldTransformProperty(),
-				meshManagerExecutorService,
 				meshWorkerExecutorService,
 				getQueue(),
 				getQueue().getNumPriorities() - 1,
@@ -503,14 +493,6 @@ public class PainteraBaseView {
 	}
 
 	/**
-	 * @return {@link ExecutorService} for general purpose computations
-	 */
-	public ExecutorService generalPurposeExecutorService() {
-
-		return this.generalPurposeExecutorService;
-	}
-
-	/**
 	 * @return {@link ExecutorService} for painting related computations
 	 */
 	public ExecutorService getPaintQueue() {
@@ -541,8 +523,6 @@ public class PainteraBaseView {
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 
 		LOG.debug("Stopping everything");
-		this.generalPurposeExecutorService.shutdown();
-		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
@@ -558,17 +538,6 @@ public class PainteraBaseView {
 	public static int reasonableNumFetcherThreads() {
 
 		return Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
-	}
-
-	/**
-	 * @return {@link ExecutorService} for managing mesh generation tasks
-	 * <p>
-	 * TODO this should probably be removed by a management thread for every single mesh manager
-	 * TODO like the {@link PainterThreadFx} for rendering
-	 */
-	public ExecutorService getMeshManagerExecutorService() {
-
-		return meshManagerExecutorService;
 	}
 
 	/**

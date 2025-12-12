@@ -218,7 +218,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				viewer.viewer3D().getMeshesGroup(),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getQueue(),
 				0, // TODO is this the right priority?

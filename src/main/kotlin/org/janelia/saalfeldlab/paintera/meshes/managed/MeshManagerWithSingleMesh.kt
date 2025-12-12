@@ -12,7 +12,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import java.util.concurrent.ExecutorService
 
 
 /**
@@ -25,7 +24,6 @@ class MeshManagerWithSingleMesh<Key>(
 	getMeshFor: GetMeshFor<Key>,
 	viewFrustumProperty: ObservableValue<ViewFrustum>,
 	eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
-	managers: ExecutorService,
 	workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	meshViewUpdateQueue: MeshViewUpdateQueue<Key>
 ) : MeshManager<Key>(
@@ -34,7 +32,6 @@ class MeshManagerWithSingleMesh<Key>(
 	getMeshFor,
 	viewFrustumProperty,
 	eyeToWorldTransformProperty,
-	managers,
 	workers,
 	meshViewUpdateQueue
 ) {

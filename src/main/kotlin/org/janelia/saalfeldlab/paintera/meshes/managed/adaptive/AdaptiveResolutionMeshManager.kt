@@ -17,6 +17,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.PainteraDispatchers
+import org.janelia.saalfeldlab.paintera.PainteraDispatchers.asExecutorService
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
@@ -25,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import java.util.Collections
-import java.util.concurrent.ExecutorService
 import java.util.function.BooleanSupplier
 
 /**
@@ -39,7 +40,6 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val viewFrustum: ObservableValue<ViewFrustum>,
 	private val eyeToWorldTransform: ObservableValue<AffineTransform3D>,
 	private val viewerEnabled: ObservableBooleanValue,
-	private val managers: ExecutorService,
 	private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>,
 ) {
@@ -196,7 +196,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 					getMeshFor,
 					meshViewUpdateQueue,
 					{ level: Int -> unshiftedWorldTransforms[level] },
-					managers,
+					PainteraDispatchers.MeshManagerDispatcher.asExecutorService(),
 					workers,
 					state,
 				)
@@ -238,7 +238,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 		val needToSubmit = sceneUpdateParametersProperty.get() == null
 		sceneUpdateParametersProperty.set(sceneUpdateParameters)
-		if (needToSubmit && !managers.isShutdown)
+		if (needToSubmit && !meshManagerScope.isActive)
 			assert(scheduledSceneUpdateTask == null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
 		scheduledSceneUpdateTask = sceneUpdateService.submit { updateScene() }
 	}

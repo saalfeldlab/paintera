@@ -215,7 +215,6 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 				new WrappedGetMeshFromMeshCacheKey<>(getMeshFor),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
 	}

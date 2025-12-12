@@ -89,7 +89,6 @@ public class CreateDatasetHandler {
 					pbv.viewer3D().getMeshesGroup(),
 					pbv.viewer3D().getViewFrustumProperty(),
 					pbv.viewer3D().getEyeToWorldTransformProperty(),
-					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService(),
 					pbv.getQueue(),
 					0,

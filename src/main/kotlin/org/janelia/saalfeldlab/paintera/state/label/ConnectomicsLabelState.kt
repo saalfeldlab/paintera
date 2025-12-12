@@ -80,7 +80,6 @@ import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.util.concurrent.ExecutorService
 import java.util.function.*
 
 class ConnectomicsLabelState<D : IntegerType<D>, T>(
@@ -88,7 +87,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	meshesGroup: Group,
 	viewFrustumProperty: ObjectProperty<ViewFrustum>,
 	eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D>,
-	meshManagerExecutors: ExecutorService,
 	meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	queue: SharedQueue,
 	priority: Int,
@@ -132,7 +130,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		viewFrustumProperty,
 		eyeToWorldTransformProperty,
 		this.labelBlockLookup,
-		meshManagerExecutors,
 		meshWorkersExecutors
 	).apply {
 		refreshMeshes()
@@ -662,7 +659,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 							viewer.viewer3D().meshesGroup,
 							viewer.viewer3D().viewFrustumProperty,
 							viewer.viewer3D().eyeToWorldTransformProperty,
-							viewer.meshManagerExecutorService,
 							viewer.meshWorkerExecutorService,
 							viewer.queue,
 							0,

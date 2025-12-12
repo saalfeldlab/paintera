@@ -123,7 +123,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				GetMeshFor.FromCache.fromLoader(loader),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
 

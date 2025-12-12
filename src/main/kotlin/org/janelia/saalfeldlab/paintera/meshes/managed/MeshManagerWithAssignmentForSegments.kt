@@ -34,8 +34,6 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import kotlin.coroutines.coroutineContext
 import kotlin.math.min
 
 private typealias Segments = TLongHashSet
@@ -50,7 +48,6 @@ class MeshManagerWithAssignmentForSegments(
 	getMeshFor: GetMeshFor<Long>,
 	viewFrustumProperty: ObservableValue<ViewFrustum>,
 	eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
-	managers: ExecutorService,
 	workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	meshViewUpdateQueue: MeshViewUpdateQueue<Long>,
 	val labelBlockLookup: LabelBlockLookup,
@@ -70,7 +67,6 @@ class MeshManagerWithAssignmentForSegments(
 	getMeshFor,
 	viewFrustumProperty,
 	eyeToWorldTransformProperty,
-	managers,
 	workers,
 	meshViewUpdateQueue
 ) {
@@ -108,7 +104,8 @@ class MeshManagerWithAssignmentForSegments(
 	fun setMeshesToSelection() {
 
 		currentTask?.cancel()
-		currentTask = updateExecutors.launch {
+		currentTask = manager.meshManagerScope.launch {
+			manager.currentMeshJob?.join()
 			setMeshesToSelectionImpl()
 		}
 	}
@@ -246,7 +243,6 @@ class MeshManagerWithAssignmentForSegments(
 			viewFrustumProperty: ObservableValue<ViewFrustum>,
 			eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
 			labelBlockLookup: LabelBlockLookup,
-			meshManagerExecutors: ExecutorService,
 			meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 		): MeshManagerWithAssignmentForSegments {
 			LOG.debug("Data source is type {}", dataSource.javaClass)
@@ -270,7 +266,6 @@ class MeshManagerWithAssignmentForSegments(
 				getMeshFor,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				meshManagerExecutors,
 				meshWorkersExecutors,
 				MeshViewUpdateQueue(),
 				actualLookup,

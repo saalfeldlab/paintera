@@ -10,7 +10,7 @@ internal fun coroutineBackedExecutorService(
 	coroutineContext: CoroutineContext,
 	futureInterceptor: ((Any?) -> Unit)? = null
 ): Pair<ExecutorService, CoroutineScope> {
-	var scope = CoroutineScope(coroutineContext)
+	val scope = CoroutineScope(coroutineContext)
 	val es = object : AbstractExecutorService() {
 		private val shutdown = AtomicBoolean(false)
 		override fun shutdown() {

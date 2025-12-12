@@ -15,12 +15,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.paintera.PainteraDispatchers
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import java.util.concurrent.ExecutorService
 
 abstract class MeshManager<Key>(
 	val source: DataSource<*, *>,
@@ -28,7 +28,6 @@ abstract class MeshManager<Key>(
 	val getMeshFor: GetMeshFor<Key>,
 	viewFrustumProperty: ObservableValue<ViewFrustum>,
 	eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
-	val managers: ExecutorService,
 	val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	meshViewUpdateQueue: MeshViewUpdateQueue<Key>,
 ) {

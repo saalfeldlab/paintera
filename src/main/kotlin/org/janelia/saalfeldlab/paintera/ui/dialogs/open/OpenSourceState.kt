@@ -224,7 +224,6 @@ class OpenSourceState {
 			meshesGroup: Group,
 			viewFrustumProperty: ObjectProperty<ViewFrustum>,
 			eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D>,
-			manager: ExecutorService,
 			workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 			propagationQueue: ExecutorService,
 		): SourceState<T, V>
@@ -245,13 +244,12 @@ class OpenSourceState {
 				}
 			}
 
-			var backend = N5BackendLabel.createFrom<T, V>(metadataState, propagationQueue)
+			val backend = N5BackendLabel.createFrom<T, V>(metadataState, propagationQueue)
 			return ConnectomicsLabelState(
 				backend,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				manager,
 				workers,
 				sharedQueue,
 				priority,
