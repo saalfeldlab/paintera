@@ -8,8 +8,8 @@ import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
 import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
+import org.janelia.saalfeldlab.fx.extensions.addListener
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -25,8 +25,9 @@ import kotlin.math.ceil
 object DilateLabel : MenuAction("_Expand...") {
 
 	internal var mainTaskLoop: Deferred<List<Interval>?>? = null
-
-	internal object DilateScope : ChannelLoop(
+	internal var dilateScope : DilateScope = DilateScope()
+	internal fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = dilateScope.submitUI(block)
+	internal class DilateScope : ChannelLoop(
 		capacity = CONFLATED
 	) {
 		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -40,7 +41,7 @@ object DilateLabel : MenuAction("_Expand...") {
 		verifyPermission(PaintActionType.Dilate, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onActionWithState<DilateLabelState<*, *>> {
 
-			resetUpdateChannel()
+			resetAsyncState()
 			isBusy = false
 
 			val activatedReplacementLabel = AtomicLong(0)
@@ -87,13 +88,14 @@ object DilateLabel : MenuAction("_Expand...") {
 			val subs = infillSub.and(replaceLabelSub)
 			startDilateTask()
 			DilateLabelUI.getDialog(this, "Expand Label") {
-				runBlocking<Unit> {
+				runBlocking {
 					updateChannel.send(UpdateSignal.Finish)
 				}
 			}.showAndWait().getOrNull().let { success ->
 				subs.unsubscribe()
 				if (success != true) {
 					updateChannel.trySend(UpdateSignal.Cancel)
+					dilateScope.cancel()
 					deactivateReplacementLabel()
 				}
 				return@onActionWithState
@@ -103,9 +105,11 @@ object DilateLabel : MenuAction("_Expand...") {
 
 	private var updateChannel = Channel<UpdateSignal>(CONFLATED)
 
-	private fun resetUpdateChannel() {
+	private fun resetAsyncState() {
 		updateChannel.close()
 		updateChannel = Channel(CONFLATED)
+		dilateScope.cancel("New Dilate Scope Started")
+		dilateScope = DilateScope()
 	}
 
 	/**
@@ -125,7 +129,7 @@ object DilateLabel : MenuAction("_Expand...") {
 		val progressStatusSubscription = progressStatusSubscription()
 
 		/* these should only trigger on change */
-		val updateSubscription = listOf(replacementLabelProperty, infillStrategyProperty, kernelSizeProperty).subscribe {
+		val updateSubscription = listOf(replacementLabelProperty, infillStrategyProperty, kernelSizeProperty).addListener {
 			updateChannel.trySend(UpdateSignal.Full)
 		}
 
@@ -137,7 +141,7 @@ object DilateLabel : MenuAction("_Expand...") {
 			.and(progressStatusSubscription)
 
 		paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
-		mainTaskLoop = DilateScope.async {
+		mainTaskLoop = dilateScope.async {
 
 			var updateDilateJob: Job? = null
 			var intervals: List<Interval>? = null
@@ -148,22 +152,23 @@ object DilateLabel : MenuAction("_Expand...") {
 					UpdateSignal.Cancel -> {
 						// cancel the mainTaskLoop and break out
 						mainTaskLoop?.cancelAndJoin()
+						dilateScope.cancelCurrent()
 						break
 					}
 
-					UpdateSignal.Partial, UpdateSignal.Full -> DilateScope.submit {
+					UpdateSignal.Partial, UpdateSignal.Full -> dilateScope.submit {
 						intervals = dilateMask(true, redilateType).map { it.smallestContainingInterval }
 					}
 
 					UpdateSignal.Finish -> {
-						val finisDilateJob = DilateScope.submit {
+						val finisDilateJob = dilateScope.submit {
 							intervals = dilateMask(false, redilateType).map { it.smallestContainingInterval }
 						}
 						finisDilateJob.invokeOnCompletion { cause ->
 							when (cause) {
 								null -> Unit
 								is CancellationException -> {
-									DilateScope.submitUI {
+									DilateLabel.submitUI {
 										progress = 0.0
 									}
 									maskedSource.resetMasks()
@@ -183,7 +188,7 @@ object DilateLabel : MenuAction("_Expand...") {
 					try {
 						updateDilateJob.join()
 					} catch (_: CancellationException) {
-						DilateScope.submitUI { progress = 0.0 }
+						submitUI { progress = 0.0 }
 						continue
 					}
 					break
@@ -199,11 +204,11 @@ object DilateLabel : MenuAction("_Expand...") {
 					maskedSource.apply {
 						val applyProgressProperty = SimpleDoubleProperty()
 						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							DilateScope.submitUI { progress = it.toDouble() }
+							DilateLabel.submitUI { progress = it.toDouble() }
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						DilateScope.submitUI { progress = 1.0 }
+						DilateLabel.submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
@@ -213,11 +218,11 @@ object DilateLabel : MenuAction("_Expand...") {
 					cause?.let {
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
-						DilateScope.cancelCurrent()
+						dilateScope.cancelCurrent()
 						it.takeUnless { it is CancellationException }?.let { throw it }
 					}
 				} finally {
-					DilateScope.submitUI { subscriptions.unsubscribe() }
+					DilateLabel.submitUI { subscriptions.unsubscribe() }
 					paintera.baseView.disabledPropertyBindings -= task
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)

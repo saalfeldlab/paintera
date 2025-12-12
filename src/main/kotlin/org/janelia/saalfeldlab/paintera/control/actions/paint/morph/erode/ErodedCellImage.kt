@@ -20,6 +20,7 @@ import kotlin.math.ceil
 
 data class ErodedCellImage(
 	val initLabelsImg: RandomAccessibleInterval<UnsignedLongType>,
+	val voronoiDistanceTransformImgs: MorphOperations.VoronoiDistanceTransformImgs,
 	val img: DiskCachedCellImg<UnsignedLongType, *>,
 	val erodedLabels: LongArray,
 	val intervalsToErode: Set<Interval>,
@@ -110,11 +111,11 @@ data class ErodedCellImage(
 			val cellDimensions = cellDimensions ?: IntArray(resolution.size) { (kernelSizeInPixels[it] * 4).coerceAtLeast(32) }
 
 			val sqWeights = resolution
-				.mapIndexed { idx, weight -> weight * weight }
+				.map { weight -> weight * weight }
 				.toDoubleArray()
 
 
-			val (paddedVoronoiLabels, paddedDistanceLabels) = MorphOperations.paddedCellVoronoiDistanceTransform(
+			val voronoiDistanceTransformImgs = MorphOperations.paddedCellVoronoiDistanceTransform(
 				cellDimensions,
 				kernelSizeInPixels,
 				initialLabels,
@@ -122,6 +123,8 @@ data class ErodedCellImage(
 				labelsToErode,
 				sqWeights
 			)
+
+			val (voronoiLabels, voronoiDistances) = voronoiDistanceTransformImgs
 
 			val erodeExtent = intervalsToErode.map { it.extendBy(*kernelSizeInPixels) }
 
@@ -136,10 +139,11 @@ data class ErodedCellImage(
 					return false
 				return erodeExtent.all { (it intersect interval.asRealInterval).isEmpty() }
 			}
+
 			val extendedInitialLabels = Views.extendValue(initialLabels, Label.INVALID)
 
 			val erodedImg = DiskCachedCellImgFactory(
-				UnsignedLongType(Label.TRANSPARENT),
+				UnsignedLongType(Label.INVALID),
 				DiskCachedCellImgOptions.options().cellDimensions(*cellDimensions)
 			).create(initialLabels) { target ->
 
@@ -147,12 +151,12 @@ data class ErodedCellImage(
 
 
 				if (blockOutOfRange(target)) {
-					target.forEach { it.set(Label.TRANSPARENT) }
+					target.forEach { it.set(Label.INVALID) }
 					return@create
 				}
 
-				val paddedLabelsCursor = paddedVoronoiLabels.interval(target).cursor()
-				val paddedDistancesCursor = paddedDistanceLabels.interval(target).cursor()
+				val voronoiLabelsCursor = voronoiLabels.interval(target).cursor()
+				val voronoiDistancesCursor = voronoiDistances.interval(target).cursor()
 
 				val resultCursor = target.cursor()
 
@@ -162,25 +166,25 @@ data class ErodedCellImage(
 				val replacement = replacementLabel()
 				while (resultCursor.hasNext()) {
 					val resultLabel = resultCursor.next()
-					paddedLabelsCursor.fwd()
-					paddedDistancesCursor.fwd()
+					voronoiLabelsCursor.fwd()
+					voronoiDistancesCursor.fwd()
 
-					val initialLabel = initialCursor.next()
+					val initialLabel = initialCursor.next().get()
 					/* If the initial label was not in a target label, then we aren't changing anything */
-					if (initialLabel.get() !in labelsToErode) {
-						resultLabel.set(Label.TRANSPARENT)
+					if (initialLabel !in labelsToErode) {
+						resultLabel.set(initialLabel)
 						continue
 					}
 
-					val distances = paddedDistancesCursor.get()
-					val label = if (distances.get() <= sqKernelSize) {
-						when (strategy) {
+					val distances = voronoiDistancesCursor.get()
+					val label = when {
+						distances.get() > sqKernelSize -> initialLabel
+						else -> when (strategy) {
 							InfillStrategy.Replace -> replacement
 							InfillStrategy.Background -> BACKGROUND
-							InfillStrategy.NearestLabel -> paddedLabelsCursor.get().get()
+							InfillStrategy.NearestLabel -> voronoiLabelsCursor.get().get()
 						}
-					} else Label.TRANSPARENT
-
+					}
 					resultLabel.set(label)
 				}
 			}
@@ -190,6 +194,7 @@ data class ErodedCellImage(
 
 			return ErodedCellImage(
 				initialLabels,
+				voronoiDistanceTransformImgs,
 				erodedImg,
 				labelsToErode,
 				intervalsToErode,

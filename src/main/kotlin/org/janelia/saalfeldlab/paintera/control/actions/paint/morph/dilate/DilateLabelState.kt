@@ -141,7 +141,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 		val dilatedCellImage = getDilatedCellImage(labelsToDilate, blocksWithLabel, cellDims)
 
 		if (update >= UpdateSignal.Full)
-			DilateScope.submitUI {
+			DilateLabel.submitUI {
 				/* The listener only resets to zero if going backward, so do this first */
 				progress = 0.0
 				/* Just to show the operation has started */
@@ -193,7 +193,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 								val addProgress = (increment - approachTotal) * .25
 								approachTotal += addProgress
 								localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
-								DilateScope.submitUI { progress = localProgress.get() }
+								DilateLabel.submitUI { progress = localProgress.get() }
 							}
 						}
 					}
@@ -212,7 +212,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 					is CancellationException -> 0.0
 					else -> throw cause
 				}
-				DilateScope.submitUI { progress = finalProgress }
+				DilateLabel.submitUI { progress = finalProgress }
 			}
 		}
 

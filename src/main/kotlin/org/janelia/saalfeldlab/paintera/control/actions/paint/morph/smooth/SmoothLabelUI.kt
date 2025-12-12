@@ -10,6 +10,7 @@ import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
 import net.imglib2.algorithm.convolution.fast_gauss.FastGaussCalculator

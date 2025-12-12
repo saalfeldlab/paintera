@@ -110,7 +110,7 @@ data class DilatedCellImage(
 			val cellDimensions = cellDimensions ?: IntArray(resolution.size) { (kernelSizeInPixels[it] * 4).coerceAtLeast(32) }
 
 			val sqWeights = resolution
-				.mapIndexed { idx, weight -> weight * weight }
+				.map { weight -> weight * weight }
 				.toDoubleArray()
 
 
@@ -166,10 +166,10 @@ data class DilatedCellImage(
 					paddedDistancesCursor.fwd()
 
 					/* Small optimization; no need to avoid infilling the existing with nearest, it should always be the same */
+					val initialValue = initialCursor.next().get()
 					if (strategy != InfillStrategy.NearestLabel) {
-						val initialValue = initialCursor.next()
-						if (initialValue.get() in labelsToDilate) {
-							resultLabel.set(Label.TRANSPARENT)
+						if (initialValue in labelsToDilate) {
+							resultLabel.set(initialValue)
 							continue
 						}
 					}
@@ -180,7 +180,7 @@ data class DilatedCellImage(
 							InfillStrategy.Background -> BACKGROUND
 							InfillStrategy.NearestLabel -> paddedLabelsCursor.get().get()
 						}
-					} else Label.TRANSPARENT
+					} else initialValue
 
 					resultLabel.set(label)
 				}

@@ -8,13 +8,14 @@ import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
 import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
+import org.janelia.saalfeldlab.fx.extensions.addListener
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel.dilateScope
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -25,8 +26,10 @@ import kotlin.math.ceil
 object ErodeLabel : MenuAction("_Shrink...") {
 
 	internal var mainTaskLoop: Deferred<List<Interval>?>? = null
+	internal var erodeScope : ErodeScope = ErodeScope()
+	internal fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = erodeScope.submitUI(block)
 
-	internal object ErodeScope : ChannelLoop(
+	internal class ErodeScope : ChannelLoop(
 		capacity = CONFLATED
 	) {
 		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -40,7 +43,7 @@ object ErodeLabel : MenuAction("_Shrink...") {
 		verifyPermission(PaintActionType.Erode, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onActionWithState<ErodeLabelState<*, *>> {
 
-			resetUpdateChannel()
+			resetAsyncState()
 			isBusy = false
 
 			val activatedReplacementLabel = AtomicLong(0)
@@ -87,13 +90,14 @@ object ErodeLabel : MenuAction("_Shrink...") {
 			val subs = infillSub.and(replaceLabelSub)
 			startErodeTask()
 			ErodeLabelUI.getDialog(this, "Shrink Label") {
-				runBlocking<Unit> {
+				runBlocking {
 					updateChannel.send(UpdateSignal.Finish)
 				}
 			}.showAndWait().getOrNull().let { success ->
 				subs.unsubscribe()
 				if (success != true) {
 					updateChannel.trySend(UpdateSignal.Cancel)
+					erodeScope.cancel()
 					deactivateReplacementLabel()
 				}
 				return@onActionWithState
@@ -103,9 +107,11 @@ object ErodeLabel : MenuAction("_Shrink...") {
 
 	private var updateChannel = Channel<UpdateSignal>(CONFLATED)
 
-	private fun resetUpdateChannel() {
+	private fun resetAsyncState() {
 		updateChannel.close()
 		updateChannel = Channel(CONFLATED)
+		erodeScope.cancel("New Erode Scope Started")
+		erodeScope = ErodeScope()
 	}
 
 	/**
@@ -125,7 +131,7 @@ object ErodeLabel : MenuAction("_Shrink...") {
 		val progressStatusSubscription = progressStatusSubscription()
 
 		/* these should only trigger on change */
-		val updateSubscription = listOf(replacementLabelProperty, infillStrategyProperty, kernelSizeProperty).subscribe {
+		val updateSubscription = listOf(replacementLabelProperty, infillStrategyProperty, kernelSizeProperty).addListener {
 			updateChannel.trySend(UpdateSignal.Full)
 		}
 
@@ -137,7 +143,7 @@ object ErodeLabel : MenuAction("_Shrink...") {
 			.and(progressStatusSubscription)
 
 		paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
-		mainTaskLoop = ErodeScope.async {
+		mainTaskLoop = erodeScope.async {
 
 			var updateErodeJob: Job? = null
 			var intervals: List<Interval>? = null
@@ -148,22 +154,23 @@ object ErodeLabel : MenuAction("_Shrink...") {
 					UpdateSignal.Cancel -> {
 						// cancel the mainTaskLoop and break out
 						mainTaskLoop?.cancelAndJoin()
+						erodeScope.cancelCurrent()
 						break
 					}
 
-					UpdateSignal.Partial, UpdateSignal.Full -> ErodeScope.submit {
+					UpdateSignal.Partial, UpdateSignal.Full -> erodeScope.submit {
 						intervals = erodeMask(true, reerodeType).map { it.smallestContainingInterval }
 					}
 
 					UpdateSignal.Finish -> {
-						val finisErodeJob = ErodeScope.submit {
+						val finisErodeJob = erodeScope.submit {
 							intervals = erodeMask(false, reerodeType).map { it.smallestContainingInterval }
 						}
 						finisErodeJob.invokeOnCompletion { cause ->
 							when (cause) {
 								null -> Unit
 								is CancellationException -> {
-									ErodeScope.submitUI {
+									erodeScope.submitUI {
 										progress = 0.0
 									}
 									maskedSource.resetMasks()
@@ -183,7 +190,7 @@ object ErodeLabel : MenuAction("_Shrink...") {
 					try {
 						updateErodeJob.join()
 					} catch (_: CancellationException) {
-						ErodeScope.submitUI { progress = 0.0 }
+						erodeScope.submitUI { progress = 0.0 }
 						continue
 					}
 					break
@@ -199,11 +206,11 @@ object ErodeLabel : MenuAction("_Shrink...") {
 					maskedSource.apply {
 						val applyProgressProperty = SimpleDoubleProperty()
 						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							ErodeScope.submitUI { progress = it.toDouble() }
+							erodeScope.submitUI { progress = it.toDouble() }
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						ErodeScope.submitUI { progress = 1.0 }
+						erodeScope.submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
@@ -213,11 +220,11 @@ object ErodeLabel : MenuAction("_Shrink...") {
 					cause?.let {
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
-						ErodeScope.cancelCurrent()
+						erodeScope.cancelCurrent()
 						it.takeUnless { it is CancellationException }?.let { throw it }
 					}
 				} finally {
-					ErodeScope.submitUI { subscriptions.unsubscribe() }
+					erodeScope.submitUI { subscriptions.unsubscribe() }
 					paintera.baseView.disabledPropertyBindings -= task
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)
