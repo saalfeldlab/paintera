@@ -52,11 +52,10 @@ import org.janelia.saalfeldlab.paintera.Paintera;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * @param <A> transform type
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class OverlayPane<A> extends StackPane {
+public class OverlayPane extends StackPane {
 
 	/**
 	 * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.

@@ -87,7 +87,7 @@ public class ViewerPanelFX
 
 	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
-	private final OverlayPane<?> overlayPane = new OverlayPane<>();
+	private final OverlayPane overlayPane = new OverlayPane();
 
 	private final ViewerState state;
 
@@ -564,7 +564,7 @@ public class ViewerPanelFX
 	/**
 	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
 	 */
-	public OverlayPane<?> getDisplay() {
+	public OverlayPane getDisplay() {
 
 		return this.overlayPane;
 	}

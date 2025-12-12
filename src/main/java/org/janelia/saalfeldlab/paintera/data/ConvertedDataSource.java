@@ -6,11 +6,10 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.net.imglib2.converter.read.read.ConvertedRandomAccessibleInterval;
-import org.janelia.saalfeldlab.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -64,18 +63,14 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V> {
 	@Override
 	public RandomAccessibleInterval<V> getSource(final int t, final int level) {
 
-		return new ConvertedRandomAccessibleInterval<>(
-				source.getSource(t, level),
-				typeConverter,
-				typeExtensionSupplier
-		);
+		return Converters.convert2(source.getSource(t, level), typeConverter, typeExtensionSupplier);
 	}
 
 	@Override
 	public RealRandomAccessible<V> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
 		return Views.interpolate(
-				Views.extend(getSource(t, level), new OutOfBoundsConstantValueFactory<>(typeExtensionSupplier)),
+				Views.extendValue(getSource(t, level), typeExtensionSupplier.get()),
 				interpolation.apply(method)
 		);
 	}
@@ -113,7 +108,7 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V> {
 	@Override
 	public RandomAccessibleInterval<U> getDataSource(final int t, final int level) {
 
-		return new ConvertedRandomAccessibleInterval<>(
+		return Converters.convert2(
 				source.getDataSource(t, level),
 				dataTypeConverter,
 				dataTypeExtensionSupplier
@@ -124,7 +119,7 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V> {
 	public RealRandomAccessible<U> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
 		return Views.interpolate(
-				Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>(dataTypeExtensionSupplier)),
+				Views.extendValue(getDataSource(t, level), dataTypeExtensionSupplier.get()),
 				dataInterpolation.apply(method)
 		);
 	}

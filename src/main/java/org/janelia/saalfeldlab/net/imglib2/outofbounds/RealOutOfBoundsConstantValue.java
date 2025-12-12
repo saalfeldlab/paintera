@@ -55,9 +55,7 @@ public class RealOutOfBoundsConstantValue<T extends Type<T>> extends AbstractRea
 	}
 
 	/* Sampler */
-
 	@Override final public T get() {
-		// System.out.println( getLocationAsString() + " " + isOutOfBounds );
 		if (isOutOfBounds)
 			return value;
 		return sampler.get();
