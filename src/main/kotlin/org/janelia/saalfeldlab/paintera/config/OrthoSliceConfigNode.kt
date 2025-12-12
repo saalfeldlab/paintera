@@ -90,8 +90,8 @@ class OrthoSliceConfigNode() {
 		topLeftCheckBox.selectedProperty().bindBidirectional(config.showTopLeftProperty())
 		topRightCheckBox.selectedProperty().bindBidirectional(config.showTopRightProperty())
 		bottomLeftCheckBox.selectedProperty().bindBidirectional(config.showBottomLeftProperty())
-		opacitySlider.slider.valueProperty().bindBidirectional(config.opacityProperty())
-		shadingSlider.slider.valueProperty().bindBidirectional(config.shadingProperty())
+		opacitySlider.valueProperty.bindBidirectional(config.opacityProperty())
+		shadingSlider.valueProperty.bindBidirectional(config.shadingProperty())
 	}
 
 	fun getContents(): Node {

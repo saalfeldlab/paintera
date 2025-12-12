@@ -144,8 +144,8 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
 
 	init {
 
-		this.transitionTimeSlider.slider.valueProperty().addListener { _, _, newv -> this.transitionTime.set(Duration.millis(newv.toDouble())) }
-		this.transitionTime.addListener { _, _, newv -> this.transitionTimeSlider.slider.value = newv.toMillis() }
+		this.transitionTimeSlider.valueProperty.addListener { _, _, newv -> this.transitionTime.set(Duration.millis(newv.toDouble())) }
+		this.transitionTime.addListener { _, _, newv -> this.transitionTimeSlider.value = newv.toMillis() }
 
 		isExpanded = false
 		this.bookmarkConfig.addListener(configListener)

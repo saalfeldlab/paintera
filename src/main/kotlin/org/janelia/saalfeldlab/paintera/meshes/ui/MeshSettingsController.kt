@@ -88,26 +88,24 @@ class MeshSettingsController @JvmOverloads constructor(
 		val minLabelRatioSlider: NumericSliderWithField? = if (addMinLabelRatioSlider) NumericSliderWithField(0.0, 1.0, 0.0) else null
 		return GridPane().populateGridWithMeshSettings(
 			CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
-			NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
+			NumericSliderWithField(0.0, 1.0, opacity.value).also { it.valueProperty.bindBidirectional(opacity) },
 			NumericSliderWithField(
 				MeshSettings.Defaults.Values.minLevelOfDetail,
 				MeshSettings.Defaults.Values.maxLevelOfDetail,
 				levelOfDetail.value
-			).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
+			).also { it.valueProperty.bindBidirectional(levelOfDetail) },
 			NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also {
-				it.slider.valueProperty().bindBidirectional(coarsestScaleLevel)
+				it.valueProperty.bindBidirectional(coarsestScaleLevel)
 			},
-			NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).apply { slider.valueProperty().bindBidirectional(finestScaleLevel) },
-			NumericSliderWithField(0.0, 1.00, 1.0).apply { slider.valueProperty().bindBidirectional(smoothingLambda) },
-			NumericSliderWithField(0, 10, 1).apply { slider.valueProperty().bindBidirectional(smoothingIterations) },
-			minLabelRatioSlider?.apply { slider.valueProperty().bindBidirectional(minLabelRatio) },
+			NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).apply { valueProperty.bindBidirectional(finestScaleLevel) },
+			NumericSliderWithField(0.0, 1.00, 1.0).apply { valueProperty.bindBidirectional(smoothingLambda) },
+			NumericSliderWithField(0, 10, 1).apply { valueProperty.bindBidirectional(smoothingIterations) },
+			minLabelRatioSlider?.apply { valueProperty.bindBidirectional(minLabelRatio) },
 			CheckBox().also { it.selectedProperty().bindBidirectional(overlap) },
 			ComboBox(FXCollections.observableArrayList(*DrawMode.entries.toTypedArray())).apply { valueProperty().bindBidirectional(drawMode) },
 			ComboBox(FXCollections.observableArrayList(*CullFace.entries.toTypedArray())).apply { valueProperty().bindBidirectional(cullFace) })
 	}
 
-
-	@JvmOverloads
 	fun createTitledPane(
 		addMinLabelRatioSlider: Boolean,
 		isEnabled: BooleanProperty,
@@ -170,8 +168,8 @@ class MeshSettingsController @JvmOverloads constructor(
 		): GridPane {
 
 			setCoarsestAndFinestScaleLevelSliderListeners(
-				coarsestScaleLevelSlider.slider,
-				finestScaleLevelSlider.slider
+				coarsestScaleLevelSlider.valueProperty,
+				finestScaleLevelSlider.valueProperty
 			)
 
 			val row = rowCount

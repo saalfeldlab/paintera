@@ -161,10 +161,10 @@ public class Viewer3DConfigNode {
 
 		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesEnabledProperty());
 		showBlockBoundariesCheckBox.selectedProperty().bindBidirectional(config.showBlockBoundariesProperty());
-		rendererBlockSizeSlider.getSlider().valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
-		numElementsPerFrameSlider.getSlider().valueProperty().bindBidirectional(config.numElementsPerFrameProperty());
-		frameDelayMsecSlider.getSlider().valueProperty().bindBidirectional(config.frameDelayMsecProperty());
-		sceneUpdateDelayMsecSlider.getSlider().valueProperty().bindBidirectional(config.sceneUpdateDelayMsecProperty());
+		rendererBlockSizeSlider.getValueProperty().bindBidirectional(config.rendererBlockSizeProperty());
+		numElementsPerFrameSlider.getValueProperty().bindBidirectional(config.numElementsPerFrameProperty());
+		frameDelayMsecSlider.getValueProperty().bindBidirectional(config.frameDelayMsecProperty());
+		sceneUpdateDelayMsecSlider.getValueProperty().bindBidirectional(config.sceneUpdateDelayMsecProperty());
 		backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty());
 	}
 

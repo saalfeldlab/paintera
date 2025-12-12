@@ -120,7 +120,7 @@ class RawSourceStateConverterNode<T, V>(private val converter: ARGBColorConverte
 			tilePane.children.add(minMaxBox)
 
 			val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-			alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+			alphaSliderWithField.valueProperty.bindBidirectional(this.alphaProperty)
 			alphaSliderWithField.textField.minWidth = 48.0
 			alphaSliderWithField.textField.maxWidth = 48.0
 			val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)

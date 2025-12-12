@@ -72,7 +72,7 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 				val minMaxBox = HBox(minField.textField, maxField.textField)
 
 				val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.channelAlphaProperty[channel].get())
-				alphaSliderWithField.slider.valueProperty().bindBidirectional(this.channelAlphaProperty[channel])
+				alphaSliderWithField.valueProperty.bindBidirectional(this.channelAlphaProperty[channel])
 				alphaSliderWithField.textField.minWidth = 48.0
 				alphaSliderWithField.textField.maxWidth = 48.0
 				val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
@@ -89,7 +89,7 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 			val channels = TitledPanes.createCollapsed("Channels", channelsBox)
 
 			val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-			alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+			alphaSliderWithField.valueProperty.bindBidirectional(this.alphaProperty)
 			alphaSliderWithField.textField.minWidth = 48.0
 			alphaSliderWithField.textField.maxWidth = 48.0
 			val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
