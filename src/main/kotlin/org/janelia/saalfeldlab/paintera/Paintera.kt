@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
 import java.lang.invoke.MethodHandles
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
 
@@ -118,7 +119,8 @@ class Paintera : Application() {
 
 		projectDir = painteraArgs.project()
 		val projectPath = projectDir?.let { File(it).absoluteFile }
-		if (!canAccessProjectDir(projectPath)) {
+
+		if (!setProjectPath(projectPath)) {
 			Platform.exit()
 			return
 		}
@@ -215,26 +217,36 @@ class Paintera : Application() {
 		return (cmd.getExecutionResult() ?: false) && exitCode == 0
 	}
 
-	private fun canAccessProjectDir(projectPath: File?): Boolean {
-		if (projectPath != null && !projectPath.exists()) {
-			/* does the project dir exist? If not, try to make it*/
-			projectPath.mkdirs()
-		}
-		var projectDirAccess = true
-		PlatformImpl.runAndWait {
-			if (projectPath != null && !projectPath.canWrite()) {
-				LOG.info("User doesn't have write permissions for project at '$projectPath'. Exiting.")
+	private fun setProjectPath(projectPath: File?): Boolean {
+		when {
+			projectPath?.exists() == false ->  runCatching { projectPath.mkdirs() }.onFailure {
+				Exceptions.exceptionAlert(Constants.NAME, "Unable to create project directory", it).show()
+				return false
+			}
+			projectPath?.isDirectory == false -> {
 				PainteraAlerts.alert(Alert.AlertType.ERROR).apply {
-					headerText = "Invalid Permissions"
-					contentText = "User doesn't have write permissions for project at '$projectPath'. Exiting."
-				}.showAndWait()
-				projectDirAccess = false
-			} else if (!PainteraAlerts.ignoreLockFileDialog(paintera.projectDirectory, projectPath, "_Quit", false)) {
-				LOG.info("Paintera project `$projectPath' is locked, will exit.")
-				projectDirAccess = false
+					contentText = "Project path `$projectPath' is not a directory."
+					title = "Invalid Project Path"
+				}.show()
+				return false
 			}
 		}
-		return projectDirAccess
+
+		if (projectPath?.canWrite() == false) {
+			val openReadOnly = PainteraAlerts.askOpenReadOnlyProject(projectPath)
+			if (openReadOnly)
+				paintera.projectDirectory.setReadOnlyDirectory(projectPath)
+			return openReadOnly
+		}
+
+		val useProject = AtomicBoolean(false)
+		runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				val validProject = PainteraAlerts.ignoreLockFileDialog(paintera.projectDirectory, projectPath, "_Quit", false)
+				useProject.set(validProject)
+			}.join()
+		}
+		return useProject.get()
 	}
 
 	fun loadProject(projectDirectory: String? = null) {

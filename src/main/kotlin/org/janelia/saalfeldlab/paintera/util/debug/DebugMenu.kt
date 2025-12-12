@@ -7,7 +7,6 @@ import javafx.stage.Window
 import javafx.util.Subscription
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.janelia.saalfeldlab.fx.actions.Action.Companion.installAction
@@ -149,24 +148,25 @@ internal class LiveReloadCssAction : ReloadCssAction("Live Reload CSS") {
 		}
 	}
 
-	var watchSubscriptions = Subscription { watchLoop.cancel() }
+	var watchSubscriptions : Subscription? = Subscription { watchLoop.cancel() }
 
 	fun initWatchAndReloadCss() {
 		InvokeOnJavaFXApplicationThread {
-			watchSubscriptions.unsubscribe()
-			watchSubscriptions = Subscription.EMPTY
+			watchSubscriptions?.unsubscribe()
+			watchSubscriptions = null
 			Window.getWindows().forEach { window ->
 				val styleSheets = window.scene.stylesheets.toList().mapNotNull { css -> mapStyleSheet(css) }
 				window.scene.stylesheets.clear()
 				window.scene.stylesheets.setAll(styleSheets)
 
 				styleSheets.forEach { styleSheet ->
-					watchSubscriptions = watchSubscriptions + runCatching {
+					val sheetUri = runCatching {
 						Paths.get(URI.create(styleSheet)).takeIf { it.exists() }?.toUri().toString()
 					}.getOrElse {
 						it.printStackTrace()
 						null
-					}?.watch()?.also {}
+					}
+					watchSubscriptions += sheetUri?.watch()
 				}
 			}
 		}

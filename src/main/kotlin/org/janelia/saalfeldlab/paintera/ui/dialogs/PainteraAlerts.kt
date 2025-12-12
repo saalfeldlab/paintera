@@ -125,11 +125,11 @@ object PainteraAlerts {
 	fun ignoreLockFileDialog(
 		projectDirectory: ProjectDirectory,
 		directory: File?,
-		cancelButtontext: String? = "_Cancel",
+		cancelButtonText: String? = "_Cancel",
 		logFailure: Boolean = true,
 	): Boolean {
 		val useItProperty = SimpleBooleanProperty(true)
-		val alert = confirmation("_Ignore Lock", cancelButtontext).apply {
+		val alert = confirmation("_Ignore Lock", cancelButtonText).apply {
 
 			headerText = "Paintera project locked"
 			contentText = """
@@ -139,24 +139,51 @@ object PainteraAlerts {
 			""".trimIndent()
 		}
 		try {
-			projectDirectory.setDirectory(directory) {
-				useItProperty.set(alert.showAndWait().getOrNull() == ButtonType.OK)
-				useItProperty.get()
+			runBlocking {
+				InvokeOnJavaFXApplicationThread {
+					projectDirectory.setDirectory(directory) {
+						useItProperty.set(alert.showAndWait().getOrNull() == ButtonType.OK)
+						useItProperty.get()
+					}
+				}.join()
 			}
 		} catch (e: LockFile.UnableToCreateLock) {
 			if (logFailure) {
 				LOG.error(e) { "Unable to ignore lock file" }
-				Exceptions.Companion.exceptionAlert(Constants.NAME, "Unable to ignore lock file", e).show()
+				Exceptions.exceptionAlert(Constants.NAME, "Unable to ignore lock file", e).show()
 			}
 			return false
 		} catch (e: IOException) {
 			if (logFailure) {
 				LOG.error(e) { "Unable to ignore lock file" }
-				Exceptions.Companion.exceptionAlert(Constants.NAME, "Unable to ignore lock file", e).show()
+				Exceptions.exceptionAlert(Constants.NAME, "Unable to ignore lock file", e).show()
 			}
 			return false
 		}
 		return useItProperty.get()
+	}
+
+
+	@JvmOverloads
+	fun askOpenReadOnlyProject(
+		directory: File,
+	): Boolean {
+		return runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				val alert = confirmation("_Open Read-Only", "_Cancel").apply {
+
+					headerText = "Paintera project is read-only"
+					contentText = """
+				Paintera project at '$directory' is read-only.
+				You can attempt to load it, but will not be able to save project changes.
+				
+				If the project references data you do have write permissions for, it is 
+				possible the you may still be able to commit label changes, however.
+			""".trimIndent()
+				}
+				alert.showAndWait().get() == ButtonType.OK
+			}.await()
+		}
 	}
 
 	fun versionDialog(): Alert {

@@ -235,13 +235,17 @@ object DataSourceDialogs {
 
 		alert.dialogPane.content = VBox(ta, maxIdBox)
 
-		if (alert.showAndWait().getOrNull() == ButtonType.OK) {
-			val maxId = maxIdField.valueProperty().get()
-			n5.setAttribute(dataset, "maxId", maxId)
-			return N5IdService(n5, dataset, maxId)
-		} else {
-			task.get()?.cancel()
-			return IdService.IdServiceNotProvided()
+		return runBlocking {
+			InvokeOnJavaFXApplicationThread {
+				if (alert.showAndWait().getOrNull() == ButtonType.OK) {
+					val maxId = maxIdField.valueProperty().get()
+					n5.setAttribute(dataset, "maxId", maxId)
+					N5IdService(n5, dataset, maxId)
+				} else {
+					task.get()?.cancel()
+					IdService.IdServiceNotProvided()
+				}
+			}.await()
 		}
 	}
 }
