@@ -1,6 +1,6 @@
 
 # Paintera 
-[![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
+[![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11187904.svg)](https://doi.org/10.5281/zenodo.11187904)
 [![GitHub Release](https://img.shields.io/github/v/release/saalfeldlab/paintera)](https://github.com/saalfeldlab/paintera/releases)
 
