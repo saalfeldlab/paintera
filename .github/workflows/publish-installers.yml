@@ -58,8 +58,8 @@ jobs:
           mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
           mv Paintera-ubuntu-22.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
           mv Paintera-ubuntu-24.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
-          mv Paintera-macos-13-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
-          mv Paintera-macos-14-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
+          mv Paintera-macos-*-intel-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
+          mv Paintera-macos-latest-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
