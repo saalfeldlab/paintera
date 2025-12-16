@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.*
@@ -23,8 +22,10 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.PainteraUtils.intervalInSourceSpace
+import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.isNotEmpty
 import org.janelia.saalfeldlab.util.union
 
@@ -75,7 +76,6 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	private fun canCropVirtually(metadataState: MetadataState): Boolean {
 		//FIXME Caleb: expand support for virtual crop
 		return !metadataState.isLabel || metadataState.n5ContainerState.writer == null
-
 	}
 
 	fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): Node {
@@ -144,11 +144,11 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		virtualCropGrid.add(Label("\tMax"), 0, 2)
 
 		val cropMins = LongArray(3) {
-			metadataState.virtualCrop?.min(it) ?: 0L
+			0L
 		}
 		val imgDimensions = metadataState.datasetAttributes.dimensions
 		val cropSize = LongArray(3) {
-			metadataState.virtualCrop?.dimension(it) ?: (imgDimensions[it])
+			(imgDimensions[it])
 		}
 
 		val uncroppedInterval = Intervals.createMinSize(*cropMins, *cropSize)
@@ -181,6 +181,11 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				/* if we are the same interval, don't set the value. */
 				if (newValue != null && this.value != null && Intervals.equals(this.value, newValue))
 					return
+				/* if we are the uncropped Interval, set interval to null */
+				if (newValue != null && Intervals.equals(uncroppedInterval, newValue)) {
+					super.set(null)
+					return
+				}
 
 				super.set(newValue)
 			}
@@ -212,43 +217,48 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				maxExclusiveCrop
 		}
 
-		val intervalFromPropertiesBinding = Bindings.createObjectBinding(intervalFromProperties, *valueProps.flatten().map { it.valueProperty() }.toTypedArray())
-		intervalFromPropertiesBinding.subscribe { it -> virtualCropInterval.value = it }
-
-		val resetMin = Button("  ")
-		resetMin.addStyleClass(Style.RESET_ICON)
-		resetMin.setOnAction {
-			valueProps[0].forEachIndexed { idx, prop ->
-				prop.valueProperty().value = 0L
+		valueProps.forEach { row ->
+			row.forEach { col ->
+				col.valueProperty().subscribe { _, _ ->
+					virtualCropInterval.value = intervalFromProperties()
+				}
 			}
 		}
-		val resetMax = Button("  ")
-		resetMax.addStyleClass(Style.RESET_ICON)
-		imgDimensions
-		resetMax.setOnAction {
-			valueProps[1].forEachIndexed { idx, prop ->
-				prop.valueProperty().value = imgDimensions[idx]
+
+
+		val resetMin = Button("").apply {
+			addStyleClass(Style.RESET_ICON)
+			setOnAction {
+				valueProps[0].forEachIndexed { idx, prop ->
+					prop.valueProperty().value = 0L
+				}
+			}
+		}
+		val resetMax = Button("").apply {
+			addStyleClass(Style.RESET_ICON)
+			setOnAction {
+				valueProps[1].forEachIndexed { idx, prop ->
+					prop.valueProperty().value = imgDimensions[idx]
+				}
 			}
 		}
 		virtualCropGrid.add(resetMin, 4, 1)
 		virtualCropGrid.add(resetMax, 4, 2)
 
-//		FIXME: Implement
-//		 val cropToRegionBox = HBox().apply {
-//			padding = Insets(10.0, 0.0, 10.0, 0.0)
-//			maxWidth = Double.MAX_VALUE
-//			children += Label("Crop to Region: ").hGrow {
-//				alignment = Pos.BASELINE_LEFT
-//			}
-//			children += Region().hGrow()
-//			children += SegmentedButton().apply {
-//				buttons += ToggleButton("Current View").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForCurrentView() } }
-//				buttons += ToggleButton("Active Segments").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForActiveSegments() } }
-//				buttons += ToggleButton("Active Fragments").apply { setOnAction { metadataState.virtualCrop = sourceIntervalForActiveFragments() } }
-//			}
-//		}
-//		virtualCropGrid.add(cropToRegionBox, 0, 3)
-//		GridPane.setColumnSpan(cropToRegionBox, GridPane.REMAINING)
+		 val cropToRegionBox = HBox().apply {
+			padding = Insets(10.0, 0.0, 10.0, 0.0)
+			maxWidth = Double.MAX_VALUE
+			children += Label("Crop to Region: ").hGrow {
+				alignment = Pos.BASELINE_LEFT
+			}
+			children += Region().hGrow()
+			children += ButtonBar().apply {
+				buttons += Button("Current View").apply { setOnAction { virtualCropInterval.value = uncroppedInterval intersect sourceIntervalForCurrentView() } }
+				buttons += Button("Remove Crop").apply { setOnAction { virtualCropInterval.value = null } }
+			}
+		}
+		virtualCropGrid.add(cropToRegionBox, 0, 3)
+		GridPane.setColumnSpan(cropToRegionBox, GridPane.REMAINING)
 
 
 		return virtualCropGrid
@@ -264,14 +274,6 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			}
 			.reduceOrNull { acc, interval -> acc.union(interval) }
 			?.smallestContainingInterval
-	}
-
-	fun sourceIntervalForActiveSegments(): Interval? {
-		TODO("Implement this")
-	}
-
-	fun sourceIntervalForActiveFragments(): Interval? {
-		TODO("Implement this")
 	}
 
 	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride: AffineTransform3D? = null): Node {
