@@ -62,7 +62,7 @@
 		<javafx.version>22.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
-		<saalfx.version>3.0.0-SNAPSHOT</saalfx.version>
+		<saalfx.version>3.0.0</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
