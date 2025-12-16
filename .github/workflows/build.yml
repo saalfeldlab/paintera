@@ -1,6 +1,11 @@
-name: build PR
+name: build
 
 on:
+  push:
+    branches:
+      - master
+    tags:
+      - "*-[0-9]+.*"
   pull_request:
     branches:
       - master
@@ -13,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Blosc
-        run:  sudo apt install -y libblosc1
+        run: sudo apt install -y libblosc1
 
       - name: Cache m2 folder
         uses: actions/cache@v4
@@ -36,3 +41,12 @@ jobs:
         run: .github/setup.sh
       - name: Execute the build
         run: .github/build.sh
+        env:
+          GPG_KEY_NAME: ${{ secrets.GPG_KEY_NAME }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
+          CENTRAL_USER: ${{ secrets.CENTRAL_USER }}
+          CENTRAL_PASS: ${{ secrets.CENTRAL_PASS }}
+          OSSRH_PASS: ${{ secrets.OSSRH_PASS }}
+          SIGNING_ASC: ${{ secrets.SIGNING_ASC }}

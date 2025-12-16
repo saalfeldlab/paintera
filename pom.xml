@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.12.0-SNAPSHOT</version>
+	<version>1.13.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -62,7 +62,7 @@
 		<javafx.version>22.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
-		<saalfx.version>2.3.0-SNAPSHOT</saalfx.version>
+		<saalfx.version>3.0.0-SNAPSHOT</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>

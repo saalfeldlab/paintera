@@ -16,7 +16,7 @@ import javafx.util.Subscription
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.interpolate
+import org.janelia.saalfeldlab.fx.extensions.animate
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
@@ -236,7 +236,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
 		rightGroup.properties["animating"] = true
 		val prevWidth = sideBarWidthProperty.value
-		sideBarWidthProperty.asObject().interpolate(
+		sideBarWidthProperty.animate(
 			to = 0.0,
 			interpolator = Interpolator.EASE_OUT,
 			time = Duration.millis(350.0)
@@ -260,7 +260,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		val prevWidth = sideBarWidthProperty.value
 		sideBarWidthProperty.value = 0.0
 		rightGroup.visibleProperty().value = true
-		sideBarWidthProperty.asObject().interpolate(
+		sideBarWidthProperty.animate(
 			to = prevWidth,
 			interpolator = Interpolator.EASE_IN,
 			time = Duration.millis(350.0)
