@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.PixelBufferWritableImage;
-import bdv.fx.viewer.render.ViewerRenderUnit;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.ViewerRenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
@@ -260,7 +260,6 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 			futures.add(TEXTURE_UPDATOR.submit(() -> {
 				final PixelBufferWritableImage targetImage = targetImages[i];
 				final double brightnessFactor = brightnessFactors[i];
-				final int roundBrightnessFactor = Util.roundToInt(brightnessFactor);
 
 				final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
 				final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
@@ -269,10 +268,10 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 				while (dstCursor.hasNext()) {
 					final int srcArgb = srcCursor.next().get();
 					final int dstArgb = ARGBType.rgba(
-							ARGBType.red(srcArgb) * roundBrightnessFactor,
-							ARGBType.green(srcArgb) * roundBrightnessFactor,
-							ARGBType.blue(srcArgb) * roundBrightnessFactor,
-							Util.roundToInt(alpha * 255));
+							Util.round(ARGBType.red(srcArgb) * brightnessFactor),
+							Util.round(ARGBType.green(srcArgb) * brightnessFactor),
+							Util.round(ARGBType.blue(srcArgb) * brightnessFactor),
+							Util.round(alpha * 255));
 					dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
 				}
 				return targetImage;

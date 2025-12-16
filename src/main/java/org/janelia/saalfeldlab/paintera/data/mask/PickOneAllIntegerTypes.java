@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import kotlin.Triple;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;
@@ -26,9 +26,9 @@ public class PickOneAllIntegerTypes<I extends IntegerType<I>, M extends IntegerT
 	@Override
 	public I apply(final Triple<I, M, M> t) {
 
-		final I a = t.getA();
-		final M b = t.getB();
-		final M c = t.getC();
+		final I a = t.getFirst();
+		final M b = t.getSecond();
+		final M c = t.getThird();
 		i.setInteger(pickThird.test(c)
 				? c.getIntegerLong()
 				: pickSecond.test(b, c) ? b.getIntegerLong() : a.getIntegerLong());

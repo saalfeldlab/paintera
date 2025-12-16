@@ -28,7 +28,7 @@ public class SceneUpdateHandler implements ChangeListener<AffineTransform3D> {
 		this.updateHandler = updateHandler;
 	}
 
-	public synchronized void update(final long updateDelayMsec) {
+	public synchronized void setNavigationUpdateDelay(final long updateDelayMsec) {
 
 		this.updateDelayAfterNavigatingMsec = updateDelayMsec;
 	}
@@ -41,7 +41,6 @@ public class SceneUpdateHandler implements ChangeListener<AffineTransform3D> {
 
 		if (timerTask != null) {
 			timerTask.cancel();
-			timerTask = null;
 		}
 		timerTask = new TimerTask() {
 

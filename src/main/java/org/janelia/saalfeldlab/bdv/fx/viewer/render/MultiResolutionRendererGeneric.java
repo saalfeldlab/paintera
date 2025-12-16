@@ -30,6 +30,8 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
+import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
@@ -69,13 +71,10 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
-import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.text.DecimalFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -541,6 +540,7 @@ public class MultiResolutionRendererGeneric<T> {
 						//TODO Caleb: Debug why this case can happen...
 						return -1;
 					}
+
 					final T unusedBuffer = display.setBufferedImageAndTransform(renderTarget, currentProjectorTransform);
 					if (doubleBuffered) {
 						if (unusedBuffer != null) {
@@ -907,45 +907,13 @@ public class MultiResolutionRendererGeneric<T> {
 					timepoint,
 					mipmapIndex,
 					sourceToScreen,
-					prettyPrint(screenScaleTransform),
+					screenScaleTransform,
 					cacheHints,
 					interpolation
 			);
 		}
 
 		return RealViews.affine(ipimg, sourceToScreen);
-	}
-
-	public static String prettyPrint(AffineTransform3D screenScaleTransform) {
-
-		final var m00 = prettyPrintDouble(screenScaleTransform.get(0, 0));
-		final var m01 = prettyPrintDouble(screenScaleTransform.get(0, 1));
-		final var m02 = prettyPrintDouble(screenScaleTransform.get(0, 2));
-		final var m03 = prettyPrintDouble(screenScaleTransform.get(0, 3));
-		final var m10 = prettyPrintDouble(screenScaleTransform.get(1, 0));
-		final var m11 = prettyPrintDouble(screenScaleTransform.get(1, 1));
-		final var m12 = prettyPrintDouble(screenScaleTransform.get(1, 2));
-		final var m13 = prettyPrintDouble(screenScaleTransform.get(1, 3));
-		final var m20 = prettyPrintDouble(screenScaleTransform.get(2, 0));
-		final var m21 = prettyPrintDouble(screenScaleTransform.get(2, 1));
-		final var m22 = prettyPrintDouble(screenScaleTransform.get(2, 2));
-		final var m23 = prettyPrintDouble(screenScaleTransform.get(2, 3));
-
-		return "3d-affine: \n" +
-				m00 + ", " + m01 + ", " + m02 + ", " + m03 + ",\n" +
-				m10 + ", " + m11 + ", " + m12 + ", " + m13 + ",\n" +
-				m20 + ", " + m21 + ", " + m22 + ", " + m23 + "  ";
-	}
-
-	private static String prettyPrintDouble(final double d) {
-
-		DecimalFormat df = new DecimalFormat();
-		df.setMaximumFractionDigits(5);
-
-		if (d == (long) d)
-			return String.format("%d", (long) d);
-		else
-			return df.format(d);
 	}
 
 	private static <T> void prefetch(
@@ -1031,4 +999,5 @@ public class MultiResolutionRendererGeneric<T> {
 	private synchronized ArrayDeque<T> getScreenImages(final int scale) {
 		return screenImages.get(scale);
 	}
+
 }

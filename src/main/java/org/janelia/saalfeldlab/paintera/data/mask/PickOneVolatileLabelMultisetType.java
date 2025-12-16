@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import kotlin.Triple;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.FromIntegerTypeConverter;
@@ -8,7 +9,6 @@ import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;
@@ -58,17 +58,17 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 	@Override
 	public VolatileLabelMultisetType apply(final Triple<VolatileLabelMultisetType, VM, VM> t) {
 
-		final VolatileLabelMultisetType a = t.getA();
+		final VolatileLabelMultisetType a = t.getFirst();
 		if (!a.isValid()) {
 			scalarValue.setValid(false);
 			return scalarValue;
 		}
-		final VM vb = t.getB();
+		final VM vb = t.getSecond();
 		if (!vb.isValid()) {
 			scalarValue.setValid(false);
 			return scalarValue;
 		}
-		final VM vc = t.getC();
+		final VM vc = t.getThird();
 		if (!vc.isValid()) {
 			scalarValue.setValid(false);
 			return scalarValue;

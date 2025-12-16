@@ -23,7 +23,7 @@ import net.imglib2.type.numeric.ARGBType;
  */
 public class ARGBCompositeAlphaYCbCr implements Composite<ARGBType, ARGBType> {
 
-	final static private double det(final double[] a) {
+	static private double det(final double[] a) {
 
 		assert a.length == 9 : "Supports 3x3 double[] only.";
 
@@ -36,7 +36,7 @@ public class ARGBCompositeAlphaYCbCr implements Composite<ARGBType, ARGBType> {
 						a[8] * a[1] * a[3];
 	}
 
-	final static private boolean invert(final double[] m) {
+	static private boolean invert(final double[] m) {
 
 		assert m.length == 9 : "Supports 3x3 double[] only.";
 
@@ -82,32 +82,32 @@ public class ARGBCompositeAlphaYCbCr implements Composite<ARGBType, ARGBType> {
 		invert(ycbcr2rgb);
 	}
 
-	final static private double rgb2y(final double r, final double g, final double b) {
+	static private double rgb2y(final double r, final double g, final double b) {
 
 		return rgb2ycbcr[0] * r + rgb2ycbcr[1] * g + rgb2ycbcr[2] * b;
 	}
 
-	final static private double rgb2cb(final double r, final double g, final double b) {
+	static private double rgb2cb(final double r, final double g, final double b) {
 
 		return rgb2ycbcr[3] * r + rgb2ycbcr[4] * g + rgb2ycbcr[5] * b;
 	}
 
-	final static private double rgb2cr(final double r, final double g, final double b) {
+	static private double rgb2cr(final double r, final double g, final double b) {
 
 		return rgb2ycbcr[6] * r + rgb2ycbcr[7] * g + rgb2ycbcr[8] * b;
 	}
 
-	final static private double ycbcr2r(final double y, final double cb, final double cr) {
+	static private double ycbcr2r(final double y, final double cb, final double cr) {
 
 		return ycbcr2rgb[0] * y + ycbcr2rgb[1] * cb + ycbcr2rgb[2] * cr;
 	}
 
-	final static private double ycbcr2g(final double y, final double cb, final double cr) {
+	static private double ycbcr2g(final double y, final double cb, final double cr) {
 
 		return ycbcr2rgb[3] * y + ycbcr2rgb[4] * cb + ycbcr2rgb[5] * cr;
 	}
 
-	final static private double ycbcr2b(final double y, final double cb, final double cr) {
+	static private double ycbcr2b(final double y, final double cb, final double cr) {
 
 		return ycbcr2rgb[6] * y + ycbcr2rgb[7] * cb + ycbcr2rgb[8] * cr;
 	}

@@ -16,7 +16,7 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import org.janelia.saalfeldlab.util.PainteraCache
 import java.nio.file.Paths
@@ -68,7 +68,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	 * @param selection to invalidate and parse
 	 */
 	fun reparseSelection(selection : String) {
-		n5Factory.clearKey(selection)
+		n5Factory.remove(selection)
 		openSourceState.containerState?.reader?.let {
 			n5ContainerStateCache -= selection
 			parseN5LoaderCache.invalidate(it)
@@ -122,7 +122,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 		fun main(args: Array<String>) {
 			InvokeOnJavaFXApplicationThread {
 				N5FactoryOpener(OpenSourceState()).backendDialog().apply {
-					PainteraAlerts.initAppDialog(this)
+					initAppDialog()
 					headerText = "Open Source Dataset"
 					showAndWait()
 				}

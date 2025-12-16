@@ -92,7 +92,7 @@ open class ConnectomicsRawState<D, T>(
 	override fun converter(): ARGBColorConverter<T> = converter
 
 	override fun getDefaultMode(): ControlMode {
-		return RawSourceMode
+		return RawSourceMode()
 	}
 
 	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(CompositeCopy())

@@ -60,7 +60,6 @@ import org.janelia.saalfeldlab.util.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
-import java.util.UUID
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier

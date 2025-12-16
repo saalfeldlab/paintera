@@ -10,7 +10,6 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
-import javafx.stage.Modality
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.fx.Menus
 import org.janelia.saalfeldlab.fx.TitledPanes
@@ -20,7 +19,9 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Constants
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -71,7 +72,7 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 				val minMaxBox = HBox(minField.textField, maxField.textField)
 
 				val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.channelAlphaProperty[channel].get())
-				alphaSliderWithField.slider.valueProperty().bindBidirectional(this.channelAlphaProperty[channel])
+				alphaSliderWithField.valueProperty.bindBidirectional(this.channelAlphaProperty[channel])
 				alphaSliderWithField.textField.minWidth = 48.0
 				alphaSliderWithField.textField.maxWidth = 48.0
 				val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
@@ -88,7 +89,7 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 			val channels = TitledPanes.createCollapsed("Channels", channelsBox)
 
 			val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-			alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+			alphaSliderWithField.valueProperty.bindBidirectional(this.alphaProperty)
 			alphaSliderWithField.textField.minWidth = 48.0
 			alphaSliderWithField.textField.maxWidth = 48.0
 			val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
@@ -103,7 +104,6 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 			setButton.tooltip = Tooltip("Change channels globally.")
 
 			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				PainteraAlerts.initOwner(this)
 				headerText = "Conversion of channel data into ARGB color space."
 				contentText = DESCRIPTION
 			}
@@ -111,7 +111,12 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 			val tpGraphics = HBox(
 				Label("Color Conversion"),
 				NamedNode.bufferNode(),
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
+			)
 				.also { it.alignment = Pos.CENTER }
 
 			val contents = VBox(alphaBox, setButton, channels)

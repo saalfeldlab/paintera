@@ -4,6 +4,7 @@ import javafx.beans.property.*
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.math.max
 import kotlin.math.min
 
@@ -52,7 +53,7 @@ class MeshSettings @JvmOverloads constructor(
 			val overlap = true
 
 			@JvmStatic
-			val minLabelRatio = 0.25
+			val minLabelRatio = 0.0
 
 			@JvmStatic
 			val minLevelOfDetail = 1
@@ -137,101 +138,53 @@ class MeshSettings @JvmOverloads constructor(
 	}
 
 	fun setTo(that: MeshSettings) {
-		levelOfDetail = that.levelOfDetail
-		coarsestScaleLevel = that.coarsestScaleLevel
-		finestScaleLevel = that.finestScaleLevel
-		simplificationIterations = that.simplificationIterations
-		smoothingLambda = that.smoothingLambda
-		smoothingIterations = that.smoothingIterations
-		minLabelRatio = that.minLabelRatio
-		overlap = that.overlap
-		opacity = that.opacity
-		drawMode = that.drawMode
-		cullFace = that.cullFace
-		isVisible = that.isVisible
+		InvokeOnJavaFXApplicationThread {
+			levelOfDetail = that.levelOfDetail
+			coarsestScaleLevel = that.coarsestScaleLevel
+			finestScaleLevel = that.finestScaleLevel
+			simplificationIterations = that.simplificationIterations
+			smoothingLambda = that.smoothingLambda
+			smoothingIterations = that.smoothingIterations
+			minLabelRatio = that.minLabelRatio
+			overlap = that.overlap
+			opacity = that.opacity
+			drawMode = that.drawMode
+			cullFace = that.cullFace
+			isVisible = that.isVisible
+		}
 	}
 
-	fun resetToDefaults() = setTo(defaults)
-
-	private fun setTo(defaults: Defaults): MeshSettings {
-		setTo(MeshSettings(numScaleLevels, defaults))
-		coarsestScaleLevel = numScaleLevels - 1
-		finestScaleLevel = 0
-		return this
-	}
-
-	fun bindTo(that: MeshSettings) {
-		levelOfDetailProperty.bind(that.levelOfDetailProperty)
-		coarsestScaleLevelProperty.bind(that.coarsestScaleLevelProperty)
-		finestScaleLevelProperty.bind(that.finestScaleLevelProperty)
-		simplificationIterationsProperty.bind(that.simplificationIterationsProperty)
-		smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
-		smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
-		minLabelRatioProperty.bind(that.minLabelRatioProperty)
-		overlapProperty.bind(that.overlapProperty)
-		opacityProperty.bind(that.opacityProperty)
-		drawModeProperty.bind(that.drawModeProperty)
-		cullFaceProperty.bind(that.cullFaceProperty)
-		isVisibleProperty.bind(that.isVisibleProperty)
+	fun bind(that: MeshSettings) {
+		InvokeOnJavaFXApplicationThread {
+			levelOfDetailProperty.bind(that.levelOfDetailProperty)
+			coarsestScaleLevelProperty.bind(that.coarsestScaleLevelProperty)
+			finestScaleLevelProperty.bind(that.finestScaleLevelProperty)
+			simplificationIterationsProperty.bind(that.simplificationIterationsProperty)
+			smoothingLambdaProperty.bind(that.smoothingLambdaProperty)
+			smoothingIterationsProperty.bind(that.smoothingIterationsProperty)
+			minLabelRatioProperty.bind(that.minLabelRatioProperty)
+			overlapProperty.bind(that.overlapProperty)
+			opacityProperty.bind(that.opacityProperty)
+			drawModeProperty.bind(that.drawModeProperty)
+			cullFaceProperty.bind(that.cullFaceProperty)
+			isVisibleProperty.bind(that.isVisibleProperty)
+		}
 	}
 
 	fun unbind() {
-		levelOfDetailProperty.unbind()
-		coarsestScaleLevelProperty.unbind()
-		finestScaleLevelProperty.unbind()
-		simplificationIterationsProperty.unbind()
-		smoothingLambdaProperty.unbind()
-		smoothingIterationsProperty.unbind()
-		minLabelRatioProperty.unbind()
-		overlapProperty.unbind()
-		opacityProperty.unbind()
-		drawModeProperty.unbind()
-		cullFaceProperty.unbind()
-		isVisibleProperty.unbind()
+		InvokeOnJavaFXApplicationThread {
+			levelOfDetailProperty.unbind()
+			coarsestScaleLevelProperty.unbind()
+			finestScaleLevelProperty.unbind()
+			simplificationIterationsProperty.unbind()
+			smoothingLambdaProperty.unbind()
+			smoothingIterationsProperty.unbind()
+			minLabelRatioProperty.unbind()
+			overlapProperty.unbind()
+			opacityProperty.unbind()
+			drawModeProperty.unbind()
+			cullFaceProperty.unbind()
+			isVisibleProperty.unbind()
+		}
 	}
-
-	fun bindBidirectionalTo(that: MeshSettings) {
-		levelOfDetailProperty.bindBidirectional(that.levelOfDetailProperty)
-		coarsestScaleLevelProperty.bindBidirectional(that.coarsestScaleLevelProperty)
-		finestScaleLevelProperty.bindBidirectional(that.finestScaleLevelProperty)
-		simplificationIterationsProperty.bindBidirectional(that.simplificationIterationsProperty)
-		smoothingLambdaProperty.bindBidirectional(that.smoothingLambdaProperty)
-		smoothingIterationsProperty.bindBidirectional(that.smoothingIterationsProperty)
-		minLabelRatioProperty.bindBidirectional(that.minLabelRatioProperty)
-		overlapProperty.bindBidirectional(that.overlapProperty)
-		opacityProperty.bindBidirectional(that.opacityProperty)
-		drawModeProperty.bindBidirectional(that.drawModeProperty)
-		cullFaceProperty.bindBidirectional(that.cullFaceProperty)
-		isVisibleProperty.bindBidirectional(that.isVisibleProperty)
-	}
-
-	fun unbindBidrectional(that: MeshSettings) {
-		levelOfDetailProperty.unbindBidirectional(that.levelOfDetailProperty)
-		coarsestScaleLevelProperty.unbindBidirectional(that.coarsestScaleLevelProperty)
-		finestScaleLevelProperty.unbindBidirectional(that.finestScaleLevelProperty)
-		simplificationIterationsProperty.unbindBidirectional(that.simplificationIterationsProperty)
-		smoothingLambdaProperty.unbindBidirectional(that.smoothingLambdaProperty)
-		smoothingIterationsProperty.unbindBidirectional(that.smoothingIterationsProperty)
-		minLabelRatioProperty.unbindBidirectional(that.minLabelRatioProperty)
-		overlapProperty.unbindBidirectional(that.overlapProperty)
-		opacityProperty.unbindBidirectional(that.opacityProperty)
-		drawModeProperty.unbindBidirectional(that.drawModeProperty)
-		cullFaceProperty.unbindBidirectional(that.cullFaceProperty)
-		isVisibleProperty.unbindBidirectional(that.isVisibleProperty)
-	}
-
-	fun hasOnlyDefaultValues(): Boolean {
-		return coarsestScaleLevel == Defaults.getDefaultCoarsestScaleLevel(numScaleLevels)
-				&& finestScaleLevel == Defaults.getDefaultFinestScaleLevel(numScaleLevels)
-				&& simplificationIterations == defaults.simplificationIterations
-				&& smoothingLambda == defaults.smoothingLambda
-				&& smoothingIterations == defaults.smoothingIterations
-				&& minLabelRatio == defaults.minLabelRatio
-				&& overlap == defaults.overlap
-				&& opacity == defaults.opacity
-				&& defaults.drawMode == drawMode
-				&& defaults.cullFace == cullFace
-				&& isVisible == defaults.isVisible
-	}
-
 }

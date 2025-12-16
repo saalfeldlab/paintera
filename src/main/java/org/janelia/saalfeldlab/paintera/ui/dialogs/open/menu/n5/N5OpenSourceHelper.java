@@ -74,7 +74,6 @@ public class N5OpenSourceHelper {
 				viewer.viewer3D().getMeshesGroup(),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getPropagationQueue()
 		);

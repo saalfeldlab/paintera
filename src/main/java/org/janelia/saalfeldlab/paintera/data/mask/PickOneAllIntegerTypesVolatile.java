@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import kotlin.Triple;
 import net.imglib2.Volatile;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 import java.util.function.BiPredicate;
@@ -30,9 +30,9 @@ public class PickOneAllIntegerTypesVolatile<I extends IntegerType<I>, M extends 
 	@Override
 	public VI apply(final Triple<VI, VM, VM> t) {
 
-		final VI va = t.getA();
-		final VM vb = t.getB();
-		final VM vc = t.getC();
+		final VI va = t.getFirst();
+		final VM vb = t.getSecond();
+		final VM vc = t.getThird();
 		final boolean isValid = va.isValid() && vb.isValid() && vc.isValid();
 		i.setValid(isValid);
 		if (isValid) {

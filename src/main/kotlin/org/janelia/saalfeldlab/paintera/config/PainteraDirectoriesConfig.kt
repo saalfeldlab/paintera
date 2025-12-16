@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import com.google.gson.*
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import dev.dirs.ProjectDirectories
 import javafx.application.Platform
 import javafx.beans.property.SimpleStringProperty
@@ -13,13 +12,15 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig.Companion.APPLICATION_DIRECTORIES
 import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig.Companion.TEMP_DIRECTORY
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.kordamp.ikonli.fontawesome.FontAwesome
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
@@ -122,12 +123,12 @@ class PainteraDirectoriesConfigNode(val config: PainteraDirectoriesConfig) : Tit
 			add(it, 1, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { textField.text = defaultValue }
 			add(it, 2, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+			addStyleClass(Style.fontAwesome(FontAwesome.QUESTION))
 			it.onAction = EventHandler {
 				PainteraAlerts.information("Ok", true).also { alert ->
 					alert.title = label

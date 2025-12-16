@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
@@ -18,8 +17,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
-import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
@@ -30,11 +27,11 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.kordamp.ikonli.fontawesome.FontAwesome.*
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -43,6 +40,7 @@ import java.lang.reflect.Type
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlin.jvm.optionals.getOrNull
 import kotlin.system.exitProcess
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
@@ -62,21 +60,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	lateinit var properties: Properties
 		private set
 
-	private lateinit var paneWithStatus: BorderPaneWithStatusBars
+	internal lateinit var paneWithStatus: BorderPaneWithStatusBars
 
 	val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
-
-	private val activeOrthoAxisBinding = activeViewer.createNullableValueBinding {
-		it?.let {
-			when (it) {
-				baseView.orthogonalViews().topLeft.viewer() -> 2
-				baseView.orthogonalViews().topRight.viewer() -> 0
-				else -> 1
-			}
-		} ?: -1
-	}
-
-	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
 
 	internal val currentSource: SourceState<*, *>?
 		get() = baseView.sourceInfo().currentState().get()
@@ -156,7 +142,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	fun save(notify: Boolean = true) {
 
 		/* Not allowed to save if any source is RAI */
-		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
+		baseView.sourceInfo().canSourcesBeSerialized().getOrNull()?.let { reasonSoureInfoCannotBeSerialized ->
 			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 			alert.title = "Cannot Serialize All Sources"
 			alert.contentText = reasonSoureInfoCannotBeSerialized
@@ -172,7 +158,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 			.setPrettyPrinting()
 		Paintera.n5Factory.gsonBuilder(builder)
-		Paintera.n5Factory.clearKey(projectDirectory.actualDirectory.absolutePath)
+		Paintera.n5Factory.remove(projectDirectory.actualDirectory.absolutePath)
 		Paintera.n5Factory.newWriter(projectDirectory.actualDirectory.absolutePath).use {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
@@ -189,7 +175,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	private fun showSaveCompleteNotification(owner: Any = baseView.node.scene.window) {
 		val saveNotification = Notifications.create()
-			.graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
+			.graphic(FontIconPatched(CHECK_CIRCLE))
 			.title("Save Project")
 			.text("Save Complete")
 			.owner(owner)
@@ -300,6 +286,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	internal fun askSaveAndQuit(): Boolean {
 		return when {
+			!projectDirectory.actualDirectory.canWrite() -> true
 			wasQuit -> false
 			!isSaveNecessary() -> true
 			else -> SaveAndQuitDialog.showAndWaitForResponse()

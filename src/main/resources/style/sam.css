@@ -1,4 +1,4 @@
-@import url(glyphs.css);
+@import url(ikonli.css);
 @import url(toolbar.css);
 
 .root {
@@ -6,59 +6,59 @@
     -exclude-fill: red;
 }
 
-.sam-point {
-    -fx-stroke: white;
-    -fx-stroke-width: 2.0;
-}
-
 .sam-box-overlay {
     -fx-stroke-type: inside;
-    -fx-stroke: #cec9c6;;
+    -fx-stroke: #cec9c6;
     -fx-stroke-width: 2;
     -fx-fill: transparent;
 }
 
-.sam-point.sam-include {
+.circle.sam-point {
+    -fx-stroke: white;
+    -fx-stroke-width: 2.0;
+}
+
+.circle.sam-include {
     -fx-fill: -include-fill;
 }
 
-.sam-point.sam-exclude {
+.circle.sam-exclude {
     -fx-fill: -exclude-fill;
 }
 
-.sam-point-in {
-    -fx-fill: -include-fill;
-    -fx-stroke: black;
-    -fx-stroke-width: .2em;
-    -fx-stroke-type: inside;
+.sam-point > .toolbar-graphic {
+
+    -fx-background-color: -include-fill;
+    -fx-border-color: black;
+    -fx-border-width: .2em;
+    -fx-background-radius: 50%;
+    -fx-border-radius: 50%;
 }
 
-.sam-point-out {
-    -fx-fill: -exclude-fill;
-    -fx-stroke: black;
-    -fx-stroke-width: .2em;
-    -fx-stroke-type: inside;
+.sam-include > .toolbar-graphic {
+    -fx-background-color: -include-fill;
 }
 
-.circle-scale-pane.sam-point {
-    -radius-percent: .75;
+.sam-exclude > .toolbar-graphic {
+    -fx-background-color: -exclude-fill;
 }
 
-.glyph-icon.sam-select {
-    -glyph-name: "MAGIC";
+.font-icon.sam-select > .ikonli-font-icon {
+    -fx-icon-code: "fa-magic";
 }
 
-.auto-sam.slice-left {
+.auto-sam > .toolbar-graphic {
     -fx-background-color: black;
+}
+
+.auto-sam.slice-left > .toolbar-graphic {
     -fx-shape: "m 1895.0205,0 h -200.0063 c -27.7,0 -50,22.3 -50,50 v 1585.0397 c 0,27.7 22.3,50 50,50 h 200.0063 c 27.7,0 50,-22.3 50,-50 V 50 c 0,-27.7 -22.3,-50 -50,-50 z M 474,584.0393 l -293,-293 107,-107 293,293 z m -447,-293 q 0,27 18,45 l 1286,1286 q 18,18 45,18 27,0 45,-18 l 198,-198 q 18,-18 18,-45 0,-27 -18,-45 l -1286,-1286 q -18,-18 -45,-18 -27,0 -45,18 l -198,198 q -18,18 -18,45 m 1351,-190 -98,30 98,30 30,98 30,-98 98,-30 -98,-30 -30,-98 z m -350,162 -196,60 196,60 60,196 60,-196 196,-60 -196,-60 -60,-196 z m -930,478 -98,30 98,30 30,98 30,-98 98,-30 -98,-30 -30,-98 z m 640,-640 -98,30 98,30 30,98 30,-98 98,-30 -98,-30 -30,-98 z";
 }
 
-.auto-sam.slice-right {
-    -fx-background-color: black;
+.auto-sam.slice-right > .toolbar-graphic {
     -fx-shape: "m 50,0 h 200.00635 c 27.7,0 50,22.3 50,50 v 1585.0397 c 0,27.7 -22.3,50 -50,50 H 50 c -27.7,0 -50,-22.3 -50,-50 V 50 C 0,22.3 22.3,0 50,0 Z m 1421.0205,584.0393 293,-293 -107,-107 -293,293 z m 447,-293 q 0,27 -18,45 l -1286.00001,1286 q -18,18 -45,18 -27,0 -45,-18 l -198,-198 q -18,-18 -18,-45 0,-27 18,-45 l 1286.00001,-1286 q 18,-18 45,-18 27,0 45,18 l 198,198 q 18,18 18,45 m -1351.00001,-190 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z m 350,162 196.00001,60 -196.00001,60 -60,196 -60,-196 -196,-60 196,-60 60,-196 z m 930.00001,478 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z m -640,-640 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z";
 }
 
-.auto-sam.slice-bisect {
-    -fx-background-color: black;
+.auto-sam.slice-bisect > .toolbar-graphic {
     -fx-shape: "M 2009.9937,5.4801602 H 2210 c 27.7,0 50,22.2999998 50,49.9999998 V 1640.5198 c 0,27.7 -22.3,50 -50,50 h -200.0063 c -27.7,0 -50,-22.3 -50,-50 V 55.48016 c 0,-27.7 22.3,-49.9999998 50,-49.9999998 z m -1959.9937,0 h 200.00635 c 27.7,0 50,22.2999998 50,49.9999998 V 1640.5198 c 0,27.7 -22.3,50 -50,50 H 50 c -27.7,0 -50,-22.3 -50,-50 V 55.48016 C 0,27.78016 22.3,5.4801602 50,5.4801602 Z m 1421.0205,584.0393098 293,-293 -107,-107 -293,293 z m 447,-293 q 0,27 -18,45 L 614.02049,1627.5195 q -18,18 -45,18 -27,0 -45,-18 l -198,-198 q -18,-18 -18,-45 0,-27 18,-45 L 1612.0205,53.51947 q 18,-18 45,-18 27,0 45,18 l 198,198 q 18,18 18,45 m -1351.00001,-190 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z m 350,162 196.00001,60 -196.00001,60 -60,196 -60,-196 -196,-60 196,-60 60,-196 z m 930.00001,478 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z m -640,-640 98,30 -98,30 -30,98 -30,-98 -98,-30 98,-30 30,-98 z";
 }

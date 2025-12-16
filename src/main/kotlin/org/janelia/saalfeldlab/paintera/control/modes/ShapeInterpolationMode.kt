@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import bdv.fx.viewer.render.RenderUnitState
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ChangeListener
@@ -36,11 +34,10 @@ import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
-import org.janelia.saalfeldlab.paintera.DeviceManager
+import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
@@ -65,9 +62,8 @@ import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeIn
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.util.*
+import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.util.concurrent.CancellationException
 import kotlin.math.roundToLong
 
@@ -166,7 +162,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 						paintera.baseView.changeMode(previousMode)
 					}
 					KEY_PRESSED(CANCEL) {
-						graphic = { GlyphScaleView(FontAwesomeIconView().apply { styleClass += listOf("reject", "reject-shape-interpolation") }) }
+						createToolNode = { apply { addStyleClass(Style.FONT_ICON + "reject" + "reject-shape-interpolation") } }
 						onAction(exitMode)
 					}
 					KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
@@ -269,15 +265,15 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				KEY_PRESSED(KeyCode.B) {
 					onAction {
 						samStyleBoxToggle.set(!samStyleBoxToggle.get())
-						data class SamStyleToggle(val icon: FontAwesomeIcon, val title: String, val text: String)
+						data class SamStyleToggle(val icon: FontAwesome, val title: String, val text: String)
 						val (toggle, title, text) = if (samStyleBoxToggle.get())
-							SamStyleToggle(FontAwesomeIcon.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
+							SamStyleToggle(FontAwesome.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
 						else
-							SamStyleToggle(FontAwesomeIcon.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
+							SamStyleToggle(FontAwesome.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
 
 						InvokeOnJavaFXApplicationThread {
 							val notification = Notifications.create()
-								.graphic(FontAwesome[toggle])
+								.graphic(FontIconPatched(toggle))
 								.title(title)
 								.text(text)
 								.owner(paintera.baseView.node)
@@ -381,6 +377,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		).filterNotNull()
 	}
 
+	@Suppress("AssignedValueIsNeverRead")
 	internal fun applyShapeInterpolationAndExitMode() {
 		with(controller) {
 			var applyMaskTriggered = false
@@ -429,23 +426,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, namedKey: NamedKeyBinding) =
 		with(controller) {
 			KEY_PRESSED(namedKey) {
-				graphic = when (choice) {
-					EditSelectionChoice.First -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-first-slice" }) }
-					}
-
-					EditSelectionChoice.Previous -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-previous-slice" }) }
-					}
-
-					EditSelectionChoice.Next -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-next-slice" }) }
-					}
-
-					EditSelectionChoice.Last -> {
-						{ GlyphScaleView(FontAwesomeIconView().also { it.styleClass += "interpolation-last-slice" }) }
-					}
-				}
+				createToolNode = { apply { addStyleClass(choice.style) } }
 				verify { activeTool is ShapeInterpolationTool }
 				onAction { editSelection(choice) }
 				handleException {
@@ -457,11 +438,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private var currentMovementToTargetSlice: Pair<Job, SliceInfo>? = null
 
-	private enum class EditSelectionChoice {
-		First,
-		Previous,
-		Next,
-		Last
+	enum class EditSelectionChoice(val style: StyleGroup) {
+		First(Style.FONT_ICON + "interpolation-first-slice"),
+		Previous(Style.FONT_ICON + "interpolation-previous-slice"),
+		Next(Style.FONT_ICON + "interpolation-next-slice"),
+		Last(Style.FONT_ICON + "interpolation-last-slice")
 	}
 
 	private fun ShapeInterpolationController<*>.editSelection(choice: EditSelectionChoice, slice: SliceInfo? = null) {

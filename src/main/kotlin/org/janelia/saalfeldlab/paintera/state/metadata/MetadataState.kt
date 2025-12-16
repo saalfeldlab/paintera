@@ -7,11 +7,7 @@ import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
-import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5URI
-import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
@@ -64,7 +60,7 @@ interface MetadataState {
 	fun updateTransform(newTransform: AffineTransform3D)
 	fun updateTransform(resolution: DoubleArray, offset: DoubleArray)
 
-	fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
+	fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> where D : NativeType<D>, T : Volatile<D>, T : NativeType<T>
 
 	fun copy(): MetadataState
 
@@ -97,7 +93,7 @@ interface MetadataState {
 
 open class SingleScaleMetadataState(
 	final override var n5ContainerState: N5ContainerState,
-	final override val metadata: N5SpatialDatasetMetadata
+	final override val metadata: N5SpatialDatasetMetadata,
 ) : MetadataState {
 
 	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
@@ -139,21 +135,23 @@ open class SingleScaleMetadataState(
 		this@SingleScaleMetadataState.translation = transform.translation
 	}
 
-	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
-		return arrayOf(
+	override fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
+			where D : NativeType<D>, T : Volatile<D>, T : NativeType<T> {
+		val arrayOf = arrayOf(
 			if (isLabelMultiset) {
 				N5Data.openLabelMultiset(this, queue, priority)
 			} else {
-				N5Data.openRaw(this, queue, priority)
+				N5Data.openRaw<D, T>(this, queue, priority)
 			}
-		) as Array<ImagesWithTransform<D, T>>
+		)
+		return arrayOf as Array<ImagesWithTransform<D, T>>
 	}
 }
 
 
 open class MultiScaleMetadataState(
 	override var n5ContainerState: N5ContainerState,
-	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>
+	final override val metadata: SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>,
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
 	val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
@@ -196,18 +194,19 @@ open class MultiScaleMetadataState(
 	}
 
 
-	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
+	override fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
+			where D : NativeType<D>, T : Volatile<D>, T : NativeType<T> {
 		return if (isLabelMultiset) {
 			N5Data.openLabelMultisetMultiscale(this, queue, priority)
 		} else {
-			N5Data.openRawMultiscale(this, queue, priority)
+			N5Data.openRawMultiscale<D, T>(this, queue, priority)
 		} as Array<ImagesWithTransform<D, T>>
 	}
 }
 
 class PainteraDataMultiscaleMetadataState(
 	n5ContainerState: N5ContainerState,
-	var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup
+	var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup,
 ) : MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
 
 	override var maxIntensity: Double = (painteraDataMultiscaleMetadata as? N5PainteraLabelMultiScaleGroup)?.maxId?.toDouble() ?: super.maxIntensity
@@ -220,11 +219,12 @@ class PainteraDataMultiscaleMetadataState(
 			field = value
 		}
 
-	override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
+	override fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
+			where D : NativeType<D>, T : Volatile<D>, T : NativeType<T> {
 		return if (isLabelMultiset) {
 			N5Data.openLabelMultisetMultiscale(dataMetadataState, queue, priority)
 		} else {
-			N5Data.openRawMultiscale(dataMetadataState, queue, priority)
+			N5Data.openRawMultiscale<D,T>(dataMetadataState, queue, priority)
 		} as Array<ImagesWithTransform<D, T>>
 	}
 
@@ -402,7 +402,7 @@ class MetadataUtils {
 		fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
 			val container = StorageFormat.parseUri(n5container).b.toString()
 
-			val newContainerState by lazy {
+			val newContainerState by lazy(LazyThreadSafetyMode.NONE) {
 				Paintera.n5Factory.openWriterOrReaderOrNull(n5container)?.let {
 					N5ContainerState(it)
 				}
@@ -410,14 +410,13 @@ class MetadataUtils {
 			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(container) {
 				newContainerState
 			} ?: newContainerState ?: return null
-
 			return createMetadataState(containerState, dataset)
 		}
 
 		@JvmStatic
 		fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String, datasetTreeNode: N5TreeNode? = null): MetadataState? {
-			val metadataFromParam by lazy { datasetTreeNode?.takeIf { N5URI.normalizeGroupPath(dataset) == N5URI.normalizeGroupPath(it.path) } }
-			val metadataFromParser by lazy { discoverAndParseRecursive(n5ContainerState.reader, dataset) }
+			val metadataFromParam = datasetTreeNode?.takeIf { N5URI.normalizeGroupPath(dataset) == N5URI.normalizeGroupPath(it.path) }
+			val metadataFromParser by lazy(LazyThreadSafetyMode.NONE) { discoverAndParseRecursive(n5ContainerState.reader, dataset) }
 			val metadataRoot = metadataFromParam ?: metadataFromParser
 
 			val normalizedPath = N5URI.normalizeGroupPath(dataset)
@@ -426,7 +425,9 @@ class MetadataUtils {
 				.filter { node: N5TreeNode -> (normalizedPath == N5URI.normalizeGroupPath(node.path) || normalizedPath == node.nodeName) && metadataIsValid(node.metadata) }
 				.map { obj: N5TreeNode -> obj.metadata }
 				.map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
-				.firstOrNull()
+				.firstOrNull()?.also {
+					LOG.debug { "Metadata State created for $n5ContainerState:$dataset ($it)" }
+				}
 		}
 
 		/**
@@ -439,7 +440,7 @@ class MetadataUtils {
 		@JvmStatic
 
 		fun createMetadataState(reader: N5Reader, dataset: String): MetadataState? {
-			val newContainerState by lazy { N5ContainerState(reader) }
+			val newContainerState by lazy(LazyThreadSafetyMode.NONE) { N5ContainerState(reader) }
 			/* Realistically, the null case should never be triggered, but the return type of `getOrPut` is nullable,
 			 * so this is the safe thing to do. In either case, it should be the same result. */
 			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(reader.uri.toString()) { newContainerState }

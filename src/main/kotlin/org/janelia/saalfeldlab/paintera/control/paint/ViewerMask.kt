@@ -42,7 +42,7 @@ class ViewerMask private constructor(
 	invalidate: Invalidate<*>? = null,
 	invalidateVolatile: Invalidate<*>? = null,
 	shutdown: Runnable? = null,
-	private inline val paintedLabelIsValid: (Long) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
+	private val paintedLabelIsValid: (Long) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
 	val paintDepthFactor: Double = 1.0,
 	private val maskSize: Interval? = null,
 	private val defaultValue: Long = Label.INVALID,

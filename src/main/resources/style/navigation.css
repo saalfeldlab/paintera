@@ -1,5 +1,6 @@
-@import url(glyphs.css);
+@import url(ikonli.css);
 
-.glyph-icon.navigation-tool {
-    -glyph-name: "ARROWS"
+
+.font-icon.navigation-tool > .ikonli-font-icon {
+    -fx-icon-code: "fa-arrows";
 }

@@ -3,27 +3,18 @@ package org.janelia.saalfeldlab.paintera;
 import ch.qos.logback.classic.Level;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
-import com.pivovarit.function.ThrowingFunction;
-import net.imglib2.Dimensions;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.algorithm.util.Grids;
-import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -36,7 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.DataSourceDialogs;
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
@@ -64,7 +55,6 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -181,71 +171,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			final String dataset,
 			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
 
-		final long maxId = Math.max(findMaxId(source), 0);
+		final long maxId = Math.max(LabelSourceUtils.findMaxId(source), 1);
 		n5.setAttribute(dataset, N5Helpers.MAX_ID_KEY, maxId);
-		return new N5IdService(n5, dataset, maxId + 1);
-	}
-
-	private static long findMaxId(final DataSource<? extends IntegerType<?>, ?> source) {
-
-		final RandomAccessibleInterval<? extends IntegerType<?>> rai = source.getDataSource(0, 0);
-
-		final int[] blockSize = blockSizeFromRai(rai);
-		final List<Interval> intervals = Grids.collectAllContainedIntervals(Intervals.minAsLongArray(rai), Intervals.maxAsLongArray(rai), blockSize);
-
-		final ExecutorService es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-		final List<Future<Long>> futures = new ArrayList<>();
-		for (final Interval interval : intervals) {
-			futures.add(es.submit(() -> findMaxId(Views.interval(rai, interval))));
-		}
-		es.shutdown();
-		final long maxId = futures
-				.stream()
-				.map(ThrowingFunction.unchecked(Future::get))
-				.mapToLong(Long::longValue)
-				.max()
-				.orElse(Label.getINVALID());
-		LOG.debug("Found max id {}", maxId);
-		return maxId;
-	}
-
-	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
-
-		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
-		for (final IntegerType<?> t : rai) {
-			final long id = t.getIntegerLong();
-			if (id > maxId)
-				maxId = id;
-		}
-		return maxId;
-	}
-
-	private static int[] blockSizeFromRai(final RandomAccessibleInterval<?> rai) {
-
-		if (rai instanceof AbstractCellImg<?, ?, ?, ?>) {
-			final CellGrid cellGrid = ((AbstractCellImg<?, ?, ?, ?>)rai).getCellGrid();
-			final int[] blockSize = new int[cellGrid.numDimensions()];
-			cellGrid.cellDimensions(blockSize);
-			LOG.debug("{} is a cell img with block size {}", rai, blockSize);
-			return blockSize;
-		}
-		final int argMaxDim = argMaxDim(rai);
-		final int[] blockSize = Intervals.dimensionsAsIntArray(rai);
-		blockSize[argMaxDim] = 1;
-		return blockSize;
-	}
-
-	private static int argMaxDim(final Dimensions dims) {
-
-		long max = -1;
-		int argMax = -1;
-		for (int d = 0; d < dims.numDimensions(); ++d) {
-			if (dims.dimension(d) > max) {
-				max = dims.dimension(d);
-				argMax = d;
-			}
-		}
-		return argMax;
+		return new N5IdService(n5, dataset, maxId);
 	}
 
 	private static void addToViewer(
@@ -290,7 +218,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				viewer.viewer3D().getMeshesGroup(),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getQueue(),
 				0, // TODO is this the right priority?
@@ -459,7 +386,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	}
 
 	private enum IdServiceFallback {
-		ASK(PainteraAlerts::getN5IdServiceFromData),
+		ASK(DataSourceDialogs::getN5IdServiceFromData),
 		FROM_DATA(PainteraCommandLineArgs::findMaxIdForIdServiceAndWriteToN5),
 		NONE((n5, dataset, source) -> new IdService.IdServiceNotProvided());
 
@@ -507,7 +434,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	}
 
 	private enum LabelBlockLookupFallback {
-		ASK(PainteraAlerts::getLabelBlockLookupFromN5DataSource),
+		ASK(DataSourceDialogs::getLabelBlockLookupFromN5DataSource),
 		NONE((c, g, s) -> new LabelBlockLookupNoBlocks()),
 		COMPLETE((c, g, s) -> LabelBlockLookupAllBlocks.fromSource(s));
 

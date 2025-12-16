@@ -10,13 +10,12 @@ import net.imglib2.type.volatiles.VolatileDoubleType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.util.Colors;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
-import org.janelia.saalfeldlab.net.imglib2.converter.TypeVolatileConverter;
 
 import java.lang.invoke.MethodHandles;
 
@@ -51,7 +50,16 @@ public class ARGBCompositeColorConverterTest {
 				1.0, 0.0, 0.0, 1.0
 		};
 		RandomAccessibleInterval<DoubleType> img = ArrayImgs.doubles(data, data.length / 3, 3);
-		RandomAccessibleInterval<VolatileDoubleType> asVolatile = Converters.convert(img, new TypeVolatileConverter<>(), new VolatileDoubleType());
+
+		var volatileTypeConverter = new Converter<DoubleType, VolatileDoubleType>() {
+
+			@Override public void convert(DoubleType input, VolatileDoubleType output) {
+
+				output.setValid(true);
+				output.get().set(input);
+			}
+		};
+		RandomAccessibleInterval<VolatileDoubleType> asVolatile = Converters.convert(img, volatileTypeConverter, new VolatileDoubleType());
 		RandomAccessibleInterval<RealComposite<VolatileDoubleType>> collapsed = Views.collapseReal(asVolatile);
 
 		int[] groundTruthData = {

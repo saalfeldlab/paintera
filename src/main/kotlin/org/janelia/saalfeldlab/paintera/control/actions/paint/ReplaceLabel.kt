@@ -1,17 +1,19 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint
 
-import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.event.ActionEvent
+import javafx.beans.property.StringProperty
 import javafx.scene.control.ButtonType
-import javafx.scene.control.Dialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
+import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.type.Type
+import net.imglib2.type.label.Label
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
@@ -19,84 +21,98 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
-import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
-import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.actions.onAction
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
+import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
+import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.util.convert
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.interval
+import kotlin.coroutines.coroutineContext
+import kotlin.jvm.optionals.getOrNull
 import kotlin.math.nextUp
-import net.imglib2.type.label.Label as Imglib2Label
+import net.imglib2.type.label.Label as ImgLib2Label
 
-object ReplaceLabel : MenuAction("_Replace or Delete Label...") {
+class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 
-	private val LOG = KotlinLogging.logger { }
-
-	private val state = ReplaceLabelState()
-
-	private val replacementLabelProperty = state.replacementLabel
-	private val replacementLabel by replacementLabelProperty.nonnullVal()
-
-	private val activateReplacementProperty = state.activeReplacementLabel.apply {
-		subscribe { _, activate ->
-			if (activate)
-				activateReplacementLabel(0L, replacementLabel)
-			else
-				activateReplacementLabel(replacementLabel, 0L)
-		}
+	companion object {
+		fun replaceMenu() = ReplaceLabel("_Replace Labels...", Mode.Replace)
+		fun deleteMenu() = ReplaceLabel("_Delete Labels...", Mode.Delete)
 	}
-	private val activateReplacement by activateReplacementProperty.nonnull()
-
-	private val progressProperty = SimpleDoubleProperty()
-	private val progressTextProperty = SimpleStringProperty()
 
 	init {
-		verifyPermission(PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
-		onAction(state) {
-			showDialog()
+		verifyPermission(*mode.permissions)
+
+		onActionWithState({
+			val replaceLabelState = ReplaceLabelState<Nothing, Nothing>(mode)
+			replaceLabelState
+		}) {
+			val title = "${mode.name} Labels"
+			getDialog(title).showAndWait()
+				.getOrNull()
+				.takeIf { it == ButtonType.OK }
+				?: return@onActionWithState
+
+			val replacementLabel = replacementLabelProperty.value ?: return@onActionWithState
+
+			val progressTextProperty = SimpleStringProperty()
+			val progressProperty = SimpleDoubleProperty(0.0)
+
+			val job = CoroutineScope(Dispatchers.Default).async {
+				replaceLabels(replacementLabel, *fragmentsToReplace.toLongArray(), progressProperty = progressProperty, progressTextProperty = progressTextProperty)
+				if (activateReplacementLabelProperty.value)
+					sourceState.selectedIds.activate(replacementLabel)
+			}
+			job.invokeOnCompletion { cause ->
+				cause?.printStackTrace()
+			}
+
+			AnimatedProgressBarAlert(title, "", progressTextProperty, progressProperty, cancellable = true).apply {
+
+				val cancelOrDone = canCancel.and(progressProperty.lessThan(1.0))
+				canCancelProperty.bind(cancelOrDone)
+				val buttonType = showAndWait().getOrNull()
+				if (buttonType == ButtonType.CANCEL)
+					job.cancel()
+			}
 		}
 	}
 
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.generateReplaceLabelMask(newLabel: Long, vararg fragments: Long) = with(maskedSource) {
+	private fun <T : IntegerType<T>> ReplaceLabelState<*, *>.generateReplaceLabelMask(newLabel: Long, vararg fragments: Long) = with(maskedSource) {
 		val dataSource = getDataSource(0, 0)
 
 		val fragmentsSet = fragments.toHashSet()
-		dataSource.convert(UnsignedLongType(Imglib2Label.INVALID)) { src, target ->
-			val value = if (src.integerLong in fragmentsSet) newLabel else Imglib2Label.INVALID
-			target.set(value)
-		}.interval(dataSource)
+
+		DiskCachedCellImgFactory(UnsignedLongType(Label.INVALID)).create(dataSource) { replacedLabelChunk ->
+			val sourceCursor = dataSource.interval(replacedLabelChunk).cursor()
+			val maskCursor = replacedLabelChunk.cursor()
+
+			while (sourceCursor.hasNext() && maskCursor.hasNext()) {
+				val sourceLabel = sourceCursor.next()
+				val maskedLabel = maskCursor.next()
+
+				val value = if (sourceLabel.integerLong in fragmentsSet) newLabel else ImgLib2Label.INVALID
+				maskedLabel.set(value)
+			}
+		}
 	}
 
-
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.deleteActiveFragment() = replaceActiveFragment(0L)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.deleteActiveSegment() = replaceActiveSegment(0L)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.deleteAllActiveFragments() = replaceAllActiveFragments(0L)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.deleteAllActiveSegments() = replaceAllActiveSegments(0L)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.replaceActiveFragment(newLabel: Long) = replaceLabels(newLabel, activeFragment)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.replaceActiveSegment(newLabel: Long) = replaceLabels(newLabel, *fragmentsForActiveSegment)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.replaceAllActiveFragments(newLabel: Long) = replaceLabels(newLabel, *allActiveFragments)
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.replaceAllActiveSegments(newLabel: Long) = replaceLabels(newLabel, *fragmentsForActiveSegment)
-
-
-	private fun <T : IntegerType<T>> ReplaceLabelState<T>.replaceLabels(newLabel: Long, vararg oldLabels: Long) = with(maskedSource) {
+	private suspend fun <T : IntegerType<T>> ReplaceLabelState<*, *>.replaceLabels(newLabel: Long, vararg oldLabels: Long, progressProperty: DoubleProperty?, progressTextProperty: StringProperty?) = with(maskedSource) {
 		val blocks = blocksForLabels(0, *oldLabels)
 		val replacedLabelMask = generateReplaceLabelMask(newLabel, *oldLabels)
 
 		val sourceMask = SourceMask(
 			MaskInfo(0, 0),
 			replacedLabelMask,
-			replacedLabelMask.convert(VolatileUnsignedLongType(Imglib2Label.INVALID)) { input, output ->
+			replacedLabelMask.convert(VolatileUnsignedLongType(ImgLib2Label.INVALID)) { input, output ->
 				output.set(input.integerLong)
 				output.isValid = true
 			}.interval(replacedLabelMask),
@@ -106,92 +122,57 @@ object ReplaceLabel : MenuAction("_Replace or Delete Label...") {
 
 
 		val numBlocks = blocks.size
-		val progressTextBinding = progressProperty.createObservableBinding {
-			val blocksDone = (it.doubleValue() * numBlocks).nextUp().toLong().coerceAtMost(numBlocks.toLong())
-			"Blocks: $blocksDone / $numBlocks"
-		}
-		InvokeOnJavaFXApplicationThread {
-			progressTextProperty.unbind()
-			progressTextProperty.bind(progressTextBinding)
+		var operationText = "Processing "
+		val actualizeBlocksProgress = SimpleDoubleProperty(0.0)
+		val applyMaskProgress = SimpleDoubleProperty(0.0)
+		progressProperty?.let {
+			val totalProgressBinding = actualizeBlocksProgress.createObservableBinding(applyMaskProgress) {
+				val actualizedProgress = actualizeBlocksProgress.get().coerceIn(0.0, 0.5)
+				val applyProgress = applyMaskProgress.get().coerceIn(0.0, 0.5)
+
+				/*Estimate blocks done per operation*/
+				val blockProgress = 2 * (applyProgress.takeIf { it > 0.0 } ?: actualizedProgress)
+				val blockEstimate = (blockProgress * numBlocks).nextUp().toLong().coerceAtMost(numBlocks.toLong())
+				progressTextProperty?.value = "$operationText Blocks: $blockEstimate / $numBlocks"
+
+				actualizedProgress + applyProgress
+			}
+			it.bind(totalProgressBinding)
 		}
 
+		/* actualize the blocks through the converter prior to apply, to give the
+		* user a chance to cancel long-running operations without affecting the mask */
+		blocks.forEachIndexed { idx, block ->
+			coroutineContext.ensureActive()
+			sourceMask.rai.interval(block).first().get()
+			progressProperty?.let {
+				InvokeOnJavaFXApplicationThread {
+					actualizeBlocksProgress.set((idx + 1) / blocks.size.toDouble())
+				}
+			}
+		}
+
+		progressProperty?.let {
+			InvokeOnJavaFXApplicationThread {
+				operationText = "Applying"
+			}
+		}
 		setMask(sourceMask) { it == newLabel }
-		applyMaskOverIntervals(
-			sourceMask,
-			blocks,
-			progressProperty
-		) { it == newLabel }
+		applyMaskOverIntervals(sourceMask, blocks, applyMaskProgress) { it == newLabel }
 
 		requestRepaintOverIntervals(blocks)
 		sourceState.refreshMeshes()
 	}
 
-	private fun activateReplacementLabel(current: Long, next: Long) {
-		val selectedIds = state.paintContext.selectedIds
-		if (current != selectedIds.lastSelection) {
-			selectedIds.deactivate(current)
-		}
-		if (activateReplacement && next > 0L) {
-			selectedIds.activateAlso(selectedIds.lastSelection, next)
-		}
-	}
-
-	fun showDialog() = state.showDialog()
-
-	private fun ReplaceLabelState<*>.showDialog() {
-		Dialog<Boolean>().apply {
-			isResizable = true
-			Paintera.registerStylesheets(dialogPane)
-			dialogPane.buttonTypes += ButtonType.APPLY
-			dialogPane.buttonTypes += ButtonType.CANCEL
-			title = name?.replace("_", "")
-
-			progressTextProperty.unbind()
-			progressTextProperty.set("")
-
-			progressProperty.unbind()
-			progressProperty.set(0.0)
-
-			val replaceLabelUI = ReplaceLabelUI(state)
-			replaceLabelUI.progressBarProperty.bind(progressProperty)
-			replaceLabelUI.progressLabelText.bind(progressTextProperty)
-
-			dialogPane.content = replaceLabelUI
-			dialogPane.lookupButton(ButtonType.APPLY).also { applyButton ->
-				applyButton.disableProperty().bind(paintera.baseView.isDisabledProperty)
-				applyButton.cursorProperty().bind(paintera.baseView.node.cursorProperty())
-				applyButton.addEventFilter(ActionEvent.ACTION) { event ->
-					event.consume()
-					val replacementLabel = state.replacementLabel.value
-					val fragmentsToReplace = state.fragmentsToReplace.toLongArray()
-					if (replacementLabel != null && replacementLabel >= 0 && fragmentsToReplace.isNotEmpty()) {
-						CoroutineScope(Dispatchers.Default).async {
-							replaceLabels(replacementLabel, *fragmentsToReplace)
-							if (activateReplacement)
-								state.sourceState.selectedIds.activate(replacementLabel)
-						}
-					}
-				}
-			}
-			dialogPane.lookupButton(ButtonType.CANCEL).apply {
-				disableProperty().bind(paintContext.dataSource.isApplyingMaskProperty())
-			}
-			dialogPane.scene.window.setOnCloseRequest {
-				if (paintContext.dataSource.isApplyingMaskProperty().get())
-					it.consume()
-			}
-		}.show()
-	}
-
-	private fun ReplaceLabelState<*>.requestRepaintOverIntervals(sourceIntervals: List<Interval>? = null) {
-		val globalInterval = sourceIntervals
+	private fun ReplaceLabelState<*, *>.requestRepaintOverIntervals(sourceIntervals: List<Interval>? = null) {
+		val globalInterval = sourceIntervals?.takeIf { it.isNotEmpty() }
 			?.reduce(Intervals::union)
 			?.let { maskedSource.getSourceTransformForMask(MaskInfo(0, 0)).estimateBounds(it) }
 
 		paintera.baseView.orthogonalViews().requestRepaint(globalInterval)
 	}
 
-	fun ReplaceLabelState<*>.blocksForLabels(scale0: Int, vararg labels: Long): List<Interval> = with(maskedSource) {
+	fun ReplaceLabelState<*, *>.blocksForLabels(scale0: Int, vararg labels: Long): List<Interval> = with(maskedSource) {
 		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scale0, it)).toList() }
 
 		/* Read from canvas access (if in canvas) */
@@ -207,11 +188,10 @@ object ReplaceLabel : MenuAction("_Replace or Delete Label...") {
 
 		return blocksFromSource + blocksFromCanvas
 	}
-
 }
 
 private fun <T : IntegerType<T>> MaskedSource<T, out Type<*>>.addReplaceMaskAsSource(
-	replacedFragmentMask: IntervalView<UnsignedLongType>
+	replacedFragmentMask: IntervalView<UnsignedLongType>,
 ): ConnectomicsLabelState<UnsignedLongType, VolatileUnsignedLongType> {
 	val metadataState = (underlyingSource() as? N5DataSource)?.getMetadataState()!!
 	return paintera.baseView.addConnectomicsLabelSource<UnsignedLongType, VolatileUnsignedLongType>(

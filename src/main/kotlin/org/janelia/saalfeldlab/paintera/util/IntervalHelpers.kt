@@ -1,22 +1,25 @@
 package org.janelia.saalfeldlab.paintera.util
 
-import net.imglib2.*
+import net.imglib2.FinalInterval
+import net.imglib2.FinalRealInterval
+import net.imglib2.Interval
+import net.imglib2.RealInterval
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.iterator.IntervalIterator
 import net.imglib2.iterator.LocalizingIntervalIterator
 import net.imglib2.realtransform.RealTransform
 import net.imglib2.util.Intervals
-import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scale
+import net.imglib2.util.Intervals.maxAsIntArray
+import net.imglib2.util.Intervals.minAsIntArray
 import org.janelia.saalfeldlab.util.shape
-import java.io.File
-import java.util.*
+import java.util.Arrays
 import kotlin.math.max
 import kotlin.math.min
 
 //TODO Look into using ntakt instead
 class IntervalHelpers {
 	companion object {
+
 		@JvmStatic
 		fun transformBoundingBox(boundingBox: RealInterval, transform: RealTransform): RealInterval {
 			val nDim = boundingBox.numDimensions()
@@ -37,7 +40,7 @@ class IntervalHelpers {
 		fun extendAndTransformBoundingBox(
 			boundingBox: RealInterval,
 			transform: RealTransform,
-			extension: Double
+			extension: Double,
 		): RealInterval = transformBoundingBox(boundingBox.extendBy(extension), transform)
 
 		val RealInterval.smallestContainingInterval: Interval
@@ -58,6 +61,24 @@ class IntervalHelpers {
 			val extendedMin = minAsDoubleArray().apply { forEachIndexed { idx, min -> this[idx] = min - extensions[idx] } }
 			val extendedMax = maxAsDoubleArray().apply { forEachIndexed { idx, max -> this[idx] = max + extensions[idx] } }
 			return FinalRealInterval(extendedMin, extendedMax)
+		}
+
+		@JvmStatic
+		fun Interval.extendBy(extension: Long): Interval =
+			FinalInterval(LongArray(nDim) { min(it) - extension }, LongArray(nDim) { max(it) + extension })
+
+		fun Interval.extendBy(vararg extensions: Long): Interval {
+			assert(extensions.size == numDimensions())
+			val extendedMin = minAsLongArray().apply { forEachIndexed { idx, min -> this[idx] = min - extensions[idx] } }
+			val extendedMax = maxAsLongArray().apply { forEachIndexed { idx, max -> this[idx] = max + extensions[idx] } }
+			return FinalInterval(extendedMin, extendedMax)
+		}
+
+		fun Interval.extendBy(vararg extensions: Int): Interval {
+			assert(extensions.size == numDimensions())
+			val extendedMin = minAsLongArray().apply { forEachIndexed { idx, min -> this[idx] = min - extensions[idx] } }
+			val extendedMax = maxAsLongArray().apply { forEachIndexed { idx, max -> this[idx] = max + extensions[idx] } }
+			return FinalInterval(extendedMin, extendedMax)
 		}
 
 		@JvmStatic
@@ -101,9 +122,9 @@ class IntervalHelpers {
 		@JvmOverloads
 		fun RealInterval.scale(vararg scaleFactors: Double, scaleMin: Boolean = true): RealInterval {
 			/* TODO: WRITE TESTS */
-			var scales = when(scaleFactors.size) {
+			var scales = when (scaleFactors.size) {
 				nDim -> scaleFactors
-				1 -> DoubleArray(nDim) {scaleFactors[0]}
+				1 -> DoubleArray(nDim) { scaleFactors[0] }
 				else -> throw IndexOutOfBoundsException("Provided scales of size ${scaleFactors.size} cannot be used to scale interval with nDim of $nDim")
 			}
 
@@ -117,12 +138,12 @@ class IntervalHelpers {
 					it.forEachIndexed { idx, max -> it[idx] = max * scales[idx] }
 				}
 			} else {
-				shape().forEachIndexed {idx, dimLen ->
+				shape().forEachIndexed { idx, dimLen ->
 					val scaledDimLen = dimLen * scales[idx]
 					newMax[idx] = newMin[idx] + scaledDimLen - 1
 				}
 			}
-			return FinalRealInterval( newMin, newMax)
+			return FinalRealInterval(newMin, newMax)
 		}
 
 
@@ -155,7 +176,7 @@ class IntervalIterable(private val iterator: IntervalIterator) : Iterable<LongAr
 
 	private class IntervalPositionIterator(
 		private val interval: IntervalIterator,
-		private val pos: LongArray
+		private val pos: LongArray,
 	) : Iterator<LongArray> {
 
 		override fun hasNext(): Boolean {
@@ -200,10 +221,9 @@ open class ReusableIntervalIterator(interval: Interval) : LocalizingIntervalIter
 
 fun main() {
 
-	val it = LocalizingIntervalIterator(Intervals.createMinSize(0,0,4,4))
+	val it = LocalizingIntervalIterator(Intervals.createMinSize(0, 0, 4, 4))
 
 	IntervalIterable(it).forEach { println(it.joinToString()) }
-
 
 
 //	//TODO Caleb: Move to test

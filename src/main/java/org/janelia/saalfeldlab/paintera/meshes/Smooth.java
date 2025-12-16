@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.hash.TIntHashSet;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
+import kotlin.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,10 +86,10 @@ public class Smooth {
 		Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> luts = Convert
 				.convertToLUT(
 						vertices);
-		float[] vertexCoordinates1 = luts.getA()
+		float[] vertexCoordinates1 = luts.getFirst()
 				.toArray();
-		final ArrayList<TIntHashSet> vertexTriangleLUT = luts.getB();
-		final ArrayList<TIntArrayList> triangleVertexLUT = luts.getC();
+		final ArrayList<TIntHashSet> vertexTriangleLUT = luts.getSecond();
+		final ArrayList<TIntArrayList> triangleVertexLUT = luts.getThird();
 		final boolean[] boundaryVertices =
 				boundaryVertices(
 						vertexTriangleLUT,

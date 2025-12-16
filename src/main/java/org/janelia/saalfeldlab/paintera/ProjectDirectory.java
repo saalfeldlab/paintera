@@ -21,6 +21,15 @@ public class ProjectDirectory implements Closeable {
 
 	private List<Consumer<ProjectDirectory>> listeners = new ArrayList<>();
 
+	public void setReadOnlyDirectory(final File readOnlyDir) throws IOException {
+		if (readOnlyDir == null || readOnlyDir.canWrite()) {
+			throw new IllegalArgumentException("Directory is writable; Cannot load project as read-only (" + readOnlyDir + ")");
+		}
+		lock = null;
+		directory = readOnlyDir;
+		actualDirectory = inferActualDirectory(directory);
+	}
+
 	public void setDirectory(
 			final File directory,
 			final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) throws LockFile.UnableToCreateLock, IOException {
@@ -30,6 +39,11 @@ public class ProjectDirectory implements Closeable {
 		if (this.directory == null && directory == null && this.actualDirectory != null)
 			// || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
 			return;
+
+		if (directory != null && directory.exists() && !directory.canWrite()) {
+			setReadOnlyDirectory(directory);
+			return;
+		}
 		final File newActualDirectory = inferActualDirectory(directory);
 		newActualDirectory.mkdirs();
 		final LockFile newLock = new LockFile(new File(newActualDirectory, ".paintera"), "lock");
@@ -93,6 +107,7 @@ public class ProjectDirectory implements Closeable {
 	}
 
 	private File temporaryN5PainteraProjectDirectory() throws IOException {
+
 		return new File(Files.createTempDirectory("paintera-project-").toString() + ".n5");
 	}
 

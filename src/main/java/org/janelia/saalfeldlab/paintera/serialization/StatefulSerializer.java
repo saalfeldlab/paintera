@@ -54,10 +54,6 @@ public class StatefulSerializer {
 			public final List<BackupFile> backupFiles = new ArrayList<>();
 		}
 
-		public final ExecutorService generalPurposeExecutors;
-
-		public final ExecutorService meshManagerExecutors;
-
 		public final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors;
 
 		public final ExecutorService propagationWorkers;
@@ -68,8 +64,6 @@ public class StatefulSerializer {
 
 		public Arguments(final PainteraBaseView viewer) {
 
-			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
-			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
 			this.propagationWorkers = viewer.getPropagationQueue();
 			this.viewer = viewer;

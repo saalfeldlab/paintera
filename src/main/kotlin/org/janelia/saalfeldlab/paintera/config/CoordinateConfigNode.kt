@@ -1,19 +1,25 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import bdv.viewer.TransformListener
+import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.navigation.OrthogonalCrossSectionsIntersect
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
-import org.ojalgo.series.BasicSeries.coordinate
-import org.reactfx.value.Val.orElse
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.function.Consumer
+import kotlin.jvm.optionals.getOrNull
 
 class CoordinateConfigNode() {
 
@@ -21,17 +27,17 @@ class CoordinateConfigNode() {
 		listen(manager)
 	}
 
-	private val x = Label()
+	private val x = TextField().apply { isEditable = false }
 
-	private val y = Label()
+	private val y = TextField().apply { isEditable = false }
 
-	private val z = Label()
+	private val z = TextField().apply { isEditable = false }
 
 	private val label = Label("Center")
 
 	private val setCenterButton = Button("Set")
 
-	private val contents = GridPane()
+	private val contents = VBox()
 
 	private val listener = TransformListener<AffineTransform3D> { this.update(it) }
 
@@ -41,19 +47,25 @@ class CoordinateConfigNode() {
 
 	init {
 
-		contents.add(label, 0, 0)
-		contents.add(x, 1, 0)
-		contents.add(y, 2, 0)
-		contents.add(z, 3, 0)
-		contents.add(setCenterButton, 4, 0)
-		contents.hgap = 5.0
-
-		GridPane.setHgrow(label, Priority.ALWAYS)
-
-		x.maxWidth = 50.0
-		y.maxWidth = 50.0
-		z.maxWidth = 50.0
-		setCenterButton.maxWidth = 50.0
+		contents.apply {
+			isFillWidth = true
+			children += Label("World Coordinates:")
+			children += HBox().apply {
+				children += label.hGrow(Priority.NEVER) {
+					minWidth = Region.USE_PREF_SIZE
+				}
+				alignment = Pos.BASELINE_CENTER
+				children += x.hGrow()
+				children += y.hGrow()
+				children += z.hGrow()
+				children += setCenterButton.hGrow(Priority.NEVER) {
+					minWidth = Region.USE_PREF_SIZE
+				}
+				spacing = 5.0
+				maxWidth = Double.MAX_VALUE
+				prefWidth = Region.USE_COMPUTED_SIZE
+			}
+		}
 
 		setCenterButton.setOnAction { event ->
 
@@ -95,7 +107,7 @@ class CoordinateConfigNode() {
 				}
 			}
 
-			d.showAndWait().nullable?.let { coordinate ->
+			d.showAndWait().getOrNull()?.let { coordinate ->
 				val transformCopy = this.transform.copy()
 				OrthogonalCrossSectionsIntersect.centerAt(transformCopy, coordinate[0], coordinate[1], coordinate[2])
 				submitTransform.accept(transformCopy)
@@ -134,10 +146,11 @@ class CoordinateConfigNode() {
 		val center = DoubleArray(3)
 		OrthogonalCrossSectionsIntersect.getCenter(tf, center)
 		LOG.debug("New center = {}", center)
-		// TODO do something better than rounding here
-		x.text = java.lang.Long.toString(Math.round(center[0]))
-		y.text = java.lang.Long.toString(Math.round(center[1]))
-		z.text = java.lang.Long.toString(Math.round(center[2]))
+		InvokeOnJavaFXApplicationThread {
+			x.text = BigDecimal(center[0]).setScale(3, RoundingMode.HALF_EVEN).toDouble().toString()
+			y.text = BigDecimal(center[1]).setScale(3, RoundingMode.HALF_EVEN).toDouble().toString()
+			z.text = BigDecimal(center[2]).setScale(3, RoundingMode.HALF_EVEN).toDouble().toString()
+		}
 	}
 
 	companion object {

@@ -6,6 +6,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
+import javafx.scene.CacheHint;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.PhongMaterial;
@@ -15,6 +16,7 @@ import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.Dimensions;
+import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
@@ -204,7 +206,7 @@ public class MeshGeneratorJobManager<T> {
 		PENDING
 	}
 
-	private final class StatefulBlockTreeNode<K> extends BlockTreeNode<K> {
+	private static final class StatefulBlockTreeNode<K> extends BlockTreeNode<K> {
 
 		BlockTreeNodeState state = BlockTreeNodeState.PENDING; // initial state is always PENDING
 
@@ -333,7 +335,7 @@ public class MeshGeneratorJobManager<T> {
 				meshesAndBlocks.clear();
 				interruptTasks(tasks.keySet());
 
-				meshProgress.set(0, 0);
+				meshProgress.reset();
 			}
 		}));
 	}
@@ -415,7 +417,7 @@ public class MeshGeneratorJobManager<T> {
 
 		// Update the blocks according to the new tree node states and submit top-level tasks
 		final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
-		//noinspection CodeBlock2Expr
+//		noinspection CodeBlock2Expr
 		blockTree.getRootKeys().forEach(rootKey -> {
 			blockTree.traverseSubtree(rootKey, (key, node) -> {
 				if (node.state == BlockTreeNodeState.REPLACED) {
@@ -481,7 +483,7 @@ public class MeshGeneratorJobManager<T> {
 				assert task.priority != null : "Started to execute task but its priority is null: " + key;
 
 				task.state = TaskState.RUNNING;
-				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera);
+				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera());
 			}
 
 			final PainteraTriangleMesh verticesAndNormals;
@@ -654,7 +656,7 @@ public class MeshGeneratorJobManager<T> {
 		LOG.debug("ID {}: mesh for block {} has been added onto the scene", identifier, key);
 
 		tasks.remove(key);
-		meshProgress.incrementNumCompletedTasks();
+		meshProgress.increment();
 
 		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.getNode(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED :
@@ -736,10 +738,11 @@ public class MeshGeneratorJobManager<T> {
 
 		if (tasks.isEmpty()) {
 			LOG.debug("All tasks are finished");
-			assert meshProgress.getNumTotalTasks() == meshProgress.getNumCompletedTasks() : String
+			final MeshProgressState.Progress progressData = meshProgress.getProgressData();
+			assert progressData.getTotalTasks() == progressData.getCompleteTasks() : String
 					.format("All tasks are finished, but number of total tasks (%d) is different from the number of completed tasks (%d)",
-							meshProgress.getNumTotalTasks(),
-							meshProgress.getNumCompletedTasks());
+							progressData.getTotalTasks(),
+							progressData.getCompleteTasks());
 			assert assertBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
 			assert blockTree.nodes.keySet().containsAll(requestedBlockTree.nodes.keySet()) :
 					"All tasks are finished, but some of the requested blocks are not present in the resulting block tree: " +
@@ -1022,8 +1025,7 @@ public class MeshGeneratorJobManager<T> {
 				sceneUpdateParameters.smoothingIterations,
 				sceneUpdateParameters.minLabelRatio,
 				sceneUpdateParameters.overlap,
-				Intervals.minAsLongArray(blockInterval),
-				Intervals.maxAsLongArray(blockInterval)
+				new FinalInterval(blockInterval)
 		);
 	}
 
@@ -1050,6 +1052,8 @@ public class MeshGeneratorJobManager<T> {
 		mesh.getFaces().addAll(faceIndices);
 		final PhongMaterial material = Meshes.painteraPhongMaterial();
 		final MeshView mv = new MeshView(mesh);
+		mv.setCache(true);
+		mv.setCacheHint(CacheHint.SPEED);
 		mv.setOpacity(1.0);
 		mv.setCullFace(CullFace.FRONT);
 		mv.setMaterial(material);

@@ -5,12 +5,12 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>40.0.0</version>
+		<version>43.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.11.1-SNAPSHOT</version>
+	<version>1.13.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -30,6 +30,8 @@
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
 		<paintera.commandline.args />
 
+		<!--package properties -->
+		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
@@ -43,50 +45,33 @@
 		<!-- java -->
 		<scijava.jvm.version>21</scijava.jvm.version>
 		<!-- kotlin -->
-		<kotlin.version>1.9.24</kotlin.version>
-		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
+		<kotlin.version>1.9.25</kotlin.version>
+		<kotlin.compiler.incremental>false</kotlin.compiler.incremental>
 
-		<!-- NB: Convert README.md to html during compilation. -->
-		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
-
+		<!-- maven config -->
+		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+		<enforcer.skip>true</enforcer.skip>
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<janino.version>3.0.7</janino.version>
-		<logback.version>1.4.12</logback.version>
-		<slf4j.version>2.0.0</slf4j.version>
+		<!-- ### Dependency Versions ### -->
 
-		<!-- JavaFx Version-->
+		<!-- JavaFx Versions -->
 		<javafx.version>22.0.1</javafx.version>
-		<saalfx.version>2.2.0</saalfx.version>
 
+		<!-- Saalfx Versions -->
+		<saalfx.version>3.0.0</saalfx.version>
+
+		<!-- Misc Versions -->
+		<janino.version>3.0.7</janino.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
 
-
-		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
-		<app.name>Paintera</app.name>
-		<app.package>paintera</app.package>
-		<app.version>1.11.0</app.version>
-
-		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<windows.upgrade.uuid>f918b6f9-8685-4b50-9fbd-9be7a1209249</windows.upgrade.uuid>
-		<macos.sign />
-		<macos.sign.identity />
-
-		<!-- N5 (Only specify if newer versions available than in pom-scijava) -->
-		<n5-universe.version>2.3.0</n5-universe.version>
-		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
-		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
-		<n5-zarr.version>1.5.1</n5-zarr.version>
-		<n5-hdf5.version>2.2.1</n5-hdf5.version>
-		<n5.version>3.5.1</n5.version>
-
-		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-		<enforcer.skip>true</enforcer.skip>
+		<!-- SciJava Overrides -->
+		<logback.version>1.4.12</logback.version>
 	</properties>
-
 
 	<dependencies>
 		<dependency>
@@ -112,7 +97,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-universe</artifactId>
-			<version>${n5-universe.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>junit</groupId>
@@ -162,15 +146,12 @@
 		<dependency>
 			<groupId>org.jetbrains.kotlin</groupId>
 			<artifactId>kotlin-stdlib</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-aws-s3</artifactId>
+			<version>${kotlin.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.github.oshai</groupId>
 			<artifactId>kotlin-logging-jvm</artifactId>
-			<version>5.1.0</version>
+			<version>7.0.13</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -411,83 +392,15 @@
 		</dependency>
 
 
-		<!--	fontawesome-->
 		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-commons</artifactId>
-			<version>9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.kordamp.ikonli</groupId>
+			<artifactId>ikonli-javafx</artifactId>
+			<version>12.4.0</version>
 		</dependency>
 		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-controls</artifactId>
-			<version>9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>de.jensd</groupId>
-					<artifactId>fontawesomefx-commons</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx-fontawesome</artifactId>
-			<version>4.7.0-9.1.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-fxml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>de.jensd</groupId>
-					<artifactId>fontawesomefx-commons</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.kordamp.ikonli</groupId>
+			<artifactId>ikonli-fontawesome-pack</artifactId>
+			<version>12.4.0</version>
 		</dependency>
 
 		<!--		Tests-->
@@ -531,6 +444,10 @@
 			<artifactId>kotlinx-coroutines-core</artifactId>
 			<version>1.7.3</version>
 			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -674,6 +591,7 @@
 					<excludes>
 						<exclude>**PainteraBaseViewTest**</exclude>
 						<exclude>**WindowDimensionsTest**</exclude>
+						<exclude>**AnimatedProgressBarTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
 					</excludes>
 				</configuration>
@@ -934,6 +852,20 @@
 				<plugins>
 					<plugin>
 						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.6.0</version>
+						<executions>
+							<execution>
+								<id>parse-version</id>
+								<phase>validate</phase>
+								<goals>
+									<goal>parse-version</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>properties-maven-plugin</artifactId>
 						<version>1.2.1</version>
 						<executions>
@@ -967,6 +899,7 @@
 								<configuration>
 									<toolName>jlink</toolName>
 									<removeDirectories>${project.build.directory}/jvm-image/</removeDirectories>
+									<!--suppress MavenModelInspection; imported from mvn-jpackage.properties -->
 									<addModules>${jvm.modules}</addModules>
 									<output>${project.build.directory}/jvm-image</output>
 									<args>

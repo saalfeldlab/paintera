@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
@@ -29,6 +28,8 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
@@ -44,8 +45,7 @@ import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.text.DecimalFormat
 import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
 
@@ -55,7 +55,7 @@ class LabelSourceStatePreferencePaneNode(
 	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
 	private val converter: HighlightingStreamConverter<*>,
 	private val meshManager: MeshManagerWithAssignmentForSegments,
-	private val brushProperties: BrushProperties?
+	private val brushProperties: BrushProperties?,
 ) {
 
 	private val stream = converter.stream
@@ -67,21 +67,16 @@ class LabelSourceStatePreferencePaneNode(
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(composite)
 
-			val observableSelectedSegmentsList = FXCollections.observableArrayList<Long>()
+			val meshInfos = SegmentMeshInfoList(meshManager)
 			val selectedSegmentUpdateListener: (observable: Observable) -> Unit = {
-				val segments = selectedSegments.getSelectedSegments().toArray().toList()
-				val toRemove = observableSelectedSegmentsList - segments
-				val toAdd = segments - observableSelectedSegmentsList
-				InvokeOnJavaFXApplicationThread {
-					observableSelectedSegmentsList -= toRemove
-					observableSelectedSegmentsList += toAdd
-				}
+				meshInfos.selectedSegmentsProperty.set(selectedSegments.segments.toArray().toList())
 			}
 			selectedSegments.addListener(selectedSegmentUpdateListener)
+
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-				LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfoList(observableSelectedSegmentsList, meshManager)).node,
+				LabelSourceStateMeshPaneNode(source, meshManager, meshInfos).node,
 				AssignmentsNode(assignment).node,
 				when (source) {
 					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties, meshManager::refreshMeshes).node }
@@ -95,12 +90,12 @@ class LabelSourceStatePreferencePaneNode(
 	private class SelectedIdsNode(
 		private val selectedIds: SelectedIds?,
 		private val assignment: FragmentSegmentAssignmentState?,
-		private val selectedSegments: SelectedSegments
+		private val selectedSegments: SelectedSegments,
 	) {
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.getSelectedSegments().toArray().joinToString(",")
+				return selectedSegments.segments.toArray().joinToString(",")
 			}
 
 			override fun fromString(string: String?): SelectedSegments {
@@ -125,12 +120,12 @@ class LabelSourceStatePreferencePaneNode(
 
 		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
 			override fun toString(obj: SelectedSegments?): String {
-				var activeIds = selectedSegments.selectedIds.activeIds
-				var fragmentIds = TLongHashSet()
+				val activeIds = selectedSegments.selectedIds.activeIds
+				val fragmentIds = TLongHashSet()
 				activeIds.forEach { id ->
 					val fragmentsForId = selectedSegments.assignment.getFragments(id)
 					if (fragmentsForId.contains(id)) {
-						// ID is segment and fragment ID; Fragment/Segment may or may not exist
+						// ID is both a segment and fragment ID; Fragment/Segment may or may not exist
 						fragmentIds.add(id)
 
 					}
@@ -242,7 +237,7 @@ class LabelSourceStatePreferencePaneNode(
 
 
 				val lastSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Last Selection"
@@ -256,7 +251,7 @@ class LabelSourceStatePreferencePaneNode(
 					}
 				}
 				val fragmentSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Fragment Selection"
@@ -269,7 +264,7 @@ class LabelSourceStatePreferencePaneNode(
 					}
 				}
 				val segmentSelectionHelp = Button().apply {
-					graphic = FontAwesome[FontAwesomeIcon.QUESTION]
+					addStyleClass(Style.HELP_ICON)
 					onAction = EventHandler {
 						PainteraAlerts.information("Ok", true).also {
 							it.title = "Segment Selection"
@@ -299,7 +294,10 @@ class LabelSourceStatePreferencePaneNode(
 				val tpGraphics = HBox(
 					Label("Fragment Selection"),
 					NamedNode.bufferNode(),
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+					Button("").apply {
+						addStyleClass(Style.HELP_ICON)
+						setOnAction { helpDialog.show() }
+					}
 				).also { it.alignment = Pos.CENTER }
 
 				return with(TitledPaneExtensions) {
@@ -390,7 +388,7 @@ class LabelSourceStatePreferencePaneNode(
 	private class MaskedSourceNode(
 		private val source: DataSource<*, *>,
 		private val brushProperties: BrushProperties,
-		private val refreshMeshes: () -> Unit
+		private val refreshMeshes: () -> Unit,
 	) {
 
 		val node: Node?
@@ -418,7 +416,10 @@ class LabelSourceStatePreferencePaneNode(
 						NamedNode.bufferNode(),
 						showCanvasCheckBox,
 						clearButton,
-						Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+						Button("").apply {
+							addStyleClass(Style.HELP_ICON)
+							setOnAction { helpDialog.show() }
+						}
 					).also { it.alignment = Pos.CENTER }
 
 					val brushSizeLabel = Labels.withTooltip(
@@ -483,7 +484,7 @@ class LabelSourceStatePreferencePaneNode(
 
 		}
 
-		private fun askForgetCanvasAlert() = PainteraAlerts.confirmation("_Yes", "_No", true).apply {
+		private fun askForgetCanvasAlert() = PainteraAlerts.confirmation("_Yes", "_No").apply {
 			headerText = "Clear Canvas"
 			dialogPane.content = TextArea("Clearing canvas will remove all painted data that have not been committed yet. Proceed?").apply {
 				isEditable = false

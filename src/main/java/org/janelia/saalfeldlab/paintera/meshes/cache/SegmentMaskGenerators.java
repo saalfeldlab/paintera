@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
@@ -103,14 +103,29 @@ public class SegmentMaskGenerators {
 			final int validLabelsSize = validLabels.size();
 			final int inputSize = inputSet.size();
 
-			if (validLabelsSize < inputSize) {
-				/* usinging an enhanced for-loop is slower!
+			if (inputSize == 0) {
+				output.set(false);
+				return;
+			}
+
+			if (validLabelsSize <= inputSize) {
+				/* using an enhanced for-loop is slower!
 				 * `hasNext` on the trove iterator is surprisingly expensive :( */
 				final TLongIterator it = validLabels.iterator();
-				for (int i = 0; i < validLabelsSize; i++) {
-					if (input.contains(it.next())) {
-						output.set(true);
-						return;
+				if (inputSize == 1) {
+					final long inputLabel = input.argMax();
+					for (int i = 0; i < validLabelsSize; i++) {
+						if (inputLabel == it.next()) {
+							output.set(true);
+							return;
+						}
+					}
+				} else {
+					for (int i = 0; i < validLabelsSize; i++) {
+						if (input.contains(it.next())) {
+							output.set(true);
+							return;
+						}
 					}
 				}
 			} else {
@@ -171,17 +186,11 @@ public class SegmentMaskGenerators {
 					return;
 				}
 			} else {
-				final HashSet<Long> labelsInValidLabels = new HashSet<>();
-				for (final Entry<Label> labelEntry : inputSet) {
+				Iterator<Entry<Label>> iterator = inputSet.iterator();
+				while (iterator.hasNext()) {
+					Entry<Label> labelEntry = iterator.next();
 					final long id = labelEntry.getElement().id();
-					boolean valid = false;
-					if (labelsInValidLabels.contains(id)) {
-						valid = true;
-					} else if (validLabels.contains(id)) {
-						valid = true;
-						labelsInValidLabels.add(id);
-					}
-					if (valid) {
+					if (validLabels.contains(id)) {
 						final var count = validLabelsContainedCount.addAndGet(labelEntry.getCount());
 						if (count >= minNumRequiredPixels) {
 							output.set(true);

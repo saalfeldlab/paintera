@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.config
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.InvalidationListener
 import javafx.beans.property.ObjectProperty
 import javafx.collections.FXCollections
@@ -16,16 +15,18 @@ import javafx.scene.control.*
 import javafx.scene.input.Clipboard
 import javafx.scene.input.ClipboardContent
 import javafx.scene.layout.*
-import javafx.stage.Modality
+import jnr.ffi.Struct.alignment
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.MatchSelection
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
+import org.kordamp.ikonli.fontawesome.FontAwesome.*
 import org.slf4j.LoggerFactory
 
 class LoggingConfigNode(private val config: LoggingConfig) {
@@ -56,8 +57,14 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 			val tpGraphics = HBox(
 				Label("Logging"),
 				NamedNode.bufferNode(),
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-				.also { it.alignment = Pos.CENTER }
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					onAction = EventHandler { helpDialog.show() }
+				}
+			).also {
+				it.alignment = Pos.CENTER
+			}
+
 
 			return with(TitledPaneExtensions) {
 				TitledPanes.createCollapsed(null, contents)
@@ -83,9 +90,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 				graphicTextGap = 25.0
 				graphic = Buttons.withTooltip(null, "Copy log file path (`${LogUtils.painteraLogFilePath}') to clipboard") {
 					Clipboard.getSystemClipboard().setContent(ClipboardContent().also { content -> content.putString(LogUtils.painteraLogFilePath) })
-				}.also { button ->
-					button.graphic = FontAwesome[FontAwesomeIcon.COPY, 2.0]
-				}
+				}.apply { addStyleClass(Style.fontAwesome(COPY)) }
 			}
 			return VBox(
 				isEnabledCheckBox,
@@ -116,7 +121,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 				val removeButton = Buttons.withTooltip(null, "Unset level setting for logger `$name'.") {
 					config.unsetLogLevelFor(name)
 				}
-				removeButton.graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
+				removeButton.addStyleClass(Style.REMOVE_ICON)
 				index.let { it + 1 }.let { row ->
 					add(Labels.withTooltip(name), 0, row)
 					add(logLevelChoiceBox(level), 1, row)
@@ -140,7 +145,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 		val newLogLevelChoiceBox = logLevelChoiceBox(null)
 		val newLoggerButton = Buttons
 			.withTooltip(null) { config.setLogLevelFor(newLoggerField.text, newLogLevelChoiceBox.value) }
-			.also { it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
+			.apply { addStyleClass(Style.ADD_ICON)}
 		val listener = InvalidationListener {
 			updateLoggerList()
 			val name = newLoggerField.text

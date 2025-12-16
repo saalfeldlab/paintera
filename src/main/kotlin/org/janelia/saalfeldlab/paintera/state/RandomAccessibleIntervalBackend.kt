@@ -19,7 +19,6 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.cache.Invalidate
 import net.imglib2.cache.img.CachedCellImg
-import net.imglib2.converter.Converters
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -57,13 +56,6 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 		get() = translations[0]
 
 	override var virtualCrop: Interval? = null
-
-	constructor(
-		name: String,
-		source: RandomAccessibleInterval<D>,
-		resolution: DoubleArray,
-		translation: DoubleArray
-	) : this(name, arrayOf(source), arrayOf(resolution), arrayOf(translation))
 
 	val transform = AffineTransform3D().also {
 		it.set(

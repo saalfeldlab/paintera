@@ -1,52 +1,60 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import com.sun.javafx.scene.control.MultipleAdditionAndRemovedChange
-import javafx.collections.FXCollections
-import javafx.collections.ListChangeListener
-import javafx.collections.ObservableList
+import javafx.beans.property.SimpleObjectProperty
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshInfoList
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
 
 class SegmentMeshInfoList(
-	selectedSegments: ObservableList<Long>,
-	val manager: MeshManagerWithAssignmentForSegments
-) : MeshInfoList<SegmentMeshInfo, Long>(FXCollections.observableArrayList(), manager) {
+	val manager: MeshManagerWithAssignmentForSegments,
+) : MeshInfoList<SegmentMeshInfo, Long>() {
+
+	private val segmentMeshInfoMap = mutableMapOf<Long, SegmentMeshInfo>()
+	val selectedSegmentsProperty = SimpleObjectProperty<List<Long>>()
 
 	init {
-		val listChangeListener = ListChangeListener<Long> { change ->
-			if (manager.managedSettings.isMeshListEnabledProperty.get()) {
-				val toRemove = mutableSetOf<Long>()
-				val toAdd = mutableSetOf<Long>()
-				while (change.next()) {
-					val removed = change.removed
-					val added = change.addedSubList
 
-					/* remove the outdated things */
-					toRemove.removeAll(added)
-					toAdd.removeAll(removed)
+		val meshesEnabled = manager.managedSettings.meshesEnabledProperty
 
-					/* add the new things */
-					toAdd.addAll(added)
-					toRemove.addAll(removed)
-				}
-				val meshInfoToRemove = meshInfoList.filter { toRemove.contains(it.key) }
-				val meshInfoToAdd = toAdd.map { SegmentMeshInfo(it, manager) }.toSet()
-				InvokeOnJavaFXApplicationThread {
-					meshInfoList -= meshInfoToRemove
-					meshInfoList += meshInfoToAdd
-				}
-			}
+		selectedSegmentsProperty.`when`(meshesEnabled).subscribe { selectedSegments ->
+			selectedSegments ?: return@subscribe
+
+			updateItems(meshesEnabled.get())
 		}
-		selectedSegments.addListener(listChangeListener)
+	}
 
-		/*Trigger change listener for current list state */
-		val currentListChange = MultipleAdditionAndRemovedChange<Long>(selectedSegments.toList(), emptyList<Long>(), selectedSegments)
+	@Synchronized
+	override fun updateItems(meshesEnabled: Boolean) {
+
+		val selectedSegments by lazy(LazyThreadSafetyMode.NONE) { selectedSegmentsProperty.get() ?: emptyList() }
+
+		if (!meshesEnabled || selectedSegments.isEmpty()) {
+			InvokeOnJavaFXApplicationThread {
+				segmentMeshInfoMap.clear()
+				items.forEach { it?.dispose() }
+				items.clear()
+			}
+			return
+		}
+
+		val toAdd = selectedSegments - segmentMeshInfoMap.keys
+		val toRemove = segmentMeshInfoMap.keys - selectedSegments
+
 		InvokeOnJavaFXApplicationThread {
-		listChangeListener.onChanged(currentListChange)
-	}
+			/* remove keys and dispose values we don't need anymore*/
+			toRemove.forEach { segmentMeshInfoMap.remove(it)?.dispose() }
+			/* add keys we want */
+			segmentMeshInfoMap.putAll(toAdd.associateWith { SegmentMeshInfo(it, manager) })
+			items.setAll(segmentMeshInfoMap.values)
+		}
+
+
 	}
 
-	override fun meshNodeFactory(meshInfo: SegmentMeshInfo) = SegmentMeshInfoNode(meshInfo)
+	override fun meshNodeFactory(meshInfo: SegmentMeshInfo): SegmentMeshInfoNode {
+		return SegmentMeshInfoNode(meshInfo).also {
+			it.initContent()
+		}
+	}
 }

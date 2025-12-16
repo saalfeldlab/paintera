@@ -9,7 +9,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 
 class RaiBackendLabel<D, T>(
 	name: String,
@@ -36,6 +36,6 @@ class RaiBackendLabel<D, T>(
 
 	override fun createIdService(source: DataSource<D, T>) = LocalIdService(maxId)
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = LabelBlockLookupNoBlocks()
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = LabelBlockLookupAllBlocks.fromSource(source)
 
 }

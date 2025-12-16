@@ -16,14 +16,12 @@ import net.imglib2.img.NativeImg;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.interpolation.InterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
@@ -213,9 +211,9 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = data[0].data.getType().createVariable();
-		T t = data[0].vdata.getType().createVariable();
-		long numChannels = data[0].data.dimension(channelDimension);
+		D d = data[0].data().getType().createVariable();
+		T t = data[0].vdata().getType().createVariable();
+		long numChannels = data[0].data().dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 		extendData.accept(d);
@@ -286,9 +284,9 @@ public class N5ChannelDataSource<
 		final ImagesWithTransform<D, T>[] data = metadataState.getData(
 				queue,
 				priority);
-		D d = data[0].data.getType().createVariable();
-		T t = data[0].vdata.getType().createVariable();
-		long numChannels = data[0].data.dimension(channelDimension);
+		D d = data[0].data().getType().createVariable();
+		T t = data[0].vdata().getType().createVariable();
+		long numChannels = data[0].data().dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 		extendData.accept(d);

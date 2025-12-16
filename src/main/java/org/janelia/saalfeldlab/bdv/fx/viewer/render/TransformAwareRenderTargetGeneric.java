@@ -39,11 +39,11 @@ public interface TransformAwareRenderTargetGeneric<T> extends RenderTargetGeneri
 	 *
 	 * @param img image to draw (may be null).
 	 */
-	public T setBufferedImageAndTransform(final T img, final AffineTransform3D transform);
+	T setBufferedImageAndTransform(final T img, final AffineTransform3D transform);
 
-	public void addTransformListener(final TransformListener<AffineTransform3D> listener);
+	void addTransformListener(final TransformListener<AffineTransform3D> listener);
 
-	public void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index);
+	void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index);
 
-	public void removeTransformListener(final TransformListener<AffineTransform3D> listener);
+	void removeTransformListener(final TransformListener<AffineTransform3D> listener);
 }

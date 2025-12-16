@@ -1,33 +1,28 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.binding.BooleanExpression
 import javafx.collections.FXCollections
 import javafx.collections.MapChangeListener
 import javafx.collections.ObservableList
 import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.MenuButton
-import javafx.scene.control.ProgressIndicator
-import javafx.scene.control.TextField
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.ui.GlyphScaleView
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 
 class OpenSourceNode(
 	openSourceState: OpenSourceState,
 	containerLocationNode: TextField,
 	browseNode: Node,
-	isBusy: BooleanExpression
+	isBusy: BooleanExpression,
 ) : GridPane() {
 
-	var resetAction : ((String) -> Unit)? = null
+	var resetAction: ((String) -> Unit)? = null
 
 	init {
 		/* Create the grid and add the root node */
@@ -40,7 +35,8 @@ class OpenSourceNode(
 		add(datasetDropDown, 0, 1)
 		setHgrow(datasetDropDown, Priority.ALWAYS)
 
-		val reparseContainer = Button("", GlyphScaleView(FontAwesomeIconView(FontAwesomeIcon.REFRESH).apply { styleClass += "refresh" }))
+		val reparseContainer = Button("")
+		reparseContainer.addStyleClass(Style.REFRESH_ICON)
 		reparseContainer.tooltip = Tooltip("Search for Datasets again at the current selection")
 		reparseContainer.setOnAction {
 			containerLocationNode.text?.let { resetAction?.invoke(it) }
@@ -78,7 +74,7 @@ class OpenSourceNode(
 
 
 			val dropDownMenuButton = MatchSelectionMenuButton(choices, null, null) { selection ->
-				activeNodeProperty.set(validDatasets.get()[selection])
+				activeNode = validDatasets.get()[selection]
 			}.apply {
 				cutoff = 50
 

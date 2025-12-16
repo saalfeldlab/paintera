@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
@@ -14,16 +13,12 @@ import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.midi.ToggleAction
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.fx.ui.ScaleView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
@@ -40,12 +35,12 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 
 
-object PaintLabelMode : AbstractToolMode() {
+open class PaintLabelMode : ViewLabelMode() {
 
-	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
+	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext<Nothing, Nothing>(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
@@ -67,6 +62,7 @@ object PaintLabelMode : AbstractToolMode() {
 
 	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
+			*super.activeViewerActions.toTypedArray(),
 			escapeToDefault(),
 			*getToolTriggers().toTypedArray(),
 			enterShapeInterpolationMode,
@@ -108,7 +104,7 @@ object PaintLabelMode : AbstractToolMode() {
 
 	private val enterShapeInterpolationMode = painteraActionSet(SHAPE_INTERPOLATION__TOGGLE_MODE, PaintActionType.ShapeInterpolation) {
 		KEY_PRESSED(SHAPE_INTERPOLATION__TOGGLE_MODE) {
-			graphic = { ScaleView().also { it.styleClass += "enter-shape-interpolation" } }
+			createToolNode = { apply { styleClass += "enter-shape-interpolation" } }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify {
 				@Suppress("UNCHECKED_CAST")
@@ -187,9 +183,8 @@ object PaintLabelMode : AbstractToolMode() {
 	}
 
 	private fun getDeleteReplaceIdActions() = painteraActionSet("delete_label", LabelActionType.Delete) {
-		KEY_PRESSED(DELETE_ID) {
-			verify("ReplaceLabel is valid") { ReplaceLabel.isValid(it) }
-			onAction { ReplaceLabel.showDialog() }
+		KEY_PRESSED ( DELETE_ID) {
+			onAction { ReplaceLabel.deleteMenu()(it) }
 		}
 	}
 

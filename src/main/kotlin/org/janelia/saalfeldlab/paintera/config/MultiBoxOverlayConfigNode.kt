@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.event.EventHandler
@@ -8,11 +8,12 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
-import javafx.stage.Modality
 import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 
 class MultiBoxOverlayConfigNode() {
 
@@ -43,7 +44,10 @@ class MultiBoxOverlayConfigNode() {
 				Label("Multi-Box Overlay"),
 				NamedNode.bufferNode(),
 				visibilityChoiceBox,
-				Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					onAction = EventHandler { helpDialog.show() } }
+
 			).apply { alignment = Pos.CENTER }
 
 			return TitledPane("Meshes", null).apply {

@@ -17,11 +17,11 @@ jobs:
     strategy:
       matrix:
         # currently macos-14 is M1 and macos-13 is intel
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-13]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set Version
         shell: bash
         run: |
@@ -44,9 +44,9 @@ jobs:
       - name: Add Wix to Path
         run: echo "$HOME/target/wix" >> $GITHUB_PATH
         if: matrix.os == 'windows-latest'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: 21
           distribution: 'liberica'

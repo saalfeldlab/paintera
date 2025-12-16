@@ -1,19 +1,17 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh
 
-import javafx.animation.AnimationTimer
+import javafx.beans.binding.DoubleExpression
 import javafx.css.PseudoClass
-import javafx.scene.control.Tooltip
+import javafx.scene.control.ProgressIndicator
 import javafx.util.Subscription
-import org.controlsfx.control.StatusBar
-import org.janelia.saalfeldlab.paintera.meshes.MeshProgressState
+import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 
-class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSEC) : StatusBar() {
-	private val statusToolTip = Tooltip()
-	private var meshProgress: MeshProgressState? = null
-	private var progressBarUpdater: AnimationTimer? = null
+private typealias ReverseBehavior = AnimatedProgressBar.Companion.ReverseBehavior
+
+class MeshProgressBar(reverseBehavior: ReverseBehavior = ReverseBehavior.SKIP) : AnimatedProgressBar(reverseBehavior) {
+	private var subscription: Subscription? = null
 
 	init {
-		tooltip = statusToolTip
 		setCssProperties()
 	}
 
@@ -25,55 +23,28 @@ class MeshProgressBar(private val updateIntervalMsec: Long = UPDATE_INTERVAL_MSE
 		}
 	}
 
-	fun bindTo(meshProgress: MeshProgressState) {
-		unbind()
-		this.meshProgress = meshProgress
+	fun bindTo(meshProgress: DoubleExpression) {
+		subscription?.unsubscribe()
 
-		progressBarUpdater = createAnimationTimer(meshProgress)
-	}
+		/* Don't animate the initialization, just set it to the current value */
+		progressProperty().set(meshProgress.get())
 
-	private fun createAnimationTimer(meshProgress: MeshProgressState): AnimationTimer {
-
-		return object : AnimationTimer() {
-			private var subscription: Subscription? = null
-			var lastUpdate: Long = -1L
-			var handleUpdate: Boolean = false
-
-			init {
-				start()
-				subscription = meshProgress.totalNumTasksProperty.subscribe { it ->
-					val numTasks = it.toInt()
-					handleUpdate = numTasks > 0 && meshProgress.numCompletedTasks.toInt() < numTasks
-				}
-			}
-
-			override fun stop() {
-				super.stop()
-				subscription?.unsubscribe()
-				subscription = null
-			}
-
-			override fun handle(now: Long) {
-
-				if (handleUpdate && now - lastUpdate > updateIntervalMsec) {
-					lastUpdate = now
-					val numTotalTasks = meshProgress.numTotalTasks.toInt()
-					val numCompletedTasks = meshProgress.numCompletedTasks
-
-					progress = numCompletedTasks.toDouble() / numTotalTasks
-					statusToolTip.text = "$numCompletedTasks/$numTotalTasks"
-				}
-			}
+		progressTargetProperty.value = meshProgress.value
+		progressTargetProperty.bind(meshProgress)
+		subscription = Subscription {
+			subscription = null
+			unbind()
 		}
+
 	}
 
 	fun unbind() {
-		progressBarUpdater?.stop()
-		meshProgress = null
-		progress = 1e-7
-	}
+		if (subscription == null)
+			return
 
-	companion object {
-		const val UPDATE_INTERVAL_MSEC: Long = 100
+		subscription = null
+		stop()
+		progressTargetProperty.unbind()
+		progress = ProgressIndicator.INDETERMINATE_PROGRESS
 	}
 }

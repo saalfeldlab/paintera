@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 
@@ -30,8 +31,9 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList {
 	private void update() {
 
 		final TLongHashSet newSelectedFragments = new TLongHashSet();
-		synchronized (activeSegments.getSet()) {
-			activeSegments.getSet().forEach(id -> {
+		final TLongSet selectedSegments = activeSegments.getSegments();
+		synchronized (selectedSegments) {
+			selectedSegments.forEach(id -> {
 				newSelectedFragments.addAll(activeSegments.getAssignment().getFragments(id));
 				return true;
 			});

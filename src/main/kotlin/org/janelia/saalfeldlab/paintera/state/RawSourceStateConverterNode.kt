@@ -11,22 +11,25 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
-import javafx.stage.Modality
 import net.imglib2.type.numeric.RealType
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
+import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 
-class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, private val state: ConnectomicsRawState<out RealType<*>, *>) {
+class RawSourceStateConverterNode<T, V>(private val converter: ARGBColorConverter<*>, private val state: ConnectomicsRawState<T, V>)
+		where T : RealType<T>, V : AbstractVolatileRealType<T, V> {
 
 	private val colorProperty = SimpleObjectProperty(Color.WHITE)
 
@@ -63,10 +66,12 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 				it.maxWidth = Double.MAX_VALUE
 			}
 
-			resetMinMax.onAction = EventHandler { RawSourceMode.resetIntensityMinMax(state) }
+			resetMinMax.onAction = EventHandler {
+				RawSourceMode.resetIntensityMinMax(state as SourceState<*, RealType<*>>)
+			}
 			autoMinMax.onAction = EventHandler {
-				paintera.baseView.lastFocusHolder.value?.viewer()?.let { viewer ->
-					RawSourceMode.autoIntensityMinMax(state, viewer)
+				paintera.baseView.mostRecentFocusHolder.value?.viewer()?.let { viewer ->
+					RawSourceMode.autoIntensityMinMax(state as SourceState<*, RealType<*>>, viewer)
 				}
 			}
 			val thresholdHBox = HBox(resetMinMax, autoMinMax)
@@ -115,7 +120,7 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 			tilePane.children.add(minMaxBox)
 
 			val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-			alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+			alphaSliderWithField.valueProperty.bindBidirectional(this.alphaProperty)
 			alphaSliderWithField.textField.minWidth = 48.0
 			alphaSliderWithField.textField.maxWidth = 48.0
 			val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
@@ -134,8 +139,11 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>, 
 
 			val tpGraphics = HBox(
 				Label("Color Conversion"),
-				NamedNode.bufferNode(),
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+				NamedNode.bufferNode(), Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
+			)
 				.also { it.alignment = Pos.CENTER }
 
 			return with(TitledPaneExtensions) {

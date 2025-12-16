@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.cache
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import bdv.cache.SharedQueue
-import bdv.fx.viewer.render.BaseRenderUnit
-import bdv.fx.viewer.render.RenderUnitState
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.BaseRenderUnit
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import bdv.viewer.Interpolation
 import bdv.viewer.TransformListener
 import com.amazonaws.util.Base64
@@ -35,9 +35,12 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.cache.SessionRenderUnitState.Companion.withSessionId
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig
+import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.ImageEncoding.JPG
+import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.ImageEncoding.PNG
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
@@ -150,10 +153,12 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 	private val currentSessions = HashSet<String>()
 
+	private val samIOScope = CoroutineScope(Dispatchers.IO + SupervisorJob()) + CoroutineName("SAM_IO_SCOPE")
+
 	@OptIn(ExperimentalCoroutinesApi::class)
 	val createOrtSessionTask by LazyForeignValue({ properties.segmentAnythingConfig.modelLocation }) { modelLocation ->
 
-		CoroutineScope(Dispatchers.IO).async {
+		samIOScope.async {
 			if (!SamEmbeddingLoaderCache::ortEnv.isInitialized)
 				ortEnv = OrtEnvironment.getEnvironment()
 			val modelArray = try {
@@ -212,19 +217,33 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			useVolatileIfAvailable = false
 		)
 
-		val predictionImagePngInputStream = PipedInputStream()
-		val predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
+		val predictionImageInputStream = PipedInputStream()
+		val predictionImageOutputStream = PipedOutputStream(predictionImageInputStream)
 
 		imageRenderer.renderedImageProperty.subscribe { _, result ->
 			result.image?.let { img ->
-				ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
-				predictionImagePngOutputStream.close()
+				val rgbImage = BufferedImage(
+					img.width.toInt(),
+					img.height.toInt(),
+					BufferedImage.TYPE_INT_RGB
+				)
+				val encodedImg = SwingFXUtils.fromFXImage(img, rgbImage)
+
+				val config = paintera.properties.segmentAnythingConfig
+				val imageEncoding = config.imageEncoding.name.lowercase()
+
+				val written = ImageIO.write(encodedImg, imageEncoding, predictionImageOutputStream)
+				if (!written)
+					LOG.warn { "Failed to write prediction image to output stream" }
+
+				predictionImageOutputStream.flush()
+				predictionImageOutputStream.close()
 				sharedQueue.shutdown()
 				imageRenderer.stopRendering()
 			}
 		}
 		imageRenderer.requestRepaint()
-		return predictionImagePngInputStream
+		return predictionImageInputStream
 	}
 
 	fun request(viewer: ViewerPanelFX, globalToViewerTransform: AffineTransform3D): Deferred<OnnxTensor> {
@@ -246,12 +265,17 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 	}
 
 	override fun load(key: RenderUnitState): Job {
-		val sessionState = (key as? SessionRenderUnitState) ?: key.withSessionId(getSessionId())
 
-		synchronized(currentSessions) {
-			currentSessions += sessionState.sessionId
+		return samIOScope.launch {
+			coroutineScope {
+				val sessionState = (key as? SessionRenderUnitState) ?: key.withSessionId(getSessionId())
+
+				synchronized(currentSessions) {
+					currentSessions += sessionState.sessionId
+				}
+				super.load(sessionState)
+			}
 		}
-		return super.load(sessionState)
 	}
 
 	val client: HttpClient = HttpClientBuilder.create()
@@ -283,7 +307,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		}
 	}
 
-	private fun getImageEmbedding(it: RenderUnitState): OnnxTensor {
+	private suspend fun getImageEmbedding(it: RenderUnitState): OnnxTensor {
 		return getImageEmbedding(saveImage(it), (it as? SessionRenderUnitState)?.sessionId)
 	}
 
@@ -304,23 +328,40 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 		client.execute(post)
 	}
 
-	fun cancelPendingRequests(vararg ids: String = synchronized(currentSessions) { currentSessions.toTypedArray() }) {
-		synchronized(currentSessions) {
-			ids
-				.filter { currentSessions.remove(it) }
-				.forEach {
-					runBlocking {
-						launch(Dispatchers.IO) {
-							cancelPendingRequests(it)
-						}
-					}
-				}
+	fun cancelPendingRequests() {
+
+		if (currentSessions.isEmpty())
+			return
+
+		val toCancel = synchronized(currentSessions) {
+			val sessions = currentSessions.toSet()
+			currentSessions.clear()
+			sessions
+		}
+
+		toCancel.forEach {
+			samIOScope.launch {
+				cancelPendingRequests(it)
+			}
 		}
 	}
 
-	private fun getImageEmbedding(inputImage: PipedInputStream, sessionId: String? = null): OnnxTensor {
+	private suspend fun getImageEmbedding(inputImage: PipedInputStream, sessionId: String? = null): OnnxTensor {
 		val entityBuilder = MultipartEntityBuilder.create()
-		entityBuilder.addBinaryBody("image", inputImage, ContentType.APPLICATION_OCTET_STREAM, "null")
+
+		val url = with(paintera.properties.segmentAnythingConfig) {
+			with(SegmentAnythingConfig) {
+				/* select image encoding */
+				when (imageEncoding) {
+					PNG -> entityBuilder.addBinaryBody("image", inputImage, ContentType.IMAGE_PNG, "image.png")
+					JPG -> entityBuilder.addBinaryBody("image", inputImage, ContentType.IMAGE_JPEG, "image.jpg")
+				}
+				/* get the URL*/
+				val compress = if (compressEncoding) COMPRESS_ENCODING_PARAMETER else ""
+				"$serviceUrl/$EMBEDDING_REQUEST_ENDPOINT?$compress"
+			}
+		}
+
 		sessionId?.let { id ->
 			entityBuilder.addTextBody("session_id", id);
 			entityBuilder.addTextBody("cancel_pending", "true");
@@ -329,12 +370,6 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			}
 		}
 
-		val url = with(paintera.properties.segmentAnythingConfig) {
-			with(SegmentAnythingConfig) {
-				val compress = if (compressEncoding) COMPRESS_ENCODING_PARAMETER else ""
-				"$serviceUrl/$EMBEDDING_REQUEST_ENDPOINT?$compress"
-			}
-		}
 		val post = HttpPost(url)
 		post.entity = entityBuilder.build()
 
@@ -351,10 +386,13 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			}
 
 			else -> {
-				response.entity?.let {
-					throw HttpException(EntityUtils.toString(it))
-				} ?: throw HttpException("Received Error Code: ${response.statusLine.statusCode}")
+				if (response.entity != null) {
+					throw HttpException(EntityUtils.toString(response.entity))
+				} else {
+					throw HttpException("Received Error Code: ${response.statusLine.statusCode}")
+				}
 			}
+
 		}
 		EntityUtils.toByteArray(response.entity!!).let {
 			val decodedEmbedding = Base64.decode(it)
@@ -363,11 +401,9 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 			directBuffer.position(0)
 			val floatBuffEmbedding = directBuffer.asFloatBuffer()
 			floatBuffEmbedding.position(0)
-			runBlocking {
-				/* need the ortEnv to be initialized, which is done during session initialization; So block and wait here. */
-				/* But we don't actually need the session here. */
-				createOrtSessionTask.await()
-			}
+			/* need the ortEnv to be initialized, which is done during session initialization; So block and wait here. */
+			/* But we don't actually need the session here. */
+			createOrtSessionTask.await()
 			return OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
 		}
 	}

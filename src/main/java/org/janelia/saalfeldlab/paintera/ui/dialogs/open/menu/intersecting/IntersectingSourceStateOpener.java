@@ -33,7 +33,7 @@ import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.janelia.saalfeldlab.util.Colors;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -50,6 +50,8 @@ import java.util.stream.Collectors;
 public class IntersectingSourceStateOpener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	//TODO Caleb: Use CSS for this
 	private static final String TEXT_BACKGROUND = "-rtfx-background-color: rgba(62,62,62,0.62); ";
 	private static final String BOLD = "-fx-font-weight: bold; ";
 	private static final String CONNECTED_COMPONENT_STYLE = TEXT_BACKGROUND + BOLD + "-fx-fill: #52ffea;";

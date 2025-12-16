@@ -26,7 +26,7 @@ class OrthoSliceConfigNode() {
 
 	private val showOrthoViews = CheckBox()
 
-	private val opacitySlider = NumericSliderWithField(0.0, 1.0, 1.0)
+	private val opacitySlider = NumericSliderWithField(0.0, 1.0, 0.5)
 
 	private val shadingSlider = NumericSliderWithField(0.0, 1.0, 0.1)
 
@@ -90,8 +90,8 @@ class OrthoSliceConfigNode() {
 		topLeftCheckBox.selectedProperty().bindBidirectional(config.showTopLeftProperty())
 		topRightCheckBox.selectedProperty().bindBidirectional(config.showTopRightProperty())
 		bottomLeftCheckBox.selectedProperty().bindBidirectional(config.showBottomLeftProperty())
-		opacitySlider.slider.valueProperty().bindBidirectional(config.opacityProperty())
-		shadingSlider.slider.valueProperty().bindBidirectional(config.shadingProperty())
+		opacitySlider.valueProperty.bindBidirectional(config.opacityProperty())
+		shadingSlider.valueProperty.bindBidirectional(config.shadingProperty())
 	}
 
 	fun getContents(): Node {

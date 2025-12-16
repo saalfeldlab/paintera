@@ -8,11 +8,9 @@ import net.imglib2.cache.ref.SoftRefLoaderCache
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
-import org.janelia.saalfeldlab.util.n5.N5Helpers.name
 import org.janelia.saalfeldlab.util.n5.asyncDiscoverAndParseRecursive
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.coroutineContext
 
 
 internal val SHARED_PARSED_N5_CACHE = SoftRefLoaderCache<N5Reader, Deferred<Map<String, N5TreeNode>?>>()
@@ -118,7 +116,7 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 			if (newNodes.isEmpty())
 				return list
 
-			coroutineContext.ensureActive()
+			currentCoroutineContext().ensureActive()
 			return getValidDatasets(*newNodes)
 		}
 	}

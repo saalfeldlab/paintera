@@ -103,7 +103,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
 import org.janelia.saalfeldlab.paintera.util.IntervalIterable;
 import org.janelia.saalfeldlab.paintera.util.ReusableIntervalIterator;
@@ -778,9 +778,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	public void resetMasks(final boolean clearOldMask) throws MaskInUse {
 
 		synchronized (this) {
-			final boolean canResetMask = !isCreatingMask() && !isApplyingMask.get();
-			LOG.debug("Can reset mask? {}", canResetMask);
-			if (!canResetMask)
+			final boolean canNotResetMask = isCreatingMask() || isApplyingMask.get();
+			LOG.debug("Can reset mask? {}", !canNotResetMask);
+			if (canNotResetMask)
 				throw new MaskInUse("Cannot reset the mask.");
 
 			var mask = getCurrentMask();
@@ -863,6 +863,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		HBox.setHgrow(progressBar, Priority.ALWAYS);
 		VBox.setVgrow(statesText, Priority.ALWAYS);
 		VBox.setVgrow(progressBar, Priority.ALWAYS);
+
 		InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
 		states.addListener((ListChangeListener<String>)change -> statesText.setText(String.join("\n", states)));
 		synchronized (this) {
@@ -897,7 +898,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			InvokeOnJavaFXApplicationThread.invoke(timeline::play);
 		};
 		ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) -> animateProgressBar.accept(newv.doubleValue());
-		return Tasks.createTask(() -> {
+		return Tasks.submit(() -> {
 			try {
 				nextState.accept("Persisting painted labels...");
 				InvokeOnJavaFXApplicationThread.invoke(() ->

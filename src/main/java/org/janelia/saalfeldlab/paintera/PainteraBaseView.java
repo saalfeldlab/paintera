@@ -26,9 +26,9 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.PainterThreadFx;
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
@@ -94,8 +94,17 @@ public class PainteraBaseView {
 
 	private final OrthogonalViews<Viewer3DFX> views;
 
-	public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> currentFocusHolder;
-	public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> lastFocusHolder;
+	/**
+	 * The current active ViewerAndTransform. `null` if no current focused ViewerAndTransform
+	 */
+	public final ObservableObjectValue<ViewerAndTransforms> currentFocusHolder;
+	/**
+	 * Either current, or the previous if currentFocusHolder is `null`. This value should
+	 * never be null. Default to the `topLeft` view if no current or previous focus holder
+	 * (i.e. during initialization)
+	 */
+	public final ObservableValue<ViewerAndTransforms> mostRecentFocusHolder;
+
 
 	private final AllowedActionsProperty allowedActionsProperty;
 
@@ -105,14 +114,6 @@ public class PainteraBaseView {
 			.trackVisibleSourcesAndConverters();
 
 	private final ListChangeListener<SourceAndConverter<?>> vsacUpdate;
-
-	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool(
-			3,
-			new NamedThreadFactory("paintera-thread-%d", true));
-
-	private final ExecutorService meshManagerExecutorService = Executors.newFixedThreadPool(
-			3,
-			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
 	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkerExecutorService = new HashPriorityQueueBasedTaskExecutor<>(
 			Comparator.naturalOrder(),
@@ -180,11 +181,9 @@ public class PainteraBaseView {
 
 		this.currentFocusHolder = Bindings.createObjectBinding(
 				() -> {
-
 					final var visibleViewers = views.viewerAndTransforms().stream().filter(it -> it.viewer().isVisible()).toList();
-					if (visibleViewers.size() == 1) //If only one visible, and return it
+					if (visibleViewers.size() == 1) //If only one visible, return it
 						return visibleViewers.getFirst();
-
 
 					return views.viewerAndTransforms().stream()
 							.filter(it -> it.viewer().focusedProperty().get())
@@ -194,14 +193,7 @@ public class PainteraBaseView {
 				views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
 		);
 
-		final var previousFocusHolder = new SimpleObjectProperty<>(currentFocusHolder.get());
-		this.lastFocusHolder = Bindings.createObjectBinding(() -> {
-			final OrthogonalViews.ViewerAndTransforms focusedViewer = currentFocusHolder.get();
-			if (focusedViewer != null) {
-				previousFocusHolder.set(focusedViewer);
-			}
-			return previousFocusHolder.get();
-		}, currentFocusHolder);
+		this.mostRecentFocusHolder = currentFocusHolder.when(Bindings.isNotNull(currentFocusHolder)).orElse(views.getTopLeft());
 
 		activeModeProperty.addListener((obs, oldv, newv) -> {
 			if (oldv != newv) {
@@ -458,7 +450,6 @@ public class PainteraBaseView {
 				viewer3D().getMeshesGroup(),
 				viewer3D().getViewFrustumProperty(),
 				viewer3D().getEyeToWorldTransformProperty(),
-				meshManagerExecutorService,
 				meshWorkerExecutorService,
 				getQueue(),
 				getQueue().getNumPriorities() - 1,
@@ -502,14 +493,6 @@ public class PainteraBaseView {
 	}
 
 	/**
-	 * @return {@link ExecutorService} for general purpose computations
-	 */
-	public ExecutorService generalPurposeExecutorService() {
-
-		return this.generalPurposeExecutorService;
-	}
-
-	/**
 	 * @return {@link ExecutorService} for painting related computations
 	 */
 	public ExecutorService getPaintQueue() {
@@ -540,8 +523,6 @@ public class PainteraBaseView {
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 
 		LOG.debug("Stopping everything");
-		this.generalPurposeExecutorService.shutdown();
-		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
@@ -557,17 +538,6 @@ public class PainteraBaseView {
 	public static int reasonableNumFetcherThreads() {
 
 		return Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
-	}
-
-	/**
-	 * @return {@link ExecutorService} for managing mesh generation tasks
-	 * <p>
-	 * TODO this should probably be removed by a management thread for every single mesh manager
-	 * TODO like the {@link PainterThreadFx} for rendering
-	 */
-	public ExecutorService getMeshManagerExecutorService() {
-
-		return meshManagerExecutorService;
 	}
 
 	/**

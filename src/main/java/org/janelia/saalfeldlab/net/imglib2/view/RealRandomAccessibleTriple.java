@@ -33,11 +33,11 @@
  */
 package org.janelia.saalfeldlab.net.imglib2.view;
 
+import kotlin.Triple;
 import net.imglib2.Localizable;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealRandomAccessible;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
 
 public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible<Triple<A, B, C>> {
 
@@ -47,7 +47,7 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 
 	final protected RealRandomAccessible<C> sourceC;
 
-	public class RealRandomAccess implements Triple<A, B, C>, net.imglib2.RealRandomAccess<Triple<A, B, C>> {
+	public class RealRandomAccess implements net.imglib2.RealRandomAccess<Triple<A, B, C>> {
 
 		final protected net.imglib2.RealRandomAccess<A> a;
 
@@ -60,24 +60,6 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 			a = sourceA.realRandomAccess();
 			b = sourceB.realRandomAccess();
 			c = sourceC.realRandomAccess();
-		}
-
-		@Override
-		public A getA() {
-
-			return a.get();
-		}
-
-		@Override
-		public B getB() {
-
-			return b.get();
-		}
-
-		@Override
-		public C getC() {
-
-			return c.get();
 		}
 
 		@Override
@@ -289,7 +271,7 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 		@Override
 		public Triple<A, B, C> get() {
 
-			return this;
+			return new Triple<>(a.get(), b.get(), c.get());
 		}
 
 		@Override
@@ -313,7 +295,7 @@ public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible
 
 	@Override public Triple<A, B, C> getType() {
 
-		return realRandomAccess();
+		return new Triple<>(sourceA.getType(), sourceB.getType(), sourceC.getType());
 	}
 
 	@Override

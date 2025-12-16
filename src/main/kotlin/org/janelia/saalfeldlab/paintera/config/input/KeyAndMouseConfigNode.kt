@@ -23,11 +23,13 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.util.Locale
 
 class KeyAndMouseConfigNode(
@@ -80,7 +82,10 @@ class KeyAndMouseConfigNode(
 		val tpGraphics = HBox(
 			Label("Source-Specific Bindings"),
 			NamedNode.bufferNode(),
-			Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+			Button("").apply {
+				addStyleClass(Style.HELP_ICON)
+				setOnAction { helpDialog.show() }
+			}
 		).apply { alignment = Pos.CENTER }
 		val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
 			graphicsOnly(tpGraphics)
@@ -121,8 +126,8 @@ class KeyAndMouseConfigNode(
 			val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
 			val sortedNames = sortedStates.map { it.nameProperty().value }
 
-			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-				PainteraAlerts.initAppDialog(this, Modality.NONE)
+			val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION).apply {
+				initModality(Modality.NONE)
 				headerText = "Bindings for sources of type ${sourceClass.simpleName}"
 				dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) })).apply {
 					columns.add(indexColumn)
@@ -134,7 +139,10 @@ class KeyAndMouseConfigNode(
 			val tpGraphics = HBox(
 				Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
 				NamedNode.bufferNode(),
-				Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
 			).apply { alignment = Pos.CENTER }
 
 			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
@@ -160,13 +168,16 @@ class KeyAndMouseConfigNode(
 			val titleLabel = Label(title)
 			if (description.isNotEmpty() && description.trim().uppercase(Locale.getDefault()) != "TODO") {
 
-				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-					PainteraAlerts.initAppDialog(this, Modality.NONE)
+				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION).apply {
+					initModality(Modality.NONE)
 					headerText = title
 					contentText = description
 				}
 
-				val helpButtonIfDescription = Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+				val helpButtonIfDescription = Button("").apply {
+					addStyleClass(Style.HELP_ICON)
+					setOnAction { helpDialog.show() }
+				}
 				tpGraphics = HBox(titleLabel, NamedNode.bufferNode(), helpButtonIfDescription).apply { alignment = Pos.CENTER }
 			} else {
 				tpGraphics = HBox(titleLabel).apply { alignment = Pos.CENTER }

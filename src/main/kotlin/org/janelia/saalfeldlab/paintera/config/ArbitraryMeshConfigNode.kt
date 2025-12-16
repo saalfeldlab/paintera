@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
@@ -22,13 +21,13 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
-import org.janelia.saalfeldlab.paintera.ui.CloseButton
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.kordamp.ikonli.fontawesome.FontAwesome.*
 import java.nio.file.Path
-import java.util.Optional
 import java.util.function.Consumer
 import java.util.stream.Collectors
 
@@ -45,7 +44,9 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 
 	private val meshConfigs = VBox()
 
-	private val addButton = Button(null).apply { graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
+	private val addButton = Button(null).apply {
+		addStyleClass(Style.ADD_ICON)
+	}
 
 	init {
 		this.config.unmodifiableMeshes.addListener(InvalidationListener { update() })
@@ -186,20 +187,20 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 				translationZ.textField.prefWidth = prefCellWidth
 
 
-				val scale = NumberField.doubleField(1.0, { it > 0.0 }, *ObjectField.SubmitOn.values())
+				val scale = NumberField.doubleField(1.0, { it > 0.0 }, *ObjectField.SubmitOn.entries.toTypedArray())
 				scale.valueProperty().bindBidirectional(meshInfo.scaleProperty())
 				settingsGrid.add(Labels.withTooltip("Scale"), 0, 2)
 				settingsGrid.add(scale.textField, 3, 2)
 				scale.textField.prefWidth = prefCellWidth
 
-				val drawMode = ChoiceBox(FXCollections.observableArrayList(*DrawMode.values()))
+				val drawMode = ChoiceBox(FXCollections.observableArrayList(*DrawMode.entries.toTypedArray()))
 				drawMode.valueProperty().bindBidirectional(meshInfo.drawModeProperty())
 				settingsGrid.add(Labels.withTooltip("Draw Mode"), 0, 3)
 				settingsGrid.add(drawMode, 3, 3)
 				drawMode.prefWidth = prefCellWidth
 				drawMode.tooltip = Tooltip("Select draw mode")
 
-				val cullFace = ChoiceBox(FXCollections.observableArrayList(*CullFace.values()))
+				val cullFace = ChoiceBox(FXCollections.observableArrayList(*CullFace.entries.toTypedArray()))
 				cullFace.valueProperty().bindBidirectional(meshInfo.cullFaceProperty())
 				settingsGrid.add(Labels.withTooltip("Cull Face"), 0, 4)
 				settingsGrid.add(cullFace, 3, 4)
@@ -208,7 +209,8 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 
 				tp.content = settingsGrid
 
-				val removeButton = Button(null).also { it.graphic = CloseButton.createFontAwesome(2.0) }
+				val removeButton = Button(null)
+				removeButton.addStyleClass(Style.REMOVE_ICON)
 				removeButton.setOnAction { e -> config.removeMesh(meshInfo) }
 
 				val hbox = HBox(visibleBox, nameField)

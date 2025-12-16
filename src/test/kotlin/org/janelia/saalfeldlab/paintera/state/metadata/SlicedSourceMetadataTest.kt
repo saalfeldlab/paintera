@@ -118,7 +118,7 @@ class SlicedSourceMetadataTest {
 		assertEquals(4, metadataState.datasetAttributes.numDimensions)
 
 		val queue = SharedQueue(1, 1)
-		val sources = metadataState.getData(queue, 0)
+		val sources = metadataState.getData<Nothing, Nothing>(queue, 0)
 
 		assertNotNull(sources)
 		assertEquals(1, sources.size)
@@ -247,7 +247,7 @@ class SlicedSourceMetadataTest {
 		assertEquals(false, metadataState.isLabel)
 
 		val queue = SharedQueue(1, 1)
-		val sources = metadataState.getData(queue, 0)
+		val sources = metadataState.getData<Nothing, Nothing>(queue, 0)
 
 		assertNotNull(sources)
 		assertEquals(1, sources.size)

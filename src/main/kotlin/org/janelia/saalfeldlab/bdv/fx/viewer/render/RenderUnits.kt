@@ -1,4 +1,4 @@
-package bdv.fx.viewer.render
+package org.janelia.saalfeldlab.bdv.fx.viewer.render
 
 import bdv.cache.CacheControl
 import bdv.viewer.Interpolation
@@ -10,9 +10,6 @@ import net.imglib2.parallel.TaskExecutor
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.MultiResolutionRendererFX
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnit
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.TransformAwareBufferedImageOverlayRendererFX
 import java.util.Objects
 import java.util.function.Function
 

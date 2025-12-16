@@ -15,20 +15,19 @@ import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
-import javafx.scene.layout.GridPane
 import javafx.util.Subscription
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
+import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
-import org.janelia.saalfeldlab.fx.ui.ActionBar
+import org.janelia.saalfeldlab.fx.ui.ModeToolActionBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
@@ -74,19 +73,8 @@ interface SourceMode : ControlMode {
 interface ToolMode : SourceMode {
 
 	private object ToolChange {
-		val channel = Channel<Job>()
-		val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-		init {
-			scope.launch {
-				for (msg in channel) {
-					runCatching {
-						msg.start()
-						msg.join()
-					}
-				}
-			}
-		}
+		private val loop = ChannelLoop()
+		fun submit(block: suspend CoroutineScope.() -> Unit) = loop.submit(block = block)
 	}
 
 	val tools: ObservableList<Tool>
@@ -103,38 +91,32 @@ interface ToolMode : SourceMode {
 	var activeToolProperty: ObjectProperty<Tool?>
 	var activeTool: Tool?
 
-	val modeToolsBar: ActionBar
-	val modeActionsBar: ActionBar
-	val toolActionsBar: ActionBar
+	val actionBar: ModeToolActionBar
 
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
 	 */
-	var subscriptions: Subscription
+	var subscriptions: Subscription?
 
 	override fun enter() {
-		/* Keep default tool selected if nothing else */
-		val activeToolSubscription = activeToolProperty.subscribe { activeTool ->
+		/* Keep the default tool selected if nothing else */
+		subscriptions += activeToolProperty.subscribe { activeTool ->
 			(activeTool ?: defaultTool)?.let { switchTool(it) }
 		}
-		val activeViewerSubscription = activeViewerProperty.subscribe { old, new ->
+		subscriptions += activeViewerProperty.subscribe { old, new ->
 			/* remove the actions from old, add to new */
 			activeViewerActions.forEach { actionSet ->
 				old?.viewer()?.removeActionSet(actionSet)
 				new?.viewer()?.installActionSet(actionSet)
 			}
 		}
-
-		subscriptions = subscriptions
-			.and(activeToolSubscription)
-			.and(activeViewerSubscription)
 		super.enter()
 	}
 
 	override fun exit() {
 		super.exit()
-		subscriptions.unsubscribe()
-		subscriptions = Subscription.EMPTY
+		subscriptions?.unsubscribe()
+		subscriptions = null
 		runBlocking {
 			switchTool(null)?.join()
 		}
@@ -142,13 +124,14 @@ interface ToolMode : SourceMode {
 
 	fun switchTool(tool: Tool?): Job? {
 		synchronized(this) {
+
 			if (activeTool == tool)
 				return null
 
 			LOG.debug { "Switch from $activeTool to $tool" }
 
 
-			val switchToolJob = ToolChange.scope.launch(start = CoroutineStart.LAZY) {
+			val switchToolJob = ToolChange.submit {
 				LOG.debug { "Deactivated $activeTool" }
 				activeTool?.deactivate()
 				(activeTool as? ViewerTool)?.removeFromAll()
@@ -159,9 +142,9 @@ interface ToolMode : SourceMode {
 				activeTool = when {
 					activeMode != this@ToolMode -> null // wrong mode
 					tool?.isValidProperty?.value == false -> null // tool is not currently valid
-					else -> tool?.apply {
-						activate()
-						LOG.debug { "Activated $activeTool" }
+					else -> tool?.also {
+						it.activate()
+						LOG.debug { "Activated $it" }
 					} // try to activate
 				}
 			}
@@ -172,69 +155,63 @@ interface ToolMode : SourceMode {
 					else -> LOG.error(cause) { "Switch to $tool failed" }
 				}
 			}
-
-			ToolChange.scope.launch {
-				ToolChange.channel.send(switchToolJob)
-			}
-
 			return switchToolJob
 		}
 	}
 
 	private fun showToolBars(show: Boolean = true) {
-		modeToolsBar.show(show)
-		modeActionsBar.show(show)
-		toolActionsBar.show(show)
+		actionBar.isVisible = show
+		actionBar.isManaged = show
 	}
 
-	fun createToolBar(): GridPane {
-		return GridPane().apply {
-
-			var col = 0
-
-			modeToolsBar.set(*tools.filterIsInstance<ToolBarItem>().toTypedArray())
-			addColumn(col++, modeToolsBar)
-
-			modeActionsBar.set(*activeViewerActions.toTypedArray())
-			addColumn(col++, modeActionsBar)
-
-			addColumn(col, toolActionsBar)
-
-
-			modeToolsBar.toggleGroup?.apply {
-				/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
-				selectedToggleProperty().addListener { _, _, selected ->
-					selected?.let {
-						(it.userData as? Tool)?.let { tool ->
-							if (activeTool != tool) {
-								val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
-								if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
-									selectViewerBefore {
-										switchTool(tool)
-									}
-								} else {
+	fun bindTogglesForActiveTool() {
+		var prevActiveToolSubscription = AtomicReference<Subscription?>(null)
+		actionBar.modeToolsGroup.apply {
+			subscriptions += selectedToggleProperty().subscribe { _, selected ->
+				selected?.let {
+					(it.userData as? Tool)?.let { tool ->
+						if (activeTool != tool) {
+							val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
+							if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
+								selectViewerBefore {
 									switchTool(tool)
 								}
-								//TODO this should be refactored and more generic
-								(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
+							} else {
+								switchTool(tool)
 							}
+							//TODO this should be refactored and more generic
+							(tool as? PaintTool)?.enteredWithoutKeyTrigger = true
 						}
-					} ?: switchTool(defaultTool)
-				}
+					}
+				} ?: switchTool(defaultTool)
+			}
 
-				/* when the active tool changes, update the toggle to reflect the active tool */
-				activeToolProperty.subscribe { tool ->
-					tool?.let { newTool ->
-						toggles
-							.firstOrNull { it.userData == newTool }
-							?.also { toggleForTool -> selectToggle(toggleForTool) }
-						val toolActionSets = newTool.actionSets.toTypedArray()
-						InvokeOnJavaFXApplicationThread { toolActionsBar.set(*toolActionSets) }
+			/* when the active tool changes, update the toggle to reflect the active tool */
+			subscriptions += activeToolProperty.subscribe { tool ->
+				tool?.let { newTool ->
+					toggles.firstOrNull { it.userData == newTool }?.let { toggleForTool -> selectToggle(toggleForTool) }
+					val toolActionSets = newTool.actionSets.toList()
+					InvokeOnJavaFXApplicationThread {
+						prevActiveToolSubscription.getAndUpdate { prev ->
+							prev?.unsubscribe()
+							actionBar.addActionSets(toolActionSets, actionBar.toolActionsGroup)
+						}
+						subscriptions += prevActiveToolSubscription.get()
 					}
 				}
 			}
 		}
+	}
 
+	fun createToolBar(): ModeToolActionBar = actionBar.apply {
+		/* Add modeTools to toolbar */
+		subscriptions += addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
+
+		/* add modeActions toolbar*/
+		subscriptions += addActionSets(activeViewerActions.toList(), modeActionsGroup)
+
+		/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
+		bindTogglesForActiveTool()
 	}
 
 	/**
@@ -464,11 +441,8 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	final override var activeToolProperty: ObjectProperty<Tool?> = SimpleObjectProperty<Tool?>()
 	final override var activeTool by activeToolProperty.nullable()
 
-	override val modeActionsBar: ActionBar = ActionBar()
-	override val modeToolsBar: ActionBar = ActionBar()
-	override val toolActionsBar: ActionBar = ActionBar()
-
-	override var subscriptions: Subscription = Subscription.EMPTY
+	override val actionBar: ModeToolActionBar = ModeToolActionBar()
+	override var subscriptions: Subscription? = null
 
 	override val statusProperty: StringProperty = SimpleStringProperty()
 	protected fun escapeToDefault() = painteraActionSet("escape to default") {
@@ -493,7 +467,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 				}
 			}
 		}
-		subscriptions = subscriptions.and(activeToolStatusSub)
+		subscriptions += activeToolStatusSub
 	}
 
 	override fun exit() {

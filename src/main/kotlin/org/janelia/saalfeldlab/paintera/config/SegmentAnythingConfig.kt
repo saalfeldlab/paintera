@@ -1,13 +1,15 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import com.google.gson.*
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValueBase
+import javafx.collections.FXCollections
 import javafx.event.EventHandler
+import javafx.geometry.HPos
 import javafx.geometry.Pos
 import javafx.scene.control.*
 import javafx.scene.layout.ColumnConstraints
@@ -18,14 +20,17 @@ import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Style
+import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_COMPRESS_ENCODING
+import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_IMAGE_ENCODING
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_MODEL_LOCATION
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_RESPONSE_TIMEOUT
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_SERVICE_URL
+import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.ImageEncoding
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.UUID
@@ -50,13 +55,21 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 	private val compressEncodingProperty = SimpleBooleanProperty(DEFAULT_COMPRESS_ENCODING)
 	var compressEncoding: Boolean by compressEncodingProperty.nonnull()
 
+	internal val imageEncodingProperty = SimpleObjectProperty<ImageEncoding>(ImageEncoding.JPG)
+	var imageEncoding: ImageEncoding by imageEncodingProperty.nonnull()
+
 	internal val allDefault
 		get() = serviceUrl == DEFAULT_SERVICE_URL && modelLocation == DEFAULT_MODEL_LOCATION && responseTimeout == DEFAULT_RESPONSE_TIMEOUT
 
 	@Transient
 	private val observableInvalidationBinding = serviceUrlProperty.createObservableBinding(modelLocationProperty, responseTimeoutProperty, compressEncodingProperty) {
 		UUID.randomUUID()
-	}.apply { subscribe { _ -> fireValueChangedEvent() } } //trigger the SegmentAnythingConfig listeners
+	}.apply {
+		subscribe { _ ->
+			this.get() // validate the UUID binding change
+			fireValueChangedEvent()
+		}
+	} //trigger the SegmentAnythingConfig listeners
 
 	override fun getValue() = this
 
@@ -69,9 +82,17 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 		internal const val DEFAULT_SERVICE_URL = "https://samservice.janelia.org/"
 		internal const val DEFAULT_MODEL_LOCATION = "sam/sam_vit_h_4b8939.onnx"
 		internal const val DEFAULT_RESPONSE_TIMEOUT = 10 * 1000
+
 		internal const val DEFAULT_COMPRESS_ENCODING = true
+		internal val DEFAULT_IMAGE_ENCODING = ImageEncoding.JPG
+
+		enum class ImageEncoding {
+			JPG,
+			PNG
+		}
 	}
 }
+
 
 class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane() {
 
@@ -86,6 +107,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 		addModelLocationConfigRow(1)
 		addResponseTimeoutConfigRow(2)
 		addCompressEncodingConfigRow(3)
+		addImageEncodingConfigRow(4)
 
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.ALWAYS })
@@ -115,7 +137,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			add(this, 1, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { serviceTextField.text = DEFAULT_SERVICE_URL }
 			add(it, 2, row)
 		}
@@ -142,7 +164,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			add(it, 1, row)
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { modelTextField.text = DEFAULT_MODEL_LOCATION }
 			add(it, 2, row)
 		}
@@ -169,7 +191,7 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 			}
 		}
 		Button().also {
-			it.graphic = FontAwesome[FontAwesomeIcon.UNDO]
+			it.addStyleClass(Style.RESET_ICON)
 			it.onAction = EventHandler { responseTimeoutField.textField.text = "$DEFAULT_RESPONSE_TIMEOUT" }
 			add(it, 2, row)
 		}
@@ -179,13 +201,28 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 		Label("Compress Encoding").also {
 			add(it, 0, row)
 			it.alignment = Pos.BASELINE_LEFT
-			it.minWidth = Label.USE_PREF_SIZE
+			it.minWidth = USE_PREF_SIZE
 		}
 		CheckBox().also {
 			it.selectedProperty().addListener { _, _, check ->
 				config.compressEncoding = check
 			}
-			add(it, 2, row)
+			add(it, 1, row, GridPane.REMAINING, 1)
+			GridPane.setHalignment(it, HPos.RIGHT)
+		}
+	}
+
+	private fun GridPane.addImageEncodingConfigRow(row: Int) {
+		Label("Image Encoding").also {
+			add(it, 0, row)
+			it.alignment = Pos.BASELINE_LEFT
+			it.minWidth = USE_PREF_SIZE
+		}
+		ComboBox(FXCollections.observableList(ImageEncoding.entries)).also {
+			it.value = config.imageEncoding
+			it.valueProperty().bindBidirectional(config.imageEncodingProperty)
+			add(it, 1, row, GridPane.REMAINING, 1)
+			GridPane.setHalignment(it, HPos.RIGHT)
 		}
 	}
 }
@@ -206,6 +243,8 @@ class SamServiceConfigSerializer : PainteraSerialization.PainteraAdapter<Segment
 				it[src::responseTimeout.name] = src.responseTimeout
 			if (src.compressEncoding != DEFAULT_COMPRESS_ENCODING)
 				it[src::compressEncoding.name] = src.compressEncoding
+			if (src.imageEncoding != DEFAULT_IMAGE_ENCODING)
+				it[src::imageEncoding.name] = src.imageEncoding.name.lowercase()
 		}
 	}
 
@@ -216,6 +255,7 @@ class SamServiceConfigSerializer : PainteraSerialization.PainteraAdapter<Segment
 				it[::modelLocation.name, { model: String -> modelLocation = model }]
 				it[::responseTimeout.name, { timeout: Int -> responseTimeout = timeout }]
 				it[::compressEncoding.name, { compress: Boolean -> compressEncoding = compress }]
+				it[::imageEncoding.name, { encoding: String -> imageEncoding = ImageEncoding.valueOf(encoding.trim().uppercase()) }]
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
 import gnu.trove.TCollections;
+import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.label.Label;
@@ -10,11 +11,20 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.PrimitiveIterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.StampedLock;
+import java.util.function.Supplier;
+import java.util.stream.LongStream;
+import java.util.stream.StreamSupport;
 
 public class SelectedIds extends ObservableWithListenersList {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final StampedLock lock = new StampedLock();
 	private final TLongHashSet selectedIds;
 
 	private long lastSelection = Label.INVALID;
@@ -31,107 +41,201 @@ public class SelectedIds extends ObservableWithListenersList {
 		updateLastSelection();
 	}
 
-	public boolean isActive(final long id) {
+	private <T> T withReadLock(Supplier<T> operation) {
+
+		var stamp = lock.tryOptimisticRead();
+		var result = operation.get();
+		if (lock.validate(stamp)) {
+			return result;
+		}
+
+		final long readStamp = lock.readLock();
+		try {
+			return operation.get();
+		} finally {
+			lock.unlockRead(readStamp);
+		}
+	}
+
+	private void withWriteLock(Runnable operation) {
+
+		final long stamp = lock.writeLock();
+		try {
+			operation.run();
+		} finally {
+			lock.unlockWrite(stamp);
+		}
+	}
+
+	private boolean isActiveNoLock(long id) {
 
 		return selectedIds.contains(id);
 	}
 
-	public void activate(final long... ids) {
-
-		deactivateAll(false);
-		activateAlso(ids);
-		LOG.debug("Activated " + Arrays.toString(ids) + " " + selectedIds);
-	}
-
-	public void activateAlso(final long... ids) {
+	private void activateAlsoNoLock(final long... ids) {
 
 		for (final long id : ids) {
 			selectedIds.add(id);
 		}
 		if (ids.length > 0)
 			this.lastSelection = ids[0];
+	}
+
+	private void deactivateAllNoLock() {
+
+		selectedIds.clear();
+		lastSelection = Label.INVALID;
+	}
+
+	public boolean isActive(final long id) {
+
+		return withReadLock(() -> isActiveNoLock(id));
+	}
+
+	public void activate(final long... ids) {
+
+		withWriteLock(() -> {
+			deactivateAllNoLock();
+			activateAlsoNoLock(ids);
+			LOG.debug("Activated " + Arrays.toString(ids) + " " + selectedIds);
+		});
+		stateChanged();
+	}
+
+	public void activateAlso(final long... ids) {
+
+		withWriteLock(() -> activateAlsoNoLock(ids));
 		stateChanged();
 	}
 
 	public void deactivateAll() {
 
-		deactivateAll(true);
-	}
-
-	private void deactivateAll(final boolean notify) {
-
-		selectedIds.clear();
-		lastSelection = Label.INVALID;
-		if (notify)
-			stateChanged();
+		withWriteLock(this::deactivateAllNoLock);
+		stateChanged();
 	}
 
 	public void deactivate(final long... ids) {
 
-		for (final long id : ids) {
-			selectedIds.remove(id);
-			if (id == lastSelection)
-				lastSelection = Label.INVALID;
-		}
-		LOG.debug("Deactivated {}, {}", Arrays.toString(ids), selectedIds);
+		withWriteLock(() -> {
+			for (final long id : ids) {
+				selectedIds.remove(id);
+				if (id == lastSelection)
+					lastSelection = Label.INVALID;
+			}
+			LOG.debug("Deactivated {}, {}", Arrays.toString(ids), selectedIds);
+		});
 		stateChanged();
 	}
 
 	public boolean isOnlyActiveId(final long id) {
 
-		return selectedIds.size() == 1 && isActive(id);
+		return withReadLock(() -> selectedIds.size() == 1 && isActiveNoLock(id));
 	}
 
 	public TLongSet getActiveIds() {
 
-		return TCollections.unmodifiableSet(this.selectedIds);
+		return withReadLock(() -> TCollections.unmodifiableSet(new TLongHashSet(this.selectedIds)));
 	}
 
 	public long[] getActiveIdsCopyAsArray() {
 
-		return this.selectedIds.toArray();
+		return withReadLock(this.selectedIds::toArray);
 	}
 
 	public boolean isEmpty() {
 
-		return this.selectedIds.isEmpty();
+		return withReadLock(this.selectedIds::isEmpty);
 	}
 
 	public long getLastSelection() {
 
-		return this.lastSelection;
+		return withReadLock(() -> this.lastSelection);
 	}
 
 	public boolean isLastSelection(final long id) {
 
-		return this.lastSelection == id;
+		return withReadLock(() -> this.lastSelection == id);
 	}
 
 	public boolean isLastSelectionValid() {
 
-		return this.lastSelection != Label.INVALID;
+		return withReadLock(() -> this.lastSelection != Label.INVALID);
 	}
 
 	@Override
 	public String toString() {
 
-		return selectedIds.toString();
-	}
-
-	private void updateLastSelection() {
-
-		if (selectedIds.size() > 0) {
-			lastSelection = selectedIds.iterator().next();
-		}
+		return withReadLock(selectedIds::toString);
 	}
 
 	/**
-	 * Package protected for {@link SelectedSegments} internal use.
+	 * Returns a LongStream backed directly by the TLongHashSet.
+	 * The stream holds a read lock during operation, blocking writers but allowing other readers.
+	 * <p>
+	 * WARNING: The read lock is held until the stream is fully consumed or closed.
+	 * Long-running stream operations will block writers.
 	 *
-	 * @return
+	 * @return LongStream that can be used sequentially or in parallel
 	 */
-	TLongHashSet getSet() {
+	public LongStream stream() {
 
-		return selectedIds;
+		return lockedStream(false);
+
+	}
+
+	/**
+	 * Returns a parallel LongStream backed directly by the TLongHashSet.
+	 * The stream holds a read lock during operation, blocking writers but allowing other readers.
+	 * <p>
+	 * WARNING: The read lock is held until the stream is fully consumed or closed.
+	 * Long-running stream operations will block writers.
+	 *
+	 * @return Parallel LongStream
+	 */
+	public LongStream parallelStream() {
+
+		return lockedStream(true);
+	}
+
+	private LongStream lockedStream(boolean parallel) {
+
+		final var wrappedTroveLongIterator = new PrimitiveIterator.OfLong() {
+
+			final TLongIterator tIterator = selectedIds.iterator();
+
+			@Override public boolean hasNext() {
+
+				return tIterator.hasNext();
+			}
+
+			@Override public long nextLong() {
+
+				return tIterator.next();
+			}
+		};
+
+		final Spliterator.OfLong spliterator = Spliterators.spliterator(
+				wrappedTroveLongIterator,
+				selectedIds.size(),
+				Spliterator.SIZED | Spliterator.DISTINCT | Spliterator.NONNULL | Spliterator.SUBSIZED | Spliterator.IMMUTABLE);
+
+		final Lock readLock = lock.asReadLock();
+		readLock.lock();
+		try {
+			return StreamSupport
+					.longStream(spliterator, parallel)
+					.onClose(readLock::unlock);
+		} catch (final Exception e) {
+			readLock.unlock();
+			throw e;
+		}
+	}
+
+	private void updateLastSelection() {
+		// Note: This method is called from constructor, so no locking needed
+		// Also called from deactivateAll which already holds write lock
+		if (!selectedIds.isEmpty()) {
+			lastSelection = selectedIds.iterator().next();
+		}
 	}
 }

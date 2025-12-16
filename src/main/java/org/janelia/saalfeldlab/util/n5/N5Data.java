@@ -13,11 +13,11 @@ import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.UncheckedVolatileCache;
 import net.imglib2.img.NativeImg;
-import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.interpolation.InterpolatorFactory;
@@ -25,7 +25,6 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -38,12 +37,10 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
-import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.LabelMultisetUtilsKt;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -683,19 +680,17 @@ public class N5Data {
 			final SharedQueue queue,
 			final int priority) {
 
-		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedLabelMultisetImage
-				= N5LabelMultisets.openLabelMultiset(n5, dataset, LabelMultisetUtilsKt.constantNullReplacementEmptyArgMax(Label.BACKGROUND));
+		final var cachedLabelMultisetImage = LabelMultisetUtilsKt.openLabelMultiset(n5, dataset);
+		final var vcache = new WeakRefVolatileCache(
+				cachedLabelMultisetImage.getCache(),
+				queue,
+				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
 
 		final int dimensions = cachedLabelMultisetImage.numDimensions();
 		if (dimensions != 3) {
 			throw new UnsupportedOperationException("Label Multiset Type is only supported for 3D data, but " + dataset + " iss " + dimensions + " dimensional");
 		}
 
-		final boolean isDirty = AccessFlags.ofAccess(cachedLabelMultisetImage.getAccessType()).contains(AccessFlags.DIRTY);
-		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCache(
-				cachedLabelMultisetImage.getCache(),
-				queue,
-				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedLabelMultisetImage.getCellGrid()));
 		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
@@ -843,8 +838,8 @@ public class N5Data {
 				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-				imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
-						imagesWithInvalidate[fScale].transform.copy(),
+				imagesWithInvalidate[fScale].transform().set(N5Helpers.considerDownsampling(
+						imagesWithInvalidate[fScale].transform().copy(),
 						downsamplingFactors,
 						initialDonwsamplingFactors));
 				LOG.debug("Populated scale level {}", fScale);

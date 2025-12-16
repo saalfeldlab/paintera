@@ -10,6 +10,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import kotlin.Triple;
 import kotlin.coroutines.EmptyCoroutineContext;
 import kotlinx.coroutines.BuildersKt;
 import net.imglib2.Cursor;
@@ -26,7 +27,7 @@ import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -36,9 +37,9 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.net.imglib2.util.ValueTriple;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -58,7 +59,6 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.janelia.saalfeldlab.net.imglib2.converter.read.read.ConvertedRandomAccessibleInterval;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -215,7 +215,6 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 				new WrappedGetMeshFromMeshCacheKey<>(getMeshFor),
 				viewer.viewer3D().getViewFrustumProperty(),
 				viewer.viewer3D().getEyeToWorldTransformProperty(),
-				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
 	}
@@ -433,7 +432,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		}
 
 		return new ObservableDataSource<>(fillUpdateListener, new RandomAccessibleIntervalDataSource<>(
-				new ValueTriple<>(data, vdata, transforms),
+				new Triple<>(data, vdata, transforms),
 				new InvalidateDelegates<>(Arrays.asList(new InvalidateDelegates<>(invalidate), new InvalidateDelegates<>(vinvalidate))),
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),

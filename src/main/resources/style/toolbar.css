@@ -1,20 +1,53 @@
-@import url(glyphs.css);
+@import url(ikonli.css);
+@import url(menubar.css);
 
 .root {
-    -toolbar-tool-height: 1.75em;
-    -toolbar-tool-width: 1.75em;
+    -toolbar-graphic-size: 1.75em;
+    -toolbar-graphic-height: -toolbar-graphic-size;
+    -toolbar-graphic-width: -toolbar-graphic-size;
+
+    -toolbar-icon-size: -toolbar-graphic-height;
+
+    -toolbar-control-height: 2.25em;
+    -toolbar-control-width: 2.75em;
 }
 
-.toolbar-button {
-    -fx-padding: .5em .5em .5em .5em;
+/*TODO: Try and use Skins instead of injecting graphic nodes. See Style.kt*/
+/*.toolbar-control.button:not(.font-icon) {*/
+/*    -fx-skin: "org.janelia.saalfeldlab.paintera.RegionGraphicButtonSkin";*/
+/*}*/
+/*.toolbar-control.toggle-button:not(.font-icon) {*/
+/*    -fx-skin "org.janelia.saalfeldlab.paintera.RegionGraphicButtonSkin";*/
+/*}*/
+
+.toolbar {
+    /* This is how the percent is calculated, but we can't do this with the variable.
+     * I think it's a javafx css limitation
+     *-menu-bar-height-percent-of-toolbar-control-height: calc(2 - (-toolbar-control-height / -menu-bar-height));
+     *-menu-bar-height-percent-of-toolbar-control-height: calc(2 - (2.25em / 2em));
+     *-menu-bar-height-percent-of-toolbar-control-height: calc(2 - (1.125));
+     *-menu-bar-height-percent-of-toolbar-control-height: 87.5;
+     */
+    -fx-background-color: linear-gradient(to bottom, -menu-bar-start-color, -menu-bar-end-color 87.5%, -menu-bar-end-color);
 }
 
-.toolbar-tool.glyph-icon {
-    /* NOTE: Cannot use `em` here, due to this bug: https://bitbucket.org/Jerady/fontawesomefx/issues/59/infinitely-increasing-glyph-size*/
-    -glyph-size: -toolbar-tool-height-px;
+.toolbar-control {
+    -fx-max-width: -toolbar-control-width;
+    -fx-max-height: -toolbar-control-height;
+    -fx-min-width: -toolbar-control-width;
+    -fx-min-height: -toolbar-control-height;
 }
 
-.scale-pane.toolbar-graphic {
-    -pref-width: -toolbar-tool-width;
-    -pref-height: -toolbar-tool-height;
+.toolbar-control > .toolbar-graphic {
+    -fx-pref-width: -toolbar-graphic-width;
+    -fx-pref-height: -toolbar-graphic-height;
+    -fx-max-width: -toolbar-graphic-width;
+    -fx-max-height: -toolbar-graphic-height;
+    -fx-min-width: -toolbar-graphic-width;
+    -fx-min-height: -toolbar-graphic-height;
+    -fx-icon-size: -toolbar-icon-size;
+}
+
+.toolbar-control:hover  > .toolbar-graphic {
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 5, 0.0, 0, 1);
 }

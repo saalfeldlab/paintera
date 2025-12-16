@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
-import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
+import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
 import bdv.viewer.TransformListener
 import com.google.gson.annotations.Expose

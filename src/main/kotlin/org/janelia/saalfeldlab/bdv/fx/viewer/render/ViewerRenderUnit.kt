@@ -1,4 +1,4 @@
-package bdv.fx.viewer.render
+package org.janelia.saalfeldlab.bdv.fx.viewer.render
 
 import bdv.cache.CacheControl
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerState

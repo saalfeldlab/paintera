@@ -45,8 +45,8 @@ import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.operators.SetZero;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -258,7 +258,17 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			valid = true;
 			numInvalidPixels.set(0);
 			final byte idx = (byte) resolutionLevel;
-			tasks.add(Executors.callable(() -> map(idx, -1, -1), null));
+			final var minHeight = (int)sourceInterval.min(1);
+			final var maxHeight = (int)sourceInterval.max(1);
+			final double parallelism = taskExecutor.getParallelism();
+			final var chunkHeight = Math.min(100, Math.ceil((maxHeight - minHeight) / parallelism));
+			var startHeight = minHeight;
+			while (startHeight < maxHeight && !canceled.get()) {
+				final var start = startHeight;
+				final var end = (int)Math.min(start + chunkHeight, maxHeight);
+				tasks.add(Executors.callable(() -> map(idx, start, end), null));
+				startHeight = end;
+			}
 
 			try {
 				taskExecutor.getExecutorService().invokeAll(tasks);
@@ -305,33 +315,30 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		if (canceled.get())
 			return;
 
-		final AtomicInteger myNumInvalidPixels = new AtomicInteger();
+		final var mapInterval = Intervals.createMinMax(
+				sourceInterval.min(0), startHeight, sourceInterval.min(2),
+				sourceInterval.max(0), endHeight, sourceInterval.max(2) );
 
-		LoopBuilder.setImages(
-						Views.interval(new BundleView<>(target), sourceInterval),
-						Views.interval(new BundleView<>(sources.get(resolutionIndex)), sourceInterval),
-						Views.interval(mask, sourceInterval)
-				).multiThreaded(taskExecutor)
-				.forEachChunk(chunk -> {
-					if (canceled.get()) {
-						Thread.currentThread().interrupt();
-						return null;
-					}
-					chunk.forEachPixel((targetVal, sourceVal, maskVal) -> {
-						if (maskVal.get() > resolutionIndex) {
-							final A a = sourceVal.get();
-							final boolean v = a.isValid();
-							if (v) {
-								converter.convert(a, targetVal.get());
-								maskVal.set(resolutionIndex);
-							} else
-								myNumInvalidPixels.incrementAndGet();
-						}
-					});
-					return null;
-				});
-		numInvalidPixels.addAndGet(myNumInvalidPixels.get());
-		if (myNumInvalidPixels.get() != 0)
-			valid = false;
+		final var targetCursor = Views.interval(target, mapInterval).cursor();
+		final var sourceCursor = Views.interval(sources.get(resolutionIndex), mapInterval).cursor();
+		final var maskCursor = Views.interval(mask, mapInterval).cursor();
+
+		while (maskCursor.hasNext()) {
+			if (canceled.get())
+				return;
+			ByteType mask = maskCursor.next();
+			sourceCursor.fwd();
+			targetCursor.fwd();
+			if (mask.get() > resolutionIndex) {
+				A source = sourceCursor.get();
+				B target = targetCursor.get();
+				if (source.isValid()) {
+					converter.convert(source, target);
+					mask.set(resolutionIndex);
+				} else {
+					valid = false;
+				}
+			}
+		}
 	}
 }

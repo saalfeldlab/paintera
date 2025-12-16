@@ -36,7 +36,7 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.CombinesErrorMessages
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.NameField
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
@@ -50,6 +50,7 @@ import java.util.UUID
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.function.Supplier
+import kotlin.jvm.optionals.getOrNull
 
 class OpenSourceDialog(
 	val state: OpenSourceState,
@@ -173,7 +174,7 @@ class OpenSourceDialog(
 
 		}
 		isResizable = true
-		PainteraAlerts.initAppDialog(this)
+		initAppDialog()
 		dialogPane.scene.window.sizeToScene()
 	}
 
@@ -237,9 +238,9 @@ class OpenSourceDialog(
 				var openSourceState = OpenSourceState()
 				try {
 					N5FactoryOpener(openSourceState).backendDialog().apply {
-						PainteraAlerts.initAppDialog(this)
+						initAppDialog()
 						headerText = "Open Source Dataset"
-						val openSourceState = showAndWait().nullable ?: return@BiConsumer
+						val openSourceState = showAndWait().getOrNull() ?: return@BiConsumer
 
 						N5OpenSourceHelper.addSource(type, openSourceState, metaPanel.channelInformation().channelSelectionCopy, paintera)
 					}
@@ -252,7 +253,7 @@ class OpenSourceDialog(
 					}
 
 					Exceptions.exceptionAlert(Constants.NAME, "Unable to add source", e).apply {
-						PainteraAlerts.initAppDialog(this)
+						initAppDialog()
 						paintera.node.scene?.window?.also { initOwner(it) }
 						show()
 					}

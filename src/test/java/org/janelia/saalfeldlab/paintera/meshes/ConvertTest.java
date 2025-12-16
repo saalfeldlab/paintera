@@ -6,14 +6,15 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.hash.TIntHashSet;
-import org.janelia.saalfeldlab.net.imglib2.util.Triple;
+import kotlin.Triple;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -40,8 +41,8 @@ public class ConvertTest {
 		Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> luts = Convert.convertToLUT
 				(triangles);
 
-		ArrayList<TIntHashSet> vertexTriangleLUT = luts.getB();
-		ArrayList<TIntArrayList> triangleVertexLUT = luts.getC();
+		ArrayList<TIntHashSet> vertexTriangleLUT = luts.getSecond();
+		ArrayList<TIntArrayList> triangleVertexLUT = luts.getThird();
 
 		for (int i = 0; i < vertexTriangleLUT.size(); ++i) {
 			final int[] triangleIndices = vertexTriangleLUT.get(i).toArray();
@@ -55,7 +56,7 @@ public class ConvertTest {
 				assertTrue(vertexTriangleLUT.get(vertexIndices[j]).contains(i));
 		}
 
-		float[] test = Convert.convertFromLUT(luts.getA(), luts.getC());
+		float[] test = Convert.convertFromLUT(luts.getFirst(), luts.getThird());
 
 		assertArrayEquals(triangles, test, 0.001f);
 	}
