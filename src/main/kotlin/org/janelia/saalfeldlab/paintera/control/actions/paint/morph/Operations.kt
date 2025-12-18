@@ -16,6 +16,7 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
+import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.translate
@@ -110,9 +111,11 @@ object MorphOperations {
             .accessFlags(setOf(AccessFlags.VOLATILE))
             .cellDimensions(*cellDimensions)
 
+        val extendedLabelsMask = Views.extendValue(labelsMask, 0.0).interval(labelsMask)
+
         val gaussianImg = DiskCachedCellImgFactory(DoubleType(), options)
             .create(labelsMask) { cell ->
-                paddedGaussianSmoothing(labelsMask, cell, kernelSizePx, sigma)
+                paddedGaussianSmoothing(extendedLabelsMask, cell, kernelSizePx, sigma)
             }
         return GaussianSmoothingMask(gaussianImg)
     }

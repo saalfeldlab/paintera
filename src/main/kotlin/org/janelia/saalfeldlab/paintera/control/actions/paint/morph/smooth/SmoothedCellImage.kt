@@ -17,13 +17,14 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.Dilat
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodedCellImage
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
+import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.isEmpty
 import kotlin.math.ceil
 
 data class SmoothedCellImage(
-    val initLabelsImg: RandomAccessibleInterval<UnsignedLongType>,
+    val labelsRai: RandomAccessibleInterval<UnsignedLongType>,
     val gaussianSmoothingMask: RandomAccessibleInterval<DoubleType>,
     val erodedCellImg: ErodedCellImage,
     val dilatedCellImg: DilatedCellImage,
