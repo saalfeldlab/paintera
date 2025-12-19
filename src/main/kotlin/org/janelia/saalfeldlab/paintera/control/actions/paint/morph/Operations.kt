@@ -16,7 +16,6 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
-import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.translate
@@ -89,15 +88,11 @@ object MorphOperations {
                     }
                 }
 
-                // Run the distance transform - writes go directly to both padded cells
                 DistanceTransform.voronoiDistanceTransform(paddedLabelsImg, paddedDistancesCell, *sqWeights)
-
-                // No copy needed! Writes to the cell regions already went to `cell` and `distances`
             }
         val translation = labelsImg.minAsLongArray()
-        val aligendVoronoiLabels = voronoiLabels.translate(*translation)
-        aligendVoronoiLabels.getAt(labelsImg.minAsPoint())
-        return VoronoiDistanceTransformImgs(aligendVoronoiLabels, distances.translate(*translation))
+        val alignedVoronoiLabels = voronoiLabels.translate(*translation)
+        return VoronoiDistanceTransformImgs(alignedVoronoiLabels, distances.translate(*translation))
     }
 
     fun paddedCellGaussianSmoothing(

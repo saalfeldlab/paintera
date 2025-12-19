@@ -173,12 +173,14 @@ data class DilatedCellImage(
 							continue
 						}
 					}
+					/* We need to do this here to compute the distances even if we we are not expanding with nearestLabel */
+					val nearestLabel = paddedLabelsCursor.get()
 					val distances = paddedDistancesCursor.get()
 					val label = if (distances.get() <= sqKernelSize) {
 						when (strategy) {
 							InfillStrategy.Replace -> replacement
 							InfillStrategy.Background -> BACKGROUND
-							InfillStrategy.NearestLabel -> paddedLabelsCursor.get().get()
+							InfillStrategy.NearestLabel -> nearestLabel.get()
 						}
 					} else initialValue
 

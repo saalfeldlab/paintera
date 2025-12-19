@@ -10,6 +10,7 @@ import net.imglib2.type.label.Label.BACKGROUND
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.view.Views
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.MorphDirection
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.MorphOperations
@@ -17,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.Dilat
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodedCellImage
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
-import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.isEmpty
@@ -165,13 +165,16 @@ data class SmoothedCellImage(
             val cellDimensions =
                 cellDimensions ?: IntArray(resolution.size) { (kernelSizeInPixels[it] * 4).coerceAtLeast(32) }
 
-            val sigma = DoubleArray(3) { kernelSize() / resolution[it] }
-            val (gaussianSmoothingMask) = MorphOperations.paddedCellGaussianSmoothing(
-                cellDimensions,
-                kernelSizeInPixels,
-                labelsMask,
-                sigma
-            )
+            val gaussianSmoothingMask by LazyForeignValue( { kernelSize() }) { initKernelSize ->
+                val kernelSizeInPixels = IntArray(resolution.size) {
+                    ceil(initKernelSize / resolution[it]).coerceAtLeast(1.0).toInt()
+
+                }
+                val sigma = DoubleArray(3) { kernelSize() / resolution[it] }
+                val gaussianSmoothImg = MorphOperations.paddedCellGaussianSmoothing(cellDimensions, kernelSizeInPixels, labelsMask, sigma)
+                gaussianSmoothImg.img
+            }
+
 
             val smoothExtent = intervalsToSmooth.map { it.extendBy(*kernelSizeInPixels) }
 
