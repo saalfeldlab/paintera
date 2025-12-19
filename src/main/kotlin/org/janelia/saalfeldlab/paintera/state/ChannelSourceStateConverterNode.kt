@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -13,7 +13,6 @@ import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.fx.Menus
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
@@ -121,12 +120,12 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 
 			val contents = VBox(alphaBox, setButton, channels)
 
-			return with(TitledPaneExtensions) {
-				TitledPane(null, contents)
-					.also { it.isExpanded = false }
-					.also { it.graphicsOnly(tpGraphics) }
-					.also { it.alignment = Pos.CENTER_RIGHT }
-					.also { it.tooltip = Tooltip(DESCRIPTION) }
+			return TitledPane(null, contents).apply {
+				isExpanded = false
+				graphic = tpGraphics
+                contentDisplay = ContentDisplay.GRAPHIC_ONLY
+				alignment = Pos.CENTER_RIGHT
+				tooltip = Tooltip(DESCRIPTION)
 			}
 		}
 

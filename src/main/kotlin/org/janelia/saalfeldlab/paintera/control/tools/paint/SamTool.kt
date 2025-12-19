@@ -151,7 +151,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
 	}
 
-	/* lateinit so we can self-reference, so it removes itself after being triggered. */
+	@Suppress("UNNECESSARY_LATEINIT") // lateinit so we can self-reference, so it removes itself after being triggered.
 	private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
 	internal val maskedSource: MaskedSource<*, *>?
 		get() = activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>

@@ -176,13 +176,16 @@ data class ErodedCellImage(
 						continue
 					}
 
+					/* need to get the nearest label even when we don't use that value, since the distances and
+					* nearest labels are calculated at the same time */
+					val nearestLabel = voronoiLabelsCursor.get()
 					val distances = voronoiDistancesCursor.get()
 					val label = when {
 						distances.get() > sqKernelSize -> initialLabel
 						else -> when (strategy) {
 							InfillStrategy.Replace -> replacement
 							InfillStrategy.Background -> BACKGROUND
-							InfillStrategy.NearestLabel -> voronoiLabelsCursor.get().get()
+							InfillStrategy.NearestLabel -> nearestLabel.get()
 						}
 					}
 					resultLabel.set(label)

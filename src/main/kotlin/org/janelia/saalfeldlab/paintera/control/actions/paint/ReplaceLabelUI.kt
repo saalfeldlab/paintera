@@ -24,10 +24,8 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.Companion.getReplaceIdSelectionButtons
-import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.entries
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.Companion.getReplaceTargetSelectionButtons
-import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.entries
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.hGrow
@@ -297,8 +295,8 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 			children += TitledPane("", null).hvGrow titlePane@{
 				isExpanded = true
 				isCollapsible = false
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				graphic = HBox(5.0).hGrow {
-					minWidthProperty().bind(this@titlePane.widthProperty())
 					padding = Insets(0.0, 20.0, 0.0, 0.0)
 					alignment = Pos.CENTER
 					children += Label("Select Labels")
@@ -328,7 +326,6 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 						isExpanded = true
 						isCollapsible = false
 						graphic = HBox(5.0).hGrow {
-							minWidthProperty().bind(this@titlePane.widthProperty())
 							padding = Insets(0.0, 20.0, 0.0, 0.0)
 							alignment = Pos.CENTER
 							children += Label("Replace Label")
@@ -349,7 +346,6 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 						isExpanded = true
 						isCollapsible = false
 						graphic = HBox(5.0).hGrow {
-							minWidthProperty().bind(this@titlePane.widthProperty())
 							padding = Insets(0.0, 20.0, 0.0, 0.0)
 							alignment = Pos.CENTER
 							children += Label("Replace or Delete Label")

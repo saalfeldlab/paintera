@@ -45,7 +45,6 @@ import kotlin.io.path.absolutePathString
 @TestInstance(PER_CLASS)
 class CommitCanvasN5Test {
 
-	@JvmRecord
 	private data class CanvasAndContainer(val canvas: CachedCellImg<UnsignedLongType, *>, val container: N5ContainerState)
 
 	@BeforeAll

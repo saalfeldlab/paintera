@@ -171,8 +171,11 @@ class OpenSourceState {
 			val metadataState = openSourceState.metadataState!!.copy()
 			openSourceState.resolution?.let { resolution ->
 				openSourceState.translation?.let { translation ->
-					if (metadataState.resolution != resolution || metadataState.translation != translation)
-						metadataState.updateTransform(resolution, translation)
+                    if (
+                        !metadataState.resolution.contentEquals(resolution) ||
+                        !metadataState.translation.contentEquals(translation)
+                    )
+                        metadataState.updateTransform(resolution, translation)
 				}
 			}
 
@@ -190,7 +193,7 @@ class OpenSourceState {
 			channelSelection: IntArray,
 			sharedQueue: SharedQueue,
 			priority: Int
-		): List<out SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>>
+		): List<SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>>
 				where
 				T : RealType<T>, T : NativeType<T>,
 				V : AbstractVolatileRealType<T, V>, V : NativeType<V> {
@@ -200,7 +203,7 @@ class OpenSourceState {
 				it.isLabel = false
 				openSourceState.resolution?.let { resolution ->
 					openSourceState.translation?.let { translation ->
-						if (it.resolution != resolution || it.translation != translation)
+						if (!it.resolution.contentEquals(resolution) || !it.translation.contentEquals(translation))
 							it.updateTransform(resolution, translation)
 					}
 				}
@@ -239,8 +242,11 @@ class OpenSourceState {
 			}
 			openSourceState.resolution?.let { resolution ->
 				openSourceState.translation?.let { translation ->
-					if (metadataState.resolution != resolution || metadataState.translation != translation)
-						metadataState.updateTransform(resolution, translation)
+                    if (
+                        !metadataState.resolution.contentEquals(resolution) ||
+                        !metadataState.translation.contentEquals(translation)
+                    )
+                        metadataState.updateTransform(resolution, translation)
 				}
 			}
 

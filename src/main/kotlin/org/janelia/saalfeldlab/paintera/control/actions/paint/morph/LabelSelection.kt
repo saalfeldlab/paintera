@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
+import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
 import javafx.scene.control.RadioButton
 import javafx.scene.control.TitledPane
@@ -64,8 +65,8 @@ enum class LabelSelectionUI(val strategy: LabelSelection, val makeNode: LabelSel
 			TitledPane("", null).apply titlePane@{
 				isExpanded = true
 				isCollapsible = false
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				graphic = HBox(5.0).hGrow {
-					minWidthProperty().bind(this@titlePane.widthProperty())
 					padding = Insets(0.0, 20.0, 0.0, 0.0)
 					alignment = Pos.CENTER
 					children += Label("Label Selection")

@@ -13,6 +13,7 @@ import javafx.scene.Cursor
 import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -32,7 +33,6 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
@@ -347,11 +347,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			Label("Metadata"),
 			NamedNode.bufferNode()
 		).apply { alignment = Pos.CENTER }
-		val metaData = with(TitledPaneExtensions) {
-			TitledPanes.createCollapsed(null, metaDataContents).apply {
-				graphicsOnly(tpGraphics)
-				alignment = Pos.CENTER_RIGHT
-			}
+		val metaData = TitledPanes.createCollapsed(null, metaDataContents).apply {
+                graphic = tpGraphics
+                contentDisplay = ContentDisplay.GRAPHIC_ONLY
+                alignment = Pos.CENTER_RIGHT
 		}
 		return node.apply { children.add(metaData) }
 	}

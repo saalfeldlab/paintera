@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ColorPicker
+import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
@@ -79,14 +79,12 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 		)
 			.also { it.alignment = Pos.CENTER }
 
-		return TitledPanes
-			.createCollapsed(null, VBox(minMax)).apply {
-				with(TPE) { graphicsOnly(tpGraphics) }
+		return TitledPanes.createCollapsed(null, VBox(minMax)).apply {
+				graphic = tpGraphics
+                contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				alignment = Pos.CENTER_RIGHT
 				tooltip = null /* TODO */
 			}
-
-
 	}
 
 	private fun createMeshesNode() = MeshSettingsController(state.meshSettings, state::refreshMeshes).createTitledPane(

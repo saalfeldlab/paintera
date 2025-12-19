@@ -1,4 +1,4 @@
-package bdv.fx.viewer;
+package org.janelia.saalfeldlab.bdv.fx.viewer;
 
 import javafx.event.EventType;
 import javafx.scene.Node;

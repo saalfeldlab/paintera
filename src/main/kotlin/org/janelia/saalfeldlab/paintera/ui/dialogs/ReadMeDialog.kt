@@ -25,7 +25,7 @@ internal object ReadMeDialog {
 		return "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
 	}
 
-	internal fun showReadme() {
+	internal fun openReadme() {
 		Paintera.application.hostServices?.showDocument(README_URL)
 	}
 }

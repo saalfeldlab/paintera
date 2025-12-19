@@ -43,13 +43,13 @@
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
 		<!-- java -->
-		<scijava.jvm.version>21</scijava.jvm.version>
+		<scijava.jvm.version>25</scijava.jvm.version>
 		<!-- kotlin -->
-		<kotlin.version>1.9.25</kotlin.version>
+		<kotlin.version>2.3.0</kotlin.version>
 		<kotlin.compiler.incremental>false</kotlin.compiler.incremental>
 
 		<!-- maven config -->
-		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+		<maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
 		<enforcer.skip>true</enforcer.skip>
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
@@ -59,7 +59,7 @@
 		<!-- ### Dependency Versions ### -->
 
 		<!-- JavaFx Versions -->
-		<javafx.version>22.0.1</javafx.version>
+		<javafx.version>25.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
 		<saalfx.version>3.0.0</saalfx.version>
@@ -70,7 +70,10 @@
 		<dokka.version>1.4.30</dokka.version>
 
 		<!-- SciJava Overrides -->
-		<logback.version>1.4.12</logback.version>
+		<logback.version>1.5.22</logback.version>
+
+		<!-- Misc -->
+		<junit-platform-launcher.version>1.13.4</junit-platform-launcher.version>
 	</properties>
 
 	<dependencies>
@@ -87,7 +90,7 @@
 		<dependency>
 			<groupId>com.microsoft.onnxruntime</groupId>
 			<artifactId>onnxruntime</artifactId>
-			<version>1.14.0</version>
+			<version>1.23.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
@@ -239,7 +242,7 @@
 		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>controlsfx</artifactId>
-			<version>11.1.0</version>
+			<version>11.2.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.openjfx</groupId>
@@ -266,7 +269,7 @@
 		<dependency>
 			<groupId>org.fxyz3d</groupId>
 			<artifactId>fxyz3d</artifactId>
-			<version>0.5.2</version>
+			<version>0.6.0</version>
 			<!--		need to exclude slf4j-simple because of fxyz3d dependency -->
 			<exclusions>
 				<exclusion>
@@ -295,7 +298,7 @@
 		<dependency>
 			<groupId>me.xdrop</groupId>
 			<artifactId>fuzzywuzzy</artifactId>
-			<version>1.2.0</version>
+			<version>1.4.0</version>
 		</dependency>
 
 		<dependency>
@@ -353,14 +356,14 @@
 
 		<!--		markdown rendering-->
 		<dependency>
-			<groupId>com.atlassian.commonmark</groupId>
+			<groupId>org.commonmark</groupId>
 			<artifactId>commonmark</artifactId>
-			<version>0.13.0</version>
+			<version>0.24.0</version>
 		</dependency>
 		<dependency>
-			<groupId>com.atlassian.commonmark</groupId>
+			<groupId>org.commonmark</groupId>
 			<artifactId>commonmark-ext-gfm-tables</artifactId>
-			<version>0.13.0</version>
+			<version>0.24.0</version>
 		</dependency>
 
 		<dependency>
@@ -388,7 +391,7 @@
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.15.3</version>
+			<version>1.21.2</version>
 		</dependency>
 
 
@@ -404,6 +407,24 @@
 		</dependency>
 
 		<!--		Tests-->
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-test-junit5</artifactId>
+			<version>${kotlin.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.platform</groupId>
+					<artifactId>junit-platform-launcher</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.platform</groupId>
+			<artifactId>junit-platform-launcher</artifactId>
+			<version>${junit-platform-launcher.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
@@ -423,12 +444,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.jetbrains.kotlin</groupId>
-			<artifactId>kotlin-test-junit5</artifactId>
-			<version>${kotlin.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>fxsampler</artifactId>
 			<version>1.0.11</version>
@@ -437,12 +452,12 @@
 		<dependency>
 			<groupId>org.fxmisc.richtext</groupId>
 			<artifactId>richtextfx</artifactId>
-			<version>0.10.6</version>
+			<version>0.11.7</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jetbrains.kotlinx</groupId>
 			<artifactId>kotlinx-coroutines-core</artifactId>
-			<version>1.7.3</version>
+			<version>1.10.2</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -610,8 +625,8 @@
 					<annotationProcessors>
 						<annotationProcessor>org.scijava.annotations.AnnotationProcessor</annotationProcessor>
 					</annotationProcessors>
-					<source>21</source>
-					<target>21</target>
+					<source>${scijava.jvm.version}</source>
+					<target>${scijava.jvm.version}</target>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -821,11 +836,41 @@
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-maven-plugin</artifactId>
 				<version>${kotlin.version}</version>
+				<extensions>true</extensions>
+
 				<configuration>
-					<javacOptions>
-					</javacOptions>
+					<annotationProcessorPaths>
+						<annotationProcessorPath>
+							<groupId>org.scijava</groupId>
+							<artifactId>scijava-common</artifactId>
+							<version>${scijava-common.version}</version>
+						</annotationProcessorPath>
+					</annotationProcessorPaths>
 				</configuration>
+
+				<executions>
+					<execution>
+						<id>compile</id>
+						<configuration>
+							<sourceDirs>
+								<sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+								<sourceDir>${project.basedir}/src/main/java</sourceDir>
+							</sourceDirs>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>test-compile</id>
+						<configuration>
+							<sourceDirs>
+								<sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
+								<sourceDir>${project.basedir}/src/test/java</sourceDir>
+							</sourceDirs>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
+
 		</plugins>
 	</build>
 	<profiles>
@@ -934,32 +979,6 @@
 									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
 									<args>@${project.build.directory}/packaging/${os.detected.name}/jpackage.txt</args>
 								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>skip-kapt</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.jetbrains.kotlin</groupId>
-						<artifactId>kotlin-maven-plugin</artifactId>
-						<version>${kotlin.version}</version>
-						<executions>
-							<execution>
-								<id>compile</id>
-								<phase>none</phase>
-							</execution>
-							<execution>
-								<id>test-compile</id>
-								<phase>none</phase>
-							</execution>
-							<execution>
-								<id>kapt</id>
-								<phase>none</phase>
 							</execution>
 						</executions>
 					</plugin>

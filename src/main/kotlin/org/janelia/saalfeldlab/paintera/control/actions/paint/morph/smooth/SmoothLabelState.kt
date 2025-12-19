@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import net.imglib2.Interval
+import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealInterval
 import net.imglib2.Volatile
 import net.imglib2.cache.img.DiskCachedCellImg
@@ -45,6 +46,9 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
     var progress by progressProperty.nonnull()
     protected open val labelsImg: DiskCachedCellImg<UnsignedLongType, *> by LazyForeignValue({ timepoint to scaleLevel }) {
         createSourceAndCanvasImage(timepoint, scaleLevel)
+    }
+    protected open val labelsRai: RandomAccessibleInterval<UnsignedLongType> by LazyForeignValue({ labelsImg }) {
+        it.extendValue(Label.INVALID).interval(it)
     }
 
     override fun getLevelResolution(scaleLevel: Int) = resolutionAtLevel(scaleLevel)
@@ -98,7 +102,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         cellDimensions: IntArray? = null
     ): SmoothedCellImage {
         return SmoothedCellImage.createSmoothedCellImage(
-            labelsImg,
+            labelsRai,
             labels,
             { kernelSizeProperty.get().toDouble() },
             getLevelResolution(scaleLevel),
@@ -127,7 +131,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
 
         /* If the initial labels img has changed, then we can't re-use*/
         currentSmoothedCellImg?.let {
-            if (it.initLabelsImg != labelsImg)
+            if (it.labelsRai != labelsRai)
                 currentSmoothedCellImg = null
         }
 

@@ -12,14 +12,13 @@ import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.input.Clipboard
 import javafx.scene.input.ClipboardContent
 import javafx.scene.layout.*
-import jnr.ffi.Struct.alignment
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.MatchSelection
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.Style
@@ -66,10 +65,10 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 			}
 
 
-			return with(TitledPaneExtensions) {
-				TitledPanes.createCollapsed(null, contents)
-					.also { it.graphicsOnly(tpGraphics) }
-					.also { it.alignment = Pos.CENTER_RIGHT }
+			return TitledPanes.createCollapsed(null, contents).apply {
+				graphic = tpGraphics
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
+				alignment = Pos.CENTER_RIGHT
 			}
 		}
 

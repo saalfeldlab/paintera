@@ -7,13 +7,12 @@ import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import net.imglib2.type.label.LabelMultisetType
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+
 import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar.Companion.ReverseBehavior.SET
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgressState
@@ -28,8 +27,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.MeshExportModel.Companion.ini
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import kotlin.jvm.optionals.getOrNull
-
-typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
 	private val source: DataSource<*, *>,
@@ -109,9 +106,9 @@ class LabelSourceStateMeshPaneNode(
 				alignment = Pos.CENTER_LEFT
 				isFillHeight = true
 			}
-			graphicsOnly(tpGraphics)
+			graphic = tpGraphics
+			contentDisplay = ContentDisplay.GRAPHIC_ONLY
 			alignment = Pos.CENTER_RIGHT
-			meshInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
 			content = meshesBox
 		}
 	}

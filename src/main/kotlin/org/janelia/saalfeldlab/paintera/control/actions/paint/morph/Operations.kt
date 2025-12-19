@@ -88,15 +88,11 @@ object MorphOperations {
                     }
                 }
 
-                // Run the distance transform - writes go directly to both padded cells
                 DistanceTransform.voronoiDistanceTransform(paddedLabelsImg, paddedDistancesCell, *sqWeights)
-
-                // No copy needed! Writes to the cell regions already went to `cell` and `distances`
             }
         val translation = labelsImg.minAsLongArray()
-        val aligendVoronoiLabels = voronoiLabels.translate(*translation)
-        aligendVoronoiLabels.getAt(labelsImg.minAsPoint())
-        return VoronoiDistanceTransformImgs(aligendVoronoiLabels, distances.translate(*translation))
+        val alignedVoronoiLabels = voronoiLabels.translate(*translation)
+        return VoronoiDistanceTransformImgs(alignedVoronoiLabels, distances.translate(*translation))
     }
 
     fun paddedCellGaussianSmoothing(
@@ -110,9 +106,11 @@ object MorphOperations {
             .accessFlags(setOf(AccessFlags.VOLATILE))
             .cellDimensions(*cellDimensions)
 
+        val extendedLabelsMask = Views.extendValue(labelsMask, 0.0).interval(labelsMask)
+
         val gaussianImg = DiskCachedCellImgFactory(DoubleType(), options)
             .create(labelsMask) { cell ->
-                paddedGaussianSmoothing(labelsMask, cell, kernelSizePx, sigma)
+                paddedGaussianSmoothing(extendedLabelsMask, cell, kernelSizePx, sigma)
             }
         return GaussianSmoothingMask(gaussianImg)
     }

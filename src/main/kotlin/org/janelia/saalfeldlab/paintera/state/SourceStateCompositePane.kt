@@ -2,13 +2,12 @@ package org.janelia.saalfeldlab.paintera.state
 
 import javafx.beans.property.ObjectProperty
 import javafx.collections.FXCollections
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.HBox
 import javafx.util.Callback
 import net.imglib2.type.numeric.ARGBType
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -99,15 +98,14 @@ class SourceStateCompositePane {
 				}
 			).apply { alignment = Pos.CENTER }
 
-			return with(TitledPaneExtensions) {
-				TitledPane().apply {
-					isExpanded = expanded
-					isCollapsible = false
-					graphicsOnly(tpGraphics)
-					alignment = Pos.CENTER_RIGHT
-					tooltip = Tooltip(description)
-				}
-			}
+            return TitledPane().apply {
+                isExpanded = expanded
+                isCollapsible = false
+                graphic = tpGraphics
+                contentDisplay = ContentDisplay.GRAPHIC_ONLY
+                alignment = Pos.CENTER_RIGHT
+                tooltip = Tooltip(description)
+            }
 		}
 
 		private val AVAILABLE_COMPOSITES = FXC.observableArrayList(*AC.values())

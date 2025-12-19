@@ -1,8 +1,10 @@
-package net.imglib2.converter;
+package org.janelia.saalfeldlab.net.imglib2.converter;
 
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.real.DoubleType;
@@ -10,7 +12,6 @@ import net.imglib2.type.volatiles.VolatileDoubleType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
-import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.util.Colors;
 import org.junit.jupiter.api.Test;

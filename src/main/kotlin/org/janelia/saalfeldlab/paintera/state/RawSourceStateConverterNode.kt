@@ -6,6 +6,7 @@ import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -13,7 +14,6 @@ import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
@@ -146,13 +146,12 @@ class RawSourceStateConverterNode<T, V>(private val converter: ARGBColorConverte
 			)
 				.also { it.alignment = Pos.CENTER }
 
-			return with(TitledPaneExtensions) {
-				TitledPane(null, tilePane).apply {
+			return TitledPane(null, tilePane).apply {
 					isExpanded = false
-					graphicsOnly(tpGraphics)
+					graphic = tpGraphics
+					contentDisplay = ContentDisplay.GRAPHIC_ONLY
 					alignment = Pos.CENTER_RIGHT
 					tooltip = Tooltip(DESCRIPTION)
-				}
 			}
 		}
 

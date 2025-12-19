@@ -93,7 +93,7 @@ internal open class ReloadCssAction(text : String = "Reload CSS") : MenuAction(t
 				.takeUnless { styleSheetIsURL(it) }
 				?.takeIf { it.startsWith("/") }
 				?: "/$styleSheet"
-			return Paintera.javaClass.getResource(localStyleSheet)
+			return Paintera::class.java.getResource(localStyleSheet)
 				?.toExternalForm()
 				?.replace("target/classes", "src/main/resources")
 				?.let { uri ->

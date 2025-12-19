@@ -48,7 +48,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
-          java-version: 21
+          java-version: 25
           distribution: 'liberica'
           java-package: jdk+fx
           cache: 'maven'

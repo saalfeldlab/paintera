@@ -63,8 +63,8 @@ enum class InfillStrategyUI(val strategy: InfillStrategy, val makeNode: InfillSt
 			TitledPane("", null).apply titlePane@{
 				isExpanded = true
 				isCollapsible = false
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				graphic = HBox(5.0).hGrow {
-					minWidthProperty().bind(this@titlePane.widthProperty())
 					padding = Insets(0.0, 20.0, 0.0, 0.0)
 					alignment = Pos.CENTER
 					children += Label("Infill Options")
