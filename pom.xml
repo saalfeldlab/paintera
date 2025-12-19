@@ -59,8 +59,7 @@
 		<!-- ### Dependency Versions ### -->
 
 		<!-- JavaFx Versions -->
-<!--		<javafx.version>25.0.1</javafx.version>-->
-		<javafx.version>22.0.1</javafx.version>
+		<javafx.version>25.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
 		<saalfx.version>3.0.0</saalfx.version>
