@@ -7,7 +7,6 @@ import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.paintera.FontIconPatched
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
@@ -28,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.Inters
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.kordamp.ikonli.fontawesome.FontAwesome
-import org.kordamp.ikonli.javafx.FontIcon
 import java.util.function.Supplier
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
@@ -64,7 +62,7 @@ enum class PainteraMenuItems(
 	FULL_SCREEN("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN, requiredActionTypes = arrayOf(ResizeViewers, ResizePanel)),
 	SHOW_REPL("Show _REPL...", PBK.SHOW_REPL_TABS),
 	RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS, requiredActionTypes = arrayOf(ResizeViewers, ToggleMaximizeViewer, DetachViewer)),
-	SHOW_README("Show _Readme...", PBK.OPEN_README, FontAwesome.QUESTION),
+	SHOW_README("Open _Readme...", PBK.OPEN_README, FontAwesome.QUESTION),
 	SHOW_KEY_BINDINGS("Show _Key Bindings...", PBK.OPEN_KEY_BINDINGS, FontAwesome.KEYBOARD_O);
 
 	val menu: MenuItem by LazyForeignValue({ paintera }) { createMenuItem(it, this) }
@@ -104,7 +102,7 @@ enum class PainteraMenuItems(
 				NEW_LABEL_SOURCE { CreateDatasetHandler.createAndAddNewLabelDataset(baseView, getProjectDirectory) },
 				SHOW_REPL { replDialog.show() },
 				FULL_SCREEN { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
-				SHOW_README { ReadMeDialog.showReadme() },
+				SHOW_README { ReadMeDialog.openReadme() },
 				SHOW_KEY_BINDINGS { KeyBindingsDialog.show() },
 				NEW_CONNECTED_COMPONENT_SOURCE { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView, getProjectDirectory) },
 				NEW_THRESHOLDED_SOURCE { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView, getProjectDirectory) },

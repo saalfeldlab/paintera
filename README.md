@@ -260,7 +260,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Ctrl` + `Q`             | Quit Paintera                                                                                                                                                     |
 | `Shortcut` + `Alt` + `T` | Open scripting REPL                                                                                                                                               |
 | **Help**                 |                                                                                                                                                                   |
-| `F1`                     | Show Readme (this page)                                                                                                                                           |
+| `F1`                     | Open Readme (this page) in your browser                                                                                                                           |
 | `F4`                     | Show Key bindings                                                                                                                                                 |
 | **Bookmarks**            |                                                                                                                                                                   |
 | `B`                      | Bookmark current location with the current view settings                                                                                                          |
