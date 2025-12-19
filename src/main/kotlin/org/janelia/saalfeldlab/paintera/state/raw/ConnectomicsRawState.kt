@@ -9,6 +9,7 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.geometry.Pos
 import javafx.scene.Node
+import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -20,7 +21,6 @@ import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -62,7 +62,6 @@ import java.lang.reflect.Type
 import java.util.function.BiConsumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
-import kotlin.jvm.optionals.getOrNull
 
 typealias ARGBComoposite = Composite<ARGBType, ARGBType>
 
@@ -143,7 +142,8 @@ open class ConnectomicsRawState<D, T>(
 		).apply { alignment = Pos.CENTER }
 
 		val metaData = TitledPanes.createCollapsed(null, metaDataContents).apply {
-			graphicsOnly(tpGraphics)
+			graphic = tpGraphics
+			contentDisplay = ContentDisplay.GRAPHIC_ONLY
 			alignment = Pos.CENTER_RIGHT
 		}
 		box.children.add(metaData)

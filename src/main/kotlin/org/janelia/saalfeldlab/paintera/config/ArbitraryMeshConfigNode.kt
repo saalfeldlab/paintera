@@ -18,6 +18,7 @@ import javafx.stage.FileChooser
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Constants
@@ -26,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.kordamp.ikonli.fontawesome.FontAwesome.*
 import java.nio.file.Path
 import java.util.function.Consumer
 import java.util.stream.Collectors
@@ -132,7 +132,11 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 		padding = Insets.EMPTY
 		val hbox = HBox(isVisibleCheckbox, Label("Triangle Meshes"))
 		hbox.alignment = Pos.CENTER
-		TitledPanes.graphicsOnly(this, hbox, addButton)
+		text = null
+		graphic = HBox(hbox, NamedNode.bufferNode(), addButton).apply {
+			alignment = Pos.CENTER
+			padding = Insets(0.0, 35.0, 0.0, 0.0)
+		}
 
 		meshConfigs.padding = Insets.EMPTY
 
@@ -216,7 +220,13 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 				val hbox = HBox(visibleBox, nameField)
 				hbox.alignment = Pos.CENTER
 				HBox.setHgrow(nameField, Priority.ALWAYS)
-				TitledPanes.graphicsOnly(tp, hbox, removeButton)
+				val spacer = NamedNode.bufferNode()
+				val graphicsContents = HBox(hbox, spacer, removeButton).apply {
+					alignment = Pos.CENTER
+					padding = Insets(0.0, 35.0, 0.0, 0.0)
+				}
+				tp.graphic = graphicsContents
+				tp.text = null
 
 				nodeMap[meshInfo] = tp
 			}

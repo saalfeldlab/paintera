@@ -6,10 +6,10 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
@@ -80,9 +80,8 @@ class StatePane(
 			alignment = Pos.CENTER
 			padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING)
 		}
-		with(TitledPaneExtensions) {
-			pane.graphicsOnly(titleBox)
-		}
+		pane.graphic = titleBox
+		pane.contentDisplay = ContentDisplay.GRAPHIC_ONLY
 		// TODO how to get underlined in TextField?
 //        nameField.underlineProperty().bind(_isCurrentSource)
 

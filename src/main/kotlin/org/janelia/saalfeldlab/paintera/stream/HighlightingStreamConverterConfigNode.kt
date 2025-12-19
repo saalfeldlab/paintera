@@ -7,6 +7,7 @@ import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -15,7 +16,6 @@ import javafx.scene.paint.Color
 import javafx.util.converter.NumberStringConverter
 import net.imglib2.type.label.Label.*
 import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -201,13 +201,12 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			)
 				.also { it.alignment = Pos.CENTER }
 
-			return with(TitledPaneExtensions) {
-				TitledPane(null, contents).apply {
-					isExpanded = false
-					graphicsOnly(tpGraphics)
-					alignment = Pos.CENTER_RIGHT
-					tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION)
-				}
+			return TitledPane(null, contents).apply {
+				isExpanded = false
+				graphic = tpGraphics
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
+				alignment = Pos.CENTER_RIGHT
+				tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION)
 			}
 		}
 

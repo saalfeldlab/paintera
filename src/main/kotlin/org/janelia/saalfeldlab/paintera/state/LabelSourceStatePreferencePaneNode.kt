@@ -6,12 +6,12 @@ import javafx.application.Platform
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
-import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.*
 import javafx.stage.Window
 import javafx.util.StringConverter
@@ -19,14 +19,12 @@ import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.addKeyAndScrollHandlers
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -300,14 +298,13 @@ class LabelSourceStatePreferencePaneNode(
 					}
 				).also { it.alignment = Pos.CENTER }
 
-				return with(TitledPaneExtensions) {
-					TitledPane(null, grid).apply {
-						isExpanded = false
-						graphicsOnly(tpGraphics)
-						alignment = Pos.CENTER_RIGHT
-						tooltip = Tooltip(DESCRIPTION)
+				return TitledPane(null, grid).apply {
+                        isExpanded = false
+                        graphic = tpGraphics
+                        contentDisplay = ContentDisplay.GRAPHIC_ONLY
+                        alignment = Pos.CENTER_RIGHT
+                        tooltip = Tooltip(DESCRIPTION)
 					}
-				}
 
 			}
 
@@ -371,13 +368,12 @@ class LabelSourceStatePreferencePaneNode(
 						NamedNode.bufferNode()
 					).also { it.alignment = Pos.CENTER }
 
-					with(TitledPaneExtensions) {
-						TitledPane(null, undoPane).apply {
-							isExpanded = false
-							graphicsOnly(tpGraphics)
-							alignment = Pos.CENTER_RIGHT
-							tooltip = null /* TODO */
-						}
+					TitledPane(null, undoPane).apply {
+						isExpanded = false
+						graphic = tpGraphics
+						contentDisplay = ContentDisplay.GRAPHIC_ONLY
+						alignment = Pos.CENTER_RIGHT
+						tooltip = null /* TODO */
 					}
 				} else
 					null
@@ -459,12 +455,12 @@ class LabelSourceStatePreferencePaneNode(
 					}
 
 					val contents = VBox(paintSettingsPane).also { it.padding = Insets.EMPTY }
-					return TitledPanes.createCollapsed(null, contents).apply {
-						with(TPE) { graphicsOnly(tpGraphics) }
+					TitledPanes.createCollapsed(null, contents).apply {
+						graphic = tpGraphics
+						contentDisplay = ContentDisplay.GRAPHIC_ONLY
 						alignment = Pos.CENTER_RIGHT
 						tooltip = null /* TODO */
 					}
-
 				} else
 					null
 			}

@@ -6,10 +6,10 @@ import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.collections.ObservableMap
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.control.cell.PropertyValueFactory
 import javafx.scene.input.KeyCombination
 import javafx.scene.layout.GridPane
@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -88,7 +87,8 @@ class KeyAndMouseConfigNode(
 			}
 		).apply { alignment = Pos.CENTER }
 		val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
-			graphicsOnly(tpGraphics)
+			graphic = tpGraphics
+			contentDisplay = ContentDisplay.GRAPHIC_ONLY
 			alignment = Pos.CENTER_RIGHT
 		}
 
@@ -149,7 +149,8 @@ class KeyAndMouseConfigNode(
 				if (bindings.keyCombinations.isEmpty())
 					managedProperty().value = false
 				maxWidth = Double.MAX_VALUE
-				graphicsOnly(tpGraphics)
+				graphic = tpGraphics
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				alignment = Pos.CENTER_RIGHT
 			}
 		}
@@ -186,7 +187,8 @@ class KeyAndMouseConfigNode(
 
 
 			return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
-				graphicsOnly(tpGraphics)
+				graphic = tpGraphics
+				contentDisplay = ContentDisplay.GRAPHIC_ONLY
 				alignment = Pos.CENTER_RIGHT
 			}
 		}

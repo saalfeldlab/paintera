@@ -8,6 +8,7 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.shape.CullFace
@@ -19,8 +20,6 @@ import kotlinx.coroutines.async
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
@@ -137,7 +136,8 @@ class MeshSettingsController(
 		return TitledPane("", contents).apply {
 			minWidthProperty().set(0.0)
 			isExpanded = false
-			with(TitledPaneExtensions) { graphicsOnly(tpGraphics) }
+			graphic = tpGraphics
+			contentDisplay = ContentDisplay.GRAPHIC_ONLY
 			alignment = Pos.CENTER_RIGHT
 		}
 	}
@@ -292,13 +292,12 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 			it.background = Background.EMPTY
 			it.prefWidth = 10 * it.font.size
 		}
+		contentDisplay = ContentDisplay.GRAPHIC_ONLY
 		graphic = HBox(
 			meshKeyLabel, progressBar.hGrow()
 		).also {
 			it.alignment = Pos.CENTER
 			it.padding = Insets(0.0, 30.0, 0.0, 10.0)
-			it.minWidthProperty().bind(this.widthProperty().subtract(10.0))
-			graphicsOnly(it)
 		}
 	}
 
@@ -356,7 +355,6 @@ open class MeshInfoPane<T>(internal val meshInfo: MeshInfo<T>) : TitledPane(null
 		).also { titleRegion ->
 			titleRegion.alignment = Pos.CENTER
 			titleRegion.padding = Insets(0.0, 10.0, 0.0, 00.0)
-			titleRegion.minWidthProperty().bind(individualSettingsBox.widthProperty().subtract(10.0))
 		}
 		hasIndividualSettings.selectedProperty().subscribe { individualSettings ->
 			if (individualSettings && individualSettingsBox.content == null)
