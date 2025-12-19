@@ -1,4 +1,4 @@
-package bdv.util;
+package org.janelia.saalfeldlab.bdv.util;
 
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Writer;
