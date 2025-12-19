@@ -128,7 +128,7 @@ interface MeshExportModel<K> {
 
 private class MeshExportUI<K>(val model: MeshExportModel<K>) : VBox() {
 
-	private val scaleSpinner = Spinner<Integer>().apply {
+	private val scaleSpinner = Spinner<Int>().apply {
 		valueFactory = SpinnerValueFactory.IntegerSpinnerValueFactory(Integer.MIN_VALUE, Integer.MAX_VALUE).apply {
 			val minScaleBinding = Bindings.createIntegerBinding({ model.scaleLevels.min() }, model.scaleLevels)
 			minProperty().bind(minScaleBinding)
@@ -137,7 +137,7 @@ private class MeshExportUI<K>(val model: MeshExportModel<K>) : VBox() {
 			maxProperty().bind(maxScaleBinding)
 
 			valueProperty().bindBidirectional(model.scaleLevel)
-		} as SpinnerValueFactory<Integer>
+		} as SpinnerValueFactory<Int>
 		maxWidth = Double.POSITIVE_INFINITY
 		isEditable = true
 	}

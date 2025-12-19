@@ -23,9 +23,9 @@ open class MeshInfo<T>(val key: T, open val manager: MeshManager<T>) {
 
 	override fun hashCode() = key.hashCode()
 
-	override fun equals(obj: Any?): Boolean {
+	override fun equals(other: Any?): Boolean {
 		val aClass: Class<out MeshInfo<*>?> = this.javaClass
-		return obj != null && aClass == obj.javaClass && key == aClass.cast(obj)?.key
+		return other != null && aClass == other.javaClass && key == aClass.cast(other)?.key
 	}
 
 	val meshSettings: MeshSettings

@@ -234,7 +234,8 @@ class MeshSettingsController(
 			when (node) {
 				is ChoiceBox<*> -> node.prefWidth = width ?: CHOICE_WIDTH
 				is Region -> width?.let { node.prefWidth = it }
-			}
+                else -> Unit
+            }
 		}
 
 		private fun setCoarsestAndFinestScaleLevelSliderListeners(
@@ -467,7 +468,7 @@ abstract class MeshInfoList<T : MeshInfo<K>, K> : ListView<T>() {
 		setCellFactory { MeshInfoListCell() }
 	}
 
-	abstract fun updateItems(meshesEnable: Boolean)
+	abstract fun updateItems(meshesEnabled: Boolean)
 
 	open fun meshNodeFactory(meshInfo: T): MeshInfoPane<K> {
 		val meshInfoPane: MeshInfoPane<K> = MeshInfoPane(meshInfo)
