@@ -639,8 +639,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		val (width, height) = activeViewer?.run { width to height } ?: return
 		val scale = if (screenScale != Double.NaN) screenScale else return
 
-		val xInBounds = mouse.x.coerceIn(0.0, width)
-		val yInBounds = mouse.y.coerceIn(0.0, height)
+        val xInBounds = mouse.x.coerceIn(0.0, width - 1.0)
+        val yInBounds = mouse.y.coerceIn(0.0, height - 1.0)
 
 		val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
 		val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
