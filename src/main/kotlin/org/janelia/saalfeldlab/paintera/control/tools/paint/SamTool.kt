@@ -33,10 +33,8 @@ import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
-import net.imglib2.iterator.IntervalIterator
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.*
-import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileFloatType
@@ -57,7 +55,6 @@ import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -642,8 +639,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		val (width, height) = activeViewer?.run { width to height } ?: return
 		val scale = if (screenScale != Double.NaN) screenScale else return
 
-		val xInBounds = mouse.x.coerceIn(0.0, width)
-		val yInBounds = mouse.y.coerceIn(0.0, height)
+        val xInBounds = mouse.x.coerceIn(0.0, width - 1.0)
+        val yInBounds = mouse.y.coerceIn(0.0, height - 1.0)
 
 		val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
 		val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
@@ -906,18 +903,23 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				val predictedImage = currentPrediction!!.image
 
-				var noneAccepted = true
-				val thresholdFilter = BundleView(predictedImage.extendValue(Float.NEGATIVE_INFINITY))
-					.convert(BoolType()) { predictionMaskRA, output ->
-						val predictionType = predictionMaskRA.get()
-						val predictionValue = predictionType.get()
-						val accept = predictionValue >= threshold
-						output.set(accept)
-						if (accept) {
-							noneAccepted = false
-							val pos = predictionMaskRA.positionAsLongArray()
-							minPoint[0] = min(minPoint[0], pos[0])
-							minPoint[1] = min(minPoint[1], pos[1])
+                val thresholdFilter = ArrayImgs.booleans(*predictedImage.dimensionsAsLongArray())
+                val thresholdCursor = thresholdFilter.interval(predictedImage).cursor()
+                val predictionMaskCursor = predictedImage
+                    .extendValue(Float.NEGATIVE_INFINITY)
+                    .interval(predictedImage)
+                    .localizingCursor()
+
+                var noneAccepted = true
+                while (thresholdCursor.hasNext()) {
+                    val predictionValue = predictionMaskCursor.next().get()
+                    val thresholdValue = predictionValue >= threshold
+                    thresholdCursor.next().set(thresholdValue)
+                    if (thresholdValue) {
+                        noneAccepted = false
+                        val pos = predictionMaskCursor.positionAsLongArray()
+                        minPoint[0] = min(minPoint[0], pos[0])
+                        minPoint[1] = min(minPoint[1], pos[1])
 
 							maxPoint[0] = max(maxPoint[0], pos[0])
 							maxPoint[1] = max(maxPoint[1], pos[1])
@@ -967,52 +969,59 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				points.firstOrNull { it.label == SamPredictor.SparseLabel.TOP_LEFT_BOX }?.let { topLeft ->
 					points.firstOrNull { it.label == SamPredictor.SparseLabel.BOTTOM_RIGHT_BOX }?.let { bottomRight ->
 
-						val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
-						val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
-						val boxIterator = IntervalIterator(FinalInterval(minPos, maxPos))
-						val posInBox = LongArray(2)
-						while (boxIterator.hasNext()) {
-							boxIterator.fwd()
-							boxIterator.localize(posInBox)
-							if (thresholdFilter.getAt(*posInBox).get()) {
-								acceptedComponents += connectedComponents.getAt(*posInBox).get()
-							}
-						}
-					}
-				}
+                        val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
+                        val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
+                        val boxInterval = FinalInterval(minPos, maxPos)
+                        val thresholdCursor = thresholdFilter.interval(boxInterval).cursor()
+                        val componentsCursor = connectedComponents.interval(boxInterval).cursor()
+                        while (thresholdCursor.hasNext()) {
+                            val meetsThreshold = thresholdCursor.next()
+                            if (meetsThreshold.get())
+                                acceptedComponents += componentsCursor.next().get()
+                            else
+                                componentsCursor.fwd()
+                        }
+                    }
+                }
 
-				val selectedComponents = connectedComponents.convertRAI(FloatType()) { source, output ->
-					val value = if (source.get() in acceptedComponents) 1.0f else 0.0f
-					output.set(value)
-				}
+                val selectedComponents = connectedComponents.convertRAI(FloatType()) { source, output ->
+                    val value = if (source.get() in acceptedComponents) 1.0f else 0.0f
+                    output.set(value)
+                }
 
-				val (width, height) = predictedImage.dimensionsAsLongArray()
-				val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
-				val halfPixelOffset = Translation2D(.5, .5)
-				val translationToViewer = Translation2D(*paintMask.displayPointToMask(0, 0, currentDisplay).positionAsDoubleArray())
-				val predictionToViewerTransform = AffineTransform2D().concatenate(translationToViewer).concatenate(predictionToViewerScale).concatenate(halfPixelOffset)
-				val maskAlignedSelectedComponents = selectedComponents
-					.extendValue(0.0)
-					.interpolate(NLinearInterpolatorFactory())
-					.affineReal(predictionToViewerTransform)
-					.convert(UnsignedLongType(Label.INVALID)) { source, output -> output.set(if (source.get() > .8) predictionLabel else Label.INVALID) }
-					.addDimension()
-					.raster()
-					.interval(paintMask.viewerImg)
+                val (width, height) = predictedImage.dimensionsAsLongArray()
+                val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
+                val halfPixelOffset = Translation2D(.5, .5)
+                val translationToViewer =
+                    Translation2D(*paintMask.displayPointToMask(0, 0, currentDisplay).positionAsDoubleArray())
+                val predictionToViewerTransform =
+                    AffineTransform2D().concatenate(translationToViewer).concatenate(predictionToViewerScale)
+                        .concatenate(halfPixelOffset)
+                val maskAlignedSelectedComponents = selectedComponents
+                    .extendValue(0.0)
+                    .interpolate(NLinearInterpolatorFactory())
+                    .affineReal(predictionToViewerTransform)
+                    .convert(UnsignedLongType(Label.INVALID)) { source, output -> output.set(if (source.get() > .8) predictionLabel else Label.INVALID) }
+                    .addDimension()
+                    .raster()
+                    .interval(paintMask.viewerImg)
 
 
-				val compositeMask = originalBackingImage!!
-					.extendValue(Label.INVALID)
-					.convertWith(maskAlignedSelectedComponents, UnsignedLongType(Label.INVALID)) { original, prediction, composite ->
-						val getCompositeVal = {
-							val predictedVal = prediction.get()
-							if (predictedVal == predictionLabel) predictionLabel else original.get()
-						}
-						val compositeVal =
-							if (maskPriority == MaskPriority.PREDICTION) getCompositeVal()
-							else original.get().takeIf { it != Label.INVALID } ?: getCompositeVal()
-						composite.set(compositeVal)
-					}.interval(maskAlignedSelectedComponents)
+                val compositeMask = originalBackingImage!!
+                    .extendValue(Label.INVALID)
+                    .convertWith(
+                        maskAlignedSelectedComponents,
+                        UnsignedLongType(Label.INVALID)
+                    ) { original, prediction, composite ->
+                        val getCompositeVal = {
+                            val predictedVal = prediction.get()
+                            if (predictedVal == predictionLabel) predictionLabel else original.get()
+                        }
+                        val compositeVal =
+                            if (maskPriority == MaskPriority.PREDICTION) getCompositeVal()
+                            else original.get().takeIf { it != Label.INVALID } ?: getCompositeVal()
+                        composite.set(compositeVal)
+                    }.interval(maskAlignedSelectedComponents)
 
 				val compositeMaskAsVolatile = compositeMask.convertRAI(VolatileUnsignedLongType(0L)) { source, output ->
 					output.set(source.get())
