@@ -18,6 +18,7 @@ import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import org.janelia.saalfeldlab.util.math.similarTo
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -172,3 +173,24 @@ inline operator fun <reified T> Point.component2() = this.get<T>(1)
 inline operator fun <reified T> Point.component3() = this.get<T>(2)
 inline operator fun <reified T> Point.component4() = this.get<T>(3)
 inline operator fun <reified T> Point.component5() = this.get<T>(4)
+
+inline fun AffineGet.allIndexed(predicate: (Int, Int, Double) -> Boolean): Boolean {
+	val rows = numDimensions()
+	val cols = rows + 1
+	for (i in 0 until rows) {
+		for (j in 0 until cols) {
+			if (!predicate(i, j, get(i, j))) return false
+		}
+	}
+	return true
+}
+
+inline fun AffineGet.forEachIndexed(action: (row: Int, col: Int, value: Double) -> Unit) {
+	val rows = numDimensions()
+	val cols = rows + 1
+	for (i in 0 until rows) {
+		for (j in 0 until cols) {
+			action(i, j, get(i, j))
+		}
+	}
+}

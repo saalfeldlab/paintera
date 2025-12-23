@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.scene.control.ButtonBase
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
+import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -33,6 +32,9 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 	override var currentDisplay: Boolean = true
 
 	override fun activate() {
+		requestOnActivate = false
+		super.activate()
+
 		val depth = controller.currentDepth
 
 		/* If we are requesting a new embedding that isn't already pre-cached,
@@ -58,8 +60,6 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		 * - Not at a slice -> desired behavior is to ADD to the interpolation at this location, so don't replace it. */
 		replaceExistingSlice = info.sliceInfo != null && !info.locked
 		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
-
-		super.activate()
 
 		if (drawPrompt)
 			info.prediction.drawPrompt()

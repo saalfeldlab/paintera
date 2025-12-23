@@ -16,7 +16,6 @@ import net.imglib2.cache.LoaderCache
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
-import org.apache.commons.lang.builder.HashCodeBuilder
 import org.apache.http.HttpException
 import org.apache.http.client.HttpClient
 import org.apache.http.client.config.RequestConfig
@@ -443,30 +442,3 @@ private data class SessionRenderUnitState(val sessionId: String, val state: Rend
 	}
 }
 
-internal class HashableTransform(affineTransform3D: AffineTransform3D) : AffineTransform3D() {
-
-	init {
-		set(affineTransform3D)
-	}
-
-	override fun hashCode(): Int {
-		return HashCodeBuilder()
-			.append(floatArrayOf(a.m00.toFloat(), a.m01.toFloat(), a.m02.toFloat(), a.m03.toFloat()))
-			.append(floatArrayOf(a.m10.toFloat(), a.m11.toFloat(), a.m12.toFloat(), a.m13.toFloat()))
-			.append(floatArrayOf(a.m20.toFloat(), a.m21.toFloat(), a.m22.toFloat(), a.m23.toFloat()))
-			.hashCode()
-	}
-
-	override fun equals(other: Any?): Boolean {
-		return (other as? HashableTransform)?.hashCode() == hashCode()
-	}
-
-	internal fun toFloatString(): String {
-		return "3d-affine: (${a.m00.toFloat()}, ${a.m01.toFloat()}, ${a.m02.toFloat()}, ${a.m03.toFloat()}, ${a.m10.toFloat()}, ${a.m11.toFloat()}, ${a.m12.toFloat()}, ${a.m13.toFloat()}, ${a.m20.toFloat()}, ${a.m21.toFloat()}, ${a.m22.toFloat()}, ${a.m23.toFloat()})"
-	}
-
-
-	companion object {
-		internal fun AffineTransform3D.hashable() = (this as? HashableTransform) ?: HashableTransform(this)
-	}
-}

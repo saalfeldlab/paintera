@@ -39,7 +39,7 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
-import org.janelia.saalfeldlab.paintera.cache.HashableTransform.Companion.hashable
+import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
@@ -546,13 +546,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			val width = viewer.width
 			val height = viewer.height
 
-			val fallbackPrompt = listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0) to SparseLabel.IN)
-			val predictionPositions = provideGlobalToViewerTransform?.let { fallbackPrompt } ?: let {
-				controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-					val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-					interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get())
-				} ?: fallbackPrompt
-			}
+			val predictionPositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+				interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get())
+			} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0) to SparseLabel.IN)
 
 
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
