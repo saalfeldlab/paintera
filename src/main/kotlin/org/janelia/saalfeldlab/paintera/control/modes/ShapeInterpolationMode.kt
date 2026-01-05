@@ -655,7 +655,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 
 		val slice = controller.addSelection(selectionIntervalOverMask, replaceExistingSlice, globalTransform, viewerMask) ?: return null
-		return cacheLoadSamSliceInfo(sliceDepth).apply {
+		val cachedTransform = samSliceCache[sliceDepth]?.globalToViewerTransform
+		return cacheLoadSamSliceInfo(sliceDepth, provideGlobalToViewerTransform = cachedTransform).apply {
 			sliceInfo = slice
 		}
 	}
