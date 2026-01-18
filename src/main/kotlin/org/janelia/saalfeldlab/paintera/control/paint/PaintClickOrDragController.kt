@@ -31,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAnd
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.union
+import java.util.concurrent.ConcurrentLinkedQueue
 
 private data class Position(var x: Double = 0.0, var y: Double = 0.0) {
 
@@ -289,7 +290,7 @@ class PaintClickOrDragController(
 		paint(x, y)
 	}
 
-	internal val paintJobs = mutableListOf<Job>()
+	internal val paintJobs = ConcurrentLinkedQueue<Job>()
 
 	@Synchronized
 	@OptIn(ExperimentalCoroutinesApi::class)
@@ -319,9 +320,7 @@ class PaintClickOrDragController(
 				)
 				paintIntervalInMask
 			}.also { job ->
-				synchronized(paintJobs) {
-					paintJobs += job
-				}
+				paintJobs.add(job)
 				job.invokeOnCompletion { cause ->
 					cause ?: let {
 						job.getCompleted()?.let { paintedInterval ->

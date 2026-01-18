@@ -163,9 +163,13 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	}
 
 	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {
-		runBlocking {
-			/* Don't change label until all current paint jobs are complete*/
-			paintClickOrDrag?.paintJobs?.joinAll()
+		val controller = paintClickOrDrag ?: return
+		synchronized(controller) {
+			runBlocking {
+				/* Don't change label until all current paint jobs are complete*/
+				controller.paintJobs.joinAll()
+				controller.paintJobs.clear()
+			}
 		}
 		if (currentLabelToPaint == label)
 			return
@@ -285,7 +289,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			}
 		}
 
-		synchronized(paintJobs) {
+		synchronized(this) {
 			runBlocking {
 				paintJobs.joinAll()
 				paintJobs.clear()
