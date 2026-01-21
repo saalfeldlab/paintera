@@ -14,23 +14,20 @@ import net.imglib2.type.label.Label
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
-import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel.DilateScope
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilatedCellImage.Companion.createDilatedCellImage
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
-import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.extendValue
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.numElements
-import org.janelia.saalfeldlab.util.translate
 
 internal object DilateStatus {
 	object Dilating : OperationStatus("Expanding...")
@@ -65,15 +62,19 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 		action.verify("Mask is in Use") { !this@DilateLabelState.maskedSource.isMaskInUseBinding().get() }
 	}
 
-	fun progressStatusSubscription(): Subscription = progressProperty.subscribe { progress ->
-		val progress = progress.toDouble()
-		val isApplyMask = maskedSource.isApplyingMaskProperty()
-		statusProperty.value = when {
-			progress == 0.0 -> Status.Empty
-			progress == 1.0 -> Status.Done
-			isApplyMask.get() -> Status.Applying
-			progress > 0.0 && progress < 1.0 -> DilateStatus.Dilating
-			else -> Status.Empty
+	fun progressStatusSubscription(): Subscription = let {
+		val applyingMaskProperty = maskedSource.isApplyingMaskProperty()
+		listOf(progressProperty, applyingMaskProperty).subscribe {
+			val progress = progressProperty.get()
+			val applying = applyingMaskProperty.get()
+
+			statusProperty.value = when {
+				progress == 0.0 -> Status.Empty
+				progress == 1.0 -> Status.Done
+				applying -> Status.Applying
+				progress > 0.0 && progress < 1.0 -> DilateStatus.Dilating
+				else -> Status.Empty
+			}
 		}
 	}
 
