@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodedCellImage.Companion.createErodedCellImage
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
@@ -60,15 +61,19 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
         action.verify("Mask is in Use") { !this@ErodeLabelState.maskedSource.isMaskInUseBinding().get() }
     }
 
-    fun progressStatusSubscription(): Subscription = progressProperty.subscribe { progress ->
-        val progress = progress.toDouble()
-        val isApplyMask = maskedSource.isApplyingMaskProperty()
-        statusProperty.value = when {
-            progress == 0.0 -> Status.Empty
-            progress == 1.0 -> Status.Done
-            isApplyMask.get() -> Status.Applying
-            progress > 0.0 && progress < 1.0 -> ErodeStatus.Eroding
-            else -> Status.Empty
+    fun progressStatusSubscription(): Subscription = let {
+        val applyingMaskProperty = maskedSource.isApplyingMaskProperty()
+        listOf(progressProperty, applyingMaskProperty).subscribe {
+            val progress = progressProperty.get()
+            val applying = applyingMaskProperty.get()
+
+            statusProperty.value = when {
+                progress == 0.0 -> Status.Empty
+                progress == 1.0 -> Status.Done
+                applying -> Status.Applying
+                progress > 0.0 && progress < 1.0 -> ErodeStatus.Eroding
+                else -> Status.Empty
+            }
         }
     }
 

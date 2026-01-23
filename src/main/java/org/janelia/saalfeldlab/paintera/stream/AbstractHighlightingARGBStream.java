@@ -86,7 +86,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		this.colorFromSegmentId.addListener((obs, oldv, newv) -> stateChanged());
 	}
 
-	protected TLongIntHashMap argbCache = new TLongIntHashMap(
+	protected final TLongIntHashMap argbCache = new TLongIntHashMap(
 			Constants.DEFAULT_CAPACITY * 10,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.TRANSPARENT,

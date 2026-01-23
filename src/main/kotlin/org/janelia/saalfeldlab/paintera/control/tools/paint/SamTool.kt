@@ -248,6 +248,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	internal lateinit var renderState: RenderUnitState
 
+	protected var requestOnActivate : Boolean = true
+
 	override fun activate() {
 		mode?.apply {
 			actionBar.showGroup(actionBar.modeActionsGroup, false)
@@ -261,8 +263,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		primaryClickLabel = null
 		initializeSam()
 		/* Trigger initial prediction request when activating the tool */
-		setViewer?.let { viewer ->
-
+		setViewer?.takeIf { requestOnActivate }?.let { viewer ->
 			statusProperty.set("Predicting...")
 			val x = viewer.mouseXProperty.get().toLong()
 			val y = viewer.mouseYProperty.get().toLong()
@@ -904,6 +905,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				val predictedImage = currentPrediction!!.image
 
                 val thresholdFilter = ArrayImgs.booleans(*predictedImage.dimensionsAsLongArray())
+					.extendValue(Float.NEGATIVE_INFINITY)
                 val thresholdCursor = thresholdFilter.interval(predictedImage).cursor()
                 val predictionMaskCursor = predictedImage
                     .extendValue(Float.NEGATIVE_INFINITY)

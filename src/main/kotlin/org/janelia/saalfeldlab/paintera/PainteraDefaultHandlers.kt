@@ -219,12 +219,15 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		orthogonalViews.pane().apply {
 			cells().forEach { cell ->
-				/* Toggle Maxmizing the Viewers */
+				/* Toggle Maximizing the Viewers */
 				val maximizeCellActions = painteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
 					KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER) {
 						keysExclusive = true
 						verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
-						onAction { toggleMaximize(cell) }
+						onAction {
+							toggleMaximize(cell)
+							baseView.orthogonalViews().requestRepaint()
+						}
 					}
 					KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D) {
 						keysExclusive = true

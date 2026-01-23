@@ -286,8 +286,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	internal fun askSaveAndQuit(): Boolean {
 		return when {
-			!projectDirectory.actualDirectory.canWrite() -> true
 			wasQuit -> false
+			!projectDirectory.actualDirectory.canWrite() -> true
 			!isSaveNecessary() -> true
 			else -> SaveAndQuitDialog.showAndWaitForResponse()
 		}
