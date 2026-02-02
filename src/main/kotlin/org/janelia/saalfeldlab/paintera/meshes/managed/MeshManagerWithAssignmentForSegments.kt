@@ -288,13 +288,19 @@ class MeshManagerWithAssignmentForSegments(
 	) : LabelBlockLookup by delegate {
 
 		override fun read(key: LabelBlockLookupKey): Array<Interval> {
-			val blocks = delegate.read(key).map { HashWrapper.interval(it) }.toMutableSet()
+			val blocks: MutableSet<HashWrapper<Interval>> = runCatching {
+                delegate.read(key).map { HashWrapper.interval(it) }.toMutableSet()
+            }.getOrElse {  e ->
+				LOG.error { "Failed to read key $key" }
+				LOG.trace(e) {  }
+				mutableSetOf()
+			}
 			blocks += affectedBlocksForLabel(maskedSource, key.level, key.id).map { HashWrapper.interval(it) }
 			return blocks.map { it.data }.toTypedArray()
 		}
 
 		companion object {
-			private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+			private val LOG = KotlinLogging.logger {  }
 
 			fun <D : IntegerType<D>> create(delegate: LabelBlockLookup, maskedSource: MaskedSource<D, *>) = when (delegate) {
 				is CachedLabelBlockLookup -> CachedLabelBlockLookupWithMaskedSource(delegate, maskedSource)
