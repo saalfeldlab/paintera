@@ -7,7 +7,6 @@
 --runtime-image "${project.build.directory}/jvm-image"
 --temp "${project.build.directory}/installer-work"
 --java-options "${jpackage.java-options}"
-
 ${macos.sign}
 ${macos.sign.identity}
 ${macos.sign.prefix}

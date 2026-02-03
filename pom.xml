@@ -36,6 +36,11 @@
 		<preloader-class>org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen</preloader-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
+		<!--macos signing default (empty unless -Pmacos-sign)-->
+		<macos.sign/>
+		<macos.sign.identity/>
+		<macos.sign.prefix/>
+		<macos.sign.entitlements/>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
