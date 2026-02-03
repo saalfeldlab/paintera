@@ -33,6 +33,7 @@
 		<!--package properties -->
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
+		<preloader-class>org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen</preloader-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 
@@ -757,6 +758,7 @@
 						<configuration>
 							<mainClass>${main-class}</mainClass>
 							<options>
+								<option>-Djavafx.preloader=org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen</option>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
