@@ -8,10 +8,6 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
-  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.Paintera # Unique to your app, often the launcher class
-
 jobs:
   build:
     strategy:
@@ -43,7 +39,6 @@ jobs:
       - name: Add Wix to Path
         run: echo "$HOME/target/wix" >> $GITHUB_PATH
         if: runner.os == 'Windows'
-      - uses: actions/checkout@v6
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -54,12 +49,30 @@ jobs:
       - name: "Build with Maven"
         if: runner.os != 'MacOS'
         run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
-      - name: "Build with Maven"
+      - name: "Setup MacOS Signing"
         if: runner.os == 'MacOS'
         env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        run: mvn -B clean install -DskipTests -Pbuild-installer -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD="temp-keychain-password"
+          
+          # Import certificate and create keychain
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+      - name: "Build with Maven"
+        if: runner.os == 'MacOS'
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
 
       - name: Upload Installers
         uses: actions/upload-artifact@v4
