@@ -999,8 +999,9 @@
 			</activation>
 			<properties>
 				<macos.sign>--mac-sign</macos.sign>
-				<!-- You will have to replace this with your own dev information from your Apple identity -->
-				<macos.sign.identity>--mac-signing-key-user-name "Company Name, Inc. (BXPXTXC35S)"</macos.sign.identity>
+				<macos.sign.identity>--mac-signing-key-user-name "PainteraSelfSignedCert"</macos.sign.identity>
+				<macos.sign.prefix>--mac-package-signing-prefix "org.janelia.saalfeldlab.paintera."</macos.sign.prefix>
+				<macos.sign.entitlements>--mac-entitlements "${project.build.directory}/packaging/${os.detected.name}/entitlements.plist"</macos.sign.entitlements>
 			</properties>
 		</profile>
 
