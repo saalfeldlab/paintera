@@ -10,3 +10,5 @@
 
 ${macos.sign}
 ${macos.sign.identity}
+${macos.sign.prefix}
+${macos.sign.entitlements}
