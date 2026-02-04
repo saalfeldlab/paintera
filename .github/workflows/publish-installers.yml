@@ -10,12 +10,6 @@ on:
       - "prerelease-*"
   workflow_dispatch:
 
-
-
-env:
-  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
-  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.Paintera # Unique to your app, often the launcher class
-
 jobs:
   build_installers:
     name: Build Installers
@@ -58,8 +52,9 @@ jobs:
           mv Paintera-windows-latest-*/*.msi Paintera-${{ env.VERSION }}-Windows.msi
           mv Paintera-ubuntu-22.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
           mv Paintera-ubuntu-24.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
-          mv Paintera-macos-*-intel-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
-          mv Paintera-macos-latest-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
+          mv Paintera-macos-15-intel-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-15-Intel.dmg
+          mv Paintera-macos-14-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-14-AppleSilicon.dmg
+          mv Paintera-macos-15-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-15-AppleSilicon.dmg
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -71,5 +66,6 @@ jobs:
             Paintera-${{ env.VERSION }}-Windows.msi
             Paintera-${{ env.VERSION }}-ubuntu-22.04_x86_64.deb
             Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
-            Paintera-${{ env.VERSION }}-MacOS-Intel.dmg
-            Paintera-${{ env.VERSION }}-MacOS-AppleSilicon.dmg
+            Paintera-${{ env.VERSION }}-MacOS-15-Intel.dmg
+            Paintera-${{ env.VERSION }}-MacOS-14-AppleSilicon.dmg
+            Paintera-${{ env.VERSION }}-MacOS-15-AppleSilicon.dmg

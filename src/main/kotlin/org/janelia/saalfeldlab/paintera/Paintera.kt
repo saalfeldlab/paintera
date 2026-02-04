@@ -33,6 +33,10 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintableRunnables
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
+import org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen
+import org.janelia.saalfeldlab.paintera.ui.SplashScreenFinishPreloader
+import org.janelia.saalfeldlab.paintera.ui.SplashScreenUpdateNotification
+import org.janelia.saalfeldlab.paintera.ui.SplashScreenUpdateNumItemsNotification
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.debug.DebugModeProperty
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils

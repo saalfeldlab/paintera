@@ -8,16 +8,11 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
-  PRIMARY_BUNDLE_ID: org.janelia.saalfeldlab.Paintera # Unique to your app, often the launcher class
-
 jobs:
   build:
     strategy:
       matrix:
-        # currently macos-14 is M1 and macos-13 is intel
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-latest, macos-15-intel]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -29,7 +24,7 @@ jobs:
           echo "VERSION=$short_version" >> $GITHUB_ENV
       - name: Download Wix
         uses: i3h/download-release-asset@v1
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         with:
           owner: wixtoolset
           repo: wix3
@@ -37,30 +32,52 @@ jobs:
           file: wix311-binaries.zip
       - name: Decompress Wix
         uses: DuckSoft/extract-7z-action@v1.0
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         with:
           pathSource: wix311-binaries.zip
           pathTarget: ./target/wix
       - name: Add Wix to Path
         run: echo "$HOME/target/wix" >> $GITHUB_PATH
-        if: matrix.os == 'windows-latest'
-      - uses: actions/checkout@v6
+        if: runner.os == 'Windows'
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           java-version: 25
-          distribution: 'liberica'
+          distribution: 'zulu'
           java-package: jdk+fx
           cache: 'maven'
       - name: "Build with Maven"
-        if: matrix.os != 'macos-13' && matrix.os != 'macos-14'
-        run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
-      - name: "Build with Maven (macOS No Signing)"
+        if: runner.os != 'MacOS'
+        run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+      - name: "Setup MacOS Signing"
+        if: runner.os == 'MacOS'
         env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        if: ${{ env.MACOS_CERTIFICATE == null && (matrix.os == 'macos-13' || matrix.os == 'macos-14') }}
-        run: mvn -B clean install -DskipTests -Pbuild-installer -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD="temp-keychain-password"
+          
+          # Import certificate and create keychain
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+      - name: "Build with Maven"
+        if: runner.os == 'MacOS'
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+      - name: "Verify Signature"
+        if: runner.os == 'MacOS'
+        run: |
+          codesign -dv --verbose=2 target/installer-work/image/Paintera.app 2>&1
+          codesign -dv --verbose=2 target/installer-work/image/Paintera.app 2>&1 | grep -q "Authority=Developer ID Application: PainteraSelfSignedCert" || (echo "ERROR: App is not signed with expected certificate" && exit 1)
 
       - name: Upload Installers
         uses: actions/upload-artifact@v4

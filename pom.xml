@@ -33,8 +33,14 @@
 		<!--package properties -->
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
+		<preloader-class>org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen</preloader-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
+		<!--macos signing default (empty unless -Pmacos-sign)-->
+		<macos.sign/>
+		<macos.sign.identity/>
+		<macos.sign.prefix/>
+		<macos.sign.entitlements/>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
@@ -757,6 +763,7 @@
 						<configuration>
 							<mainClass>${main-class}</mainClass>
 							<options>
+								<option>-Djavafx.preloader=org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen</option>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
@@ -952,7 +959,7 @@
 										<arg>--no-header-files</arg>
 										<arg>--strip-debug</arg>
 										<arg>--no-man-pages</arg>
-										<arg>--compress=2</arg>
+										<arg>--compress=zip-6</arg>
 									</args>
 								</configuration>
 							</execution>
@@ -991,7 +998,6 @@
 		These properties are then use to build the directory paths to the platform specific resources.
 		It would be great if Maven automatically added the os family as a property by default
 		 -->
-
 		<profile>
 			<id>macos-sign</id>
 			<activation>
@@ -999,8 +1005,9 @@
 			</activation>
 			<properties>
 				<macos.sign>--mac-sign</macos.sign>
-				<!-- You will have to replace this with your own dev information from your Apple identity -->
-				<macos.sign.identity>--mac-signing-key-user-name "Company Name, Inc. (BXPXTXC35S)"</macos.sign.identity>
+				<macos.sign.identity>--mac-signing-key-user-name "PainteraSelfSignedCert"</macos.sign.identity>
+				<macos.sign.prefix>--mac-package-signing-prefix "org.janelia.saalfeldlab.paintera."</macos.sign.prefix>
+				<macos.sign.entitlements>--mac-entitlements "${project.build.directory}/packaging/${os.detected.name}/entitlements.plist"</macos.sign.entitlements>
 			</properties>
 		</profile>
 

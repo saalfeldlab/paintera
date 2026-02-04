@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera
+package org.janelia.saalfeldlab.paintera.ui
 
 import javafx.animation.*
 import javafx.application.Preloader
