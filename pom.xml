@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>1.13.3-SNAPSHOT</version>
+	<version>1.13.5-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -37,10 +37,10 @@
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 		<!--macos signing default (empty unless -Pmacos-sign)-->
-		<macos.sign/>
-		<macos.sign.identity/>
-		<macos.sign.prefix/>
-		<macos.sign.entitlements/>
+		<macos.sign />
+		<macos.sign.identity />
+		<macos.sign.prefix />
+		<macos.sign.entitlements />
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
