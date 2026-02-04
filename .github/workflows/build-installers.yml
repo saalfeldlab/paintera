@@ -72,8 +72,12 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
       - name: "Build with Maven"
         if: runner.os == 'MacOS'
-        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml
         run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+      - name: "Verify Signature"
+        if: runner.os == 'MacOS'
+        run: |
+          codesign -dv --verbose=2 target/installer-work/image/Paintera.app 2>&1
+          codesign -dv --verbose=2 target/installer-work/image/Paintera.app 2>&1 | grep -q "Authority=Developer ID Application: PainteraSelfSignedCert" || (echo "ERROR: App is not signed with expected certificate" && exit 1)
 
       - name: Upload Installers
         uses: actions/upload-artifact@v4
