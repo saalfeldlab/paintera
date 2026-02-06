@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
