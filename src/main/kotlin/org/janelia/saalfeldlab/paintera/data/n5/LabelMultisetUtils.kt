@@ -10,6 +10,7 @@ import net.imglib2.img.cell.Cell
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.label.*
 import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
@@ -145,7 +146,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 	}
 
 	companion object {
-		private val EMPTY_ACCESS = VolatileLabelMultisetArray(0, true, longArrayOf(Label.INVALID))
+		private val EMPTY_ACCESS = VolatileLabelMultisetArray(0, false, longArrayOf(Label.INVALID))
 
 		private fun generateCellGrid(n5: N5Reader, dataset: String): CellGrid {
 			val attributes = n5.getDatasetAttributes(dataset)
