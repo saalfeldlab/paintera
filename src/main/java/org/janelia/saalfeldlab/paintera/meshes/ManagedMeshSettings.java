@@ -182,8 +182,9 @@ public class ManagedMeshSettings<K> {
 							.ofNullable(settingsMap.get(SETTINGS_KEY))
 							.map(el -> (MeshSettings) context.deserialize(el, MeshSettings.class))
 							.orElseGet(globalSettings::copy);
+					JsonElement isManaged = settingsMap.get(IS_MANAGED_KEY);
 					final boolean manageMeshIndividually = Optional
-							.ofNullable(settingsMap.get(IS_MANAGED_KEY))
+							.ofNullable(isManaged)
 							.map(JsonElement::getAsBoolean)
 							.orElse(true);
 					LOG.debug("{} is managed? {}", id, manageMeshIndividually);
@@ -216,9 +217,9 @@ public class ManagedMeshSettings<K> {
 			for (final Entry<?, MeshSettings> entry : managedMeshSettings.individualSettings.entrySet()) {
 				final Object id = entry.getKey();
 				final Boolean isManaged = Optional.ofNullable(managedMeshSettings.managedIndividuallyProperty(id)).map(BooleanProperty::get).orElse(true);
-				if (!isManaged) {
+				if (isManaged) {
 					final JsonObject settingsMap = new JsonObject();
-					settingsMap.addProperty(IS_MANAGED_KEY, false);
+					settingsMap.addProperty(IS_MANAGED_KEY, true);
 					settingsMap.add(ID_KEY, context.serialize(id));
 					settingsMap.add(SETTINGS_KEY, context.serialize(entry.getValue()));
 					meshSettingsList.add(settingsMap);
