@@ -33,7 +33,6 @@ class ModeToolActionBar : FlowPane() {
 	init {
 		addStyleClass("mode-tool-action-bar")
 		alignment = Pos.TOP_RIGHT
-		prefWrapLength = USE_COMPUTED_SIZE
 		hGrow()
 	}
 
