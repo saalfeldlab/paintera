@@ -90,6 +90,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		isPickOnBounds = false
 		isFillHeight = false
 		maxWidth = Double.MAX_VALUE
+		minWidth = Region.USE_PREF_SIZE
 		alignment = Pos.TOP_LEFT
 
 		centerPaneTopHBox.children += this
@@ -146,6 +147,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 			isFillWidth = true
 			maxWidth = Double.MAX_VALUE
 		}
+		vGrow()
+		maxHeight = Double.MAX_VALUE
 	}
 
 	private val bottomVBox = VBox().apply {
@@ -156,7 +159,9 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 	}
 
 
-	private val rightTopGroup = HBox().vGrow(Priority.NEVER)
+	private val rightTopGroup = HBox().apply {
+		vGrow(Priority.NEVER)
+	}
 
 	internal val rightGroup = VBox().apply {
 		alignment = Pos.TOP_RIGHT

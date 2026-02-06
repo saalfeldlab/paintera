@@ -1,14 +1,14 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer.render;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
+import kotlin.Unit;
 
-import java.lang.invoke.MethodHandles;
 import java.util.concurrent.RejectedExecutionException;
 
 public final class PainterThreadFx extends Thread {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
 	private final PainterThreadFx.Paintable paintable;
 
@@ -62,7 +62,7 @@ public final class PainterThreadFx extends Thread {
 					if (isRunning)
 						continue;
 				} catch (InterruptedException var7) {
-					System.out.println(Thread.currentThread().getName() + " interrupted");
+					LOG.trace(() -> "Painter thread interrupted: " + Thread.currentThread().getName());
 				}
 			}
 			return;
@@ -84,10 +84,10 @@ public final class PainterThreadFx extends Thread {
 
 	public void stopRendering() {
 
-		LOG.debug("Stop rendering now!");
+		LOG.debug(() -> "Stop rendering now!");
 		isRunning = false;
 		interrupt();
-		LOG.debug("Notified on this ({})", this);
+		LOG.debug(() -> String.format("Notified on this (%s)", this));
 	}
 
 }

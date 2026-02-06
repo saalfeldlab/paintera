@@ -6,6 +6,7 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.input.KeyCode
+import javafx.scene.layout.Background
 import javafx.scene.layout.FlowPane
 import javafx.util.Subscription
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -17,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.hGrow
-import org.python.antlr.ast.Subscript
 import java.util.concurrent.atomic.AtomicBoolean
 
 private data class ToggleActionBarItem(val node: Node, val toggle: Toggle? = null)
@@ -33,7 +33,8 @@ class ModeToolActionBar : FlowPane() {
 	init {
 		addStyleClass("mode-tool-action-bar")
 		alignment = Pos.TOP_RIGHT
-		prefWrapLength = USE_COMPUTED_SIZE
+		background = Background.EMPTY
+		isPickOnBounds = false
 		hGrow()
 	}
 
