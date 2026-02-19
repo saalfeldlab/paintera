@@ -409,7 +409,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 				maxNumEntries
 		);
 
-		if (updatedAccess.isValid() && updatedAccess.getCurrentStorageArray().length == 0) {
+		boolean currentEmptyBehavior = updatedAccess.getArrayLength() == 0;
+		if (updatedAccess.isValid() && currentEmptyBehavior) {
 			n5.deleteBlock(dataset, blockPosition);
 			return null;
 		}

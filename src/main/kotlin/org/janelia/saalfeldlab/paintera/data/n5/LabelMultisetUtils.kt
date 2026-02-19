@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
+import org.janelia.saalfeldlab.paintera.ui.dialogs.open.VolatileHelpers
 import java.nio.ByteBuffer
 import java.util.function.BiFunction
 
@@ -141,12 +142,11 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 		val n = Intervals.numElements(*cellSize).toInt()
 		val access = bytes
 			?.let { LabelUtils.fromBytes(bytes, n) }
-			?: EMPTY_ACCESS
+			?: VolatileHelpers.newEmptyAccess(n, true)
 		return Cell(cellSize, cellMin, access)
 	}
 
 	companion object {
-		private val EMPTY_ACCESS = VolatileLabelMultisetArray(0, false, longArrayOf(Label.INVALID))
 
 		private fun generateCellGrid(n5: N5Reader, dataset: String): CellGrid {
 			val attributes = n5.getDatasetAttributes(dataset)
