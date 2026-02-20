@@ -114,11 +114,12 @@ class OpenSourceDialog(
 
 		resultConverter = Callback { if (it == ButtonType.OK) state else null }
 		state.metadataStateBinding.subscribe { it ->
-			type = when {
+			val sourceType = when {
 				it == null -> return@subscribe
 				it.isLabel -> MetaPanel.TYPE.LABEL
 				else -> MetaPanel.TYPE.RAW
 			}
+			InvokeOnJavaFXApplicationThread { type = sourceType }
 		}
 
 
