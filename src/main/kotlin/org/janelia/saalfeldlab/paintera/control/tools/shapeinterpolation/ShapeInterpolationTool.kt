@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.css.PseudoClass
 import javafx.scene.input.KeyCode
@@ -27,7 +26,7 @@ import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -141,7 +140,7 @@ internal class ShapeInterpolationTool(
 		)
 	}
 
-	private fun requestSamPredictionAtViewerPoint(vat: ViewerAndTransforms, requestMidPoint: Boolean = true, runAfter: () -> Unit = {}) {
+	private fun requestSamPredictionAtViewerPoint(vat: ViewerAndTransforms, runAfter: () -> Unit = {}) {
 		with(controller) {
 			val viewer = vat.viewer()
 			val dX = viewer.width / 2 - viewer.mouseXProperty.value
@@ -160,22 +159,25 @@ internal class ShapeInterpolationTool(
 				.concatenate(globalTransform)
 
 			val depth = depthAt(resultActiveGlobalToViewer)
-			if (!requestMidPoint) {
-				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) { runAfter() }
-			} else {
-				requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
-					val depths = sortedSliceDepths
-					val sliceIdx = depths.indexOf(depth)
-					if (sliceIdx - 1 >= 0) {
-						val prevHalfDepth = (depths[sliceIdx] + depths[sliceIdx - 1]) / 2.0
-						requestEmbedding(prevHalfDepth)
-					}
-					if (sliceIdx + 1 < depths.size) {
-						val nextHalfDepth = (depths[sliceIdx + 1] + depths[sliceIdx]) / 2.0
-						requestEmbedding(nextHalfDepth)
-					}
-					runAfter()
-				}
+			requestSamPrediction(depth, refresh = true, provideGlobalToViewerTransform = resultActiveGlobalToViewer) {
+				requestEagerEmbeddings(sortedSliceDepths)
+				runAfter()
+			}
+		}
+	}
+
+	internal fun requestEagerEmbeddings(sliceDepths: List<Double>) {
+//		FIXME: Debug only
+		return
+
+		val eagerRequestDepths = eagerRequestDepths(sliceDepths)
+		/* first and last are more likely to be used quickely, request them first */
+		eagerRequestDepths.firstOrNull()?.let { requestEmbedding(it) }
+		eagerRequestDepths.lastOrNull()?.let { requestEmbedding(it) }
+		if (eagerRequestDepths.size > 2) {
+			/* request the rest */
+			eagerRequestDepths.subList(1, eagerRequestDepths.size - 1).forEach {
+				requestEmbedding(it)
 			}
 		}
 	}
@@ -196,19 +198,19 @@ internal class ShapeInterpolationTool(
 		moveToSlice: Boolean = false,
 		refresh: Boolean = false,
 		provideGlobalToViewerTransform: AffineTransform3D? = null,
-		afterPrediction: (AffineTransform3D) -> Unit = {},
+		afterPrediction: (AffineTransform3D?) -> Unit = {},
 	): AffineTransform3D {
 
 		val newPrediction = mode.samSliceCache[depth] == null
 		if (newPrediction)
-			SamEmbeddingLoaderCache.cancelPendingRequests()
+			ImageEncoderCache.embeddingRequester.cancelPendingRequests()
 
 		val samSliceInfo = mode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
-				val points = getInterpolantPrompt(mode.samStyleBoxToggle.get())
-				samSliceInfo.updatePrediction(points)
+				val prompt = getInterpolantPrompt(mode.samStyleBoxToggle.get(), samSliceInfo.renderState)
+				samSliceInfo.updatePrompt(prompt)
 			}
 
 		}
@@ -236,36 +238,40 @@ internal class ShapeInterpolationTool(
 		}
 
 		samTool.lastPredictionProperty.addListener { _, _, prediction ->
-			prediction ?: return@addListener
-			mode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: return@addListener
+			prediction ?: let {
+				afterPrediction(null)
+				return@addListener
+			}
+			mode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: let {
+				afterPrediction(null)
+				return@addListener
+			}
 
 			afterPrediction(globalTransform)
 
 			samTool.cleanup()
 			samTool.activeViewerProperty.unbind()
 		}
-		samTool.requestPrediction(samSliceInfo.prediction)
+		samTool.requestPrediction(samSliceInfo.prompt)
 		return globalTransform
 	}
 
-	private data class EdgeDepthsAndSpacing(val firstDepth: Double?, val firstSpacing: Double, val lastDepth: Double?, val lastSpacing: Double)
+	private fun eagerRequestDepths(sliceDepths: List<Double>): List<Double> {
+		val depths = sliceDepths.sorted()
+		val depthPairs = depths.zipWithNext()
+		val eagerRequestDepths = depthPairs.map { (first, second) -> first + ((second - first) / 2.0) }.toMutableList()
 
-	private fun edgeDepthsAndSpacing(depths: MutableList<Double>): EdgeDepthsAndSpacing {
-		depths.sort()
-		val firstSpacing = depths.zipWithNext().firstOrNull()
-			?.let { (first, second) -> (second - first) }
-			?: 20.0
+		depthPairs.firstOrNull()?.let { (first, second) ->
+			val eagerFirstRequest = first - (second - first)
+			eagerRequestDepths.add(0, eagerFirstRequest)
+		}
 
+		depthPairs.lastOrNull()?.let { (first, second) ->
+			val eagerLastRequest = second + (second - first) / 2.0
+			eagerRequestDepths.add(eagerLastRequest)
+		}
 
-		val lastSpacing = depths.zipWithNext().lastOrNull()
-			?.let { (first, second) -> (second - first) }
-			?: 20.0
-
-		/* just a trick to handle the case where no slice exist. */
-		val firstDepth = depths.firstOrNull()
-		val lastDepth = depths.lastOrNull()
-
-		return EdgeDepthsAndSpacing(firstDepth, firstSpacing, lastDepth, lastSpacing)
+		return eagerRequestDepths
 	}
 
 	private fun shapeInterpolationActions(): Array<ActionSet?> {
@@ -303,106 +309,88 @@ internal class ShapeInterpolationTool(
 
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
-						verify { SamEmbeddingLoaderCache.canReachServer }
+						verify { ImageEncoderCache.healthCheck }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
-							val (firstDepth, firstSpacing, lastDepth, lastSpacing) = edgeDepthsAndSpacing(depths)
+							val eagerRequestDepths = eagerRequestDepths(depths)
 
 							/* trigger the prediction, and move there when done */
-							val newFirstDepth = (firstDepth ?: firstSpacing) - firstSpacing
+							val newFirstDepth = eagerRequestDepths.firstOrNull() ?: -20.0
 
 							/* request the next depth immediately, request the rest when this one finishes */
 							requestSamPrediction(newFirstDepth, moveToSlice = true) {
-								requestEmbedding(newFirstDepth - 2 * firstSpacing)
-								/* Request next in the opposite direction */
-								requestEmbedding((lastDepth ?: 0.0) + lastSpacing)
-								firstDepth?.let {
-									/* request the center between the newest prediction and previous */
-									requestEmbedding(it - firstSpacing * .5)
-								}
+								requestEagerEmbeddings(sortedSliceDepths)
 							}
-							requestEmbedding(newFirstDepth - firstSpacing)
 						}
 					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_BISECT)} }
-						verify { SamEmbeddingLoaderCache.canReachServer }
+						verify { ImageEncoderCache.healthCheck }
 						onAction {
-							val depths = sortedSliceDepths.toMutableList()
-							val remainingRequest = SimpleIntegerProperty().apply {
-								addListener { _, _, remaining ->
-									if (remaining == 0) {
-										controller.freezeInterpolation = false
-										controller.setMaskOverlay()
+							val bisectDepthIter = sortedSliceDepths
+								.zipWithNext { first, second -> (first + second) / 2.0 }
+								.iterator()
 
-										depths.sort()
-										/* eagerly request the next embeddings */
-										depths.zipWithNext { before, after ->
-											val eagerDepth = (before + after) / 2.0
-											requestEmbedding(eagerDepth)
-										}
-									}
-								}
-							}
-
-							/* Do the prediction */
-							sortedSliceDepths.zipWithNext { before, after -> (before + after) / 2.0 }.forEach {
-								depths += it
-								controller.freezeInterpolation = true
-								remainingRequest.value++
-								requestSamPrediction(it) {
-									remainingRequest.value--
-								}
+							while (bisectDepthIter.hasNext()) {
+								val depth = bisectDepthIter.next()
+								val isLast = !bisectDepthIter.hasNext()
+								controller.freezeInterpolation = !isLast
+                                val eagerRequestIfLast: (AffineTransform3D?) -> Unit = if (isLast) { _ -> requestEagerEmbeddings(sortedSliceDepths) } else { _ -> }
+                                requestSamPrediction( depth, refresh = isLast, afterPrediction = eagerRequestIfLast )
 							}
 						}
 					}
 
 					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
-						verify { SamEmbeddingLoaderCache.canReachServer }
+						verify { ImageEncoderCache.healthCheck }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
 								currentDepth in left..right
 							} ?: return@onAction
-							requestSamPrediction((right + left) * .5, refresh = true)
+							requestSamPrediction((right + left) * .5, refresh = true) {
+                                eagerRequestDepths(sortedSliceDepths)
+                            }
 						}
 					}
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
-						verify { SamEmbeddingLoaderCache.canReachServer }
+						verify { ImageEncoderCache.healthCheck }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
-							val (firstDepth, firstSpacing, lastDepth, lastSpacing) = edgeDepthsAndSpacing(depths)
+							val eagerRequestDepths = eagerRequestDepths(depths)
 
-							val newLastDepth = (lastDepth ?: -lastSpacing) + lastSpacing
-							requestSamPrediction(newLastDepth, moveToSlice = true) {
-								requestEmbedding(newLastDepth + 2 * lastSpacing)
-								/* Request next in the opposite direction */
-								requestEmbedding((firstDepth ?: 0.0) - firstSpacing)
-								lastDepth?.let {
-									/* request the center between the newest prediction and previous */
-									requestEmbedding(it + lastSpacing * .5)
-								}
+
+							/* trigger the prediction and move there when done */
+							requestSamPrediction(eagerRequestDepths.lastOrNull() ?: 20.0, moveToSlice = true) {
+								/* request the next depth immediately, request the rest when this one finishes */
+								requestEagerEmbeddings(sortedSliceDepths)
 							}
-							/* Request next two in the same direction */
-							requestEmbedding(newLastDepth + lastSpacing)
 						}
 					}
-					KEY_PRESSED(KeyCode.ALT, KeyCode.A) {
-						name = "refresh unlocked slice predictions"
+					KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__REFINE_AUTO_SLICES) {
 						onAction {
-							mode.samSliceCache
-								.filter { (_, info) -> !info.locked }
-								.toList()
-								.forEach { (depth, _) ->
-									requestSamPrediction(depth.toDouble(), refresh = true)
-								}
+							val refineSliceIter = mode.samSliceCache
+                                .filter { (_, info) -> !info.locked && !info.preGenerated}
+								.iterator()
+
+							while (refineSliceIter.hasNext()) {
+								val depth = refineSliceIter.next().let { (depth, _) -> depth.toDouble()}
+								val isLast = !refineSliceIter.hasNext()
+								controller.freezeInterpolation = !isLast
+								/* remove old slice before refining */
+								deleteSliceAt(depth, reinterpolate = false)
+								val eagerRequestIfLast: (AffineTransform3D?) -> Unit = if (isLast) { _ -> requestEagerEmbeddings(sortedSliceDepths) } else { _ -> }
+								requestSamPrediction( depth, refresh = true, afterPrediction = eagerRequestIfLast )
+							}
 						}
 					}
 					autoSamCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE) {
-						verify { SamEmbeddingLoaderCache.canReachServer }
+						verify { ImageEncoderCache.healthCheck }
 						onAction {
-							requestSamPrediction(currentDepth, refresh = true)
+							requestSamPrediction(currentDepth, refresh = true) {
+                                requestEagerEmbeddings(sortedSliceDepths)
+                            }
 						}
 					}
 

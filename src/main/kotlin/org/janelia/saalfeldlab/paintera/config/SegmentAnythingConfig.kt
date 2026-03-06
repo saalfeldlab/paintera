@@ -14,6 +14,7 @@ import javafx.geometry.Pos
 import javafx.scene.control.*
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
@@ -22,12 +23,17 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_COMPRESS_ENCODING
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_IMAGE_ENCODING
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_MODEL_LOCATION
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_RESPONSE_TIMEOUT
 import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.DEFAULT_SERVICE_URL
-import org.janelia.saalfeldlab.paintera.config.SegmentAnythingConfig.Companion.ImageEncoding
+import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.ImageEncoding
+import org.janelia.saalfeldlab.paintera.ai.sam.sam1.Sam1EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.sam2.Sam2EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.sam3.Sam3EmbeddingRequester
+import org.janelia.saalfeldlab.paintera.ai.sam.sam3.Sam3EncodingLoaderCache
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -55,7 +61,7 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 	private val compressEncodingProperty = SimpleBooleanProperty(DEFAULT_COMPRESS_ENCODING)
 	var compressEncoding: Boolean by compressEncodingProperty.nonnull()
 
-	internal val imageEncodingProperty = SimpleObjectProperty<ImageEncoding>(ImageEncoding.JPG)
+	internal val imageEncodingProperty = SimpleObjectProperty<ImageEncoding>(ImageEncoding.JPEG)
 	var imageEncoding: ImageEncoding by imageEncodingProperty.nonnull()
 
 	internal val allDefault
@@ -75,6 +81,19 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 		}
 	} //trigger the SegmentAnythingConfig listeners
 
+	@Transient
+	val samModelProperty = SimpleStringProperty("SAM2").also {
+		it.subscribe { _, model ->
+			ImageEncoderCache.close()
+			ImageEncoderCache = when (model) {
+				"SAM1" -> Sam1EncodingLoaderCache()
+				"SAM2" -> Sam2EncodingLoaderCache()
+				"SAM3" -> Sam3EncodingLoaderCache()
+				else -> throw IllegalArgumentException("Unknown SAM model: $model")
+			}
+		}
+	}
+
 	override fun getValue() = this
 
 	companion object {
@@ -88,12 +107,7 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 		internal const val DEFAULT_RESPONSE_TIMEOUT = 10 * 1000
 
 		internal const val DEFAULT_COMPRESS_ENCODING = true
-		internal val DEFAULT_IMAGE_ENCODING = ImageEncoding.JPG
-
-		enum class ImageEncoding {
-			JPG,
-			PNG
-		}
+		internal val DEFAULT_IMAGE_ENCODING = ImageEncoding.JPEG
 	}
 }
 
@@ -112,10 +126,25 @@ class SegmentAnythingConfigNode(val config: SegmentAnythingConfig) : TitledPane(
 		addResponseTimeoutConfigRow(2)
 		addCompressEncodingConfigRow(3)
 		addImageEncodingConfigRow(4)
+		addModelRadioBar(5)
 
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.ALWAYS })
 		columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
+	}
+
+	private fun GridPane.addModelRadioBar(row: Int) {
+		val bar = HBox().apply {
+			val modelToggle = ToggleGroup()
+			children += RadioButton("SAM1").apply { toggleGroup = modelToggle}
+			children += RadioButton("SAM2").apply { toggleGroup = modelToggle}
+			children += RadioButton("SAM3").apply { toggleGroup = modelToggle}
+			modelToggle.selectedToggleProperty().subscribe { it ->
+				val label = (it as? RadioButton)?.text ?: return@subscribe
+				config.samModelProperty.value = label
+			}
+		}
+		add(bar, 0, row, GridPane.REMAINING, 1)
 	}
 
 	private fun GridPane.addServiceUrlConfigRow(row: Int) {

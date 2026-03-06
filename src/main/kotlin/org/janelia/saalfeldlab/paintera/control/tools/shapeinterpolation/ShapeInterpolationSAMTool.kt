@@ -6,8 +6,8 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
@@ -29,7 +29,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 	private var replaceExistingSlice = false
 
-	override var currentDisplay: Boolean = true
+	override var currentDisplay: Boolean = false
 
 	override fun activate() {
 		requestOnActivate = false
@@ -48,7 +48,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		}?.let  {
 			drawPrompt = true
 		} ?: let {
-			SamEmbeddingLoaderCache.cancelPendingRequests()
+			ImageEncoderCache.embeddingRequester.cancelPendingRequests()
 		}
 
 		val info = mode.cacheLoadSamSliceInfo(depth)
@@ -62,9 +62,9 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
 
 		if (drawPrompt)
-			info.prediction.drawPrompt()
+			info.prompt.drawPrompt()
 
-		requestPrediction(info.prediction)
+		requestPrediction(info.prompt)
 	}
 
 	override fun deactivate() {
@@ -78,7 +78,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 			super.applyPrediction()
 			mode.run {
 				addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
-					it.prediction = predictionRequest
+					it.prompt = samPrompt
 					it.locked = true
 				}
 				switchTool(defaultTool)?.invokeOnCompletion {

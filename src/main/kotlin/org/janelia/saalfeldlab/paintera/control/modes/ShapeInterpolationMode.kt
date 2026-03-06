@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import org.janelia.saalfeldlab.samlink.decode.SamPointLabel
+import org.janelia.saalfeldlab.samlink.decode.SamPrompt
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
@@ -39,9 +41,9 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
+import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache.calculateTargetSamScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
@@ -53,8 +55,6 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.creat
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
-import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor
-import org.janelia.saalfeldlab.paintera.control.tools.paint.SamPredictor.SparseLabel
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationFillTool
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationPaintBrushTool
@@ -85,9 +85,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		.create()
 
 	private val samNavigationRequestListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, _, curViewer ->
-		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
+		ImageEncoderCache.stopNavigationBasedRequests()
 		curViewer?.let {
-			SamEmbeddingLoaderCache.startNavigationBasedRequests(curViewer)
+			ImageEncoderCache.startNavigationBasedRequests(curViewer)
 		}
 	}
 
@@ -112,7 +112,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
 		val viewerAndTransforms = activeViewerProperty.get() ?: return reset("No Active Viewer")
-		SamEmbeddingLoaderCache.startNavigationBasedRequests(viewerAndTransforms)
+		ImageEncoderCache.startNavigationBasedRequests(viewerAndTransforms)
 		controller.apply {
 			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
 				modifyFragmentAlpha()
@@ -124,8 +124,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	override fun exit() {
 		super.exit()
 
-		SamEmbeddingLoaderCache.stopNavigationBasedRequests()
-		SamEmbeddingLoaderCache.invalidateAll()
+		ImageEncoderCache.stopNavigationBasedRequests()
+		ImageEncoderCache.invalidateAll()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
 		controller.resetFragmentAlpha()
 		activeViewerProperty.removeListener(samNavigationRequestListener)
@@ -546,12 +546,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			val width = viewer.width
 			val height = viewer.height
 
-			val predictionPositions = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get())
-			} ?: listOf(doubleArrayOf(width / 2.0, height / 2.0, 0.0) to SparseLabel.IN)
-
-
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
 			val mask = source.createViewerMask(maskInfo, viewer, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
@@ -561,10 +555,22 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
 				.toList()
 
-			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			val predictionRequest = SamPredictor.SparsePrediction(predictionPositions.map { (pos, label) -> renderState.getSamPoint(pos[0], pos[1], label) })
-			SamSliceInfo(renderState, mask, predictionRequest, null, false).also {
-				SamEmbeddingLoaderCache.load(renderState)
+			/* Lazy so it's not evaluated until after `alignTransformAndViewCenter` which potentially modifies `globalToViewerTransform`,
+			* which is used to create the `mask.initialGlobalToViewerTransform` which we copy for this RenderUnitState.
+			* phew. */
+			val renderState by lazy(LazyThreadSafetyMode.NONE) {
+				RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
+			}
+			val interpolationPrompt = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+				interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get(), renderState)
+			} ?: let {
+				val (x, y) = renderState.viewerToRenderPoint(width / 2.0, height / 2.0)
+				SamPrompt().addPoint(x, y, SamPointLabel.FOREGROUND)
+			}
+
+			SamSliceInfo(renderState, mask, interpolationPrompt, null, false).also {
+				ImageEncoderCache.load(renderState)
 				samSliceCache[depth] = it
 			}
 		}
@@ -575,7 +581,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		return adjacentSlices(depth).let { (first, second) ->
 			when {
 				first != null && second != null -> {
-					val depthPercent = depth / (depthAt(first.globalTransform) + depthAt(second.globalTransform))
+					val firstDepth = depthAt(first.globalTransform)
+					val secondDepth = depthAt(second.globalTransform)
+					val distance = secondDepth - firstDepth
+					if (distance == 0.0)
+						return first.mask.initialGlobalToViewerTransform
+
+					val depthPercent = (depth - firstDepth) / distance
 					val firstMaskTransform = first.mask.initialGlobalToViewerTransform
 					val secondMaskTransform = second.mask.initialGlobalToViewerTransform
 					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).get(depthPercent)
@@ -612,7 +624,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	 *
 	 * @param T type of the [view]
 	 * @param view in initial [globalToViewerTransform] space
-	 * @param globalToViewerTransform the transform, modifier by translation
+	 * @param globalToViewerTransform the transform, modified by translation
 	 * @param width of the Viewer that [globalToViewerTransform] refers to
 	 * @param height of the Viewer that [globalToViewerTransform] refers to
 	 * @return an IntervalView resulting from translating [view] by the same amount that [globalToViewerTransform] was translated.
@@ -705,20 +717,51 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	}
 }
 
-internal fun RenderUnitState.getSamPoint(screenX: Double, screenY: Double, label: SparseLabel): SamPredictor.SamPoint {
-	val screenScaleFactor = calculateTargetSamScreenScaleFactor()
-	return SamPredictor.SamPoint(screenX * screenScaleFactor, screenY * screenScaleFactor, label)
+internal fun RenderUnitState.viewerToRenderPoint(screenX: Double, screenY: Double): Pair<Float, Float> {
+	val currentEncoderTargetSize = ImageEncoderCache.embeddingRequester.imageSize.toDouble()
+	val screenScaleFactor = calculateTargetScreenScaleFactor(
+		currentEncoderTargetSize,
+		width.toDouble(),
+		height.toDouble()
+	)
+	val x = (screenX * screenScaleFactor).toFloat().coerceIn(0f, width.toFloat())
+	val y = (screenY * screenScaleFactor).toFloat().coerceIn(0f, height.toFloat())
+	return x to y
 }
 
-internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(box: Boolean): List<Pair<DoubleArray, SparseLabel>> {
-	return if (box)
-		getMinMaxIntervalPositions().mapIndexed { idx, it -> it to if (idx == 0) SparseLabel.TOP_LEFT_BOX else SparseLabel.BOTTOM_RIGHT_BOX }
-	else
-		getComponentMaxDistancePosition().map { it to SparseLabel.IN }
+internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(box: Boolean, renderState: RenderUnitState? = null): SamPrompt {
+	return when {
+		box -> {
+			val (min, max) = getMinMaxIntervalPositions().let { (min, max) ->
+				renderState?.run {
+					val minInRenderSpace = viewerToRenderPoint(min[0], min[1])
+					val maxInRenderSpace = viewerToRenderPoint(max[0], max[1])
+					minInRenderSpace to maxInRenderSpace
+				} ?: let {
+					val minFloats = min[0].toFloat() to min[1].toFloat()
+					val maxFloats = max[0].toFloat() to max[1].toFloat()
+					minFloats to maxFloats
+				}
+			}
+			val (x1, y1) = min
+			val (x2, y2) = max
+
+			SamPrompt().addBox(x1, y1, x2, y2)
+		}
+		else -> {
+			SamPrompt().apply {
+				getComponentMaxDistancePosition().forEach { (x, y) ->
+					val (xFloat, yFloat) = renderState?.viewerToRenderPoint(x, y) ?: (x.toFloat() to y.toFloat())
+					addPoint(xFloat, yFloat, SamPointLabel.FOREGROUND)
+				}
+			}
+		}
+//		mask -> TODO
+	}
 }
 
 internal fun IntervalView<UnsignedLongType>.getMinMaxIntervalPositions(): List<DoubleArray> {
-	val interval = Intervals.expand(this, *dimensionsAsLongArray().map { (it * .1).roundToLong() }.toLongArray())
+	val interval = expand(.1)
 	return listOf(
 		interval.minAsDoubleArray(),
 		interval.maxAsDoubleArray()
@@ -807,20 +850,25 @@ internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
 	}
 }
 
-internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prediction: SamPredictor.PredictionRequest, var sliceInfo: SliceInfo?, var locked: Boolean = false) {
+internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: ViewerMask, var prompt: SamPrompt, var sliceInfo: SliceInfo?, var locked: Boolean = false) {
 	val preGenerated get() = sliceInfo == null
 	val globalToViewerTransform get() = renderState.transform
 
-	fun updatePrediction(viewerX: Double, viewerY: Double, label: SparseLabel = SparseLabel.IN) {
-		prediction = SamPredictor.SparsePrediction(listOf(renderState.getSamPoint(viewerX, viewerY, label)))
+	fun updatePrompt(samPrompt: SamPrompt) {
+		prompt = samPrompt
 	}
 
-	fun updatePrediction(viewerPositions: List<DoubleArray>, label: SparseLabel = SparseLabel.IN) {
-		prediction = SamPredictor.SparsePrediction(viewerPositions.map { (x, y) -> renderState.getSamPoint(x, y, label) })
+	fun updatePrompt(viewerPositions: List<DoubleArray>, label: SamPointLabel = SamPointLabel.FOREGROUND) {
+		val renderedPositions = viewerPositions.map { (x, y) -> renderState.viewerToRenderPoint(x, y) }
+		prompt = SamPrompt().apply {
+			renderedPositions.forEach { (x, y) -> addPoint(x, y, label) }
+		}
 	}
 
-	fun updatePrediction(viewerPositionsAndLabels: List<Pair<DoubleArray, SparseLabel>>) {
-		prediction = SamPredictor.SparsePrediction(viewerPositionsAndLabels.map { (pos, label) -> renderState.getSamPoint(pos[0], pos[1], label) })
-
+	fun updatePrompt(viewerPositionsAndLabels: List<Pair<DoubleArray, SamPointLabel>>) {
+		val renderPositionsAndLabels = viewerPositionsAndLabels.map { (pos, label) -> renderState.viewerToRenderPoint(pos[0], pos[1]) to label }
+		prompt = SamPrompt().apply {
+			renderPositionsAndLabels.forEach { (xy, label) -> addPoint(xy.first, xy.second, label) }
+		}
 	}
 }
