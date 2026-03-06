@@ -19,6 +19,7 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.*;
@@ -235,22 +236,35 @@ public class CommitCanvasN5 implements PersistCanvas {
 			progress.set(0.4);
 
 			/* If multiscale, downscale and write the lower scales*/
-			if (isMultiscale()) {
-				final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(getN5(), datasetPath);
+			if (metadataState instanceof MultiScaleMetadataState multiscaleMetadataState) {
+				final AffineTransform3D[] scaleTransforms = multiscaleMetadataState.getScaleTransforms();
+				final String[] scalePaths = multiscaleMetadataState.getMetadata().getPaths();
 
-				for (int targetLevel = 1; targetLevel < scaleDatasets.length; ++targetLevel) {
+				for (int targetLevel = 1; targetLevel < scalePaths.length; ++targetLevel) {
 
 					final TLongObjectHashMap<BlockDiff> blockDiffsAt = new TLongObjectHashMap<>();
 					blockDiffs.add(blockDiffsAt);
 
 					final int sourceLevel = targetLevel - 1;
-					final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath("%s/%s".formatted(datasetPath, scaleDatasets[sourceLevel])));
+					final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[sourceLevel]));
+					final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[targetLevel]));
 
-					final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath("%s/%s".formatted(datasetPath, scaleDatasets[targetLevel])));
+					AffineTransform3D previousTransform = scaleTransforms[sourceLevel];
+					AffineTransform3D targetTransform = scaleTransforms[targetLevel];
+					AffineTransform3D previousToTarget = targetTransform.copy().concatenate(previousTransform.inverse());
+					final double[] relativeDownsamplingFactors = new double[]{
+							previousToTarget.get(0, 0),
+							previousToTarget.get(1, 1),
+							previousToTarget.get(2, 2)
+					};
 
-					final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(getN5(), targetDataset.dataset);
-					final double[] sourceDownsamplingFactors = N5Helpers.getDownsamplingFactors(getN5(), sourceDataset.dataset);
-					final double[] relativeDownsamplingFactors = ArrayMath.divide3(targetDownsamplingFactors, sourceDownsamplingFactors);
+					AffineTransform3D s0ToTarget = targetTransform.copy().concatenate(scaleTransforms[0].inverse());
+
+					final double[] targetDownsamplingFactors = new double[]{
+							s0ToTarget.get(0, 0),
+							s0ToTarget.get(1, 1),
+							s0ToTarget.get(2, 2)
+					};
 
 					final long[] affectedLowResBlocks = getRelevantBlocksInTargetGrid(
 							blocks,
