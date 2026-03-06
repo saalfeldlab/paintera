@@ -803,7 +803,8 @@ object N5Helpers {
 	) {
 
 		val normalizedDatasetName = N5URI.normalizeGroupPath(dataset)
-		val blockGrid = n5.getDatasetAttributes(normalizedDatasetName).run {
+		val datasetAttributes = n5.getDatasetAttributes(normalizedDatasetName)
+		val blockGrid = datasetAttributes.run {
 			CellGrid(dimensions, blockSize)
 		}
 
@@ -836,7 +837,7 @@ object N5Helpers {
 
 				else ->
 					existsIOScope.launch {
-						if (n5.keyValueAccess.exists(n5.absoluteDataBlockPath(normalizedDatasetName, *curBlock))) {
+						if (n5.shardExists(normalizedDatasetName, datasetAttributes, *curBlock)) {
 							withBlockScope.launch {
 								forEachBlockExists!!(cellInterval)
 								forEachBlock?.invoke(cellInterval)
