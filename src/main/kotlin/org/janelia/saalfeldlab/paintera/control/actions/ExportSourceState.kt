@@ -289,10 +289,10 @@ internal fun exportOmeNGFFMetadata(
 ) {
 	val scaleLevelDataset = "$dataset/s$scaleLevel"
 	writer.createGroup(dataset)
-	writer.createDataset(scaleLevelDataset, datasetAttributes)
+	val newDatasetAttrs = writer.createDataset(scaleLevelDataset, datasetAttributes)
 
 	val exportMetadata = OmeNgffMetadata.buildForWriting(
-		datasetAttributes.numDimensions,
+		newDatasetAttrs.numDimensions,
 		dataset,
 		arrayOf(
 			Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
