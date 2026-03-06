@@ -40,13 +40,13 @@ public class N5FragmentSegmentAssignmentPersister implements FragmentSegmentAssi
 
 			LOG.debug("Persisting fragment-segment-lookup: {} {}", keys, values);
 
-			final DatasetAttributes attrs = new DatasetAttributes(
+			final DatasetAttributes initAttrs = new DatasetAttributes(
 					new long[]{keys.length, 2},
 					new int[]{Math.max(keys.length, 1), 1},
 					DataType.UINT64,
 					new GzipCompression()
 			);
-			writer.createDataset(dataset, attrs);
+			DatasetAttributes newAttrs = writer.createDataset(dataset, initAttrs);
 
 			if (keys.length == 0) {
 				LOG.debug("Zero-length-lookup: Will not write any data.");
@@ -62,8 +62,8 @@ public class N5FragmentSegmentAssignmentPersister implements FragmentSegmentAssi
 					new long[]{0, 1},
 					values
 			);
-			writer.writeBlock(dataset, attrs, keyBlock);
-			writer.writeBlock(dataset, attrs, valueBlock);
+			writer.writeBlock(dataset, newAttrs, keyBlock);
+			writer.writeBlock(dataset, newAttrs, valueBlock);
 		} catch (final Exception e) {
 			throw new UnableToPersist(e);
 		}
