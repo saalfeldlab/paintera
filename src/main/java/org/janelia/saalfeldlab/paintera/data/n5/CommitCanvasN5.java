@@ -347,9 +347,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final DatasetAttributes uniqueLabelsAttributes,
 			final long[] gridPosition) throws IOException {
 
-		return Optional.ofNullable(n5.readBlock(uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition))
-				.map(b -> (LongArrayDataBlock)b)
-				.map(LongArrayDataBlock::getData)
+		return Optional.ofNullable(n5.<long[]>readBlock(uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition))
+				.map(DataBlock::getData)
 				.orElse(new long[]{});
 	}
 
