@@ -7,7 +7,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.render.BaseRenderUnit
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import bdv.viewer.Interpolation
 import bdv.viewer.TransformListener
-import com.amazonaws.util.Base64
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.animation.AnimationTimer
 import javafx.embed.swing.SwingFXUtils
@@ -48,6 +47,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.Base64
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.coroutines.cancellation.CancellationException
@@ -394,7 +394,7 @@ object SamEmbeddingLoaderCache : AsyncCacheWithLoader<RenderUnitState, OnnxTenso
 
 		}
 		EntityUtils.toByteArray(response.entity!!).let {
-			val decodedEmbedding = Base64.decode(it)
+			val decodedEmbedding = Base64.getDecoder().decode(it)
 			val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size).order(ByteOrder.nativeOrder())
 			directBuffer.put(decodedEmbedding, 0, decodedEmbedding.size)
 			directBuffer.position(0)
