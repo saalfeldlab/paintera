@@ -41,6 +41,8 @@
         </then>
     </if>
 
+    <logger name="io.grpc" level="WARN"/>
+
     <!--    https://stackoverflow.com/questions/53152471/how-can-i-dynamically-by-env-variable-activate-deactivate-logback-or-logback-a -->
     <!--    http://logback.qos.ch/manual/configuration.html#conditional -->
     <root level="${paintera.log.root.logger.level:-INFO}">
