@@ -109,7 +109,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
     override fun getData(vararg gridPosition: Long): ByteArray? {
         LOG.trace { "Reading block for position $gridPosition" }
         val block = runCatching {
-            n5.readBlock(dataset, datasetAttributes, *gridPosition)
+            n5.readBlock<ByteArray>(dataset, datasetAttributes, *gridPosition)
         }.getOrElse { e ->
             LOG.error { "Error reading block (${gridPosition.contentToString()}) for $dataset" }
             LOG.trace(e) {}
@@ -118,7 +118,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 
         return block?.let {
             LOG.trace { "Read block $it for position $gridPosition" }
-            it.data as ByteArray?
+            it.data
         } ?: let {
             LOG.trace { "No block at $gridPosition" }
             null
