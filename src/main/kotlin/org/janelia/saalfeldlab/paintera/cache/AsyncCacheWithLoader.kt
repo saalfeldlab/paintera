@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.cache
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import net.imglib2.cache.Cache
 import net.imglib2.cache.LoaderCache
@@ -15,6 +16,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 	protected abstract suspend fun loader(key : K): V
 
 	fun cancelUnfinishedRequests() {
+		LOG.debug { "cancelling unfinished requests" }
 		val reason = CancellationException("Unfinished Requests Cancelled")
 		loaderQueueScope.coroutineContext.cancelChildren(reason)
 		loaderScope.coroutineContext.cancelChildren(reason)
@@ -35,7 +37,9 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 
 	fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
 		cache.get(key) {
-			if (clear) cancelUnfinishedRequests()
+			LOG.trace { "cache miss, trigger new loader request" }
+			if (clear)
+				cancelUnfinishedRequests()
 			loaderScope.async { loader(key) }
 		}.invalidateOnException(key)
 	}
@@ -81,5 +85,9 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 
 	override fun invalidateAll(parallelismThreshold: Long) {
 		cache.invalidateAll(parallelismThreshold)
+	}
+
+	companion object {
+		private val LOG = KotlinLogging.logger { }
 	}
 }
