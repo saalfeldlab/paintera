@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -22,6 +23,8 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.deserializeMetadataState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.serializeMetadataState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.DataSourceDialogs
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -115,6 +118,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 					backend.container.serializeTo(this)
 					addProperty(DATASET, backend.dataset)
 					add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
+					this["metadataState"] = backend.metadataState.serializeMetadataState()
 				}
 			}
 		}
@@ -154,8 +158,9 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 					val dataset: String = json[DATASET]!!
 					val n5ContainerState = N5ContainerState(container)
 					val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset)!!
-					if (metadataState.datasetAttributes.numDimensions > 3)
-						metadataState.n5ContainerState = n5ContainerState.readOnlyCopy()
+					metadataState.deserializeMetadataState(json["metadataState"])
+//					if (metadataState.datasetAttributes.numDimensions > 3)
+//						metadataState.n5ContainerState = n5ContainerState.readOnlyCopy()
 					N5BackendMultiScaleGroup<D, T>(
 						metadataState,
 						propagationExecutorService

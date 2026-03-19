@@ -12,8 +12,8 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.util.n5.N5Data.openRaw
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
-import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -22,6 +22,7 @@ import java.nio.file.Path
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+
 
 class SlicedDataSourceTest {
 
@@ -36,11 +37,11 @@ class SlicedDataSourceTest {
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
 			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
-			Paintera.Companion.n5Factory.gsonBuilder(builder)
+			Paintera.n5Factory.gsonBuilder(builder)
 		}
 
 		private fun writer(tmp: Path): N5Writer =
-			Paintera.Companion.n5Factory.newWriter(tmp.toAbsolutePath().toString())
+			Paintera.n5Factory.newWriter(tmp.toAbsolutePath().toString())
 
 		private fun createDataset(
 			writer: N5Writer,
@@ -59,12 +60,9 @@ class SlicedDataSourceTest {
 			forceSlice3D: Boolean? = null
 		): ImagesWithTransform<*, *> {
 			val queue = SharedQueue(1, 1)
-			return if (forceSlice3D != null) {
-				val transform = MetadataUtils.Companion.transformFromResolutionOffset(DEFAULT_RES, DEFAULT_OFFSET)
-				N5Data.openRaw<Nothing, Nothing>(writer, dataset, transform, xyzAxes, queue, 0, forceSlice3D) as ImagesWithTransform<*, *>
-			} else {
-				N5Data.openRaw<Nothing, Nothing>(writer, dataset, DEFAULT_RES, DEFAULT_OFFSET, xyzAxes, queue, 0) as ImagesWithTransform<*, *>
-			}
+
+			val metadataState = MetadataUtils.createMetadataState(writer, dataset)!!
+			return metadataState.openRaw<Nothing, Nothing>(queue, 0)[0]
 		}
 
 		private fun verifyDims(
@@ -159,9 +157,9 @@ class SlicedDataSourceTest {
 			createDataset(n5, "$group/$scale", dims, blockSize)
 			n5.setAttribute("$group/$scale", "resolution", res)
 		}
-
 		val queue = SharedQueue(1, 1)
-		val results = N5Data.openRawMultiscale<UnsignedByteType, VolatileUnsignedByteType>(n5, group, queue, 0)
+		val metadataState = MetadataUtils.createMetadataState(n5, group)!!
+		val results = metadataState.getData<UnsignedByteType, VolatileUnsignedByteType>(queue, 0)
 
 		assertNotNull(results)
 		assertEquals(3, results.size)

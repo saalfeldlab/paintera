@@ -1,0 +1,18 @@
+.axis-header .list-cell:filled:selected {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-base-color;
+}
+
+.axis-label {
+    -fx-font-weight: bold;
+    -fx-padding: 0 10 0 0;
+}
+
+.number-cell {
+    -fx-alignment: baseline-right;
+    -fx-pref-width: 4em;
+}
+
+.number-cell:readonly {
+    -fx-background-color: transparent;
+}

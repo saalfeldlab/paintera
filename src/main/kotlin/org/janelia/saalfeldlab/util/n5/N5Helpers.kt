@@ -25,6 +25,8 @@ import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -40,7 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
@@ -60,6 +62,7 @@ object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
 	const val IS_LABEL_MULTISET_KEY = "isLabelMultiset"
 	const val MAX_ID_KEY = "maxId"
+	const val PAINTERA_NAMESPACE = "paintera"
 	const val RESOLUTION_KEY = "resolution"
 	const val OFFSET_KEY = "offset"
 	const val UNIT_KEY = "unit"
@@ -73,6 +76,7 @@ object N5Helpers {
 	private val LOG = KotlinLogging.logger { }
 
 	val GROUP_PARSERS = listOf<N5MetadataParser<*>>(
+		OmeNgffV05MetadataParser(),
 		OmeNgffMetadataParser(),
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
@@ -210,7 +214,7 @@ object N5Helpers {
 			return N5ContainerState(n5).let { it to discoverAndParseRecursive(it.reader, dataset) }
 
 
-		val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(n5.uri.toString()) {
+		val containerState = N5ContainerStateCache.cache.getOrPut(n5.uri.toString()) {
 			N5ContainerState(n5)
 		} ?: return null
 		val node = containerState.let { container ->
@@ -322,6 +326,7 @@ object N5Helpers {
 	fun idService(n5: N5Reader, dataset: String?): IdService {
 		LOG.debug { "Requesting id service for $n5:$dataset" }
 		val maxId = n5.getAttribute(dataset, "maxId", Long::class.java)
+			?: n5.getAttribute(dataset, "paintera/maxId", Long::class.java)
 		LOG.debug { "Found maxId=$maxId" }
 		return when {
 			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId` not specified for dataset `$dataset` in container `$n5`.")
