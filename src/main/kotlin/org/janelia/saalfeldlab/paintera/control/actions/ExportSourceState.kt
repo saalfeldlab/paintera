@@ -24,8 +24,8 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -36,12 +36,12 @@ import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
-import org.janelia.saalfeldlab.paintera.state.metadata.get
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
+import org.janelia.saalfeldlab.util.n5.N5Helpers.PAINTERA_NAMESPACE
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
 import kotlin.coroutines.cancellation.CancellationException
@@ -121,7 +121,7 @@ class ExportSourceState {
 
 
 		val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState
-		val metadata = metadataState?.let { it as? MultiScaleMetadataState }?.metadata?.get(scaleLevel) ?: metadataState?.metadata as? N5SpatialDatasetMetadata
+		val metadata = (metadataState as? MultiScaleMetadataState)?.metadata?.childrenMetadata[scaleLevel] ?: metadataState?.metadata as? N5SpatialDatasetMetadata
 		val translation = when {
 			metadataState is MultiScaleMetadataState && metadataState.highestResMetadata != metadata -> metadataState.downscaleTranslation(scaleLevel)
 			else -> backend.translation
@@ -183,8 +183,9 @@ class ExportSourceState {
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
 			val writer = Paintera.n5Factory.newWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, translation)
+			writer.setAttribute(dataset, "paintera/isLabel", true)
 			if (maxIdProperty.value > -1)
-				writer.setAttribute(dataset, MAX_ID_KEY, maxIdProperty.value)
+				writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", maxIdProperty.value)
 			val scaleLevelDataset = "$dataset/s$scaleLevel"
 
 			n5?.let {
@@ -269,7 +270,7 @@ class ExportSourceState {
 internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = downscaleTranslation(
 	highestResMetadata.resolution,
 	highestResMetadata.offset,
-	metadata[scaleLevel].resolution
+	metadata.childrenMetadata[scaleLevel].resolution
 )
 
 internal fun downscaleTranslation(s0Resolution: DoubleArray, s0Offset: DoubleArray, sNResolution: DoubleArray): DoubleArray {
@@ -291,7 +292,7 @@ internal fun exportOmeNGFFMetadata(
 	writer.createGroup(dataset)
 	val newDatasetAttrs = writer.createDataset(scaleLevelDataset, datasetAttributes)
 
-	val exportMetadata = OmeNgffMetadata.buildForWriting(
+	val exportMetadata = OmeNgffV05Metadata.buildForWriting(
 		newDatasetAttrs.numDimensions,
 		dataset,
 		arrayOf(
@@ -304,7 +305,7 @@ internal fun exportOmeNGFFMetadata(
 		arrayOf(translation)
 	)
 
-	OmeNgffMetadataParser().writeMetadata(
+	OmeNgffV05MetadataParser().writeMetadata(
 		exportMetadata,
 		writer,
 		dataset

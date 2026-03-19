@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.paintera
@@ -146,7 +147,16 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val cropMins = LongArray(3) {
 			0L
 		}
-		val imgDimensions = metadataState.datasetAttributes.dimensions
+		val imgDimensions = metadataState.datasetAttributes.dimensions.let { dims ->
+			val (xIdx, yIdx, zIdx) =
+				metadataState.axes
+					.mapIndexed { dimIdx, axis -> dimIdx to axis }
+					.filter { (_, axis) -> axis.type == Axis.SPACE }
+					.sortedBy { (_, axis) -> axis.name } /* sorts X, Y, Z */
+					.map { (idx, _) -> idx }
+					.toIntArray()
+			arrayOf(dims[xIdx], dims[yIdx], dims[zIdx]).toLongArray()
+		}
 		val cropSize = LongArray(3) {
 			(imgDimensions[it])
 		}
@@ -280,7 +290,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val n5ContainerState = metadataState.n5ContainerState
 
 		val resolutionLabel = Labels.withTooltip("Resolution", "Resolution of the source dataset")
-		val offsetLabel = Labels.withTooltip("Offset", "Offset of the source dataset")
+		val offsetLabel = Labels.withTooltip("Translation", "Translation of the source dataset")
 		val labelMultisetLabel = Label("Label Multiset?")
 		val dataTypeLabel = Label("Data Type")
 		val unitLabel = Label("Unit")
@@ -314,12 +324,19 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			editable = false
 		}
 
+		val (xIdx, yIdx, zIdx) =
+			metadataState.axes
+				.mapIndexed { dimIdx, axis -> dimIdx to axis }
+				.filter { (_, axis) -> axis.type == Axis.SPACE }
+				.sortedBy { (_, axis) -> axis.name } /* X, Y, Z sort*/
+				.map { (idx, _) -> idx }
+				.toIntArray()
 
 		val dimensions = metadataState.datasetAttributes.dimensions
 		val dimensionsField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
-			x.value = dimensions[0]
-			y.value = dimensions[1]
-			z.value = dimensions[2]
+			x.value = dimensions[xIdx]
+			y.value = dimensions[yIdx]
+			z.value = dimensions[zIdx]
 			showHeader = true
 			editable = false
 		}

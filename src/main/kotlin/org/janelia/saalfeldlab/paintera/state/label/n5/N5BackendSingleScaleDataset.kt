@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -22,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.serializeMetadataState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.DataSourceDialogs
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -112,6 +114,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 				backend.container.serializeTo(map)
 				map.addProperty(DATASET, backend.dataset)
 				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
+				map["metadataState"] = backend.metadataState.serializeMetadataState()
 			}
 			return map
 		}

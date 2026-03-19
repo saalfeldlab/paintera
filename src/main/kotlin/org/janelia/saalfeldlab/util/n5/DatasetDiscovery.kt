@@ -70,18 +70,16 @@ internal suspend fun asyncDiscoverAndParseRecursive(
 
 fun main() {
 	var waiting = 5
-	var n5 = N5Factory.createReader("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")
+	var n5 = N5Factory.createReader("/Volumes/cellmap/zouinkhim/c-elegan/predictions/mito_lsds/inference/jrc_c-elegans-op50-1.zarr")
 	var paths = mutableSetOf<String>()
 	val parseJob = CoroutineScope(Dispatchers.IO).launch {
-			asyncDiscoverAndParseRecursive(n5, "/", { println("deeplist: $it")}) {
-				if (paths.add(it.path))
-					println("parse: ${it.path}")
+			asyncDiscoverAndParseRecursive(n5, "/setup16_lsd_400k_all_16/seg_0_55_cleaned", { println("deeplist: $it")}) {
+				if (paths.add(it.path)) {
+					println("parse: ${it.path}\t${it.metadata}")
+				}
 			}
 	}
 	runBlocking {
-		delay(1000)
-		parseJob.cancel()
-		println("cancelled!")
-		delay(1000)
+		parseJob.join()
 	}
 }
