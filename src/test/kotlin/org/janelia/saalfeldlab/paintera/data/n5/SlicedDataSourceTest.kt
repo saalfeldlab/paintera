@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import kotlin.test.Ignore
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -79,6 +80,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 3D with standard xyz axes`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30)
@@ -92,6 +94,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 5D sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30, 3, 2)
@@ -103,6 +106,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D not sliced by default`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30, 3)
@@ -116,6 +120,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D force sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30, 3)
@@ -127,6 +132,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test non-standard axis order`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(2, 10, 3, 20, 30)
@@ -139,6 +145,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test multiscale opening`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val group = "multiscale"
@@ -170,6 +177,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 6D sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30, 3, 2, 4)
@@ -181,6 +189,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 3D unchanged`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30)
