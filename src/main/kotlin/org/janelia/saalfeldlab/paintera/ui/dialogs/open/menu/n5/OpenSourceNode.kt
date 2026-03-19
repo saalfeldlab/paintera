@@ -1,70 +1,56 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5
 
-import javafx.beans.binding.BooleanExpression
 import javafx.collections.FXCollections
 import javafx.collections.MapChangeListener
 import javafx.collections.ObservableList
-import javafx.scene.Node
+import javafx.geometry.Pos
 import javafx.scene.control.*
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.Priority
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
+import org.janelia.saalfeldlab.paintera.control.actions.OpenSourceModel
+import org.janelia.saalfeldlab.paintera.ui.hGrow
 
-class OpenSourceNode(
-	openSourceState: OpenSourceState,
-	containerLocationNode: TextField,
-	browseNode: Node,
-	isBusy: BooleanExpression,
-) : GridPane() {
-
-	var resetAction: ((String) -> Unit)? = null
+class OpenSourceNode(model: OpenSourceModel) : HBox(5.0) {
 
 	init {
-		/* Create the grid and add the root node */
-		add(containerLocationNode, 0, 0)
-		setColumnSpan(containerLocationNode, 2)
-		setHgrow(containerLocationNode, Priority.ALWAYS)
+		alignment = Pos.CENTER_LEFT
 
-		/* create and add the datasetDropdown Menu*/
-		val datasetDropDown = openSourceState.createDatasetDropdownMenu()
-		add(datasetDropDown, 0, 1)
-		setHgrow(datasetDropDown, Priority.ALWAYS)
-
-		val reparseContainer = Button("")
-		reparseContainer.addStyleClass(Style.REFRESH_ICON)
-		reparseContainer.tooltip = Tooltip("Search for Datasets again at the current selection")
-		reparseContainer.setOnAction {
-			containerLocationNode.text?.let { resetAction?.invoke(it) }
+		val datasetDropDown = model.createDatasetDropdownMenu()
+		val reparseButton = Button("").apply {
+			addStyleClass(Style.REFRESH_ICON)
+			tooltip = Tooltip("Search for Datasets again at the current selection")
+			setOnAction {
+				model.containerSelectionProperty.get()?.let { container ->
+					model.reparseSelection(container)
+				}
+			}
 		}
-		add(reparseContainer, 1, 1)
-		setHalignment(reparseContainer, javafx.geometry.HPos.LEFT)
+		val progressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS).apply {
+			prefWidth = 24.0
+			prefHeight = 24.0
+			maxWidth = 24.0
+			maxHeight = 24.0
+			visibleProperty().bind(model.isBusyProperty)
+			managedProperty().bind(model.isBusyProperty)
+		}
 
-
-		add(browseNode, 2, 0)
-
-		val progressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS)
-		progressIndicator.scaleX = .75
-		progressIndicator.scaleY = .75
-
-		add(progressIndicator, 2, 1)
-		setHgrow(progressIndicator, Priority.NEVER)
-		setVgrow(progressIndicator, Priority.NEVER)
-		progressIndicator.visibleProperty().bind(isBusy)
+		children += datasetDropDown
+		children += Pane().hGrow()
+		children += reparseButton
+		children += progressIndicator
 	}
-
 
 	companion object {
 		const val DATASET_PROMPT = "_Dataset"
 
-		private fun OpenSourceState.createDatasetDropdownMenu(): MenuButton {
+		private fun OpenSourceModel.createDatasetDropdownMenu(): MenuButton {
 
 			fun trimValidDatasetChoices(): List<String> {
-
 				val nodes = validDatasets.values.toMutableList()
 				nodes.removeAll(nodes.flatMap { it.childrenList() })
 				return nodes.map { it.path }
@@ -72,22 +58,18 @@ class OpenSourceNode(
 
 			val choices: ObservableList<String> = FXCollections.observableArrayList()
 
-
 			val dropDownMenuButton = MatchSelectionMenuButton(choices, null, null) { selection ->
 				activeNode = validDatasets.get()[selection]
 			}.apply {
 				cutoff = 50
 
-				var datasetPathTooltip = activeNodeProperty.createObservableBinding { datasetPath?.let { Tooltip(it) } }
-				tooltipProperty().bind(datasetPathTooltip)
-
-				val disableWhenEmpty = validDatasets.createObservableBinding { validDatasets.get().isEmpty() }
+				val disableWhenEmpty = validDatasets.createObservableBinding { it.get().isEmpty() }
 				disableProperty().bind(disableWhenEmpty)
 
 				val datasetDropDownText = activeNodeProperty.createObservableBinding {
-					if (datasetPath.isNullOrEmpty()) DATASET_PROMPT
-					else "$DATASET_PROMPT: $datasetPath"
-				}
+						val pathPart = it.value?.path?.let { path -> " : $path" } ?: ""
+						"$DATASET_PROMPT$pathPart"
+					}
 				textProperty().bind(datasetDropDownText)
 
 				val prevOnShowing = onShowing
@@ -97,7 +79,7 @@ class OpenSourceNode(
 				}
 			}
 
-			/* If the dataset choices are changed, create new menuItems, and update*/
+			/* if the dataset choices change, update the menu items */
 			validDatasets.addListener(MapChangeListener {
 				val trimmedDatasets = trimValidDatasetChoices()
 				InvokeOnJavaFXApplicationThread {
