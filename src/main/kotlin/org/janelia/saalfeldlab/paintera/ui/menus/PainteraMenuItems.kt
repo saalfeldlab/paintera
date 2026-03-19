@@ -8,7 +8,6 @@ import javafx.scene.control.MenuItem
 import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -22,12 +21,9 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.OpenDialogMenuEntry
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.IntersectingSourceStateOpener
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.kordamp.ikonli.fontawesome.FontAwesome
-import java.util.function.Supplier
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
 enum class PainteraMenuItems(
@@ -38,7 +34,6 @@ enum class PainteraMenuItems(
 ) {
 	NEW_PROJECT("_New Project", requiredActionTypes = arrayOf(OpenProject)),
 	OPEN_PROJECT("Open _Project...", icon = FontAwesome.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
-	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesome.FOLDER_OPEN, arrayOf(AddSource)),
 	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesome.FLOPPY_O, arrayOf(ExportSource)),
 	SAVE("_Save", PBK.SAVE, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
 	SAVE_AS("Save _As...", PBK.SAVE_AS, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
@@ -69,10 +64,6 @@ enum class PainteraMenuItems(
 
 	companion object {
 
-		private operator fun OpenDialogMenuEntry.invoke(pbv: PainteraBaseView, projectDir : Supplier<String>) {
-			onAction().accept(pbv, projectDir)
-		}
-
 		private val replDialog = ReplDialog(paintera.gateway.context, "paintera" to this)
 
 		private fun PainteraMainWindow.namedEventHandlers(): Map<PainteraMenuItems, EventHandler<ActionEvent>> {
@@ -84,7 +75,6 @@ enum class PainteraMenuItems(
 						Paintera.application.loadProject(newProject.path)
 					}
 				},
-				OPEN_SOURCE { OpenSourceDialog.menuEntry(baseView, getProjectDirectory) },
 				EXPORT_SOURCE { ExportSourceDialog.askAndExport() },
 				SAVE { saveOrSaveAs() },
 				SAVE_AS { saveAs() },
