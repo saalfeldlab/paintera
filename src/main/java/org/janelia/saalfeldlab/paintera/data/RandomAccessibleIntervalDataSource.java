@@ -1,7 +1,10 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
 import kotlin.Triple;
+import kotlin.Unit;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -13,10 +16,7 @@ import net.imglib2.type.Type;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 
 public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
 	private final Supplier<AffineTransform3D[]> getMipmapTransforms;
 
