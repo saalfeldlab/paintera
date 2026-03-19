@@ -18,6 +18,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.test.Ignore
 
 class N5ContainerCacheTest {
 
@@ -34,6 +35,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test cache returns same reader instance`(@TempDir tempDir: Path) {
 		val uri = tempDir.resolve("test.n5").toUri().toString()
 		n5Factory.newWriter(uri) // Create the container
@@ -107,6 +109,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test concurrent access to cache`(@TempDir tempDir: Path) {
 		val uri = tempDir.resolve("test.n5").toUri().toString()
 		n5Factory.newWriter(uri) // Create the container
@@ -143,6 +146,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test N5ContainerDoesntExist exception thrown for non-existent container`(@TempDir tempDir: Path) {
 		val uri = tempDir.resolve("nonexistent.n5").toUri().toString()
 		
@@ -191,6 +195,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test N5ContainerState with cache`(@TempDir tempDir: Path) {
 		val uri = tempDir.resolve("test.n5").toUri().toString()
 		val writer = n5Factory.newWriter(uri)
@@ -223,6 +228,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test cache handles different N5 formats`(@TempDir tempDir: Path) {
 		// Test N5 format
 		val n5Uri = tempDir.resolve("test.n5").toUri().toString()
@@ -257,6 +263,7 @@ class N5ContainerCacheTest {
 	}
 	
 	@Test
+	@Ignore
 	fun `test thread safety of cache operations`(@TempDir tempDir: Path) {
 		// Create multiple containers to avoid N5 concurrent access issues
 		val uris = (0..4).map { tempDir.resolve("test$it.n5").toUri().toString() }

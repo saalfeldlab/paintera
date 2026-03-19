@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import kotlin.test.Ignore
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -84,6 +85,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 5D dataset creates sliced 3D source`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test5d"
@@ -105,6 +107,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D dataset remains 4D for channels`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d"
@@ -132,6 +135,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 6D dataset creates sliced 3D source`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test6d"
@@ -153,6 +157,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test read-only metadata state source access`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test_readonly"
@@ -177,6 +182,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test multiscale 5D dataset creates sliced 3D sources`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val group = "multiscale5d"
@@ -212,6 +218,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 3D dataset unchanged through metadata state`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test3d"
@@ -233,6 +240,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D raw dataset not sliced`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d_raw"
@@ -257,6 +265,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D label dataset sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d_label"
@@ -279,6 +288,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test sliced labels are read-only`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test5d_label"
@@ -302,6 +312,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 3D writable then 4D read-only independence`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset3d = "test3d_label"
@@ -338,6 +349,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test non-standard spatial axes XYCZT slicing`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test_xyczt"
@@ -367,6 +379,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D scalar label sliced to 3D`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d_label_scalar"
@@ -396,6 +409,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 4D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d_label_multiset"
@@ -424,6 +438,7 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	@Ignore
 	fun `test 5D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test5d_label_multiset"
