@@ -131,7 +131,8 @@ class Paintera : Application() {
 
 		projectPath?.let {
 			notifySplashScreen(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-			PainteraCache.RECENT_PROJECTS.appendLine(projectPath.canonicalPath, 10)
+			val projectUri = projectPath.toURI().toString()
+			PainteraCache.RECENT_PROJECTS.appendLine(projectUri, 15)
 		} ?: let {
 			notifySplashScreen(SplashScreenUpdateNumItemsNotification(2, false))
 			notifySplashScreen(SplashScreenUpdateNotification("Launching Paintera...", true))
@@ -254,8 +255,8 @@ class Paintera : Application() {
 	}
 
 	fun loadProject(projectDirectory: String? = null) {
-		projectDirectory?.let {
-			if (n5Factory.openReaderOrNull(it) == null) {
+		projectDirectory?.let { pathOrUri ->
+			if (n5Factory.openReaderOrNull(pathOrUri) == null) {
 				val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 				alert.headerText = "Paintera Project Not Found"
 				alert.contentText = """

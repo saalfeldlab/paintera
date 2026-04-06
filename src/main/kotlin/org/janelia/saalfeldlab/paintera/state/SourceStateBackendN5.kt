@@ -98,11 +98,18 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	}
 
 	private fun VBox.addContainerAndDatasetChildren(n5ContainerState: N5ContainerState, metadataState: MetadataState) {
+		val containerUri = n5ContainerState.uri
+		val containerString = if (containerUri.scheme == "file")
+			containerUri.path
+		 else
+			 containerUri.toString()
+
 		val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.uri}'")
+		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `$containerString'")
 
 
-		val container = TextField(n5ContainerState.uri.toString()).apply { isEditable = false }
+
+		val container = TextField(containerString).apply { isEditable = false }
 		val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 		children += HBox(containerLabel, container).apply { spacing = 10.0 }

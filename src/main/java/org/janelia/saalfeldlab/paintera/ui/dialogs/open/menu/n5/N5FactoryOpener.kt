@@ -92,8 +92,10 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 				n5?.let { N5ContainerState(it) }
 			}
 			val parseJob = openSourceState.parseContainer(state, parseN5LoaderCache)
-			if (parseJob?.await()?.isNotEmpty() == true)
-				cacheAsRecent(newSelection)
+			if (parseJob?.await()?.isNotEmpty() == true) {
+				val container = runCatching { state?.reader?.uri?.toString() ?: newSelection }.getOrDefault(newSelection)
+				cacheAsRecent(container)
+			}
 		}.invokeOnCompletion { cause ->
 			isBusyProperty.set(false)
 			when (cause) {
