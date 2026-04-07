@@ -45,13 +45,8 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.net.URI;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -348,6 +343,21 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	public String project() {
 
+		/*return null if null */
+		if (project == null)
+			return null;
+
+		/* try to parse directly as URI if possible */
+		try {
+			URI projectUri = URI.create(project);
+			String absPath = new File(projectUri).getAbsolutePath();
+			LOG.debug("Return project={}", absPath);
+			return absPath;
+		} catch (Throwable e) {
+			LOG.debug("Could not parse project URI: {}", project);
+		}
+
+		/* parse as file and get absolute path otherwise */
 		final String returnedProject = this.project == null ? this.project : new File(project).getAbsolutePath();
 		LOG.debug("Return project={}", returnedProject);
 		return returnedProject;

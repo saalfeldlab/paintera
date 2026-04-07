@@ -372,7 +372,8 @@ public class N5Data {
 	 */
 	private static <T extends NativeType<T>> CachedCellImg<T, ?> slice3D(CachedCellImg<T, ?> nDImg, int[] xyzAxes, boolean forceSlice3D) {
 		final long[] imgSizeND = nDImg.dimensionsAsLongArray();
-		if (imgSizeND.length == 4 && !forceSlice3D) {
+		int numDims = nDImg.numDimensions();
+		if (numDims == 3 || numDims == 4 && !forceSlice3D) {
 			return nDImg;
 		}
 

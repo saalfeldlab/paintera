@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.menus
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -25,6 +26,9 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
+import java.net.URI
+
+private val LOG = KotlinLogging.logger {  }
 
 private val currentSourceName by LazyForeignValue(::paintera) {
 	MenuItem(null).apply {
@@ -49,18 +53,40 @@ private val currentSourceMenu by LazyForeignValue(::paintera) {
 
 private val showVersion by LazyForeignValue(::paintera) { MenuItem("Show _Version...").apply { onAction = EventHandler { PainteraAlerts.versionDialog().show() } } }
 
-private val recentProjects: ObservableList<String> = FXCollections.observableArrayList()
+private val recentProjects: ObservableList<URI> = FXCollections.observableArrayList()
+private val recentProjectsStringBinding = FXCollections.observableArrayList<String>().also {
+	fun mapUriToString(uri : URI): String {
+		return if (uri.scheme == "file")
+			uri.path
+		else
+			uri.toString()
+	}
+	recentProjects.subscribe {
+		val uris = recentProjects.map { mapUriToString(it) }
+		it.setAll(uris)
+	}
+}
 
 private val openRecentMenu by LazyForeignValue(::paintera) {
-	MatchSelectionMenu(recentProjects, "Open _Recent", 400.0) {
-		it?.let { recentProject -> Paintera.application.loadProject(recentProject) }
+	MatchSelectionMenu(recentProjectsStringBinding, "Open _Recent", 400.0) {
+		val idx = recentProjectsStringBinding.indexOf(it).takeUnless { it == -1 } ?: return@MatchSelectionMenu
+		Paintera.application.loadProject(recentProjects[idx].toString())
 	}
 }
 
 private val fileMenu by LazyForeignValue(::paintera) {
 	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
 		it.setOnShowing {
-			recentProjects.setAll(PainteraCache.RECENT_PROJECTS.readLines().reversed())
+			val uris = mutableListOf<URI>()
+			for (proj in PainteraCache.RECENT_PROJECTS.readLines().reversed()) {
+				runCatching {
+					uris += URI.create(proj)
+				}.onFailure { error ->
+					LOG.warn { "Could not get URI from cached project path: ${error.message}" }
+				}
+			}
+
+			recentProjects.setAll(uris)
 		}
 	}
 }

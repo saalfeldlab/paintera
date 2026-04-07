@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils.findMaxId
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.alert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.confirmation
@@ -239,11 +240,15 @@ object DataSourceDialogs {
 			InvokeOnJavaFXApplicationThread {
 				if (alert.showAndWait().getOrNull() == ButtonType.OK) {
 					val maxId = maxIdField.valueProperty().get()
-					n5.setAttribute(dataset, "maxId", maxId)
-					N5IdService(n5, dataset, maxId)
+					runCatching {
+						n5.setAttribute(dataset, "maxId", maxId)
+						N5IdService(n5, dataset, maxId)
+					}.getOrElse {
+						LocalIdService(maxId)
+					}
 				} else {
 					task.get()?.cancel()
-					IdService.IdServiceNotProvided()
+					LocalIdService(1)
 				}
 			}.await()
 		}
