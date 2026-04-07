@@ -31,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.kordamp.ikonli.fontawesome.FontAwesome.*
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -163,8 +164,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			it.setAttribute("/", PAINTERA_KEY, this)
 		}
 		if (notify) {
-			val projectUri = projectDirectory.directory.toURI().toString()
-			PainteraCache.RECENT_PROJECTS.appendLine(projectUri, 15)
+			val canonicalString = N5Helpers.canonicalString(projectDirectory.directory.toURI())
+			PainteraCache.RECENT_PROJECTS.appendLine(canonicalString, 15)
 			InvokeOnJavaFXApplicationThread {
 				showSaveCompleteNotification()
 			}

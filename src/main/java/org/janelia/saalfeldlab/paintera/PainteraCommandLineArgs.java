@@ -42,10 +42,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.net.URI;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -343,24 +341,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	public String project() {
 
-		/*return null if null */
+		/*return if null */
 		if (project == null)
 			return null;
 
-		/* try to parse directly as URI if possible */
-		try {
-			URI projectUri = URI.create(project);
-			String absPath = new File(projectUri).getAbsolutePath();
-			LOG.debug("Return project={}", absPath);
-			return absPath;
-		} catch (Throwable e) {
-			LOG.debug("Could not parse project URI: {}", project);
-		}
-
-		/* parse as file and get absolute path otherwise */
-		final String returnedProject = this.project == null ? this.project : new File(project).getAbsolutePath();
-		LOG.debug("Return project={}", returnedProject);
-		return returnedProject;
+		/* get the canonical form of the container as a string  */
+		String container = N5Helpers.canonicalString(project);
+		LOG.debug("Return project={}", container);
+		return container;
 	}
 
 	public double[] screenScales() {

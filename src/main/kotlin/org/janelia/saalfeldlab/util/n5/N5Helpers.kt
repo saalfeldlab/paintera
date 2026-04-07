@@ -48,7 +48,9 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
+import java.io.File
 import java.io.IOException
+import java.net.URI
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
@@ -691,10 +693,10 @@ object N5Helpers {
 	class MaxIDNotSpecified(message: String) : PainteraException(message)
 	class NotAPainteraDataset(val container: N5Reader, val group: String) : PainteraException(String.format("Group %s in container %s is not a Paintera dataset.", group, container))
 
-	private const val URI = "uri"
+	private const val URI_KEY = "uri"
 	internal fun N5Reader.serializeTo(json: JsonObject) {
 		if (!uri.equals(paintera.projectDirectory.actualDirectory.toURI())) {
-			json[URI] = uri.toString()
+			json[URI_KEY] = uri.toString()
 		}
 	}
 
@@ -708,7 +710,7 @@ object N5Helpers {
 			?.asJsonObject?.let { it.get("basePath") ?: it.get("file") }
 			?.asString
 		val uri = fromClassInfo
-			?: json[URI]?.asString
+			?: json[URI_KEY]?.asString
 			?: paintera.projectDirectory.actualDirectory.absolutePath
 		return getN5ContainerWithRetryPrompt(uri)
 	}
@@ -905,5 +907,48 @@ object N5Helpers {
 		constructor(location: String) : super("Source expected at:\n$location\nshould be removed")
 		constructor(location: String, cause: Throwable) : super("Source expected at:\n$location\nshould be removed", cause)
 
+	}
+
+	/**
+	 * [canonicalString(URI)], using [N5Reader.getURI] for the [URI] parameter.
+	 */
+	@JvmStatic
+	fun canonicalString(n5Location: N5Reader) = canonicalString(n5Location.uri)
+
+	/**
+	 * Get a canonical string representation of the location of the N5 container.
+	 * Mainly used for extracting a canonical path from a file URI. For non-file
+	 * URIs, [URI.toString] is returned.
+	 *
+	 * The main file URI benefit is that since Java 24, `canonicalPath` on a File
+	 * will resolve the network map to the UNC path, which is more descriptive
+	 * and shareable.
+	 *
+	 * @param n5Location
+	 * @return
+	 */
+	@JvmStatic
+	fun canonicalString(n5Location: URI): String {
+		if (n5Location.scheme == "file" || n5Location.scheme.isNullOrBlank()) {
+			/* get the canonical path if possible, otherwise return the path */
+			runCatching {
+				return File(n5Location).canonicalPath
+			}
+			return n5Location.path
+		}
+		return n5Location.toString()
+
+	}
+
+	/**
+	 * [URI.create] called with [n5Location] before forwarding to [canonicalString(URI)].
+	 * if [URI.create] fails, [n5Location] is returned directly.
+	 */
+	@JvmStatic
+	fun canonicalString(n5Location: String): String {
+		runCatching {
+			return canonicalString(URI.create(n5Location))
+		}
+		return n5Location
 	}
 }
