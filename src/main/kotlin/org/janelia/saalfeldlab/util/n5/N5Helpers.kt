@@ -854,7 +854,7 @@ object N5Helpers {
 
 				else ->
 					existsIOScope.launch {
-						if (n5.shardExists(normalizedDatasetName, datasetAttributes, *curBlock)) {
+						if (n5.blockExists(normalizedDatasetName, datasetAttributes, *curBlock)) {
 							withBlockScope.launch {
 								forEachBlockExists!!(cellInterval)
 								forEachBlock?.invoke(cellInterval)
