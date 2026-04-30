@@ -260,12 +260,14 @@ internal class ShapeInterpolationTool(
 		val eagerRequestDepths = depthPairs.map { (first, second) -> first + ((second - first) / 2.0) }.toMutableList()
 
 		depthPairs.firstOrNull()?.let { (first, second) ->
-			val eagerFirstRequest = first - (second - first)
+			val distance = second - first
+			val eagerFirstRequest = first - distance
 			eagerRequestDepths.add(0, eagerFirstRequest)
 		}
 
 		depthPairs.lastOrNull()?.let { (first, second) ->
-			val eagerLastRequest = second + (second - first) / 2.0
+			val distance = second - first
+			val eagerLastRequest = second + distance
 			eagerRequestDepths.add(eagerLastRequest)
 		}
 
