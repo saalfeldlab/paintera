@@ -81,6 +81,7 @@
 
 		<!-- Misc -->
 		<junit-platform-launcher.version>1.13.4</junit-platform-launcher.version>
+		<kotlin-logging-jvm.version>7.0.13</kotlin-logging-jvm.version>
 	</properties>
 
 	<dependencies>
@@ -161,7 +162,7 @@
 		<dependency>
 			<groupId>io.github.oshai</groupId>
 			<artifactId>kotlin-logging-jvm</artifactId>
-			<version>7.0.13</version>
+			<version>${kotlin-logging-jvm.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
