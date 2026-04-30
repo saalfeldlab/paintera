@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
@@ -101,10 +102,11 @@ object NavigationTool : ViewerTool() {
 		}
 
 		val firstTimeOnly = AtomicBoolean(true)
-		subscriptions = subscriptions.and {
+
+		subscriptions += sub@{
 			if (!firstTimeOnly.getAndSet(false)) {
 				LOG.debug { "Tool deactivate ($this) called multiple times" }
-				return@and
+				return@sub
 			}
 			val properties = listOf(allowRotationsProperty, buttonRotationSpeedConfig.regular, buttonRotationSpeedConfig.slow, buttonRotationSpeedConfig.fast)
 			for (property in properties) {
