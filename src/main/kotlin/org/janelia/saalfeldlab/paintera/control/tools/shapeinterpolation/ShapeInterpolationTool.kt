@@ -26,7 +26,7 @@ import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
-import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -201,7 +201,7 @@ internal class ShapeInterpolationTool(
 
 		val newPrediction = mode.samSliceCache[depth] == null
 		if (newPrediction)
-			ImageEncoderCache.embeddingRequester.cancelPendingRequests()
+			SamEncoder.cache.embeddingRequester.cancelPendingRequests()
 
 		val samSliceInfo = mode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
@@ -309,23 +309,23 @@ internal class ShapeInterpolationTool(
 
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
-						verify { ImageEncoderCache.healthCheck() }
+						verify { SamEncoder.isHealthy }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
 
-							/* trigger the prediction, and move there when done */
-							val newFirstDepth = eagerRequestDepths.firstOrNull() ?: -20.0
+							/* trigger the prediction and move there when done */
+							val requestDepth = eagerRequestDepths.firstOrNull() ?: -20.0
 
 							/* request the next depth immediately, request the rest when this one finishes */
-							requestSamPrediction(newFirstDepth, moveToSlice = true) {
+							requestSamPrediction(requestDepth, moveToSlice = true) {
 								requestEagerEmbeddings(sortedSliceDepths)
 							}
 						}
 					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_BISECT)} }
-						verify { ImageEncoderCache.healthCheck() }
+						verify { SamEncoder.isHealthy }
 						onAction {
 							val bisectDepthIter = sortedSliceDepths
 								.zipWithNext { first, second -> (first + second) / 2.0 }
@@ -342,7 +342,7 @@ internal class ShapeInterpolationTool(
 					}
 
 					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
-						verify { ImageEncoderCache.healthCheck() }
+						verify { SamEncoder.isHealthy }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
@@ -355,14 +355,14 @@ internal class ShapeInterpolationTool(
 					}
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
-						verify { ImageEncoderCache.healthCheck() }
+						verify { SamEncoder.isHealthy }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
-
+							val requestDepth = eagerRequestDepths.lastOrNull() ?: 20.0
 
 							/* trigger the prediction and move there when done */
-							requestSamPrediction(eagerRequestDepths.lastOrNull() ?: 20.0, moveToSlice = true) {
+							requestSamPrediction(requestDepth, moveToSlice = true) {
 								/* request the next depth immediately, request the rest when this one finishes */
 								requestEagerEmbeddings(sortedSliceDepths)
 							}
@@ -386,7 +386,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 					autoSamCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE) {
-						verify { ImageEncoderCache.healthCheck() }
+						verify { SamEncoder.isHealthy }
 						onAction {
 							requestSamPrediction(currentDepth, refresh = true) {
                                 requestEagerEmbeddings(sortedSliceDepths)

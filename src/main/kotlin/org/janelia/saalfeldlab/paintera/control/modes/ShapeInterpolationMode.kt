@@ -41,8 +41,8 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
-import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
@@ -65,7 +65,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.util.*
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.util.concurrent.CancellationException
-import kotlin.math.roundToLong
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
 
@@ -85,9 +84,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		.create()
 
 	private val samNavigationRequestListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, _, curViewer ->
-		ImageEncoderCache.stopNavigationBasedRequests()
+        SamEncoder.cache.stopNavigationBasedRequests()
 		curViewer?.let {
-			ImageEncoderCache.startNavigationBasedRequests(curViewer)
+            SamEncoder.cache.startNavigationBasedRequests(curViewer)
 		}
 	}
 
@@ -112,7 +111,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
 		val viewerAndTransforms = activeViewerProperty.get() ?: return reset("No Active Viewer")
-		ImageEncoderCache.startNavigationBasedRequests(viewerAndTransforms)
+        SamEncoder.cache.startNavigationBasedRequests(viewerAndTransforms)
 		controller.apply {
 			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
 				modifyFragmentAlpha()
@@ -124,8 +123,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	override fun exit() {
 		super.exit()
 
-		ImageEncoderCache.stopNavigationBasedRequests()
-		ImageEncoderCache.invalidateAll()
+        SamEncoder.cache.stopNavigationBasedRequests()
+        SamEncoder.cache.invalidateAll()
 		paintera.baseView.disabledPropertyBindings.remove(controller)
 		controller.resetFragmentAlpha()
 		activeViewerProperty.removeListener(samNavigationRequestListener)
@@ -570,7 +569,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 
 			SamSliceInfo(renderState, mask, interpolationPrompt, null, false).also {
-				ImageEncoderCache.load(renderState)
+                SamEncoder.cache.load(renderState)
 				samSliceCache[depth] = it
 			}
 		}
@@ -718,7 +717,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 }
 
 internal fun RenderUnitState.viewerToRenderPoint(screenX: Double, screenY: Double): Pair<Float, Float> {
-	val currentEncoderTargetSize = ImageEncoderCache.embeddingRequester.imageSize.toDouble()
+	val currentEncoderTargetSize = SamEncoder.cache.embeddingRequester.imageSize.toDouble()
 	val screenScaleFactor = calculateTargetScreenScaleFactor(
 		currentEncoderTargetSize,
 		width.toDouble(),

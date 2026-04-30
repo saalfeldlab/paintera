@@ -38,7 +38,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 
 	open fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
 		cache.get(key) {
-			LOG.trace { "cache miss, trigger new loader request" }
+			LOG.trace { "cache miss, trigger new loader request for $key" }
 			if (clear)
 				cancelUnfinishedRequests()
 			loaderScope.async { loader(key) }
@@ -53,7 +53,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 	}
 
 	open fun load(key: K) : Job {
-		/*check invalidate an existing value if it has finished excepptionally */
+		/*check invalidate an existing value if it has finished exceptionally */
 		cache.getIfPresent(key)?.invalidateOnException(key)
 		/* If it's already in the cache, return it */
 		cache.getIfPresent(key)?.let { return it }

@@ -3,25 +3,27 @@ package org.janelia.saalfeldlab.paintera.ai
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.util.Subscription
 import kotlinx.coroutines.*
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
-import org.janelia.saalfeldlab.fx.extensions.lazyVar
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.renderState
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState.Companion.withSessionId
-import org.janelia.saalfeldlab.paintera.ai.sam.sam2.Sam2EncodingLoaderCache
-import org.janelia.saalfeldlab.paintera.cache.ThrottledAsyncCacheWithLoader
+import org.janelia.saalfeldlab.paintera.ai.sam.Sam2EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
 import org.janelia.saalfeldlab.paintera.cache.NavigationBasedRequestTimer
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import java.io.InterruptedIOException
 
-abstract class ImageEncodingLoaderCache<V> : ThrottledAsyncCacheWithLoader<RenderUnitState, V>(), AutoCloseable
+abstract class ImageEncodingLoaderCache<V> : AsyncCacheWithLoader<RenderUnitState, V>(), AutoCloseable
 where V : EncoderResult {
     abstract val embeddingRequester: ImageEmbeddingRequester<V>
-
-    private val currentSessions = HashSet<String>()
 
     private var navigationBasedRequestTimer: NavigationBasedRequestTimer? = null
         set(value) {
@@ -29,7 +31,7 @@ where V : EncoderResult {
             field = value?.apply { start() }
         }
 
-    fun healthCheck() = embeddingRequester.healthCheck()
+    suspend fun healthCheck() = embeddingRequester.healthCheck()
 
     fun stopNavigationBasedRequests() {
         navigationBasedRequestTimer = null
@@ -64,18 +66,12 @@ where V : EncoderResult {
     }
 
     override fun load(key: RenderUnitState): Job {
-
-        return embeddingRequester.scope.launch {
-            coroutineScope {
-                val sessionState = (key as? SessionRenderUnitState)
-                    ?: key.withSessionId(embeddingRequester.requestSessionId())
-
-                synchronized(currentSessions) {
-                    currentSessions += sessionState.sessionId
-                }
-                super.load(sessionState)
+        val sessionState = (key as? SessionRenderUnitState)
+            ?: let {
+                val id = runBlocking { embeddingRequester.requestSessionId() }
+                key.withSessionId(id)
             }
-        }
+        return super.load(sessionState)
     }
 
     override fun close() {
@@ -86,29 +82,58 @@ where V : EncoderResult {
     }
 
     override suspend fun loader(key: RenderUnitState): V {
-        var retry = 3
-        runCatching {
-            if (retry-- == 0)
-                throw InterruptedIOException("Exceeded Retry Attempts without loading successfully")
-            embeddingRequester.getImageEmbedding(key)
-        }
-            .onSuccess { return it }
-            .onFailure {
-                if (it is InterruptedException || it is InterruptedIOException || (it is StatusRuntimeException && it.status.code == Status.Code.DEADLINE_EXCEEDED)) {
-                    LOG.debug(it) { "embedding request failed" }
-                    LOG.warn { "embedding request failed" }
-                    throw it
+        var lastError: Throwable? = null
+        repeat(MAX_RETRIES) { attempt ->
+            try {
+                return embeddingRequester.getImageEmbedding(key)
+            } catch (error: Throwable) {
+                if (error is CancellationException)
+                    throw error
+
+                lastError = error
+                if (isTerminalError(error)) {
+                    LOG.warn(error) { "embedding request failed" }
+                    throw error
                 }
-                LOG.debug(it) { "embedding request failed, retrying" }
+                LOG.debug(error) { "embedding request failed (attempt ${attempt + 1}/$MAX_RETRIES), retrying" }
             }
-        return loader(key)
+        }
+        throw InterruptedIOException("Exceeded retry attempts").apply {
+            lastError?.let { initCause(it) }
+        }
+    }
+
+    private fun isTerminalError(error: Throwable): Boolean = when {
+        error is InterruptedException -> true
+        error is InterruptedIOException -> true
+        error is StatusRuntimeException && error.status.code == Status.Code.DEADLINE_EXCEEDED -> true
+        else -> false
     }
 
     companion object {
+        private const val MAX_RETRIES = 3
         private val LOG = KotlinLogging.logger {}
     }
 }
 
-var ImageEncoderCache : ImageEncodingLoaderCache<*> by lazyVar {
-    Sam2EncodingLoaderCache()
+object SamEncoder {
+
+    val healthCheckProperty = SimpleBooleanProperty(false)
+    var isHealthy: Boolean by healthCheckProperty.nonnull()
+
+    private var subscriptions: Subscription? = null
+    val cacheProperty by lazy {
+        SimpleObjectProperty<ImageEncodingLoaderCache<*>>(Sam2EncodingLoaderCache()).apply {
+            subscriptions?.unsubscribe()
+            isHealthy = false
+            subscriptions += subscribe { it ->
+                it.loaderScope.launch {
+                    isHealthy = it.healthCheck()
+                }
+            }
+
+        }
+    }
+
+    var cache: ImageEncodingLoaderCache<*> by cacheProperty.nonnull()
 }

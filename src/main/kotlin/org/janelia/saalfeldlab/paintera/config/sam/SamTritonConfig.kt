@@ -1,22 +1,13 @@
 package org.janelia.saalfeldlab.paintera.config.sam
 
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonElement
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
+import com.google.gson.*
 import javafx.beans.property.SimpleStringProperty
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.paintera.config.sam.Sam2Config.Companion.DEFAULT_ENCODER_NAME
 import org.janelia.saalfeldlab.paintera.config.sam.SamModelConfig.Companion.SamModelData
-import org.janelia.saalfeldlab.paintera.config.sam.SamTritonConfig.Companion.DEFAULT_DECODER_LOCATION
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.net.URI
-import java.net.URL
 
 sealed class SamTritonConfig<T>(val defaultEncoderName: String) : SamModelConfig<T>(
     DEFAULT_TRITON_SERVICE,
@@ -28,7 +19,7 @@ sealed class SamTritonConfig<T>(val defaultEncoderName: String) : SamModelConfig
     var encoderName: String by encoderNameProperty.nonnull()
 
     val host: String
-        get() = URI.create(serviceUrl).host
+        get() = URI.create(serviceUrl).host ?: serviceUrl
 
     val port: Int
         get() = URI.create(serviceUrl).let { uri ->
@@ -40,6 +31,14 @@ sealed class SamTritonConfig<T>(val defaultEncoderName: String) : SamModelConfig
                 else -> 8001
             }
         }
+
+    init {
+        encoderNameProperty.subscribe { _, new ->
+            if (new.isNullOrBlank())
+                encoderName = defaultEncoderName
+            fireValueChangedEvent()
+        }
+    }
 
     override fun isDefault(): Boolean {
         return super.isDefault() && encoderName == defaultEncoderName

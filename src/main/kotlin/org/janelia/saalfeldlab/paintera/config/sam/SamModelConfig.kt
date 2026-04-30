@@ -18,7 +18,6 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import org.controlsfx.control.ToggleSwitch
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Style
@@ -47,13 +46,19 @@ sealed class SamModelConfig<T>(
 
 
     init {
-        serviceUrlProperty.subscribe { _, new -> if (new.isBlank()) serviceUrl = defaultServiceUrl }
-        decoderLocationProperty.subscribe { _, new -> if (new.isBlank()) decoderLocation = defaultDecoderLocation }
-        responseTimeoutProperty.subscribe { _, new ->
-            if (new == null || new.toInt() < -1) responseTimeout = defaultResponseTimeout
+        serviceUrlProperty.subscribe { _, new ->
+            if (new.isBlank())
+                serviceUrl = defaultServiceUrl
+            fireValueChangedEvent()
         }
-        /* trigger out listeners if any of our observable properties change */
-        listOf(serviceUrlProperty, decoderLocationProperty, responseTimeoutProperty).subscribe {
+        decoderLocationProperty.subscribe { _, new ->
+            if (new.isBlank())
+                decoderLocation = defaultDecoderLocation
+            fireValueChangedEvent()
+        }
+        responseTimeoutProperty.subscribe { _, new ->
+            if (new == null || new.toInt() < -1)
+                responseTimeout = defaultResponseTimeout
             fireValueChangedEvent()
         }
     }
@@ -117,18 +122,14 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
         ) {
             addRowLabel(label, row)
             when {
-                T::class.java.isEnum -> {
+                T::class.java.isEnum ->
                     addPropertyConfigRow(row, property as KMutableProperty0<Enum<*>>, default as Enum<*>)
-                }
-                T::class == String::class -> {
+                T::class == String::class ->
                     addPropertyConfigRow(row, property as KMutableProperty0<String>, default as String)
-                }
-                T::class == Int::class -> {
+                T::class == Int::class ->
                     addPropertyConfigRow(row, property as KMutableProperty0<Number>, default as Int)
-                }
-                T::class == Boolean::class -> {
+                T::class == Boolean::class ->
                     addPropertyConfigRow(row, property as KMutableProperty0<Boolean>, default as Boolean)
-                }
 
                 else -> throw IllegalArgumentException("Unsupported type for config field: ${T::class.simpleName}")
             }
@@ -264,7 +265,10 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
             add(optionField, 1, row)
             default?.let {
                 val resetButton = newResetButton {
-                    setOnAction { optionField.text = default }
+                    setOnAction {
+                        optionField.text = default
+                        optionField.onAction.handle(null)
+                    }
                 }
                 add(resetButton, 2, row)
             }

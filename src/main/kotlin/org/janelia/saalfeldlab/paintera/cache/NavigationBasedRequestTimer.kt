@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.cache
 import bdv.viewer.TransformListener
 import javafx.animation.AnimationTimer
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.ai.ImageEncodingLoaderCache
@@ -22,7 +23,7 @@ class NavigationBasedRequestTimer(
     private val globalToViewerTransform
         get() = viewerAndTransforms.globalToViewerTransform.transformCopy
 
-    private val sessionId by lazy { embeddingCache.embeddingRequester.requestSessionId() }
+    private val sessionId by lazy { runBlocking { embeddingCache.embeddingRequester.requestSessionId() } }
 
     private var previousJob: Job = Job()
         set(value) {

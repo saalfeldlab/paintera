@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -48,7 +48,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		}?.let  {
 			drawPrompt = true
 		} ?: let {
-			ImageEncoderCache.embeddingRequester.cancelPendingRequests()
+            SamEncoder.cache.embeddingRequester.cancelPendingRequests()
 		}
 
 		val info = mode.cacheLoadSamSliceInfo(depth)

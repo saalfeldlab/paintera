@@ -5,6 +5,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.InvalidationListener
+import javafx.beans.Observable
+import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.HPos
 import javafx.geometry.Insets
@@ -21,10 +24,10 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
-import org.janelia.saalfeldlab.paintera.ai.sam.sam1.Sam1EncodingLoaderCache
-import org.janelia.saalfeldlab.paintera.ai.sam.sam2.Sam2EncodingLoaderCache
-import org.janelia.saalfeldlab.paintera.ai.sam.sam3.Sam3EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
+import org.janelia.saalfeldlab.paintera.ai.sam.Sam1EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.Sam2EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.Sam3EncodingLoaderCache
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -32,36 +35,45 @@ import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
 class SamServiceConfig(
-    initSam1: Sam1Config? = Sam1Config(),
-    initSam2: Sam2Config? = Sam2Config(),
-    initSam3: Sam3Config? = Sam3Config(),
-) {
+    initSam1Config: Sam1Config? = null,
+    initSam2Config: Sam2Config? = null,
+    initSam3Config: Sam3Config? = null,
+) : Observable {
 
-    val sam1ConfigProperty = SimpleObjectProperty(initSam1 ?: Sam1Config())
-    var sam1Config: Sam1Config by sam1ConfigProperty.nonnull()
-
-    val sam2ConfigProperty = SimpleObjectProperty(initSam2 ?: Sam2Config())
-    var sam2Config: Sam2Config by sam2ConfigProperty.nonnull()
-
-    val sam3ConfigProperty = SimpleObjectProperty(initSam3 ?: Sam3Config())
-    var sam3Config: Sam3Config by sam3ConfigProperty.nonnull()
+    var sam1Config: Sam1Config = initSam1Config ?: Sam1Config()
+    var sam2Config: Sam2Config = initSam2Config ?: Sam2Config()
+    var sam3Config: Sam3Config = initSam3Config ?: Sam3Config()
 
     val currentSamConfigProperty = SimpleObjectProperty<SamModelConfig<*>>(sam2Config)
     var currentSamConfig: SamModelConfig<*> by currentSamConfigProperty.nonnull()
 
+    private val observer = Bindings.createObjectBinding({ },
+        sam1Config, sam2Config, sam3Config, currentSamConfigProperty
+    ).apply {
+        /* invalidation triggers are lazy; only update if someone has checked.
+        * We need to check every time for the behavior we want. */
+        addListener { get() }
+    }
+
+    override fun addListener(listener: InvalidationListener) = observer.addListener(listener)
+    override fun removeListener(listener: InvalidationListener) = observer.removeListener(listener)
+
     init {
-        currentSamConfigProperty.subscribe { model ->
+        observer.subscribe(Runnable {
             Paintera.ifPaintable {
-                ImageEncoderCache.close()
-                LOG.trace { "Closing ${ImageEncoderCache::class.simpleName} Image Encoder Cache" }
-                ImageEncoderCache = when (model) {
+                runCatching {
+                    /* failure to closing the current cache shouldn't impact the new cache */
+                    SamEncoder.cache.close()
+                }
+                LOG.trace { "Closing ${SamEncoder.cache::class.simpleName} Image Encoder Cache" }
+                SamEncoder.cache = when (currentSamConfig) {
                     is Sam1Config -> Sam1EncodingLoaderCache()
                     is Sam2Config -> Sam2EncodingLoaderCache()
                     is Sam3Config -> Sam3EncodingLoaderCache()
                 }
-                LOG.info { "Switched to ${ImageEncoderCache::class.simpleName} for Sam Service" }
+                LOG.info { "Switched to ${SamEncoder.cache::class.simpleName} for Sam Service" }
             }
-        }
+        })
     }
 }
 

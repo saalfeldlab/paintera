@@ -1,10 +1,8 @@
-package org.janelia.saalfeldlab.paintera.ai.sam.sam2
+package org.janelia.saalfeldlab.paintera.ai.sam
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import org.janelia.saalfeldlab.samlink.encode.Sam2EncoderResult
-import org.janelia.saalfeldlab.samlink.encode.Sam2TritonEncoder
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -13,34 +11,29 @@ import kotlinx.coroutines.plus
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import org.janelia.saalfeldlab.paintera.ai.ImageEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer
-import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
-import org.janelia.saalfeldlab.paintera.ai.SamLinkEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState
-import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.samlink.encode.EncoderResult
+import org.janelia.saalfeldlab.samlink.encode.SamEncoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.cancellation.CancellationException
 
+abstract class SamLinkEncodeRequester<R : EncoderResult> : ImageEmbeddingRequester<R> {
 
-class Sam2EmbeddingRequester : SamLinkEmbeddingRequester<Sam2EncoderResult> {
+    abstract val samLink: SamEncoder<R, *>
 
-    private val currentSessions = ConcurrentHashMap<String, Job>()
+    override suspend fun healthCheck() = samLink.isReady()
+    override fun close() = samLink.close()
+
+    protected val currentSessions = ConcurrentHashMap<String, Job>()
     override val scope = ImageEmbeddingRequester.embeddingIOScope + SupervisorJob() + CoroutineName("SAM_EMBEDDING_IO")
 
-    override val imageSize = 1024
-
-    override val samLink = with(paintera.properties.samServiceConfig.sam2Config) {
-        Sam2TritonEncoder(
-            serviceHost = host,
-            grpcPort = port,
-            encoderModel = encoderName,
-            responseTimeout = responseTimeout
-        )
+    override suspend fun requestSessionId(): String {
+        return UUID.randomUUID().toString() //FIXME; either figure out what this means for the triton server, or just make it SAM1 only
     }
 
-    override suspend fun getImageEmbedding(it: RenderUnitState): Sam2EncoderResult {
+    override suspend fun getImageEmbedding(it: RenderUnitState): R {
 
-        val scaleFactor = calculateTargetScreenScaleFactor(
+        val scaleFactor = ImageRenderer.calculateTargetScreenScaleFactor(
             imageSize.toDouble(),
             it.width.toDouble(),
             it.height.toDouble()
@@ -66,11 +59,6 @@ class Sam2EmbeddingRequester : SamLinkEmbeddingRequester<Sam2EncoderResult> {
         }
     }
 
-
-    override fun requestSessionId(): String {
-        return UUID.randomUUID().toString()
-    }
-
     override fun cancelPendingRequests(vararg ids: String) {
 
         if (ids.isEmpty()) {
@@ -85,10 +73,6 @@ class Sam2EmbeddingRequester : SamLinkEmbeddingRequester<Sam2EncoderResult> {
                 currentSessions.remove(id)?.cancel()
             }
         }
-    }
-
-    override fun close() {
-        samLink.close()
     }
 
     companion object {

@@ -15,7 +15,6 @@ import javafx.beans.Observable
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.beans.value.ChangeListener
 import javafx.scene.Node
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
@@ -53,9 +52,9 @@ import org.janelia.saalfeldlab.control.VPotControl
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
@@ -68,8 +67,8 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
-import org.janelia.saalfeldlab.paintera.ai.ImageEncoderCache
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.renderState
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.ai.sam.MAX_DIM_TARGET
 import org.janelia.saalfeldlab.paintera.ai.sam.SamPredictor
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
@@ -144,8 +143,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
 	}
 
-	@Suppress("UNNECESSARY_LATEINIT") // lateinit so we can self-reference, so it removes itself after being triggered.
-	private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
 	internal val maskedSource: MaskedSource<*, *>?
 		get() = activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>
 
@@ -203,34 +200,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 
 	init {
-		setCursorWhenDoneApplying = ChangeListener { observable, _, _ ->
-			observable.removeListener(setCursorWhenDoneApplying)
-		}
-		val healthCheckScope = CoroutineScope(Dispatchers.IO)
-		with(paintera.properties.samServiceConfig) {
-            /* listen for a change of the model version, or a change of the model configuration itself.*/
-			val configChangeListener = currentSamConfigProperty.createObservableBinding(currentSamConfig) {
-				currentSamConfig
-			}
-            /* should trigger any time the config is switched (say, SAM1 to SAM2) OR the current config
-            * values are modified (different model for SAM2, for example) */
-            configChangeListener.subscribe { _ ->
-                isValidProperty.set(false)
-                healthCheckScope.launch {
-                    supervisorScope {
-                        isValidProperty.set(ImageEncoderCache.healthCheck())
-                    }
-                }
-            }
-		}
 
-		paintera.properties.samServiceConfig.currentSamConfig.subscribe { _ ->
-			isValidProperty.set(false)
-			healthCheckScope.launch {
-				supervisorScope {
-					isValidProperty.set(ImageEncoderCache.healthCheck())
-				}
-			}
+		subscriptions += SamEncoder.healthCheckProperty.subscribe { it ->
+			isValidProperty.set(it)
 		}
 	}
 
@@ -301,7 +273,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
 		renderState = renderUnitState ?: activeViewer!!.renderState(excludeActiveSource = true)
 		LOG.trace { "initializeSam" }
-		encodeRequest = ImageEncoderCache.request(renderState)
+		encodeRequest = SamEncoder.cache.request(renderState)
 	}
 
 	internal fun cleanup() {
