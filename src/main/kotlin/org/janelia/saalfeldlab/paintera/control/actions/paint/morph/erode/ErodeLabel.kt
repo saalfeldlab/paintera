@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import kotlinx.coroutines.*
@@ -10,12 +11,13 @@ import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.addListener
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
-import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel.dilateScope
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -25,11 +27,18 @@ import kotlin.math.ceil
 
 object ErodeLabel : MenuAction("_Shrink...") {
 
+	private val LOG = KotlinLogging.logger {  }
+
 	internal var mainTaskLoop: Deferred<List<Interval>?>? = null
 	internal var erodeScope : ErodeScope = ErodeScope()
 	internal fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = erodeScope.submitUI(block)
 
 	internal class ErodeScope : ChannelLoop(
+		coroutineScope = CoroutineScope(
+			SupervisorJob()
+			+ Dispatchers.Default
+			+ CoroutineExceptionHandler { _, e -> LOG.error(e) { "Erode Action Failed" }}
+		),
 		capacity = CONFLATED
 	) {
 		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -163,28 +172,22 @@ object ErodeLabel : MenuAction("_Shrink...") {
 					}
 
 					UpdateSignal.Finish -> {
-						val finisErodeJob = erodeScope.submit {
-							intervals = erodeMask(false, reerodeType).map { it.smallestContainingInterval }
-						}
-						finisErodeJob.invokeOnCompletion { cause ->
-							when (cause) {
-								null -> Unit
-								is CancellationException -> {
-									erodeScope.submitUI {
-										progress = 0.0
-									}
+						erodeScope.submit {
+							try {
+								intervals = erodeMask(false, reerodeType).map { it.smallestContainingInterval }
+							} catch (e: CancellationException) {
+								withContext(NonCancellable) {
+									erodeScope.submitUI { progress = 0.0 }
 									maskedSource.resetMasks()
 									paintera.baseView.orthogonalViews().requestRepaint()
 								}
-
-								else -> throw cause
+								throw e
 							}
 						}
-						finisErodeJob
 					}
 				}
 
-				updateErodeJob.invokeOnCompletion { cause -> isBusy = false }
+				updateErodeJob.invokeOnCompletion { isBusy = false }
 
 				if (reerodeType == UpdateSignal.Finish) {
 					try {
@@ -210,21 +213,28 @@ object ErodeLabel : MenuAction("_Shrink...") {
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						erodeScope.submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
 				}
 				try {
-					/* reset if an exception; throw unless cancellation */
+					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						erodeScope.cancelCurrent()
-						it.takeUnless { it is CancellationException }?.let { throw it }
+						it.takeUnless { it is CancellationException }?.let { error ->
+							LOG.error(error) { "Erode failed" }
+							InvokeOnJavaFXApplicationThread {
+								Exceptions.exceptionAlert(Constants.NAME, "Erode failed", error).show()
+							}
+						}
 					}
 				} finally {
-					erodeScope.submitUI { subscriptions.unsubscribe() }
+					erodeScope.submitUI {
+						cause ?: run { progress = 1.0 }
+						subscriptions.unsubscribe()
+					}
 					paintera.baseView.disabledPropertyBindings -= task
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)
