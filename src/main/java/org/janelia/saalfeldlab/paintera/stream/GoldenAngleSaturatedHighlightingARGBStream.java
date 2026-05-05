@@ -13,7 +13,7 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
 /**
@@ -29,7 +29,7 @@ public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturate
 
 	public GoldenAngleSaturatedHighlightingARGBStream(
 			final SelectedSegments selectedSegments,
-			final LockedSegments lockedSegments) {
+			final LockedSegmentsState lockedSegments) {
 
 		super(selectedSegments, lockedSegments);
 		seed = 1;

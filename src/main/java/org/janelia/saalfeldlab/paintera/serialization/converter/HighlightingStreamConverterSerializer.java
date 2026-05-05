@@ -1,10 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization.converter;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
+import com.google.gson.*;
 import gnu.trove.iterator.TLongIntIterator;
 import gnu.trove.map.TLongIntMap;
 import net.imglib2.type.numeric.ARGBType;
@@ -93,7 +89,7 @@ public class HighlightingStreamConverterSerializer implements PainteraSerializat
 		map.addProperty(SEED_KEY, stream.getSeed());
 
 		final TLongIntMap specifiedColors = stream.getExplicitlySpecifiedColorsCopy();
-		if (specifiedColors.size() > 0) {
+		if (!specifiedColors.isEmpty()) {
 			final JsonObject colors = new JsonObject();
 			final ARGBType dummy = new ARGBType();
 			for (final TLongIntIterator colorIt = specifiedColors.iterator(); colorIt.hasNext(); ) {

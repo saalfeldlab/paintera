@@ -589,7 +589,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						m.addProperty(CONVERTER_ALPHA, alphaProperty().get())
 						m.addProperty(CONVERTER_ACTIVE_FRAGMENT_ALPHA, activeFragmentAlphaProperty().get())
 						m.addProperty(CONVERTER_ACTIVE_SEGMENT_ALPHA, activeSegmentAlphaProperty().get())
-						if (stream.overrideAlpha.get(Label.BACKGROUND) != stream.overrideAlpha.noEntryValue) m.addProperty(BACKGROUND_ID_VISIBLE, false)
+						if (stream.overrideAlpha.get(Label.BACKGROUND) != null) m.addProperty(BACKGROUND_ID_VISIBLE, false)
 
 						userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
 

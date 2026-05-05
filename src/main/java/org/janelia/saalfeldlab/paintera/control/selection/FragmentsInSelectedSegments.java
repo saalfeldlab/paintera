@@ -33,10 +33,7 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList {
 		final TLongHashSet newSelectedFragments = new TLongHashSet();
 		final TLongSet selectedSegments = activeSegments.getSegments();
 		synchronized (selectedSegments) {
-			selectedSegments.forEach(id -> {
-				newSelectedFragments.addAll(activeSegments.getAssignment().getFragments(id));
-				return true;
-			});
+			selectedSegments.forEach(id -> newSelectedFragments.addAll(activeSegments.getAssignment().getFragments(id)));
 		}
 		this.selectedFragments = newSelectedFragments;
 		stateChanged();

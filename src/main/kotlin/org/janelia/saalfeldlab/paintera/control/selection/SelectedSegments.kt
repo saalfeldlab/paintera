@@ -1,11 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control.selection
 
-import gnu.trove.TCollections
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
-import java.util.stream.Collectors
 
 /**
  * TODO
@@ -20,36 +18,30 @@ import java.util.stream.Collectors
  */
 class SelectedSegments(val selectedIds: SelectedIds, val assignment: FragmentSegmentAssignmentState) : ObservableWithListenersList() {
 
-	private val set: TLongHashSet = TLongHashSet()
-	val segments: TLongSet = TCollections.unmodifiableSet(set)
-
-
 	init {
 		this.selectedIds.addListener { update() }
 		this.assignment.addListener { update() }
 	}
 
-	val selectedSegmentsCopyAsArray: LongArray?
-		get() {
-			synchronized(segments) {
-				return set.toArray()
-			}
-		}
+	val selectedSegmentsCopyAsArray: LongArray
+		get() = segments.toArray()
 
-	fun isSegmentSelected(id: Long): Boolean {
-		return set.contains(id)
-	}
+
+	@Volatile
+	var segments: TLongSet = TLongHashSet()
+		private set
+
+	fun isSegmentSelected(id: Long): Boolean = segments.contains(id)
 
 	private fun update() {
-		val newSegments  = selectedIds.parallelStream().use {
-			it
+		segments = selectedIds.parallelStream().use { stream ->
+			stream
 				.mapToObj { id -> assignment.getSegment(id) }
-				.collect(Collectors.toSet())
-
-		}
-		synchronized(segments) {
-			set.clear()
-			set.addAll(newSegments)
+				.collect(
+					{ TLongHashSet() },
+					{ set, long -> set.add(long) },
+					{ set1, set2 -> set1.addAll(set2) }
+				)
 		}
 		stateChanged()
 	}
