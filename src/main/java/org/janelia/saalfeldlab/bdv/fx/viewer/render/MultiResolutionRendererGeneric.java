@@ -180,18 +180,15 @@ public class MultiResolutionRendererGeneric<T> {
 	private RealInterval lastRenderTargetRealInterval;
 
 	/**
-	 * If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this threshold,
-	 * increase the {@link #maxScreenScaleIndex index} of the highest screen scale to use. Similarly, if the rendering
-	 * time for the (currently) second-highest scaled screen image is below this threshold, decrease the {@link
-	 * #maxScreenScaleIndex index} of the highest screen scale to use.
+	 * Tracks per-scale render times and chooses the starting (coarsest) scale for fresh repaint
+	 * requests. Updated on every successful first-pass render and queried in {@link #requestRepaint(Interval)}.
 	 */
-	private final long targetRenderNanos;
+	private final ScreenScaleRenderTimer renderTimer;
 
 	/**
-	 * The index of the (coarsest) screen scale with which to start rendering. Once this level is painted, rendering
-	 * proceeds to lower screen scales until index 0 (full resolution) has been reached. While rendering, the
-	 * maxScreenScaleIndex is adapted such that it is the highest index for which rendering in {@link
-	 * #targetRenderNanos} nanoseconds is still possible.
+	 * The index of the screen scale with which to start rendering from. Once this level is painted, rendering
+	 * proceeds to lower screen scales until index 0 (full resolution) has been reached. The value is recomputed on
+	 * each repaint request by {@link #renderTimer}.
 	 */
 	private int maxScreenScaleIndex;
 
@@ -295,7 +292,7 @@ public class MultiResolutionRendererGeneric<T> {
 		this.width = width;
 		this.height = height;
 		this.wrapAsArrayImg = wrapAsArrayImg;
-		this.targetRenderNanos = targetRenderNanos;
+		this.renderTimer = new ScreenScaleRenderTimer(this.screenScales, targetRenderNanos);
 
 		renderingMayBeCancelled = true;
 		this.renderingTaskExecutor = renderingTaskExecutor;
@@ -482,7 +479,6 @@ public class MultiResolutionRendererGeneric<T> {
 					Arrays.setAll(renderTargetRealIntervalMax, d -> repaintScreenInterval.max(d) * renderTargetToScreenPixelRatio[d]);
 					final RealInterval renderTargetRealInterval = new FinalRealInterval(renderTargetRealIntervalMin, renderTargetRealIntervalMax);
 
-					//TODO Caleb: I don't think this padding behaves the way it claims to...
 					// apply 1px padding on each side of the render target repaint interval to avoid interpolation artifacts
 					final Interval renderTargetPaddedInterval = padInterval(
 							Intervals.smallestContainingInterval(renderTargetRealInterval),
@@ -518,11 +514,13 @@ public class MultiResolutionRendererGeneric<T> {
 			requestedScreenScaleIndex = 0;
 		}
 
-		// try rendering
+		/* try rendering; only time the first pass (createProjector == true) so refinement
+		 * passes that just finish loading async tiles don't skew the per-scale rate estimate */
 		final boolean success;
 		synchronized (renderTarget) {
 			success = p.map(createProjector);
 		}
+		final long renderElapsedNanos = (success && createProjector) ? p.getLastFrameRenderNanoTime() : 0L;
 
 		synchronized (this) {
 			// if rendering was not cancelled...
@@ -558,22 +556,8 @@ public class MultiResolutionRendererGeneric<T> {
 						reuseBufferScreenScale = currentScreenScaleIndex;
 					}
 
-					/**
-					 * TODO: design a better algorithm for adjusting maxScreenScaleIndex or remove and always use all screen scales.
-					 *
-					 * The current heuristic does not work well in the following cases:
-					 *
-					 * 1) With vastly different screen scale values such as [1.0, 0.1], it will switch between the two scales every frame.
-					 * At screen scale 0.1 rendering is fast, and after a frame is rendered, it switches maxScreenScaleIndex to 0.
-					 * However, at screen scale 1.0 rendering is slower than targetRenderNanos, so when the next frame is rendered, it switches maxScreenScaleIndex back to 1.
-					 * This causes annoying delays because when maxScreenScaleIndex is switched to 0, renderingMayBeCancelled is in turn set to false, and the algorithm has to wait
-					 * until the current high-res frame is fully rendered.
-					 *
-					 * 2) When the user starts painting, it re-renders only the affected interval which is usually very small compared to the size of the screen.
-					 * Usually rendering is very fast in this case, and maxScreenScaleIndex is quickly changed to 0.
-					 * When the user finishes painting and starts navigating again, there may be a delay in rendering the first few frames because
-					 * it starts from the highest available resolution and then gradually decreases the resolution until the rendertime is within the targetRenderNanos threshold.
-					 */
+					/* update the render timer  */
+					renderTimer.updateRenderTime(currentScreenScaleIndex, renderElapsedNanos, repaintScreenInterval);
 				}
 
 				if (currentScreenScaleIndex > 0)
@@ -617,11 +601,14 @@ public class MultiResolutionRendererGeneric<T> {
 	}
 
 	/**
-	 * Request a repaint of the given display interval from the painter thread, with maximum screen scale index and mipmap level.
+	 * Request a repaint of the given display interval.
+	 * The initial screen scale is decided dynamically by the {@code renderTimer}.
 	 */
 	public synchronized void requestRepaint(final Interval interval) {
 
 		newFrameRequest = true;
+		if (interval != null && !Intervals.isEmpty(interval))
+			maxScreenScaleIndex = renderTimer.estimateTargetScreenScale(interval);
 		requestRepaint(interval, maxScreenScaleIndex);
 	}
 
@@ -664,12 +651,7 @@ public class MultiResolutionRendererGeneric<T> {
 			final int screenScaleIndex,
 			final RandomAccessibleInterval<ARGBType> screenImage,
 			final Function<Source<?>, Interpolation> interpolationForSource) {
-		/*
-		 * This shouldn't be necessary, with
-		 * CacheHints.LoadingStrategy==VOLATILE
-		 */
-		//		CacheIoTiming.getIoTimeBudget().clear(); // clear time budget such that prefetching doesn't wait for
-		// loading blocks.
+
 		VolatileProjector projector;
 		if (sacs.isEmpty())
 			projector = new EmptyProjector<>(screenImage);
@@ -677,12 +659,12 @@ public class MultiResolutionRendererGeneric<T> {
 			LOG.debug("Got only one source, creating pre-multiplying single source projector");
 			final SourceAndConverter<?> sac = sacs.get(0);
 			final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
-			final int[] renderTargetSize = getImageSize(getScreenImages(currentScreenScaleIndex).peek());
+			final int[] renderTargetSize = getImageSize(getScreenImages(screenScaleIndex).peek());
 			projector = createSingleSourceProjector(
 					sac,
 					timepoint,
 					viewerTransform,
-					currentScreenScaleIndex,
+					screenScaleIndex,
 					Views.zeroMin(screenImage),
 					Views.offsetInterval(ArrayImgs.bytes(renderMaskArrays[0], renderTargetSize[0], renderTargetSize[1]), screenImage),
 					interpolation,
@@ -694,16 +676,16 @@ public class MultiResolutionRendererGeneric<T> {
 			final ArrayList<RandomAccessibleInterval<ARGBType>> sourceImages = new ArrayList<>();
 			int j = 0;
 			for (final SourceAndConverter<?> sac : sacs) {
-				final RandomAccessibleInterval<ARGBType> renderImage = Views.interval(renderImages[currentScreenScaleIndex][j], screenImage);
+				final RandomAccessibleInterval<ARGBType> renderImage = Views.interval(renderImages[screenScaleIndex][j], screenImage);
 				final byte[] maskArray = renderMaskArrays[j];
 				++j;
 				final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
-				final int[] renderTargetSize = getImageSize(getScreenImages(currentScreenScaleIndex).peek());
+				final int[] renderTargetSize = getImageSize(getScreenImages(screenScaleIndex).peek());
 				final VolatileProjector p = createSingleSourceProjector(
 						sac,
 						timepoint,
 						viewerTransform,
-						currentScreenScaleIndex,
+						screenScaleIndex,
 						Views.zeroMin(renderImage),
 						Views.offsetInterval(ArrayImgs.bytes(maskArray, renderTargetSize[0], renderTargetSize[1]), screenImage),
 						interpolation,
@@ -774,7 +756,7 @@ public class MultiResolutionRendererGeneric<T> {
 				);
 			}
 
-		final AffineTransform3D screenScaleTransform = screenScaleTransforms[currentScreenScaleIndex];
+		final AffineTransform3D screenScaleTransform = screenScaleTransforms[screenScaleIndex];
 		final AffineTransform3D screenTransform = viewerTransform.copy();
 		screenTransform.preConcatenate(screenScaleTransform);
 		final int bestLevel = MipmapTransforms.getBestMipMapLevel(screenTransform, source.getSpimSource(), timepoint);
@@ -809,7 +791,7 @@ public class MultiResolutionRendererGeneric<T> {
 				source.getSpimSource(),
 				source.getSpimSource().getName()
 		);
-		final AffineTransform3D screenScaleTransform = screenScaleTransforms[currentScreenScaleIndex];
+		final AffineTransform3D screenScaleTransform = screenScaleTransforms[screenScaleIndex];
 		final ArrayList<RandomAccessible<V>> renderList = new ArrayList<>();
 		final Source<V> spimSource = source.getSpimSource();
 		LOG.debug("Creating single source volatile projector for type={}", spimSource.getType());
@@ -960,6 +942,7 @@ public class MultiResolutionRendererGeneric<T> {
 	public synchronized void setScreenScales(final double[] screenScales) {
 
 		this.screenScales = screenScales.clone();
+		renderTimer.setScreenScales(this.screenScales);
 		createVariables();
 	}
 
