@@ -173,27 +173,25 @@ object SmoothLabel : MenuAction("_Smooth...") {
 							when (cause) {
 								null -> Unit
 								is CancellationException -> {
-									submitUI {
-										progress = 0.0
-									}
-									maskedSource.resetMasks()
-									paintera.baseView.orthogonalViews().requestRepaint()
-								}
 
-								else -> throw cause
+								}
 							}
 						}
 						finishSmoothJob
 					}
 				}
 
-				updateSmoothJob.invokeOnCompletion { _ -> isBusy = false }
+				updateSmoothJob.invokeOnCompletion { isBusy = false }
 
 				if (resmoothType == UpdateSignal.Finish) {
 					try {
 						updateSmoothJob.join()
 					} catch (_: CancellationException) {
-						submitUI { progress = 0.0 }
+						smoothScope.submitUI {
+							progress = 0.0
+						}
+						maskedSource.resetMasks()
+						paintera.baseView.orthogonalViews().requestRepaint()
 						continue
 					}
 					break

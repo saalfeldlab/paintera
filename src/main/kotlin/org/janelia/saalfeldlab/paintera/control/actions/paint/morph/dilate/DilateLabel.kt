@@ -168,7 +168,7 @@ object DilateLabel : MenuAction("_Expand...") {
 							when (cause) {
 								null -> Unit
 								is CancellationException -> {
-									DilateLabel.submitUI {
+									dilateScope.submitUI {
 										progress = 0.0
 									}
 									maskedSource.resetMasks()
@@ -182,7 +182,7 @@ object DilateLabel : MenuAction("_Expand...") {
 					}
 				}
 
-				updateDilateJob.invokeOnCompletion { cause -> isBusy = false }
+				updateDilateJob.invokeOnCompletion { isBusy = false }
 
 				if (redilateType == UpdateSignal.Finish) {
 					try {
@@ -204,11 +204,11 @@ object DilateLabel : MenuAction("_Expand...") {
 					maskedSource.apply {
 						val applyProgressProperty = SimpleDoubleProperty()
 						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							DilateLabel.submitUI { progress = it.toDouble() }
+							dilateScope.submitUI { progress = it.toDouble() }
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						DilateLabel.submitUI { progress = 1.0 }
+						dilateScope.submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()

@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import net.imglib2.cache.Cache
 import net.imglib2.cache.LoaderCache
+import net.imglib2.cache.ref.SoftRefLoaderCache
 import java.util.function.Predicate
 
 abstract class AsyncCacheWithLoader<K : Any, V>(
@@ -11,11 +12,11 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 	protected val loaderQueueScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) : Cache<K, V> {
 
-	protected abstract val cache: LoaderCache<K, Deferred<V>>
+	protected open val cache: LoaderCache<K, Deferred<V>> = SoftRefLoaderCache()
 
 	protected abstract suspend fun loader(key : K): V
 
-	fun cancelUnfinishedRequests() {
+	open fun cancelUnfinishedRequests() {
 		LOG.debug { "cancelling unfinished requests" }
 		val reason = CancellationException("Unfinished Requests Cancelled")
 		loaderQueueScope.coroutineContext.cancelChildren(reason)
@@ -35,7 +36,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 		request(key, clear = true).await()
 	}
 
-	fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
+	open fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
 		cache.get(key) {
 			LOG.trace { "cache miss, trigger new loader request" }
 			if (clear)
