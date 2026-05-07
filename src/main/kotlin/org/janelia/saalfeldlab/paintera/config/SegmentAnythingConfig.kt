@@ -59,7 +59,11 @@ class SegmentAnythingConfig : ObservableValueBase<SegmentAnythingConfig>() {
 	var imageEncoding: ImageEncoding by imageEncodingProperty.nonnull()
 
 	internal val allDefault
-		get() = serviceUrl == DEFAULT_SERVICE_URL && modelLocation == DEFAULT_MODEL_LOCATION && responseTimeout == DEFAULT_RESPONSE_TIMEOUT
+		get() =
+			serviceUrl == DEFAULT_SERVICE_URL
+					&& modelLocation == DEFAULT_MODEL_LOCATION
+					&& responseTimeout == DEFAULT_RESPONSE_TIMEOUT
+					&& imageEncoding == DEFAULT_IMAGE_ENCODING
 
 	@Transient
 	private val observableInvalidationBinding = serviceUrlProperty.createObservableBinding(modelLocationProperty, responseTimeoutProperty, compressEncodingProperty) {
