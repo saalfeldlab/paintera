@@ -120,7 +120,6 @@ import kotlin.collections.toTypedArray
 import kotlin.math.*
 
 
-//TODO Caleb: refactor to a mode, with proper AllowedActions, and separation of tool logic from sam logic
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
 	override fun newToolBarControl()  = super.newToolBarControl().apply {
@@ -258,7 +257,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		super.activate()
 		(mode as? PaintLabelMode)?.apply {
 			disableUnfocusedViewers()
-			activeViewerProperty.unbind()
 		}
 		primaryClickLabel = null
 		initializeSam()
