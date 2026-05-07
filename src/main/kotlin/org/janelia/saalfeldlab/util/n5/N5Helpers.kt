@@ -759,18 +759,26 @@ object N5Helpers {
 
 
 					alert.dialogPane.content = VBox().apply {
-						children += HBox().apply {
-							children += TextArea(contentText ?: "Error accessing container at $uri").also { it.editableProperty().set(false) }
+						children += TextArea(contentText ?: "Error accessing container at $uri").apply {
+							editableProperty().set(false)
+							wrapTextProperty().set(true)
+							maxWidth = Double.MAX_VALUE
+							maxHeight = Double.MAX_VALUE
+							VBox.setVgrow(this, Priority.ALWAYS)
 						}
+
 						children += HBox().apply {
 							children += Label("New Location ").also { HBox.setHgrow(it, Priority.NEVER) }
-							children += newLocationField
-							newLocationField.maxWidth = Double.MAX_VALUE
-							HBox.setHgrow(newLocationField, Priority.ALWAYS)
+							children += newLocationField.also {
+								it.maxWidth = Double.MAX_VALUE
+								HBox.setHgrow(it, Priority.ALWAYS)
+							}
 							children += Button("Browse").also {
 								HBox.setHgrow(it, Priority.NEVER)
 								it.onAction = EventHandler {
-									DirectoryChooser().showDialog(alert.owner)?.let { newLocationField.textProperty().set(it.canonicalPath) }
+									DirectoryChooser().showDialog(alert.owner)?.let { dir ->
+										newLocationField.textProperty().set(dir.canonicalPath)
+									}
 								}
 							}
 						}
