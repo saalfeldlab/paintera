@@ -167,8 +167,6 @@ internal class ShapeInterpolationTool(
 	}
 
 	internal fun requestEagerEmbeddings(sliceDepths: List<Double>) {
-//		FIXME: Debug only
-		return
 
 		val eagerRequestDepths = eagerRequestDepths(sliceDepths)
 		/* first and last are more likely to be used quickely, request them first */
@@ -309,7 +307,7 @@ internal class ShapeInterpolationTool(
 
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
-						verify { ImageEncoderCache.healthCheck }
+						verify { ImageEncoderCache.healthCheck() }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
@@ -325,7 +323,7 @@ internal class ShapeInterpolationTool(
 					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_BISECT)} }
-						verify { ImageEncoderCache.healthCheck }
+						verify { ImageEncoderCache.healthCheck() }
 						onAction {
 							val bisectDepthIter = sortedSliceDepths
 								.zipWithNext { first, second -> (first + second) / 2.0 }
@@ -342,7 +340,7 @@ internal class ShapeInterpolationTool(
 					}
 
 					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
-						verify { ImageEncoderCache.healthCheck }
+						verify { ImageEncoderCache.healthCheck() }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
@@ -355,7 +353,7 @@ internal class ShapeInterpolationTool(
 					}
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
-						verify { ImageEncoderCache.healthCheck }
+						verify { ImageEncoderCache.healthCheck() }
 						onAction {
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
@@ -386,7 +384,7 @@ internal class ShapeInterpolationTool(
 						}
 					}
 					autoSamCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE) {
-						verify { ImageEncoderCache.healthCheck }
+						verify { ImageEncoderCache.healthCheck() }
 						onAction {
 							requestSamPrediction(currentDepth, refresh = true) {
                                 requestEagerEmbeddings(sortedSliceDepths)

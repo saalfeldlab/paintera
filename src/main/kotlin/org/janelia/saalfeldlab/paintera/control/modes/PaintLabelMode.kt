@@ -126,7 +126,7 @@ open class PaintLabelMode : ViewLabelMode() {
 
 	private val activeSamTool = painteraActionSet(SEGMENT_ANYTHING__TOGGLE_MODE, PaintActionType.Paint) {
 		KEY_PRESSED(samTool.keyTrigger) {
-			verify { ImageEncoderCache.healthCheck }
+			verify { ImageEncoderCache.healthCheck() }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool !is SamTool }
 			verify {

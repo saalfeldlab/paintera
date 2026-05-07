@@ -15,28 +15,28 @@ import org.janelia.saalfeldlab.paintera.ai.ImageEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.ImageEncoding
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
+import org.janelia.saalfeldlab.paintera.ai.SamLinkEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
-class Sam1EmbeddingRequester : ImageEmbeddingRequester<Sam1EncoderResult> {
-
+class Sam1EmbeddingRequester : SamLinkEmbeddingRequester<Sam1EncoderResult> {
 
     private val currentSessions = ConcurrentHashMap<String, Job>()
     override val scope = ImageEmbeddingRequester.embeddingIOScope + SupervisorJob() + CoroutineName("SAM_EMBEDDING_IO")
 
-    private val samLink = Sam1HttpEncoder(
-        serviceUrl = properties.segmentAnythingConfig.serviceUrl,
-        responseTimeout = properties.segmentAnythingConfig.responseTimeout
+    override val samLink = Sam1HttpEncoder(
+        serviceUrl = properties.samServiceConfig.sam1Config.serviceUrl,
+        responseTimeout = properties.samServiceConfig.sam1Config.responseTimeout
     )
 
     override val imageSize = 1024
 
     override suspend fun getImageEmbedding(it: RenderUnitState): Sam1EncoderResult {
 
-        val config = paintera.properties.segmentAnythingConfig
+        val config = paintera.properties.samServiceConfig.sam1Config
         val encoding = config.imageEncoding.let {
             when (it) {
                 ImageEncoding.JPEG -> ImageFormat.JPEG
@@ -76,17 +76,11 @@ class Sam1EmbeddingRequester : ImageEmbeddingRequester<Sam1EncoderResult> {
         return encodeJob.await()
     }
 
-
-
-    override fun healthCheck(): Boolean {
-        return samLink.isReady()
-    }
-
     override fun requestSessionId(): String {
         return samLink.newSessionId()
     }
 
-    override fun cancelPendingRequests(vararg id: String) {
+    override fun cancelPendingRequests(vararg ids: String) {
 
         if (currentSessions.isEmpty())
             return
@@ -101,11 +95,6 @@ class Sam1EmbeddingRequester : ImageEmbeddingRequester<Sam1EncoderResult> {
             }
         }
 
-    }
-
-
-    override fun close() {
-        samLink.close()
     }
     companion object {
         private val LOG = KotlinLogging.logger { }

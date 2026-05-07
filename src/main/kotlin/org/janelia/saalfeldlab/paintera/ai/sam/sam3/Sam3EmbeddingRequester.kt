@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ai.sam.sam3
 
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -9,26 +11,32 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import org.janelia.saalfeldlab.paintera.ai.ImageEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
+import org.janelia.saalfeldlab.paintera.ai.SamLinkEmbeddingRequester
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.samlink.encode.Sam3TrackerEncoderResult
 import org.janelia.saalfeldlab.samlink.encode.Sam3TrackerTritonEncoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.cancellation.CancellationException
 
 
-class Sam3EmbeddingRequester : ImageEmbeddingRequester<Sam3TrackerEncoderResult> {
+class Sam3EmbeddingRequester : SamLinkEmbeddingRequester<Sam3TrackerEncoderResult> {
 
     private val currentSessions = ConcurrentHashMap<String, Job>()
     override val scope = ImageEmbeddingRequester.embeddingIOScope + SupervisorJob() + CoroutineName("SAM_EMBEDDING_IO")
 
     override val imageSize = 1008
 
-    private val samLink = Sam3TrackerTritonEncoder(
-        serviceUrl = "saalfelds-ws2",
-        modelName = "sam3_tracker_vision_encoder_fp16",
-        responseTimeout = properties.segmentAnythingConfig.responseTimeout
-    )
+    override val samLink = with(paintera.properties.samServiceConfig.sam3Config) {
+        Sam3TrackerTritonEncoder(
+            serviceHost = host,
+            grpcPort = port,
+            encoderModel = encoderName,
+            responseTimeout = responseTimeout
+        )
+    }
 
     override suspend fun getImageEmbedding(it: RenderUnitState): Sam3TrackerEncoderResult {
 
@@ -41,17 +49,21 @@ class Sam3EmbeddingRequester : ImageEmbeddingRequester<Sam3TrackerEncoderResult>
 
         val img = ImageRenderer.renderBufferedImage(it, screenScales)
         val requestId = (it as? SessionRenderUnitState)?.sessionId ?: requestSessionId()
-        val encodeJob = scope
-            .async { samLink.encode(img) }
-            .apply { invokeOnCompletion { currentSessions.remove(requestId) } }
 
+        val encodeJob = scope.async { samLink.encode(img) }.apply {
+            invokeOnCompletion {
+                currentSessions.remove(requestId)
+            }
+        }
         currentSessions.replace(requestId, encodeJob)?.cancel()
 
-        return encodeJob.await()
-    }
-
-    override fun healthCheck(): Boolean {
-        return samLink.isReady()
+        return try {
+            encodeJob.await()
+        } catch (e: StatusRuntimeException) {
+            if (e.status.code == Status.Code.DEADLINE_EXCEEDED)
+                throw InterruptedException("${e.status}")
+            throw e
+        }
     }
 
     override fun requestSessionId(): String {
@@ -66,13 +78,11 @@ class Sam3EmbeddingRequester : ImageEmbeddingRequester<Sam3TrackerEncoderResult>
                 val (id, job) = iter.next()
                 job.cancel()
                 iter.remove()
-//                TODO() Cancel `id` to server
             }
-        } else  {
+        } else {
             ids.forEach { id ->
                 currentSessions.remove(id)?.let {
                     it.cancel()
-//                TODO() Cancel `id` to server
                 }
             }
         }

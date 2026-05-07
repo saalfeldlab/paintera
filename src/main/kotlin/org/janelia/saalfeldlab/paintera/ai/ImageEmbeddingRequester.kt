@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
+import org.janelia.saalfeldlab.samlink.encode.SamEncoder
 
 interface ImageEmbeddingRequester<out V> : AutoCloseable where V : EncoderResult {
 
@@ -24,7 +25,15 @@ interface ImageEmbeddingRequester<out V> : AutoCloseable where V : EncoderResult
 
     fun requestSessionId(): String
 
-    fun cancelPendingRequests(vararg id: String)
+    fun cancelPendingRequests(vararg ids: String)
+}
+
+interface SamLinkEmbeddingRequester<out V : EncoderResult> : ImageEmbeddingRequester<V> {
+
+    val samLink: SamEncoder<*>
+
+    override fun healthCheck() = samLink.isReady()
+    override fun close() = samLink.close()
 }
 
 

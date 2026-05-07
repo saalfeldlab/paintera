@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.control.VPotControl
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
@@ -206,11 +207,28 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			observable.removeListener(setCursorWhenDoneApplying)
 		}
 		val healthCheckScope = CoroutineScope(Dispatchers.IO)
-		paintera.properties.segmentAnythingConfig.subscribe { _ ->
+		with(paintera.properties.samServiceConfig) {
+            /* listen for a change of the model version, or a change of the model configuration itself.*/
+			val configChangeListener = currentSamConfigProperty.createObservableBinding(currentSamConfig) {
+				currentSamConfig
+			}
+            /* should trigger any time the config is switched (say, SAM1 to SAM2) OR the current config
+            * values are modified (different model for SAM2, for example) */
+            configChangeListener.subscribe { _ ->
+                isValidProperty.set(false)
+                healthCheckScope.launch {
+                    supervisorScope {
+                        isValidProperty.set(ImageEncoderCache.healthCheck())
+                    }
+                }
+            }
+		}
+
+		paintera.properties.samServiceConfig.currentSamConfig.subscribe { _ ->
 			isValidProperty.set(false)
 			healthCheckScope.launch {
 				supervisorScope {
-					isValidProperty.set(ImageEncoderCache.healthCheck)
+					isValidProperty.set(ImageEncoderCache.healthCheck())
 				}
 			}
 		}
@@ -870,7 +888,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
 		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
-			val ignored = ImageEncoderCache.createOrtSessionTask.await()
 			val encodedImage = runCatching {
 				isBusy = true
 				encodeRequest!!.await()

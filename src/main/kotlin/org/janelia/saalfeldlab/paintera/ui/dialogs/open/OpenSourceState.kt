@@ -133,10 +133,7 @@ class OpenSourceState {
 						LOG.trace(cause) {}
 						return@invokeOnCompletion
 					}
-					else -> {
-						validDatasets.clear()
-						throw cause
-					}
+					else -> validDatasets.clear()
 				}
 				getCompleted()?.let {
 					LOG.trace { "Found ${it.size} valid datasets at ${state.uri}" }
