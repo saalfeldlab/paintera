@@ -54,10 +54,19 @@ class PainteraN5Factory : N5FactoryWithCache() {
 	fun newWriter(uri: String): N5Writer =
 		runCatching { openWriter(uri) }.getOrNull()
 			?: StorageFormat.parseUri(uri).let {
-				super.openWriter(it.a, it.b) /* must be the last `openWriter` that doesn't call an override version */
+				super.openWriter(it.a, it.b)
 			}
 
-	fun openWriterOrNull(uri: String): N5Writer? =
+	fun newWriter(format: StorageFormat?, uri: String): N5Writer {
+		val asUri = StorageFormat.parseUri(uri).b
+		return runCatching {
+			openWriter(format, asUri)
+		}
+			.getOrNull()
+			?: super.openWriter(format, asUri) /* must be the last `openWriter` that doesn't call an override version */
+    }
+
+    fun openWriterOrNull(uri: String): N5Writer? =
 		runCatching { openWriter(uri) }
 			.onFailure { LOG.debug(it) { "Unable to open $uri as N5Writer" } }
 			.getOrNull()
