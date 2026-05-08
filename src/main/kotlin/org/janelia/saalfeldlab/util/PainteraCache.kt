@@ -2,10 +2,10 @@ package org.janelia.saalfeldlab.util
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.DEPRECATED_MAPPINGS
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
+import java.net.URI
 import java.nio.file.Files
-import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.createParentDirectories
@@ -61,6 +61,21 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 
 		@JvmStatic
 		fun appendLine(cache: PainteraCache, toAppend: String, maxNumLines: Int) = cache.appendLine(toAppend, maxNumLines)
+
+		private fun PainteraCache.asUris(): List<URI> = readLines()
+			.reversed()
+			.mapNotNull { recentString ->
+				val stringAsUri =
+					this.runCatching { URI.create(recentString).takeIf { uri -> uri.isAbsolute } }.getOrNull()
+				stringAsUri ?: this.runCatching { URI("file", recentString, null) }.getOrNull()
+			}
+
+		fun PainteraCache.distinctCanonicalURIs() = asUris()
+			.distinctBy { recent -> N5Helpers.canonicalString(recent) }
+
+		fun PainteraCache.distinctCanonicalStrings() = asUris()
+			.map { N5Helpers.canonicalString(it) }
+			.distinct()
 
 		private val DEPRECATED_MAPPINGS = mapOf(
 			RECENT_PROJECTS.cachePath to getCachePath("org.janelia.saalfeldlab.paintera.Paintera", "recent_projects"),

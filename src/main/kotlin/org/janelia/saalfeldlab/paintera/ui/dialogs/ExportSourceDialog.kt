@@ -41,6 +41,8 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import kotlin.jvm.optionals.getOrNull
@@ -135,7 +137,7 @@ object ExportSourceDialog {
 						}
 					}
 				}
-				PainteraCache.RECENT_EXPORT_LOCATIONS.readLines().reversed().takeIf { it.isNotEmpty() }?.let { recentExports ->
+				PainteraCache.RECENT_EXPORT_LOCATIONS.distinctCanonicalStrings().takeIf { it.isNotEmpty() }?.let { recentExports ->
 					containerPathField.text = recentExports.firstOrNull()
 					containerPathField.prefColumnCount *= 2
 					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {

@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.net.URI
 
@@ -71,13 +72,8 @@ private val openRecentMenu by LazyForeignValue(::paintera) {
 
 private val fileMenu by LazyForeignValue(::paintera) {
 	Menu("_File", null, NEW_PROJECT.menu, OPEN_PROJECT.menu, openRecentMenu, SAVE.menu, SAVE_AS.menu, QUIT.menu).also {
-		fun parseRecentURIs() = PainteraCache.RECENT_PROJECTS
-			.readLines()
-			.reversed()
-			.map { runCatching { URI.create(it) }.getOrNull() }
-			.filterNotNull()
 		it.setOnShowing {
-			recentProjectURIs.setAll(parseRecentURIs())
+			recentProjectURIs.setAll(PainteraCache.RECENT_PROJECTS.distinctCanonicalURIs())
 		}
 	}
 }
