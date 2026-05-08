@@ -34,6 +34,8 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.BrowseRecentFavo
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceNode
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import java.io.File
 import java.util.UUID
 import java.util.function.Consumer
@@ -64,7 +66,7 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 
 	val browseButton: MenuButton = BrowseRecentFavorites.menuButton(
 		"_Find",
-		PainteraCache.RECENT_CONTAINERS.readLines().reversed(),
+		PainteraCache.RECENT_CONTAINERS.distinctCanonicalStrings(),
 		FAVORITES,
 		{ updateFromDirectoryChooser() },
 		{ updateFromFileChooser() }
