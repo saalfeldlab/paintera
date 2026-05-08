@@ -49,7 +49,7 @@ interface ToolBarItem {
 
 const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
 
-abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
+abstract class ViewerTool(protected open val mode: ToolMode? = null) : Tool, ToolBarItem {
 
 	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = ConcurrentHashMap()
 	protected var subscriptions: Subscription? = null

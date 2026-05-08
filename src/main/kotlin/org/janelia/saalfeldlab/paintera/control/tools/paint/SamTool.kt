@@ -120,7 +120,7 @@ import kotlin.collections.toTypedArray
 import kotlin.math.*
 
 
-open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
+open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
 	override fun newToolBarControl()  = super.newToolBarControl().apply {
 		properties[REQUIRES_ACTIVE_VIEWER] = true
@@ -554,7 +554,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				KEY_PRESSED(CANCEL) {
 					name = "exit SAM tool"
 					createToolNode = { apply { addStyleClass(Style.REJECT_ICON) } }
-					onAction { mode?.switchTool(mode.defaultTool) }
+					onAction { mode?.apply { switchTool(defaultTool) } }
 				}
 			},
 

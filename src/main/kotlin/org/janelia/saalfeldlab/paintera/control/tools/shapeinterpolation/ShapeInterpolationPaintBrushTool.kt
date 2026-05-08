@@ -21,13 +21,13 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, private val shapeInterpolationMode: ShapeInterpolationMode<*>) : PaintBrushTool(activeSourceStateProperty, shapeInterpolationMode) {
+internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ShapeInterpolationMode<*>) : PaintBrushTool(activeSourceStateProperty, mode) {
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
 			*getBrushActions(),
 			*getPaintActions(),
-			shapeInterpolationMode.extraActions(),
+			mode.extraActions(),
 			*(midiBrushActions() ?: emptyArray()),
 			*getMidiNavigationActions().toTypedArray()
 		)
@@ -39,7 +39,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 			NavigationTool.midiSliceActions(),
 			NavigationTool.midiZoomActions()
 		)
-		midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting && shapeInterpolationMode.activeTool == this } }
+		midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting && mode.activeTool == this } }
 		return midiNavActions
 	}
 
@@ -58,8 +58,8 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 		}
 		//TODO Caleb: Don't like it, but otherwise the status text shows a temp label. Do better
 		super.deactivate()
-		setCurrentLabel(shapeInterpolationMode.controller.lastSelectedId)
-		setCurrentLabel(shapeInterpolationMode.controller.interpolationId)
+		setCurrentLabel(mode.controller.lastSelectedId)
+		setCurrentLabel(mode.controller.interpolationId)
 
 	}
 
@@ -67,7 +67,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 		paintClickOrDrag?.let {
 			it.maskInterval?.let { interval ->
 				CoroutineScope(Dispatchers.Default + Job()).launch {
-					shapeInterpolationMode.addSelection(interval)?.also { slice -> slice.locked = true }
+					mode.addSelection(interval)?.also { slice -> slice.locked = true }
 				}
 			}
 		}

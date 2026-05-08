@@ -47,9 +47,11 @@ import org.janelia.saalfeldlab.util.get
 internal class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
 	private val previousMode: ControlMode,
-	private val shapeInterpolationMode: ShapeInterpolationMode<*>,
+ 	override val mode: ShapeInterpolationMode<*>,
 	private var fill2D: ShapeInterpolationFillTool,
-) : ViewerTool(shapeInterpolationMode) {
+) : ViewerTool(mode) {
+
+
 
 
 	override val actionSets: MutableList<ActionSet> by lazy {
@@ -69,7 +71,8 @@ internal class ShapeInterpolationTool(
 	override fun activate() {
 
 		super.activate()
-		shapeInterpolationMode.disableUnfocusedViewers() //TODO Caleb: this should be in the `enter()` of the mode, and the `disabled translate` logic should also
+		//TODO Caleb: this should probably be in the `enter()` of the mode, and the `disabled translate` logic should also
+		mode.disableUnfocusedViewers()
 		/* This action set allows us to translate through the unfocused viewers */
 		paintera.baseView.orthogonalViews().viewerAndTransforms()
 			.filter { !it.viewer().isFocusable }
@@ -174,13 +177,12 @@ internal class ShapeInterpolationTool(
 					runAfter()
 				}
 			}
-
 		}
 	}
 
 
 	internal fun requestEmbedding(depth: Double) {
-		shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
+		mode.cacheLoadSamSliceInfo(depth)
 	}
 
 
@@ -197,15 +199,15 @@ internal class ShapeInterpolationTool(
 		afterPrediction: (AffineTransform3D) -> Unit = {},
 	): AffineTransform3D {
 
-		val newPrediction = shapeInterpolationMode.samSliceCache[depth] == null
+		val newPrediction = mode.samSliceCache[depth] == null
 		if (newPrediction)
 			SamEmbeddingLoaderCache.cancelPendingRequests()
 
-		val samSliceInfo = shapeInterpolationMode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
+		val samSliceInfo = mode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
-				val points = getInterpolantPrompt(shapeInterpolationMode.samStyleBoxToggle.get())
+				val points = getInterpolantPrompt(mode.samStyleBoxToggle.get())
 				samSliceInfo.updatePrediction(points)
 			}
 
@@ -228,14 +230,14 @@ internal class ShapeInterpolationTool(
 		val globalTransform = viewerMask.initialGlobalTransform.copy()
 
 		if (moveToSlice) {
-			shapeInterpolationMode.apply {
+			mode.apply {
 				moveTo(globalTransform)
 			}
 		}
 
 		samTool.lastPredictionProperty.addListener { _, _, prediction ->
 			prediction ?: return@addListener
-			shapeInterpolationMode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: return@addListener
+			mode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: return@addListener
 
 			afterPrediction(globalTransform)
 
@@ -278,7 +280,7 @@ internal class ShapeInterpolationTool(
 					verifyAll(KEY_PRESSED) { isControllerActive }
 					KEY_PRESSED(SHAPE_INTERPOLATION__ACCEPT_INTERPOLATION) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.ACCEPT_INTERPOLATION) } }
-						onAction { shapeInterpolationMode.applyShapeInterpolationAndExitMode() }
+						onAction { mode.applyShapeInterpolationAndExitMode() }
 						handleException {
 							LOG.error(it) {}
 							paintera.baseView.changeMode(previousMode)
@@ -389,7 +391,7 @@ internal class ShapeInterpolationTool(
 					KEY_PRESSED(KeyCode.ALT, KeyCode.A) {
 						name = "refresh unlocked slice predictions"
 						onAction {
-							shapeInterpolationMode.samSliceCache
+							mode.samSliceCache
 								.filter { (_, info) -> !info.locked }
 								.toList()
 								.forEach { (depth, _) ->
@@ -409,7 +411,7 @@ internal class ShapeInterpolationTool(
 							filter = true
 							consume = false
 							onAction {
-								deleteSliceAt(currentDepth)?.also { shapeInterpolationMode.samSliceCache -= currentDepth }
+								deleteSliceAt(currentDepth)?.also { mode.samSliceCache -= currentDepth }
 							}
 						}
 					}
@@ -418,7 +420,7 @@ internal class ShapeInterpolationTool(
 						verifyNoKeysDown()
 						verifyEventNotNull()
 						verify { !paintera.mouseTracker.isDragging }
-						verify { shapeInterpolationMode.activeTool !is Fill2DTool }
+						verify { mode.activeTool !is Fill2DTool }
 						verify { it!!.button == MouseButton.PRIMARY && !it.isControlDown } // respond to primary click
 						verify { controllerState != ShapeInterpolationController.ControllerState.Interpolate } // need to be in the select state
 						onActionWithState({ ShapeInterpolationSelectIDToFillState<Nothing, Nothing>() }) { event ->
@@ -570,7 +572,7 @@ internal class ShapeInterpolationTool(
 			fill2D.brushProperties?.brushDepth = 1.0
 			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
 			return fill2D.executeFill2DAction(event.x, event.y, mask, filter) { fillInterval ->
-				shapeInterpolationMode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSlice)?.also { it.locked = true }
+				mode.addSelection(fillInterval, replaceExistingSlice = replaceExistingSlice)?.also { it.locked = true }
 				currentJob = null
 				fill2D.fill2D.release()
 			}?.also { job ->

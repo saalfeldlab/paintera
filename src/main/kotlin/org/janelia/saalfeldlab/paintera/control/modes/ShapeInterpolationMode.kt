@@ -347,28 +347,28 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 							}
 						}
 						with(controller) {
-							MidiButtonEvent.BUTTON_PRESSED(9) {
+                            MidiButtonEvent.BUTTON_PRESSED(9) {
 								name = "midi go to first slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.First) }
+								onAction { editSelection(EditSelectionChoice.First.orFlipped()) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(10) {
 								name = "midi go to previous slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Previous) }
+								onAction { editSelection(EditSelectionChoice.Previous.orFlipped()) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(11) {
 								name = "midi go to next slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Next) }
+								onAction { editSelection(EditSelectionChoice.Next.orFlipped()) }
 
 							}
 							MidiButtonEvent.BUTTON_PRESSED(12) {
 								name = "midi go to last slice"
 								verify { activeTool !is SamTool }
-								onAction { editSelection(EditSelectionChoice.Last) }
+								onAction { editSelection(EditSelectionChoice.Last.orFlipped()) }
 							}
 						}
 					}
@@ -428,7 +428,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			KEY_PRESSED(namedKey) {
 				createToolNode = { apply { addStyleClass(choice.style) } }
 				verify { activeTool is ShapeInterpolationTool }
-				onAction { editSelection(choice) }
+				onAction { editSelection(choice.orFlipped()) }
 				handleException {
 					exitShapeInterpolation(false)
 					paintera.baseView.changeMode(previousMode)
@@ -658,6 +658,45 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		val cachedTransform = samSliceCache[sliceDepth]?.globalToViewerTransform
 		return cacheLoadSamSliceInfo(sliceDepth, provideGlobalToViewerTransform = cachedTransform).apply {
 			sliceInfo = slice
+		}
+	}
+
+	/** orFlipped refers to the need to map left/right to depth differently
+	 * depending on the current viewerTransform. This ensures that `left/right` appears
+	 * `left/right` regardless of the current view or rotation
+	 */
+	private fun EditSelectionChoice.orFlipped(): EditSelectionChoice {
+		val flipped = depthAxisFlippedRelativeToGlobal()
+		return if (!flipped) this
+		else when (this) {
+			EditSelectionChoice.First -> EditSelectionChoice.Last
+			EditSelectionChoice.Previous -> EditSelectionChoice.Next
+			EditSelectionChoice.Next -> EditSelectionChoice.Previous
+			EditSelectionChoice.Last -> EditSelectionChoice.First
+		}
+	}
+
+	/**
+	 * Determine if the depth axis is flipped for this globalToViewer transform.
+	 *
+	 * This is useful for mapping Left/Right actions correctly to Previous/Next slices based
+	 * on what visually is intuitive for the active viewer.
+	 *
+	 * @return true if we should swap left/right actions to match visual orientation
+	 */
+	internal fun depthAxisFlippedRelativeToGlobal(): Boolean {
+		val viewer = activeViewerProperty.value ?: return false
+		val viewerToGlobal = viewer.globalToViewerTransform.transformCopy.inverse()
+		val origin = DoubleArray(3).also { viewerToGlobal.apply(it, it) }
+		val depthEnd = DoubleArray(3).also { viewerToGlobal.apply(doubleArrayOf(0.0, 0.0, 1.0), it) }
+		val dx = depthEnd[0] - origin[0]
+		val dy = depthEnd[1] - origin[1]
+		val dz = depthEnd[2] - origin[2]
+		val absX = kotlin.math.abs(dx); val absY = kotlin.math.abs(dy); val absZ = kotlin.math.abs(dz)
+		return when {
+			absX >= absY && absX >= absZ -> dx < 0
+			absY >= absZ -> dy < 0
+			else -> dz < 0
 		}
 	}
 
