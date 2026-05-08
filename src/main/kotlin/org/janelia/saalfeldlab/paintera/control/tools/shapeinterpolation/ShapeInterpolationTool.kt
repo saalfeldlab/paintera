@@ -51,8 +51,6 @@ internal class ShapeInterpolationTool(
 ) : ViewerTool(mode) {
 
 
-
-
 	override val actionSets: MutableList<ActionSet> by lazy {
 		mutableListOf(
 			*shapeInterpolationActions().filterNotNull().toTypedArray(),
@@ -169,7 +167,7 @@ internal class ShapeInterpolationTool(
 	internal fun requestEagerEmbeddings(sliceDepths: List<Double>) {
 
 		val eagerRequestDepths = eagerRequestDepths(sliceDepths)
-		/* first and last are more likely to be used quickely, request them first */
+		/* first and last are more likely to be used quickly, request them first */
 		eagerRequestDepths.firstOrNull()?.let { requestEmbedding(it) }
 		eagerRequestDepths.lastOrNull()?.let { requestEmbedding(it) }
 		if (eagerRequestDepths.size > 2) {
@@ -310,7 +308,13 @@ internal class ShapeInterpolationTool(
 					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
 						verify { SamEncoder.isHealthy }
-						onAction {
+						onAction { event ->
+							/* if triggered by an event, then check if we need to flip axes;
+							* If so, call the flipped version, WITHOUT an event */
+							if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
+								autoSamRight(null)
+								return@onAction
+							}
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
 
@@ -356,7 +360,13 @@ internal class ShapeInterpolationTool(
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
 						verify { SamEncoder.isHealthy }
-						onAction {
+						onAction { event ->
+							/* if triggered by an event, then check if we need to flip axes;
+							* If so, call the flipped version, WITHOUT an event */
+							if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
+								autoSamLeft(null)
+								return@onAction
+							}
 							val depths = sortedSliceDepths.toMutableList()
 							val eagerRequestDepths = eagerRequestDepths(depths)
 							val requestDepth = eagerRequestDepths.lastOrNull() ?: 20.0
