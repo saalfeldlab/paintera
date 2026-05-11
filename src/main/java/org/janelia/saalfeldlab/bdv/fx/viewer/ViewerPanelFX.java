@@ -30,6 +30,9 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
+import kotlin.Unit;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.ViewerRenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
@@ -58,17 +61,12 @@ import org.janelia.saalfeldlab.fx.ObservablePosition;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
@@ -81,7 +79,7 @@ public class ViewerPanelFX
 		extends StackPane
 		implements TransformListener<AffineTransform3D>, RequestRepaint {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
 	private final ViewerRenderUnit renderUnit;
 
@@ -453,37 +451,6 @@ public class ViewerPanelFX
 		}
 	}
 
-	private static final AtomicInteger panelNumber = new AtomicInteger(1);
-
-	//	TODO: rendering
-	protected class RenderThreadFactory implements ThreadFactory {
-
-		private final String threadNameFormat;
-
-		private final AtomicInteger threadNumber = new AtomicInteger(1);
-
-		RenderThreadFactory() {
-
-			this.threadNameFormat = String.format("viewer-panel-fx-%d-thread-%%d", panelNumber.getAndIncrement());
-			LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
-		}
-
-		@Override
-		public Thread newThread(final Runnable r) {
-
-			final Thread t = new Thread(threadGroup, r,
-					String.format(threadNameFormat, threadNumber.getAndIncrement()),
-					0
-			);
-			LOG.debug("Creating thread with name {}", t.getName());
-			if (!t.isDaemon())
-				t.setDaemon(true);
-			if (t.getPriority() != Thread.NORM_PRIORITY)
-				t.setPriority(Thread.NORM_PRIORITY);
-			return t;
-		}
-	}
-
 	/**
 	 * @return {@link MouseCoordinateTracker#getIsInside()} ()}
 	 * @see MouseCoordinateTracker#getIsInside()
@@ -552,7 +519,7 @@ public class ViewerPanelFX
 	 */
 	public void setScreenScales(final double[] screenScales) {
 
-		LOG.debug("Setting screen scales to {}", screenScales);
+		LOG.debug(() -> "Setting screen scales to %s".formatted((Object) screenScales));
 		this.renderUnit.setScreenScales(screenScales.clone());
 	}
 
@@ -582,38 +549,43 @@ public class ViewerPanelFX
 
 			@Override
 			public void handle(long now) {
-				final var result = renderUnit.getRenderedImageProperty().get();
-				if (result != renderResult) {
+
+				try {
+					final var result = renderUnit.getRenderedImageProperty().get();
+					if (result == null || result == renderResult)
+						return;
 					renderResult = result;
-				}
 
-				if (renderResult != null) {
 					final Image image = renderResult.getImage();
-					if (image != null) {
-						final Interval screenInterval = renderResult.getScreenInterval();
-						final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+					if (image == null)
+						return;
 
-						canvasPane.getCanvas().getGraphicsContext2D().clearRect(
-								screenInterval.min(0), // dst X
-								screenInterval.min(1), // dst Y
-								screenInterval.dimension(0), // dst width
-								screenInterval.dimension(1)  // dst height
+					final Interval screenInterval = renderResult.getScreenInterval();
+					canvasPane.getCanvas().getGraphicsContext2D().clearRect(
+							screenInterval.min(0), // dst X
+							screenInterval.min(1), // dst Y
+							screenInterval.dimension(0), // dst width
+							screenInterval.dimension(1)  // dst height
+					);
+
+					final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+					synchronized (image) {
+						canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+								image, // src
+								renderTargetRealInterval.realMin(0), // src X
+								renderTargetRealInterval.realMin(1), // src Y
+								renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+								renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+								screenInterval.min(0) - 1, // dst X
+								screenInterval.min(1) - 1, // dst Y
+								screenInterval.dimension(0) + 1, // dst width
+								screenInterval.dimension(1) + 1  // dst height
 						);
-						synchronized (image) {
-							canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-									image, // src
-									renderTargetRealInterval.realMin(0), // src X
-									renderTargetRealInterval.realMin(1), // src Y
-									renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-									renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-									screenInterval.min(0) - 1, // dst X
-									screenInterval.min(1) - 1, // dst Y
-									screenInterval.dimension(0) + 1, // dst width
-									screenInterval.dimension(1) + 1  // dst height
-							);
-						}
 					}
+				} catch (Exception e) {
+					LOG.error(e, () -> "Exception in ViewerPanelFX RenderAnimation Timer");
 				}
+
 			}
 		}.start();
 	}
