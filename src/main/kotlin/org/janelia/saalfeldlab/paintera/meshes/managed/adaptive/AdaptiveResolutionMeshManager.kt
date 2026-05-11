@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import java.util.Collections
 import java.util.function.BooleanSupplier
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * @author Philipp Hanslovsky
@@ -153,17 +154,20 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	@Suppress("unused")
 	private val createMeshRunner = meshManagerScope.launch {
-		val jobs = mutableListOf<Deferred<Pair<ObjectKey, MeshGenerator<ObjectKey>>>>()
 		while (isActive) {
-			val createMeshGenerators = generateSequence { createMeshQueue.tryReceive().getOrNull() }
+          val first = createMeshQueue.receive()
 
-			for ((key, update, generator) in createMeshGenerators) {
-				if (key !in meshes)
-					jobs += async { key to generator() }
-			}
+          val batch = buildList {
+              add(first)
+              generateSequence { createMeshQueue.tryReceive().getOrNull() }.forEach { add(it) }
+          }
+
+          val jobs = batch
+              .filter { (key, _, _) -> key !in meshes }
+              .map { (key, _, generator) -> async { key to generator() } }
 
 			val keyMeshMap = jobs.awaitAll().toMap()
-			if (!keyMeshMap.isEmpty()) {
+          if (keyMeshMap.isNotEmpty()) {
 				meshes.putAll(keyMeshMap)
 
 				InvokeOnJavaFXApplicationThread {
@@ -172,9 +176,6 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				}
 			}
 
-			jobs.clear()
-
-			delay(100)
 		}
 	}
 
