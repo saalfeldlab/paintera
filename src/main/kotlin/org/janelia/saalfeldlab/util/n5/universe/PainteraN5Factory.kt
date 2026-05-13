@@ -67,7 +67,11 @@ class PainteraN5Factory : N5FactoryWithCache() {
     }
 
     fun openWriterOrNull(uri: String): N5Writer? =
-		runCatching { openWriter(uri) }
+		runCatching {
+			val (format, location) = StorageFormat.getStorageFromNestedScheme(uri).let { it.a to it.b }
+			val asUri = StorageFormat.parseUri(location).b
+			openWriter(format, asUri)
+		}
 			.onFailure { LOG.debug(it) { "Unable to open $uri as N5Writer" } }
 			.getOrNull()
 
