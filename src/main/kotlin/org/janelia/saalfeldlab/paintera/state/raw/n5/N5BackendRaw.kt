@@ -10,7 +10,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.AxisAdapter
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.axes.AxisAdapter
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get

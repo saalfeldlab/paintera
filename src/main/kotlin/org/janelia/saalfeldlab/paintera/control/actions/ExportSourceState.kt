@@ -25,9 +25,8 @@ import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05Metadata
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser
-import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -341,9 +340,10 @@ internal fun exportOmeNGFFMetadata(
 	writer.createGroup(dataset)
 	val newDatasetAttrs = writer.createDataset(scaleLevelDataset, datasetAttributes)
 
-	val exportMetadata = OmeNgffV05Metadata.buildForWriting(
+	val exportMetadata = OmeNgffMetadata.buildForWriting(
 		newDatasetAttrs.numDimensions,
 		dataset,
+		"0.5",
 		arrayOf(
 			Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
 			Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
@@ -354,7 +354,7 @@ internal fun exportOmeNGFFMetadata(
 		arrayOf(translation)
 	)
 
-	OmeNgffV05MetadataParser().writeMetadata(
+	OmeNgffMetadataParser().writeMetadata(
 		exportMetadata,
 		writer,
 		dataset
