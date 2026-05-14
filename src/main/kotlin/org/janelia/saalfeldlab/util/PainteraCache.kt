@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.util
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
@@ -66,7 +67,7 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 			.reversed()
 			.mapNotNull { recentString ->
 				val stringAsUri =
-					this.runCatching { URI.create(recentString).takeIf { uri -> uri.isAbsolute } }.getOrNull()
+					this.runCatching { StorageFormat.parseUri(recentString).b.takeIf { uri -> uri.isAbsolute } }.getOrNull()
 				stringAsUri ?: this.runCatching { URI("file", recentString, null) }.getOrNull()
 			}
 
