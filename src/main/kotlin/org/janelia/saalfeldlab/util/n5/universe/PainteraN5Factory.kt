@@ -14,6 +14,11 @@ import java.nio.file.Paths
 class PainteraN5Factory : N5FactoryWithCache() {
 
 	init {
+		options.apply {
+			cacheAttributes(true)
+			zarr2Builder.apply { dimensionSeparator("/") }
+			zarr3Builder.apply { dimensionSeparator("/") }
+		}
 		preferredStorageFormat(StorageFormat.N5)
 	}
 
@@ -108,7 +113,7 @@ class PainteraN5Factory : N5FactoryWithCache() {
 		private val LOG = KotlinLogging.logger { }
 
 
-		//FIXME Caleb: Copied and converted from [N5FactoryWithCaceh#normalizeUri]. Should be public (or protected)!
+		//FIXME Caleb: Copied and converted from [N5FactoryWithCache#normalizeUri]. Should be public (or protected)!
 		private fun normalizeUri(uri: URI): URI {
 			if (uri.isAbsolute && uri.scheme != "file") {
 				return uri.normalize()

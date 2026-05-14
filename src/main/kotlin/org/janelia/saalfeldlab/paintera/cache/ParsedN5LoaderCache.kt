@@ -6,19 +6,11 @@ import javafx.collections.ObservableMap
 import kotlinx.coroutines.*
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
-import org.janelia.saalfeldlab.n5.universe.metadata.N5GenericSingleScaleMetadataParser
-import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.OmeNgffV05MetadataParser
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
-import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.asyncDiscoverAndParseRecursive
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 
 internal val SHARED_PARSED_N5_CACHE = SoftRefLoaderCache<N5Reader, Deferred<Map<String, N5TreeNode>?>>()
