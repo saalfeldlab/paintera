@@ -24,8 +24,6 @@ import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisUtils
 import org.janelia.saalfeldlab.paintera.data.n5.openLabelMultiset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fallbackAxes
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.getAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.VolatileHelpers
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers
@@ -163,7 +161,7 @@ object N5Data {
 
         val imgSize3D = LongArray(3)
 
-        val cellSizeND = nDImg.cellGrid.cellDimensions
+        val cellSizeND = datasetAttributes.chunkSize
         val cellSize3D = IntArray(3)
         val spatialAxes = axes
             .mapIndexed { dimIdx, axis -> dimIdx to axis }
