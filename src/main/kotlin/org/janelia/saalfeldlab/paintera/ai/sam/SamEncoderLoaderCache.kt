@@ -8,13 +8,6 @@ import org.janelia.saalfeldlab.samlink.encode.Sam2EncoderResult
 import org.janelia.saalfeldlab.samlink.encode.Sam3TrackerEncoderResult
 
 
-class Sam1LegacyEncodingLoaderCache : ImageEncodingLoaderCache<Sam1EncoderResult>() {
-
-    override val embeddingRequester by LazyForeignValue(paintera.properties.samServiceConfig::sam1LegacyConfig) {
-        Sam1LegacyEncodeRequester()
-    }
-}
-
 class Sam1EncodingLoaderCache : ImageEncodingLoaderCache<Sam1EncoderResult>(), AutoCloseable {
 
     override val embeddingRequester by LazyForeignValue(paintera.properties.samServiceConfig::sam1Config) {
