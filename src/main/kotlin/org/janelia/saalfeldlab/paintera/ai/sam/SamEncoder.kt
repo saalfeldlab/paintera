@@ -9,27 +9,28 @@ import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
 import org.janelia.saalfeldlab.samlink.encode.ImageFormat
-import org.janelia.saalfeldlab.samlink.encode.Sam1EncodeResult
+import org.janelia.saalfeldlab.samlink.encode.Sam1EncoderResult
 import org.janelia.saalfeldlab.samlink.encode.Sam1HttpEncoder
+import org.janelia.saalfeldlab.samlink.encode.Sam1TritonEncoder
 import org.janelia.saalfeldlab.samlink.encode.Sam2EncoderResult
 import org.janelia.saalfeldlab.samlink.encode.Sam2TritonEncoder
 import org.janelia.saalfeldlab.samlink.encode.Sam3TrackerEncoderResult
 import org.janelia.saalfeldlab.samlink.encode.Sam3TrackerTritonEncoder
 import kotlin.coroutines.cancellation.CancellationException
 
-class Sam1EncodeRequester : SamLinkEncodeRequester<Sam1EncodeResult>() {
+class Sam1LegacyEncodeRequester : SamLinkEncodeRequester<Sam1EncoderResult>() {
 
     override val imageSize = 1024
 
     override val samLink = Sam1HttpEncoder(
-        serviceUrl = properties.samServiceConfig.sam1Config.serviceUrl,
-        responseTimeout = properties.samServiceConfig.sam1Config.responseTimeout
+        serviceUrl = properties.samServiceConfig.sam1LegacyConfig.serviceUrl,
+        responseTimeout = properties.samServiceConfig.sam1LegacyConfig.responseTimeout
     )
 
 
-    override suspend fun getImageEmbedding(it: RenderUnitState): Sam1EncodeResult {
+    override suspend fun getImageEmbedding(it: RenderUnitState): Sam1EncoderResult {
 
-        val config = paintera.properties.samServiceConfig.sam1Config
+        val config = paintera.properties.samServiceConfig.sam1LegacyConfig
         val encoding = config.imageEncoding.let {
             when (it) {
                 ImageRenderer.ImageEncoding.JPEG -> ImageFormat.JPEG
@@ -93,6 +94,20 @@ class Sam1EncodeRequester : SamLinkEncodeRequester<Sam1EncodeResult>() {
         private val LOG = KotlinLogging.logger { }
     }
 
+}
+
+class Sam1EncodeRequester : SamLinkEncodeRequester<Sam1EncoderResult>() {
+
+    override val imageSize = 1024
+
+    override val samLink = with(paintera.properties.samServiceConfig.sam1Config) {
+        Sam1TritonEncoder(
+            serviceHost = host,
+            grpcPort = port,
+            encoderModel = encoderName,
+            responseTimeout = responseTimeout
+        )
+    }
 }
 
 class Sam2EncodeRequester : SamLinkEncodeRequester<Sam2EncoderResult>() {

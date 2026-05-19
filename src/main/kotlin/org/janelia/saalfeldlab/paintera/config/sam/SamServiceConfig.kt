@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.ai.sam.Sam1EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.Sam1LegacyEncodingLoaderCache
 import org.janelia.saalfeldlab.paintera.ai.sam.Sam2EncodingLoaderCache
 import org.janelia.saalfeldlab.paintera.ai.sam.Sam3EncodingLoaderCache
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -35,11 +36,13 @@ import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
 class SamServiceConfig(
+    initSam1LegacyConfig: Sam1LegacyConfig? = null,
     initSam1Config: Sam1Config? = null,
     initSam2Config: Sam2Config? = null,
     initSam3Config: Sam3Config? = null,
 ) : Observable {
 
+    var sam1LegacyConfig: Sam1LegacyConfig = initSam1LegacyConfig ?: Sam1LegacyConfig()
     var sam1Config: Sam1Config = initSam1Config ?: Sam1Config()
     var sam2Config: Sam2Config = initSam2Config ?: Sam2Config()
     var sam3Config: Sam3Config = initSam3Config ?: Sam3Config()
@@ -48,7 +51,7 @@ class SamServiceConfig(
     var currentSamConfig: SamModelConfig<*> by currentSamConfigProperty.nonnull()
 
     private val observer = Bindings.createObjectBinding({ },
-        sam1Config, sam2Config, sam3Config, currentSamConfigProperty
+        sam1LegacyConfig, sam1Config, sam2Config, sam3Config, currentSamConfigProperty
     ).apply {
         /* invalidation triggers are lazy; only update if someone has checked.
         * We need to check every time for the behavior we want. */
@@ -67,6 +70,7 @@ class SamServiceConfig(
                 }
                 LOG.trace { "Closing ${SamEncoder.cache::class.simpleName} Image Encoder Cache" }
                 SamEncoder.cache = when (currentSamConfig) {
+                    is Sam1LegacyConfig -> Sam1LegacyEncodingLoaderCache()
                     is Sam1Config -> Sam1EncodingLoaderCache()
                     is Sam2Config -> Sam2EncodingLoaderCache()
                     is Sam3Config -> Sam3EncodingLoaderCache()
@@ -118,7 +122,8 @@ class SamServiceConfigNode(config: SamServiceConfig) : TitledPane() {
     private fun GridPane.addModelSelectionNode(row: Int, config: SamServiceConfig) {
         val modelToggleGroup = ToggleGroup()
         val options: Map<String, () -> SamModelConfig<*>> = mapOf(
-            "SAM 1" to config::sam1Config,
+            "SAM 1" to config::sam1LegacyConfig,
+            "SAM 1(T)" to config::sam1Config,
             "SAM 2" to config::sam2Config,
             "SAM 3" to config::sam3Config
         )
@@ -147,6 +152,7 @@ class SamServiceConfigNode(config: SamServiceConfig) : TitledPane() {
     companion object {
         private fun SamModelConfig<*>.createConfigNode(): Node {
             return when (this) {
+                is Sam1LegacyConfig -> Sam1LegacyConfigNode(this)
                 is Sam1Config -> Sam1ConfigNode(this)
                 is Sam2Config -> Sam2ConfigNode(this)
                 is Sam3Config -> Sam3ConfigNode(this)
@@ -159,6 +165,7 @@ class SamServiceConfigNode(config: SamServiceConfig) : TitledPane() {
 class SamServiceAdapter : PainteraSerialization.PainteraAdapter<SamServiceConfig> {
 
     companion object {
+        private const val SAM1_LEGACY = "SAM1_LEGACY"
         private const val SAM1 = "SAM1"
         private const val SAM2 = "SAM2"
         private const val SAM3 = "SAM3"
@@ -169,18 +176,22 @@ class SamServiceAdapter : PainteraSerialization.PainteraAdapter<SamServiceConfig
     override fun serialize(src: SamServiceConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
         return JsonObject().also {
             it["selectedModel"] = when (src.currentSamConfig) {
-                is Sam1Config -> SAM1
+                is Sam1LegacyConfig -> SAM1_LEGACY
+                is Sam1Config -> SAM1_LEGACY
                 is Sam2Config -> SAM2
                 is Sam3Config -> SAM3
             }
+            context.serialize(src.sam1LegacyConfig).takeUnless { json -> json.isJsonNull }?.let { json ->
+                it[SAM1_LEGACY] = json
+            }
             context.serialize(src.sam1Config).takeUnless { json -> json.isJsonNull }?.let { json ->
-                it["SAM1"] = json
+                it[SAM1] = json
             }
             context.serialize(src.sam2Config).takeUnless { json -> json.isJsonNull }?.let { json ->
-                it["SAM2"] = json
+                it[SAM2] = json
             }
             context.serialize(src.sam3Config).takeUnless { json -> json.isJsonNull }?.let { json ->
-                it["SAM3"] = json
+                it[SAM3] = json
             }
         }
     }
@@ -189,11 +200,12 @@ class SamServiceAdapter : PainteraSerialization.PainteraAdapter<SamServiceConfig
 
         json ?: return SamServiceConfig()
 
+        val sam1Legacy: Sam1LegacyConfig? = context[json, SAM1_LEGACY]
         val sam1: Sam1Config? = context[json, SAM1]
         val sam2: Sam2Config? = context[json,SAM2]
         val sam3: Sam3Config? = context[json,SAM3]
 
-        return SamServiceConfig(sam1, sam2, sam3)
+        return SamServiceConfig(sam1Legacy, sam1, sam2, sam3)
     }
 
 }

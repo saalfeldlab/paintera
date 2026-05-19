@@ -6,7 +6,6 @@ import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValueBase
 import javafx.geometry.HPos
-import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.control.Button
 import javafx.scene.control.ComboBox
@@ -103,6 +102,7 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
         columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
         columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.ALWAYS })
         columnConstraints.add(ColumnConstraints().apply { hgrow = Priority.NEVER })
+        hgap = 5.0
     }
 
     protected fun GridPane.addBaseNodeRows(row: Int) {
@@ -177,7 +177,6 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
         internal fun newResetButton(apply: Button.() -> Unit): Button {
             return Button().apply {
                 addStyleClass(Style.RESET_ICON)
-                setMargin(this, Insets(0.0, 0.0, 0.0, 5.0))
                 apply()
             }
         }
