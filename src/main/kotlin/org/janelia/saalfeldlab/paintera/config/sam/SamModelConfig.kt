@@ -77,7 +77,7 @@ sealed class SamModelConfig<T>(
     companion object {
         internal const val DEFAULT_RESPONSE_TIMEOUT = 10 * 1000
 
-        internal const val DEFAULT_TRITON_SERVICE = "https://sam-service-triton.int.janelia.org:443"
+        internal const val DEFAULT_TRITON_SERVICE = "https://sam-inference.janelia.org"
 
         /**
          * internal data class for equality and hashcode over a subset of the config fields
