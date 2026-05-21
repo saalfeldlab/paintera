@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import ai.onnxruntime.OrtException
 import org.janelia.saalfeldlab.samlink.decode.BoxPrompt
 import org.janelia.saalfeldlab.samlink.decode.SamPrompt
 import org.janelia.saalfeldlab.samlink.decode.MaskPrompt
@@ -508,9 +507,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				KEY_PRESSED(SEGMENT_ANYTHING__ACCEPT_SEGMENTATION) {
 					name = "apply last segmentation result to canvas"
 					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON) } }
-//					verifyPainteraNotDisabled()
 					verify(" label is not valid ") { isLabelValid }
 					onAction {
+						lastPrediction ?: return@onAction
 						applyPrediction()
 						clearPromptDrawings()
 						currentPredictionRequest = null
@@ -859,6 +858,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private fun startPredictionJob() {
 		val maskSource = maskedSource ?: return
+		val paintMask = viewerMask ?: return
+
+		// clear the last prediction, so errors here aren't hidden by the last successful prediction
+		lastPrediction = null
+
 		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
 			val encodedImage = runCatching {
 				isBusy = true
@@ -884,7 +888,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				ensureActive()
 				val newPredictionRequest = estimateThreshold || currentPrediction == null
 				if (newPredictionRequest) {
-					currentPrediction = runPredictionWithRetry(predictor, predictionRequest)
+					currentPrediction = predictor.predict(predictionRequest)
 				}
 				val prediction = currentPrediction!!
 				val predictionLabel = currentLabelToPaint
@@ -899,9 +903,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}
 
-//				val prompts = prediction.prompt.flatten()
-//				val boxPrompt = prompts.filterIsInstance<BoxPrompt>().firstOrNull()
-//				val points = prompts.filterIsInstance<PointPrompt>()
 				val points = prediction.prompt.getPoints()
 
 				if (estimateThreshold) {
@@ -909,17 +910,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					*   In all other cases, estimate threshold based on the entire image. */
 					val estimateOverBox = if (points.all { it.label > SamPointLabel.FOREGROUND }) intervalOfBox(points) else null
 					setBestEstimatedThreshold(estimateOverBox)
-//					boxPrompt?.takeIf { points.isEmpty() }?.let { (topLeft, bottomRight) ->
-//						val (x1, y1) = topLeft
-//						val (x2, y2) = bottomRight
-//						val boxInterval = Intervals.createMinMax( x1.toLong(), y1.toLong(), x2.toLong(), y2.toLong() )
-//						setBestEstimatedThreshold( boxInterval )
-//					}
 				}
 
-				val paintMask = viewerMask!!
-
-				val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
+                val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
 				val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE)
 
 				val predictedImage = prediction.image
@@ -1112,24 +1105,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		thresholdBounds = Bounds(minThreshold, maxThreshold)
 		threshold = binVar.get().toDouble()
 		estimatedThreshold = threshold
-	}
-
-	private fun runPredictionWithRetry(predictor: SamPredictor, prompt: SamPrompt): SamPredictor.SamPrediction {
-		/* FIXME: This is a bit hacky, but works for now until a better solution is found.
-		*   Some explenation. When running the SAM predictions, occasionally the following OrtException is thrown:
-		*   [E:onnxruntime:, sequential_executor.cc:494 ExecuteKernel]
-		*       Non-zero status code returned while running Resize node.
-		*       Name:'/Resize_1' Status Message: upsamplebase.h:334 ScalesValidation Scale value should be greater than 0.
-		*   This seems to only happen infrequently, and only when installed via conda (not the platform installer, or running from source).
-		*   The temporary solution here is to just call it again, recursively, until it succeeds. I have not yet seen this
-		*   to be a problem in practice, but ideally it wil be unnecessary in the future. Either by the underlying issue
-		*   no longer occuring, or finding a better solution. */
-		return try {
-			predictor.predict(prompt)
-		} catch (e: OrtException) {
-			LOG.trace { "${e.message}" }
-			runPredictionWithRetry(predictor, prompt)
-		}
 	}
 
 	companion object {

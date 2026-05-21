@@ -32,6 +32,10 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 	override var currentDisplay: Boolean = false
 
 	override fun activate() {
+		/* freeze interpolation while the SAM tool is active; otherwise a composite-mask
+		 * update can race getMask() and throw MaskInUse. Better future solution is to
+		 * more robustly control masked source access and modification  */
+		controller.freezeInterpolation = true
 		requestOnActivate = false
 		super.activate()
 
@@ -69,6 +73,8 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 	override fun deactivate() {
 		super.deactivate()
+		/* unfreeze before composing the overlay, else setMaskOverlay would be a no-op */
+		controller.freezeInterpolation = false
 		controller.setMaskOverlay()
 	}
 
@@ -76,6 +82,8 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		lastPrediction?.apply {
 			/* cache the prediction. lock the cached slice, since this was applied manually */
 			super.applyPrediction()
+			/* unfreeze so addSelection can re-interpolate with the newly added slice */
+			controller.freezeInterpolation = false
 			mode.run {
 				addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
 					it.prompt = samPrompt

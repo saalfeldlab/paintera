@@ -426,7 +426,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	}
 
 	private fun selectNewInterpolationId() {
-		/* Grab the color of the previously active ID. We will make our selection ID color slightly different, to indicate selection. */
+		/* Grab the color of the previously active ID. We will make our selection ID color slightly different to indicate selection. */
 		val packedLastARGB = converter.stream.argb(lastSelectedId)
 		val originalColor = Colors.toColor(packedLastARGB)
 		val fillLabelColor = Color(originalColor.red, originalColor.green, originalColor.blue, activeSelectionAlpha)
@@ -446,62 +446,63 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 
 	@Throws(MaskInUse::class)
-	private fun setCompositeMask(includeInterpolant: Boolean = preview) {
+	private fun setCompositeMask() {
 		if (freezeInterpolation) return
+
+		val fillMasks: MutableList<RealRandomAccessibleRealInterval<UnsignedLongType>> = mutableListOf()
+		val slices = slicesAndInterpolants.slices
+		slices.forEachIndexed { idx, slice ->
+			fillMasks += slice.mask.run {
+				viewerImg
+					.expandborder(0, 0, 1)
+					.extendValue(Label.INVALID)
+					.interpolateNearestNeighbor()
+					.affineReal(initialGlobalToMaskTransform.inverse())
+					.realInterval(slice.globalBoundingBox ?: EMPTY_3D_INTERVAL)
+			}
+		}
+		val invalidLabel = UnsignedLongType(Label.INVALID)
+
+		val composedSlices =
+			if (slices.isEmpty())
+				ConstantUtils.constantRandomAccessible(invalidLabel, 3).interpolateNearestNeighbor()
+			else
+				MultiRealIntervalAccessibleRealRandomAccessible(fillMasks, invalidLabel) { it.get() != Label.INVALID }
+
+
+		val interpolants = slicesAndInterpolants.interpolants
+		val composedInterpolations =
+			if (!preview || interpolants.isEmpty())
+				ConstantUtils.constantRealRandomAccessible(invalidLabel, composedSlices.numDimensions())
+			else {
+				val interpolantRais = interpolants.map { info -> info.dataInterpolant.realInterval(info.interval!!) }.toList()
+				val interpolantBounds: RealInterval = interpolantRais.map { it as RealInterval }.reduce { l, r -> l.union(r) }
+				val outOfBounds = invalidLabel
+				ExtendedRealRandomAccessibleRealInterval(
+					MultiRealIntervalAccessibleRealRandomAccessible(interpolantRais, outOfBounds) { it.get() != Label.INVALID }.realInterval(interpolantBounds),
+					RealOutOfBoundsConstantValueFactory(outOfBounds)
+				)
+			}
+
+		val compositeMaskInGlobal = BiConvertedRealRandomAccessible(composedSlices, composedInterpolations, Supplier {
+			BiConverter { fillValue: UnsignedLongType, interpolationValue: UnsignedLongType, compositeValue: UnsignedLongType ->
+				val aVal = fillValue.get()
+				val aOrB = if (aVal.isInterpolationLabel) fillValue else interpolationValue
+				compositeValue.set(aOrB)
+			}
+		}) { invalidLabel.copy() }
+		val compositeVolatileMaskInGlobal = compositeMaskInGlobal.convert(VolatileUnsignedLongType(Label.INVALID)) { source, target ->
+			target.get().set(source.get())
+			target.isValid = true
+		}
+
+		/* Set the interpolatedMaskImgs to the composite fill+interpolation RAIs*/
+		globalCompositeFillAndInterpolationImgs = compositeMaskInGlobal to compositeVolatileMaskInGlobal
+		val maskInfo = currentViewerMask?.info ?: MaskInfo(0, currentBestMipMapLevel)
+		currentViewerMask?.setMaskOnUpdate = false
+		val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, currentBestMipMapLevel, it) }.inverse()
 		synchronized(source) {
 			source.resetMasks(false)
-			val fillMasks: MutableList<RealRandomAccessibleRealInterval<UnsignedLongType>> = mutableListOf()
-			val slices = slicesAndInterpolants.slices
-			slices.forEachIndexed { idx, slice ->
-				fillMasks += slice.mask.run {
-					viewerImg
-						.expandborder(0, 0, 1)
-						.extendValue(Label.INVALID)
-						.interpolateNearestNeighbor()
-						.affineReal(initialGlobalToMaskTransform.inverse())
-						.realInterval(slice.globalBoundingBox ?: EMPTY_3D_INTERVAL)
-				}
-			}
-			val invalidLabel = UnsignedLongType(Label.INVALID)
-
-			val composedSlices =
-				if (slices.isEmpty())
-					ConstantUtils.constantRandomAccessible(invalidLabel, 3).interpolateNearestNeighbor()
-				else
-					MultiRealIntervalAccessibleRealRandomAccessible(fillMasks, invalidLabel) { it.get() != Label.INVALID }
-
-
-			val interpolants = slicesAndInterpolants.interpolants
-			val composedInterpolations =
-				if (!preview || interpolants.isEmpty())
-					ConstantUtils.constantRealRandomAccessible(invalidLabel, composedSlices.numDimensions())
-				else {
-					val interpolantRais = interpolants.map { info -> info.dataInterpolant.realInterval(info.interval!!) }.toList()
-					val interpolantBounds: RealInterval = interpolantRais.map { it as RealInterval }.reduce { l, r -> l.union(r) }
-					val outOfBounds = invalidLabel
-					ExtendedRealRandomAccessibleRealInterval(
-						MultiRealIntervalAccessibleRealRandomAccessible(interpolantRais, outOfBounds) { it.get() != Label.INVALID }.realInterval(interpolantBounds),
-						RealOutOfBoundsConstantValueFactory(outOfBounds)
-					)
-				}
-
-			val compositeMaskInGlobal = BiConvertedRealRandomAccessible(composedSlices, composedInterpolations, Supplier {
-				BiConverter { fillValue: UnsignedLongType, interpolationValue: UnsignedLongType, compositeValue: UnsignedLongType ->
-					val aVal = fillValue.get()
-					val aOrB = if (aVal.isInterpolationLabel) fillValue else interpolationValue
-					compositeValue.set(aOrB)
-				}
-			}) { invalidLabel.copy() }
-			val compositeVolatileMaskInGlobal = compositeMaskInGlobal.convert(VolatileUnsignedLongType(Label.INVALID)) { source, target ->
-				target.get().set(source.get())
-				target.isValid = true
-			}
-
-			/* Set the interpolatedMaskImgs to the composite fill+interpolation RAIs*/
-			globalCompositeFillAndInterpolationImgs = compositeMaskInGlobal to compositeVolatileMaskInGlobal
-			val maskInfo = currentViewerMask?.info ?: MaskInfo(0, currentBestMipMapLevel)
-			currentViewerMask?.setMaskOnUpdate = false
-			val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, currentBestMipMapLevel, it) }.inverse()
 			source.setMask(
 				maskInfo,
 				compositeMaskInGlobal.affine(globalToSource),
