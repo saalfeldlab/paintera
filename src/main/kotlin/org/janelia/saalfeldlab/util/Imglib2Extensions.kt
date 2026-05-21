@@ -86,6 +86,8 @@ fun <T : RealType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: 
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Int) = Views.extendValue(this, extension)!!
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Long) = Views.extendValue(this, extension)!!
 fun <T : BooleanType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Boolean) = Views.extendValue(this, extension)!!
+
+fun <T, F : RandomAccessibleInterval<T>> F.extendBorder() = Views.extendBorder(this)!!
 fun <T, F : RandomAccessibleInterval<T>> F.expandborder(vararg border: Long) = Views.expandBorder(this, *border)!!
 
 fun <T> RandomAccessible<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!

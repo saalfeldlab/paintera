@@ -1,24 +1,17 @@
 package org.janelia.saalfeldlab.paintera.ai.sam
 
-import org.janelia.saalfeldlab.samlink.decode.SamDecoder
-import org.janelia.saalfeldlab.samlink.decode.SamDecoder.Companion.newDecoder
-import org.janelia.saalfeldlab.samlink.decode.SamPrompt
-import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
-import net.imglib2.realtransform.RealViews
 import net.imglib2.realtransform.Scale2D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.util.Intervals
-import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scale
-import org.janelia.saalfeldlab.util.affineReal
-import org.janelia.saalfeldlab.util.extendValue
-import org.janelia.saalfeldlab.util.interpolate
-import org.janelia.saalfeldlab.util.interpolateNearestNeighbor
-import org.janelia.saalfeldlab.util.interval
-import org.janelia.saalfeldlab.util.raster
+import org.janelia.saalfeldlab.samlink.decode.SamDecoder
+import org.janelia.saalfeldlab.samlink.decode.SamDecoder.Companion.newDecoder
+import org.janelia.saalfeldlab.samlink.decode.SamPrompt
+import org.janelia.saalfeldlab.samlink.encode.EncoderResult
+import org.janelia.saalfeldlab.util.*
 
 const val MAX_DIM_TARGET = 1024
 
@@ -45,8 +38,16 @@ class SamPredictor(
 
         synchronized(this) {
             val result = SamDecoder.decode(decoder, encodedImage, prompt)
-            val predictionImg = getRaiForResult(result, encodedImage)
-            return SamPrediction(result, predictionImg, prompt).also {
+            /* TODO: Consider exposing this, or choosing a different default.
+            *   1 mask-based refinement seems reasonable, and to work well. */
+            var refinePrompt: SamPrompt
+            var refinedResult = result
+            repeat(1) {
+                refinePrompt = prompt.copy().addMask(result.bestMask)
+                refinedResult = SamDecoder.decode(decoder, encodedImage, refinePrompt)
+            }
+            val predictionImg = getRaiForResult(refinedResult, encodedImage)
+            return SamPrediction(refinedResult, predictionImg, prompt).also {
                 lastPrediction = it
             }
         }
@@ -59,24 +60,14 @@ class SamPredictor(
     )
 
     companion object {
+
         private fun getRaiForResult(
             result: SamDecoder.DecoderResult,
             encoderResult: EncoderResult
         ): RandomAccessibleInterval<FloatType> {
 
             val scale = encoderResult.inputSize.toDouble() / result.maskSize
-            val rawMask = result.rawMask
-            SamDecoder.grayscaleClosing(
-                rawMask,
-                result.maskSize to result.maskSize,
-                1 to 1
-            )
-            SamDecoder.grayscaleOpening(
-                rawMask,
-                result.maskSize to result.maskSize,
-                1 to 1
-            )
-            val decodedImg = ArrayImgs.floats(rawMask, result.maskSize.toLong(), result.maskSize.toLong())
+            val decodedImg = ArrayImgs.floats(result.bestMask, result.maskSize.toLong(), result.maskSize.toLong())
 
             val imageSize = Intervals.createMinSize(
                 0,
@@ -89,7 +80,7 @@ class SamPredictor(
                 decodedImg.interval(imageSize)
             } else {
                 decodedImg
-                    .extendValue(0.0)
+                    .extendBorder()
                     .interpolate(NLinearInterpolatorFactory())
                     .affineReal(Scale2D(scale, scale))
                     .raster()
