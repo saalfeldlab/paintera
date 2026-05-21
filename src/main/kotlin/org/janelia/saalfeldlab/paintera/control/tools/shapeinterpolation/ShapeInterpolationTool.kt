@@ -83,7 +83,11 @@ internal class ShapeInterpolationTool(
 	}
 
 	override fun deactivate() {
-		disabledViewerActionsMap.forEach { (vat, actionSets) -> actionSets.forEach { vat.viewer().removeActionSet(it) } }
+        disabledViewerActionsMap.forEach { (vat, actionSets) ->
+            actionSets.forEach {
+                vat.viewer().removeActionSet(it)
+            }
+        }
 		disabledViewerActionsMap.clear()
 		NavigationTool.deactivate()
 		super.deactivate()
@@ -91,7 +95,10 @@ internal class ShapeInterpolationTool(
 
 	override val statusProperty = SimpleStringProperty().apply {
 
-		val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.currentDepthProperty, controller.sliceAtCurrentDepthProperty) {
+        val statusBinding = controller.controllerStateProperty.createNullableValueBinding(
+            controller.currentDepthProperty,
+            controller.sliceAtCurrentDepthProperty
+        ) {
 			controller.getStatusText()
 		}
 		bind(statusBinding)
@@ -166,13 +173,14 @@ internal class ShapeInterpolationTool(
 
 	internal fun requestEagerEmbeddings(sliceDepths: List<Double>) {
 
-		val eagerRequestDepths = eagerRequestDepths(sliceDepths)
+        val eagerRequests = ArrayDeque((eagerRequestDepths(sliceDepths) ?: listOf(controller.currentDepth)))
 		/* first and last are more likely to be used quickly, request them first */
-		eagerRequestDepths.firstOrNull()?.let { requestEmbedding(it) }
-		eagerRequestDepths.lastOrNull()?.let { requestEmbedding(it) }
-		if (eagerRequestDepths.size > 2) {
+        eagerRequests.removeFirstOrNull()?.let { requestEmbedding(it) }
+        eagerRequests.removeLastOrNull()?.let { requestEmbedding(it) }
+
+        while (eagerRequests.isNotEmpty()) {
 			/* request the rest */
-			eagerRequestDepths.subList(1, eagerRequestDepths.size - 1).forEach {
+            eagerRequests.removeFirstOrNull()?.let {
 				requestEmbedding(it)
 			}
 		}
@@ -180,7 +188,11 @@ internal class ShapeInterpolationTool(
 
 
 	internal fun requestEmbedding(depth: Double) {
-		mode.cacheLoadSamSliceInfo(depth)
+        runCatching {
+			mode.cacheLoadSamSliceInfo(depth)
+        }.onFailure {
+            LOG.warn(it) { "Failed to load and cache SamSliceInfo at depth: $depth " }
+        }
 	}
 
 
@@ -243,7 +255,11 @@ internal class ShapeInterpolationTool(
 				return@addListener
 			}
 
-			afterPrediction(globalTransform)
+            runCatching {
+			    afterPrediction(globalTransform)
+            }.exceptionOrNull()?.let { e ->
+                LOG.warn(e) { "Error processing SAM prediction" }
+            }
 
 			samTool.cleanup()
 			samTool.activeViewerProperty.unbind()
@@ -252,32 +268,14 @@ internal class ShapeInterpolationTool(
 		return globalTransform
 	}
 
-	private fun eagerRequestDepths(sliceDepths: List<Double>): List<Double> {
-		val depths = sliceDepths.sorted()
-		val depthPairs = depths.zipWithNext()
-		val eagerRequestDepths = depthPairs.map { (first, second) -> first + ((second - first) / 2.0) }.toMutableList()
-
-		depthPairs.firstOrNull()?.let { (first, second) ->
-			val distance = second - first
-			val eagerFirstRequest = first - distance
-			eagerRequestDepths.add(0, eagerFirstRequest)
-		}
-
-		depthPairs.lastOrNull()?.let { (first, second) ->
-			val distance = second - first
-			val eagerLastRequest = second + distance
-			eagerRequestDepths.add(eagerLastRequest)
-		}
-
-		return eagerRequestDepths
-	}
-
 	private fun shapeInterpolationActions(): Array<ActionSet?> {
 		lateinit var autoSamCurrent: Action<*>
-		lateinit var autoSamLeft: Action<*>
 		lateinit var autoSamBisectAll: Action<*>
 		lateinit var autoSamBisectCurrent: Action<*>
+        lateinit var autoSamLeft: Action<*>
 		lateinit var autoSamRight: Action<*>
+        lateinit var autoSamBisectLeft: Action<*>
+        lateinit var autoSamBisectRight: Action<*>
 		with(controller) {
 			return arrayOf(
 				painteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
@@ -305,28 +303,6 @@ internal class ShapeInterpolationTool(
 						}
 					}
 
-					autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
-						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
-						verify { SamEncoder.isHealthy }
-						onAction { event ->
-							/* if triggered by an event, then check if we need to flip axes;
-							* If so, call the flipped version, WITHOUT an event */
-							if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
-								autoSamRight(null)
-								return@onAction
-							}
-							val depths = sortedSliceDepths.toMutableList()
-							val eagerRequestDepths = eagerRequestDepths(depths)
-
-							/* trigger the prediction and move there when done */
-							val requestDepth = eagerRequestDepths.firstOrNull() ?: -20.0
-
-							/* request the next depth immediately, request the rest when this one finishes */
-							requestSamPrediction(requestDepth, moveToSlice = true) {
-								requestEagerEmbeddings(sortedSliceDepths)
-							}
-						}
-					}
 					autoSamBisectAll = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_BISECT)} }
 						verify { SamEncoder.isHealthy }
@@ -348,15 +324,50 @@ internal class ShapeInterpolationTool(
 					autoSamBisectCurrent = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT) {
 						verify { SamEncoder.isHealthy }
 						onAction {
-							val depths = sortedSliceDepths.toMutableList()
-							val (left, right) = depths.zipWithNext().firstOrNull { (left, right) ->
-								currentDepth in left..right
+                            val eagerDepths = eagerRequestDepths(sortedSliceDepths) ?: listOf(currentDepth)
+                            val requestDepth = when {
+                                eagerDepths.size == 1 -> eagerDepths.first()
+                                currentDepth < eagerDepths.first() -> eagerDepths.first()
+                                currentDepth > eagerDepths.last() -> eagerDepths.last()
+                                eagerDepths.size >= 2 -> eagerDepths.zipWithNext()
+                                    .firstOrNull() { (prev, next) -> currentDepth in prev..next }
+                                    ?.let { (prev, next) ->
+                                        val prevIsCloser = currentDepth - prev < next - currentDepth
+                                        if (prevIsCloser) prev else next
+                                    }
+
+                                else -> null
 							} ?: return@onAction
-							requestSamPrediction((right + left) * .5, refresh = true) {
+
+                            requestSamPrediction(requestDepth, refresh = true) {
                                 eagerRequestDepths(sortedSliceDepths)
                             }
 						}
 					}
+                    autoSamLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT) {
+                        createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_LEFT) } }
+                        verify { SamEncoder.isHealthy }
+                        onAction { event ->
+                            /* if triggered by an event, then check if we need to flip axes;
+                            * If so, call the flipped version, WITHOUT an event */
+                            if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
+                                autoSamRight(null)
+                                return@onAction
+                            }
+
+                            val requestDepth = bestEagerRequest(
+                                sortedSliceDepths,
+                                currentDepth,
+                                RequestDistance.FAR,
+                                RequestDirection.PREV
+                            )
+
+                            /* request the next depth immediately, request the rest when this one finishes */
+                            requestSamPrediction(requestDepth, moveToSlice = true) {
+                                requestEagerEmbeddings(sortedSliceDepths)
+                            }
+                        }
+                    }
 					autoSamRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT) {
 						createToolNode = { apply { addStyleClass(ShapeInterpolationStyle.SLICE_RIGHT)} }
 						verify { SamEncoder.isHealthy }
@@ -367,10 +378,57 @@ internal class ShapeInterpolationTool(
 								autoSamLeft(null)
 								return@onAction
 							}
-							val depths = sortedSliceDepths.toMutableList()
-							val eagerRequestDepths = eagerRequestDepths(depths)
-							val requestDepth = eagerRequestDepths.lastOrNull() ?: 20.0
 
+                            val requestDepth = bestEagerRequest(
+                                sortedSliceDepths,
+                                currentDepth,
+                                RequestDistance.FAR,
+                                RequestDirection.NEXT
+                            )
+                            /* request the next depth immediately, request the rest when this one finishes */
+                            requestSamPrediction(requestDepth, moveToSlice = true) {
+                                requestEagerEmbeddings(sortedSliceDepths)
+                            }
+                        }
+                    }
+
+                    autoSamBisectLeft = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_BISECT_LEFT) {
+                        verify { SamEncoder.isHealthy }
+                        onAction { event ->
+                            /* if triggered by an event, then check if we need to flip axes;
+                            * If so, call the flipped version, WITHOUT an event */
+                            if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
+                                autoSamBisectRight(null)
+                                return@onAction
+                            }
+                            val requestDepth = bestEagerRequest(
+                                sortedSliceDepths,
+                                currentDepth,
+                                RequestDistance.NEAR,
+                                RequestDirection.PREV
+                            )
+                            /* request the next depth immediately, request the rest when this one finishes */
+                            requestSamPrediction(requestDepth, moveToSlice = true) {
+                                requestEagerEmbeddings(sortedSliceDepths)
+                            }
+                        }
+                    }
+                    autoSamBisectRight = KEY_PRESSED(SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_BISECT_RIGHT) {
+                        verify { SamEncoder.isHealthy }
+                        onAction { event ->
+                            /* if triggered by an event, then check if we need to flip axes;
+                            * If so, call the flipped version, WITHOUT an event */
+                            if (event != null && mode.depthAxisFlippedRelativeToGlobal()) {
+                                autoSamBisectLeft(null)
+                                return@onAction
+                            }
+
+                            val requestDepth = bestEagerRequest(
+                                sortedSliceDepths,
+                                currentDepth,
+                                RequestDistance.NEAR,
+                                RequestDirection.NEXT
+                            )
 							/* trigger the prediction and move there when done */
 							requestSamPrediction(requestDepth, moveToSlice = true) {
 								/* request the next depth immediately, request the rest when this one finishes */
@@ -598,6 +656,122 @@ internal class ShapeInterpolationTool(
 			constructor(style: String, vararg styles: StyleGroup) : this(style, *styles.flatMap { it.classes.toList() }.toTypedArray())
 			constructor(style: String) : this(style, *emptyArray<StyleGroup>())
 
+        }
+
+        /**
+         * Best guess depths to be used to eagerly request image embeddings at.
+         *  - if 0 existing slices, no eager depths are calculated (null) `(0 -> null)`
+         *  - if 1 existing slice, eager depths are +- fallbackDistance from the existing slice `(1 -> 2)`
+         *  - if 2 or more slices, an eager depth is calculated between each pair, and 1 eager depth
+         *  	beyond the first and last at the same distance away as the adjacent slice. `(n -> n+2)`
+         *
+         * @param sliceDepths to get eager depths relative to.
+         * @return list of depths, or null if no eager requests could be determined (e.g. no existing slices)
+         */
+        internal fun eagerRequestDepths(sliceDepths: List<Double>, fallbackDistance: Double = 20.0): List<Double>? {
+
+            val sliceDepths = sliceDepths.sorted()
+
+            if (sliceDepths.isEmpty())
+                return null
+
+            if (sliceDepths.size == 1) {
+                val sliceDepth = sliceDepths.first()
+                return listOf(sliceDepth - fallbackDistance, sliceDepths.first() + fallbackDistance)
+            }
+
+            val adjacentSliceDepths = sliceDepths.zipWithNext()
+            val eagerRequestDepths = mutableListOf<Double>()
+
+            /* add bisect slices */
+            fun bisectSlices(prev: Double, next: Double) = prev + ((next - prev) / 2.0)
+            adjacentSliceDepths.forEach { (prev, next) -> eagerRequestDepths += bisectSlices(prev, next) }
+
+            /* should always be at least 1 slice pair, since we early return if only 0 or 1 slices */
+
+            /* add new first depth */
+            adjacentSliceDepths.firstOrNull()?.let { (first, second) ->
+                val distance = second - first
+                val eagerFirstRequest = first - distance
+                eagerRequestDepths.add(0, eagerFirstRequest)
+            }
+
+            /* add new last depth */
+            adjacentSliceDepths.lastOrNull()?.let { (first, second) ->
+                val distance = second - first
+                val eagerLastRequest = second + distance
+                eagerRequestDepths.add(eagerLastRequest)
+            }
+
+
+            return eagerRequestDepths
+        }
+
+        internal enum class RequestDistance {
+            /** Farthest slice depth in a given direction (most positive or negative) */
+            FAR,
+
+            /** Nearest slice depth in a given direction (next positive or negative) */
+            NEAR
+        }
+
+        internal enum class RequestDirection {
+            /** Previous slice depth relative to a given depth (more negative) */
+            PREV,
+
+            /** Next slice depth relative to a given depth (more positive) */
+            NEXT
+        }
+
+        /**
+         * Best eager request should return
+         *  - the current depth if sliceDepths is empty
+         *  - if currentDepth is on a slice, prev -> more negative eager request, next -> more positive eager request
+         *  - the eagerRequestDepth on the `currentDepth` side if sliceDepths has 1 depth
+         *  - the nearest eagerDepth if between slices
+         *
+         * @param sliceDepths current existing slice depths
+         * @param currentDepth the current depth position
+         * @param distance FAR or NEAR
+         * @param direction PREV or NEXT
+         * @return
+         */
+        internal fun bestEagerRequest(
+            sliceDepths: List<Double>,
+            currentDepth: Double,
+            distance: RequestDistance,
+            direction: RequestDirection
+        ): Double {
+            val eagerDepths = eagerRequestDepths(sliceDepths) ?: return currentDepth
+
+            /* If we want the farthest in some direction, that's the easy case
+            * since it doesn't matter where we currently are */
+            if (distance == RequestDistance.FAR) {
+                return when (direction) {
+                    RequestDirection.PREV -> eagerDepths.first()
+                    RequestDirection.NEXT -> eagerDepths.last()
+                }
+            }
+
+            /* If we are at a slice, we need to know which direction to approach from */
+            val currentSliceIdx = sliceDepths.indexOf(currentDepth)
+            if (currentSliceIdx != -1) {
+                /* at a slice */
+                return when (direction) {
+                    RequestDirection.PREV -> eagerDepths.last { it < currentDepth }
+                    RequestDirection.NEXT -> eagerDepths.first { it > currentDepth }
+                }
+            }
+
+            /* if we know we are not at a slice, then there should be no ambiguity in the slice ranges.
+            * Bookend to handle when we are outside current slices.  */
+            val bookendSliceDepths = sliceDepths.toMutableList().also {
+                it.addFirst(-Double.MAX_VALUE)
+                it.addLast(Double.MAX_VALUE)
+            }
+
+            val (prev, next) = bookendSliceDepths.zipWithNext().first { (prev, next) -> currentDepth in prev..next }
+            return eagerDepths.firstOrNull { it in prev..next } ?: currentDepth
 		}
 	}
 }
