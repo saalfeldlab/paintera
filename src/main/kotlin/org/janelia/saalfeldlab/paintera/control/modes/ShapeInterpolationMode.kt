@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import org.janelia.saalfeldlab.samlink.decode.SamPointLabel
-import org.janelia.saalfeldlab.samlink.decode.SamPrompt
-import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ChangeListener
@@ -20,7 +17,6 @@ import net.imglib2.Interval
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
@@ -30,6 +26,7 @@ import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
@@ -38,18 +35,17 @@ import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
-import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.*
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
@@ -62,9 +58,14 @@ import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeIn
 import org.janelia.saalfeldlab.paintera.control.tools.shapeinterpolation.ShapeInterpolationTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.samlink.decode.SamPointLabel
+import org.janelia.saalfeldlab.samlink.decode.SamPrompt
 import org.janelia.saalfeldlab.util.*
+import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.util.concurrent.CancellationException
+
+private val LOG = KotlinLogging.logger { }
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
 
@@ -148,7 +149,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
 	}
 
-	internal val samStyleBoxToggle = SimpleBooleanProperty(true)
+	internal val samStyleDistancePointToggle = SimpleBooleanProperty(true)
 
 	private fun modeActions(): List<ActionSet> {
 		return mutableListOf(
@@ -263,12 +264,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			painteraActionSet("change auto sam style") {
 				KEY_PRESSED(KeyCode.B) {
 					onAction {
-						samStyleBoxToggle.set(!samStyleBoxToggle.get())
+						samStyleDistancePointToggle.set(!samStyleDistancePointToggle.get())
+
 						data class SamStyleToggle(val icon: FontAwesome, val title: String, val text: String)
-						val (toggle, title, text) = if (samStyleBoxToggle.get())
-							SamStyleToggle(FontAwesome.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
-						else
+						val (toggle, title, text) = if (samStyleDistancePointToggle.get())
 							SamStyleToggle(FontAwesome.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
+						else
+							SamStyleToggle(FontAwesome.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
 
 						InvokeOnJavaFXApplicationThread {
 							val notification = Notifications.create()
@@ -562,7 +564,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 			val interpolationPrompt = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
 				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				interpolantInViewer.getInterpolantPrompt(samStyleBoxToggle.get(), renderState)
+				val promptStyle = if (samStyleDistancePointToggle.get()) DISTANCE_POINTS else BOX
+
+				interpolantInViewer.getInterpolantPrompt(promptStyle, renderState = renderState)
 			} ?: let {
 				val (x, y) = renderState.viewerToRenderPoint(width / 2.0, height / 2.0)
 				SamPrompt().addPoint(x, y, SamPointLabel.FOREGROUND)
@@ -710,10 +714,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			else -> dz < 0
 		}
 	}
-
-	companion object {
-		private val LOG = KotlinLogging.logger { }
-	}
 }
 
 internal fun RenderUnitState.viewerToRenderPoint(screenX: Double, screenY: Double): Pair<Float, Float> {
@@ -728,35 +728,59 @@ internal fun RenderUnitState.viewerToRenderPoint(screenX: Double, screenY: Doubl
 	return x to y
 }
 
-internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(box: Boolean, renderState: RenderUnitState? = null): SamPrompt {
-	return when {
-		box -> {
-			val (min, max) = getMinMaxIntervalPositions().let { (min, max) ->
-				renderState?.run {
-					val minInRenderSpace = viewerToRenderPoint(min[0], min[1])
-					val maxInRenderSpace = viewerToRenderPoint(max[0], max[1])
-					minInRenderSpace to maxInRenderSpace
-				} ?: let {
-					val minFloats = min[0].toFloat() to min[1].toFloat()
-					val maxFloats = max[0].toFloat() to max[1].toFloat()
-					minFloats to maxFloats
-				}
-			}
-			val (x1, y1) = min
-			val (x2, y2) = max
+enum class PromptFromInterpolant {
+	/** A bounding box around the interpolant will be used to prompt the slice at this location */
+	BOX,
+	/** the interpolant will be converted to a mask to prompt the slice at this location */
+	MASK,
+	/** IN points will be generated over this interpolant to prompt the slice.
+	 * There will be 1 point for each connected component, and the point will be at "center" of each component,
+	 * via distance transform*/
+	DISTANCE_POINTS
+}
 
-			SamPrompt().addBox(x1, y1, x2, y2)
-		}
-		else -> {
-			SamPrompt().apply {
-				getComponentMaxDistancePosition().forEach { (x, y) ->
-					val (xFloat, yFloat) = renderState?.viewerToRenderPoint(x, y) ?: (x.toFloat() to y.toFloat())
-					addPoint(xFloat, yFloat, SamPointLabel.FOREGROUND)
+/**
+ * Generate a SamPrompt from an IntervalView, given a renderState and sequence of prompt styles.
+ * promptStyles will be deduplicate, and added in order. If promptStyles is empty or not supplied, BOX will be used.
+ *
+ * @param promptStyles any of BOX, MASK, POINT
+ * @param renderState
+ * @return
+ */
+internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(vararg promptStyles: PromptFromInterpolant = arrayOf(BOX), renderState: RenderUnitState? = null): SamPrompt {
+	val prompt = SamPrompt()
+	val styles = promptStyles.takeUnless { it.isEmpty() } ?: arrayOf(BOX)
+	for (style in styles) {
+		when(style) {
+			BOX -> {
+				val (min, max) = getMinMaxIntervalPositions().let { (min, max) ->
+					renderState?.run {
+						val minInRenderSpace = viewerToRenderPoint(min[0], min[1])
+						val maxInRenderSpace = viewerToRenderPoint(max[0], max[1])
+						minInRenderSpace to maxInRenderSpace
+					} ?: let {
+						val minFloats = min[0].toFloat() to min[1].toFloat()
+						val maxFloats = max[0].toFloat() to max[1].toFloat()
+						minFloats to maxFloats
+					}
+				}
+				val (x1, y1) = min
+				val (x2, y2) = max
+
+				prompt.addBox(x1, y1, x2, y2)
+			}
+			MASK -> LOG.warn { "MASK Prompt style selected, but not yet supported "}
+			DISTANCE_POINTS -> {
+				prompt.apply {
+					getComponentMaxDistancePosition().forEach { (x, y) ->
+						val (xFloat, yFloat) = renderState?.viewerToRenderPoint(x, y) ?: (x.toFloat() to y.toFloat())
+						addPoint(xFloat, yFloat, SamPointLabel.FOREGROUND)
+					}
 				}
 			}
 		}
-//		mask -> TODO
 	}
+	return prompt
 }
 
 internal fun IntervalView<UnsignedLongType>.getMinMaxIntervalPositions(): List<DoubleArray> {
@@ -771,7 +795,9 @@ internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): L
 	/* find the max point to initialize with */
 	val invalidBorderRai = extendValue(Label.INVALID).interval(Intervals.expand(this, 1, 1, 0))
 	val distances = ArrayImgs.doubles(*invalidBorderRai.dimensionsAsLongArray())
-	val binaryImg = invalidBorderRai.convertRAI(BoolType()) { source, target -> target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT)) }.zeroMin()
+	val binaryImg = invalidBorderRai.convertRAI(BoolType()) { source, target ->
+		target.set((source.get() != Label.INVALID && source.get() != Label.TRANSPARENT))
+	}.zeroMin()
 	val invertedBinaryImg = binaryImg.convertRAI(BoolType()) { source, target -> target.set(!source.get()) }
 
 	val connectedComponents = ArrayImgs.unsignedInts(*binaryImg.dimensionsAsLongArray())
@@ -787,28 +813,34 @@ internal fun IntervalView<UnsignedLongType>.getComponentMaxDistancePosition(): L
 
 	var backgroundId = -1;
 
-	LoopBuilder.setImages(BundleView(distances).interval(distances), connectedComponents).forEachPixel { distanceRA, componentType ->
-		val thisDist = distanceRA.get().get()
-		val componentId = componentType.integer
+	val distancesCursor = distances.localizingCursor()
+	val ccCursor = connectedComponents.cursor()
 
-		val curDist = distancePerComponent[componentId]?.first
+	while (distancesCursor.hasNext()) {
+		val curDist = distancesCursor.next().get()
+		val curPos = distancesCursor.positionAsLongArray()
+		val component = ccCursor.next().integer
 
-		if (curDist != null) {
-			if (thisDist > curDist)
-				distancePerComponent[componentId] = thisDist to distanceRA.positionAsLongArray()
-		} else {
-			if (backgroundId == -1 && !binaryImg.getAt(distanceRA).get()) {
-				backgroundId = componentId
-			} else if (componentId != backgroundId)
-				distancePerComponent[componentId] = thisDist to distanceRA.positionAsLongArray()
+		val prevEntry = distancePerComponent[component]
+
+		if (prevEntry == null) {
+			if (backgroundId == -1 && !binaryImg.getAt(*curPos).get())
+				backgroundId = component
+			else if (component != backgroundId)
+				distancePerComponent[component] = curDist to curPos
+			continue
 		}
+		val (prevDist, _) = prevEntry
+		if (curDist > prevDist)
+			distancePerComponent[component] = curDist to curPos
 	}
 
-	return distancePerComponent.values.map {
-		it.second.mapIndexed { idx, value ->
-			(value + min(idx)).toDouble()
-		}.toDoubleArray()
+	val maxDistPerComponent = distancePerComponent.values.map { (_, position) ->
+		DoubleArray(position.size) { idx ->
+			position[idx].toDouble() + min(idx)
+		}
 	}.toList()
+	return maxDistPerComponent
 }
 
 internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
@@ -855,19 +887,5 @@ internal data class SamSliceInfo(val renderState: RenderUnitState, val mask: Vie
 
 	fun updatePrompt(samPrompt: SamPrompt) {
 		prompt = samPrompt
-	}
-
-	fun updatePrompt(viewerPositions: List<DoubleArray>, label: SamPointLabel = SamPointLabel.FOREGROUND) {
-		val renderedPositions = viewerPositions.map { (x, y) -> renderState.viewerToRenderPoint(x, y) }
-		prompt = SamPrompt().apply {
-			renderedPositions.forEach { (x, y) -> addPoint(x, y, label) }
-		}
-	}
-
-	fun updatePrompt(viewerPositionsAndLabels: List<Pair<DoubleArray, SamPointLabel>>) {
-		val renderPositionsAndLabels = viewerPositionsAndLabels.map { (pos, label) -> renderState.viewerToRenderPoint(pos[0], pos[1]) to label }
-		prompt = SamPrompt().apply {
-			renderPositionsAndLabels.forEach { (xy, label) -> addPoint(xy.first, xy.second, label) }
-		}
 	}
 }

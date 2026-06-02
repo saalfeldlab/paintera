@@ -8,7 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 
-interface ImageEmbeddingRequester<R> : AutoCloseable where R : EncoderResult {
+interface SamEncodeRequester<R> : AutoCloseable where R : EncoderResult {
 
     companion object {
         val embeddingIOScope = CoroutineScope(Dispatchers.IO + SupervisorJob()) + CoroutineName("EMBEDDING_IO")

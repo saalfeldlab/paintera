@@ -2,11 +2,10 @@ package org.janelia.saalfeldlab.paintera.ai.sam
 
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
-import net.imglib2.realtransform.Scale2D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.samlink.decode.DecoderResult
 import org.janelia.saalfeldlab.samlink.decode.SamDecoder
 import org.janelia.saalfeldlab.samlink.decode.SamDecoder.Companion.newDecoder
 import org.janelia.saalfeldlab.samlink.decode.SamPrompt
@@ -27,8 +26,8 @@ private fun cachedOrNewDecoder(encodedImage: EncoderResult): SamDecoder<*> {
 
 
 class SamPredictor(
-    val encodedImage: EncoderResult,
-    val decoder: SamDecoder<*> = cachedOrNewDecoder(encodedImage)
+    val encodeResult: EncoderResult,
+    val decoder: SamDecoder<*> = cachedOrNewDecoder(encodeResult)
 ) {
 
     lateinit var lastPrediction: SamPrediction
@@ -37,57 +36,50 @@ class SamPredictor(
     fun predict(prompt: SamPrompt): SamPrediction {
 
         synchronized(this) {
-            val result = SamDecoder.decode(decoder, encodedImage, prompt)
+            val result = SamDecoder.decode(decoder, encodeResult, prompt)
             /* TODO: Consider exposing this, or choosing a different default.
             *   1 mask-based refinement seems reasonable, and to work well. */
             var refinePrompt: SamPrompt
             var refinedResult = result
             repeat(1) {
                 refinePrompt = prompt.copy().addMask(result.bestMask)
-                refinedResult = SamDecoder.decode(decoder, encodedImage, refinePrompt)
+                refinedResult = SamDecoder.decode(decoder, encodeResult, refinePrompt)
             }
-            val predictionImg = getRaiForResult(refinedResult, encodedImage)
-            return SamPrediction(refinedResult, predictionImg, prompt).also {
+            return SamPrediction(encodeResult, refinedResult, prompt).also {
                 lastPrediction = it
             }
         }
     }
 
     data class SamPrediction(
-        val result: SamDecoder.DecoderResult,
-        val image: RandomAccessibleInterval<FloatType>,
+        val encodeResult: EncoderResult,
+        val decodeResult: DecoderResult,
         val prompt: SamPrompt
-    )
+    ) {
 
-    companion object {
-
-        private fun getRaiForResult(
-            result: SamDecoder.DecoderResult,
-            encoderResult: EncoderResult
-        ): RandomAccessibleInterval<FloatType> {
-
-            val scale = encoderResult.inputSize.toDouble() / result.maskSize
-            val decodedImg = ArrayImgs.floats(result.bestMask, result.maskSize.toLong(), result.maskSize.toLong())
-
-            val imageSize = Intervals.createMinSize(
-                0,
-                0,
-                encoderResult.imageWidth.toLong(),
-                encoderResult.imageHeight.toLong()
+        /**
+         * Return the decoded result as a RandomAccessibleInterval cropped to just the content region,
+         * in the decoded output space. Post processing will need to map this to the original content space
+         * with some scale factor based on [encoderResult.sourceWidth] / [@return.dimension(0)]
+         *
+         * @param logits to converter to RandomAccessibleInterval. By default [DecoderResult.bestMask] but can be provided.
+         * @return the RandomAccessibleInterval.
+         */
+        fun raiFromResult(logits: FloatArray = decodeResult.bestMask) : RandomAccessibleInterval<FloatType> {
+            val decodedImg = ArrayImgs.floats(
+                logits,
+                decodeResult.maskSize.toLong(),
+                decodeResult.maskSize.toLong(),
             )
-            val croppedImg = if (scale == 1.0 && encoderResult.imageWidth <= result.maskSize && encoderResult.imageHeight <= result.maskSize) {
-                /* if we don't need scaling, and we can crop without getting out of bounds, just crop; avoids real transforms */
-                decodedImg.interval(imageSize)
-            } else {
-                decodedImg
-                    .extendBorder()
-                    .interpolate(NLinearInterpolatorFactory())
-                    .affineReal(Scale2D(scale, scale))
-                    .raster()
-                    .interval(imageSize)
-            }
-
-            return croppedImg
+            val scale = encodeResult.inputSize.toDouble() / decodeResult.maskSize
+            val croppedWidth = (encodeResult.scaledWidth / scale).toLong()
+                .coerceAtMost(decodeResult.maskSize.toLong())
+            val croppedHeight = (encodeResult.scaledHeight / scale).toLong()
+                .coerceAtMost(decodeResult.maskSize.toLong())
+            val decoderContentInterval = Intervals.createMinSize(0, 0, croppedWidth, croppedHeight)
+            return decodedImg
+                .extendBorder()
+                .interval(decoderContentInterval)
         }
     }
 }

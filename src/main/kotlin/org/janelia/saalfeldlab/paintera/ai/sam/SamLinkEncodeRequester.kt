@@ -9,7 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.plus
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
-import org.janelia.saalfeldlab.paintera.ai.ImageEmbeddingRequester
+import org.janelia.saalfeldlab.paintera.ai.SamEncodeRequester
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
@@ -17,7 +17,7 @@ import org.janelia.saalfeldlab.samlink.encode.SamEncoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-abstract class SamLinkEncodeRequester<R : EncoderResult> : ImageEmbeddingRequester<R> {
+sealed class SamLinkEncodeRequester<R : EncoderResult> : SamEncodeRequester<R> {
 
     abstract val samLink: SamEncoder<R, *>
 
@@ -25,7 +25,7 @@ abstract class SamLinkEncodeRequester<R : EncoderResult> : ImageEmbeddingRequest
     override fun close() = samLink.close()
 
     protected val currentSessions = ConcurrentHashMap<String, Job>()
-    override val scope = ImageEmbeddingRequester.embeddingIOScope + SupervisorJob() + CoroutineName("SAM_EMBEDDING_IO")
+    override val scope = SamEncodeRequester.embeddingIOScope + SupervisorJob() + CoroutineName("SAM_EMBEDDING_IO")
 
     override suspend fun requestSessionId(): String {
         return UUID.randomUUID().toString() //FIXME; either figure out what this means for the triton server, or just make it SAM1 only

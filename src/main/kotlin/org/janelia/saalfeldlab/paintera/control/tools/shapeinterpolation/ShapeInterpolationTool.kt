@@ -31,6 +31,9 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
+import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant
+import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.BOX
+import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.DISTANCE_POINTS
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.modes.getInterpolantPrompt
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
@@ -217,7 +220,8 @@ internal class ShapeInterpolationTool(
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
-				val prompt = getInterpolantPrompt(mode.samStyleBoxToggle.get(), samSliceInfo.renderState)
+				val promptStyles = if (mode.samStyleDistancePointToggle.get()) DISTANCE_POINTS else BOX
+				val prompt = getInterpolantPrompt(promptStyles, renderState = samSliceInfo.renderState)
 				samSliceInfo.updatePrompt(prompt)
 			}
 
@@ -225,13 +229,13 @@ internal class ShapeInterpolationTool(
 
 		val viewerMask = samSliceInfo.mask
 
-		val samTool = SamTool(mode!!.activeSourceStateProperty, mode)
+		val samTool = SamTool(mode.activeSourceStateProperty, mode)
 		samTool.unwrapResult = false
 		samTool.cleanup()
 		samTool.enteredWithoutKeyTrigger = true
 		samTool.activeViewerProperty.bind(activeViewerProperty)
 		samTool.initializeSam(samSliceInfo.renderState)
-		samTool.unwrapResult = false
+		samTool.unwrapResult = false //necessary to have twice; it resets normally in `initializeSam`
 		samTool.currentLabelToPaint = controller.interpolationId
 		samTool.viewerMask = viewerMask
 		samTool.maskPriority = SamTool.MaskPriority.MASK

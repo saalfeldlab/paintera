@@ -108,7 +108,7 @@ class ScreenScalesConfigNode() {
 				NumberField.doubleField(1.0, { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 			val fField =
 				NumberField.doubleField(0.5, { it < 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-			val nField = NumberField.intField(5, { it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+			val nField = NumberField.intField(4, { it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 
 			val grid = GridPane()
 

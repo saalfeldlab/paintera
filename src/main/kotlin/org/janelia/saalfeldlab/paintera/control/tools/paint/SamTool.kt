@@ -39,12 +39,14 @@ import net.imglib2.img.array.ArrayImgs
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.*
+import net.imglib2.type.logic.NativeBoolType
+import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileFloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
-import net.imglib2.view.Views
+import net.imglib2.view.IntervalView
 import org.apache.commons.io.output.NullPrintStream
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
@@ -60,6 +62,7 @@ import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.net.imglib2.algorithms.Morph2D
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -145,41 +148,44 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	internal val maskedSource: MaskedSource<*, *>?
 		get() = activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>
 
-	private var currentViewerMask: ViewerMask? = null
-	private var originalBackingImage: RandomAccessibleInterval<UnsignedLongType>? = null
-	private var originalWritableBackingImage: RandomAccessibleInterval<UnsignedLongType>? = null
-	private var originalVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
-	private var originalWritableVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
+    private var currentViewerMask: ViewerMaskOverlay? = null
 	private var maskProvided = false
 
 	//TODO Caleb: document this; it stops `cleanup()` from removing the wrapped overlay of the prediction
 	var unwrapResult = true
 
+    protected data class ViewerMaskOverlay(val viewerMask: ViewerMask) {
+        var background: RandomAccessibleInterval<UnsignedLongType> = viewerMask.viewerImg.wrappedSource
+        var overlay: RandomAccessibleInterval<UnsignedLongType>? = viewerMask.viewerImg.writableSource
+        var volatileBackground: RandomAccessibleInterval<VolatileUnsignedLongType> =
+            viewerMask.volatileViewerImg.wrappedSource
+        var volatileOverlay: RandomAccessibleInterval<VolatileUnsignedLongType>? =
+            viewerMask.volatileViewerImg.writableSource
+
+        fun resetOverlay() {
+            viewerMask.updateBackingImages(
+                background to volatileBackground,
+                overlay to volatileOverlay
+            )
+        }
+    }
+
 	private var setViewer: ViewerPanelFX? = null
 	internal var viewerMask: ViewerMask? = null
 		get() {
-			if (field == null) {
-				field = maskedSource!!.createViewerMask(
-					MaskInfo(0, setViewer!!.state.bestMipMapLevel),
-					setViewer!!
-				)
-				originalBackingImage = field?.viewerImg?.wrappedSource
-				originalWritableBackingImage = field?.viewerImg?.writableSource
-				originalVolatileBackingImage = field?.volatileViewerImg?.wrappedSource
-				originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
+            field = field ?: let {
 				maskProvided = false
+                val maskInfo = MaskInfo(0, setViewer!!.state.bestMipMapLevel)
+                maskedSource!!.createViewerMask(maskInfo, setViewer!!)
 			}
-			currentViewerMask = field
-			return field!!
+            val curOrNewMask = field!!
+            currentViewerMask = ViewerMaskOverlay(curOrNewMask)
+            return curOrNewMask
 		}
 		set(value) {
 			field = value
 			maskProvided = value != null
-			currentViewerMask = field
-			originalBackingImage = field?.viewerImg?.wrappedSource
-			originalWritableBackingImage = field?.viewerImg?.writableSource
-			originalVolatileBackingImage = field?.volatileViewerImg?.wrappedSource
-			originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
+            currentViewerMask = field?.let { mask -> ViewerMaskOverlay(mask) }
 		}
 
 	private var predictionJob: Job = Job().apply { complete() }
@@ -211,13 +217,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var screenScale = Double.NaN
 
-	private val predictionChannel = Channel<Pair<SamPrompt, Boolean>>(1)
+    private val promptChannel = Channel<Pair<SamPrompt, Boolean>>(1)
 
 	private var currentPredictionRequest: Pair<SamPrompt, Boolean>? = null
 		set(value) = runBlocking {
-			predictionChannel.tryReceive() /* capacity 1, so this will always either do nothing, or empty the channel */
+            promptChannel.tryReceive() /* capacity 1, so this will always either do nothing, or empty the channel */
 			value?.let { (request, _) ->
-				predictionChannel.send(value)
+                promptChannel.send(value)
 				if (!temporaryPrompt)
 					request.drawPrompt()
 			}
@@ -279,20 +285,17 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		clearPromptDrawings()
 		currentLabelToPaint = Label.INVALID
 		predictionJob.cancel()
-		predictionChannel.tryReceive() /*clear the channel if not empty */
+        promptChannel.tryReceive() /*clear the channel if not empty */
 		if (unwrapResult) {
 			if (!maskProvided) {
 				maskedSource?.resetMasks()
 			} else {
-				currentViewerMask?.updateBackingImages(
-					originalBackingImage!! to originalVolatileBackingImage!!,
-					originalWritableBackingImage!! to originalWritableVolatileBackingImage!!
-				)
+                currentViewerMask?.resetOverlay()
 			}
 		}
 		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT.style in it.styleClass } }
 		paintera.baseView.disabledPropertyBindings -= this
-		lastPrediction?.maskInterval?.let { currentViewerMask?.requestRepaint(it) }
+        lastPrediction?.maskInterval?.let { currentViewerMask?.viewerMask?.requestRepaint(it) }
 		viewerMask = null
 		estimatedThreshold = null
 		primaryClickLabel = null
@@ -324,12 +327,16 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					verify { Paintera.debugMode }
 					verify("no current prediction ") { currentPrediction != null }
 					onAction {
-						val highResPrediction = currentPrediction!!.image
 
-						val name = "high res"
-						val maskRai = highResPrediction
+                        val prediction = currentPrediction!!.decodeResult.run {
+                            val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
+                            val centreFilteredLogits = morph2D.centre( 5 to 5).output
+                            currentPrediction!!.raiFromResult(centreFilteredLogits)
+                        }
 
-						val (max, mean, std) = maskRai.let {
+                        val viewerMask = currentViewerMask!!.viewerMask
+
+                        val (max, mean, std) = prediction.let {
 							var sum = 0.0
 							var sumSquared = 0.0
 							var max = Float.MIN_VALUE
@@ -345,34 +352,35 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							doubleArrayOf(max.toDouble(), mean, stddev)
 						}
 						val min = (mean - std).toFloat()
-						val zeroMinValue = maskRai.convertRAI(FloatType()) { input, output -> output.set(input.get() - min) }
+                        val zeroMinValue =
+                            prediction.convertRAI(FloatType()) { input, output -> output.set(input.get() - min) }
+
+                        val (width, height) = prediction.dimensionsAsLongArray()
+                        val maskOriginOffset = viewerMask.displayPointToMask(0, 0, currentDisplay)
+                        val predictionToMask = AffineTransform3D()
+                            .concatenate(Translation3D(*maskOriginOffset.positionAsDoubleArray()))
+                            .concatenate(Scale3D(setViewer!!.width / width, setViewer!!.height / height, 1.0))
+                            .concatenate(Translation3D(.5, .5, 0.0))
+
+                        val predictionToGlobal = viewerMask.initialMaskToGlobalWithDepthTransform.copy()
+                            .concatenate(predictionToMask)
+
+                        val prediction3D = zeroMinValue.addDimension(-1, 1)
+                        val globalInterval = predictionToGlobal.estimateBounds(prediction3D).smallestContainingInterval
+                        val predictionInGlobal = prediction3D
+                            .extendBorder()
+                            .interpolate(NLinearInterpolatorFactory())
+                            .affineReal(predictionToGlobal)
+                            .raster()
+                            .interval(globalInterval)
+
 						val predictionSource = paintera.baseView.addConnectomicsRawSource<FloatType, VolatileFloatType>(
-							zeroMinValue.let {
-								val prediction3D = Views.addDimension(it)
-								val interval3D = Intervals.createMinMax(*it.minAsLongArray(), -1, *it.maxAsLongArray(), 1)
-								prediction3D.interval(interval3D)
-							},
+                            predictionInGlobal,
 							doubleArrayOf(1.0, 1.0, 1.0),
-							doubleArrayOf(0.0, 0.0, 0.0),
+                            globalInterval.minAsDoubleArray(),
 							0.0, max - min,
 							"$name prediction"
 						)
-
-						val transform = object : AffineTransform3D() {
-							override fun set(value: Double, row: Int, column: Int) {
-								super.set(value, row, column)
-								predictionSource.backend.updateTransform(this)
-								setViewer!!.requestRepaint()
-							}
-						}
-
-						val viewerToGlobal = viewerMask!!.initialGlobalToViewerTransform.inverse()
-						val predToGlobal = AffineTransform3D()
-							.concatenate(viewerToGlobal)
-							.concatenate(Scale3D(setViewer!!.width / maskRai.shape()[0], setViewer!!.height / maskRai.shape()[1], 1.0))
-							.concatenate(Translation3D(.5, .5, 0.0))
-						transform.set(*predToGlobal.inverse().rowPackedCopy)
-						predictionSource.backend.updateTransform(transform)
 						predictionSource.composite = ARGBCompositeAlphaAdd()
 						setViewer!!.requestRepaint()
 					}
@@ -785,28 +793,44 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private fun SamTaskInfo.submitPrediction() {
 		val (maskedSource, maskInterval) = this
-		(maskedSource.currentMask as? ViewerMask)?.let { currentMask ->
+        currentViewerMask?.run {
 			if (!maskProvided) {
-				val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currentMask.initialMaskToSourceWithDepthTransform, .5)
-				maskedSource.applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
-				viewerMask = null
+                val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(
+                    maskInterval.asRealInterval,
+                    this.viewerMask.initialMaskToSourceWithDepthTransform,
+                    .5
+                )
+                maskedSource.applyMask(
+                    this.viewerMask,
+                    sourceInterval.smallestContainingInterval,
+                    MaskedSource.VALID_LABEL_CHECK
+                )
+                this@SamTool.viewerMask = null
 			} else {
-				val predictionMaxInterval = originalWritableBackingImage!!.intersect(maskInterval)
+                val overlay = overlay ?: return
+                val volatileOverlay = volatileOverlay ?: return
+                val predictionMaxInterval = overlay.intersect(maskInterval)
 				LoopBuilder
-					.setImages(originalWritableBackingImage!!.interval(predictionMaxInterval), currentMask.viewerImg.wrappedSource.interval(predictionMaxInterval))
+                    .setImages(
+                        overlay.interval(predictionMaxInterval),
+                        this.viewerMask.viewerImg.wrappedSource.interval(predictionMaxInterval)
+                    )
 					.multiThreaded()
 					.forEachPixel { originalImage, currentImage ->
 						originalImage.set(currentImage.get())
 					}
-				val volatilePredictionMaxInterval = originalWritableVolatileBackingImage!!.intersect(maskInterval)
+                val volatilePredictionMaxInterval = volatileOverlay.intersect(maskInterval)
 				LoopBuilder
-					.setImages(originalWritableVolatileBackingImage!!.interval(volatilePredictionMaxInterval), currentMask.volatileViewerImg.wrappedSource.interval(volatilePredictionMaxInterval))
+                    .setImages(
+                        volatileOverlay.interval(volatilePredictionMaxInterval),
+                        this.viewerMask.volatileViewerImg.wrappedSource.interval(volatilePredictionMaxInterval)
+                    )
 					.multiThreaded()
 					.forEachPixel { originalImage, currentImage ->
 						originalImage.isValid = currentImage.isValid
 						originalImage.get().set(currentImage.get())
 					}
-				currentMask.updateBackingImages(originalBackingImage!! to originalVolatileBackingImage!!)
+                this.viewerMask.updateBackingImages(background to volatileBackground)
 			}
 		}
 	}
@@ -840,12 +864,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	private var currentPrediction: SamPredictor.SamPrediction? = null
 
 	private val resetSAMTaskOnException = CoroutineExceptionHandler { _, exception ->
-		if (predictionJob.isCancelled)
+        if (exception is CancellationException)
 			LOG.debug(exception) { "SAM Prediction job cancelled, ignoring exception" }
 		else
 			LOG.error(exception) { "Error during SAM Prediction " }
 		isBusy = false
-		deactivate()
+        runCatching { deactivate() }
+            .onFailure { LOG.error(it) { "deactivate SAM Tool error after exception during prediction " } }
 		mode?.apply {
 			InvokeOnJavaFXApplicationThread {
 				switchTool(defaultTool)
@@ -856,44 +881,25 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	protected open var currentDisplay = false
 
-	private fun startPredictionJob() {
-		val maskSource = maskedSource ?: return
-		val paintMask = viewerMask ?: return
-
-		// clear the last prediction, so errors here aren't hidden by the last successful prediction
-		lastPrediction = null
-
-		predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
-			val encodedImage = runCatching {
+    private suspend fun getSamPredictor(): SamPredictor? {
 				isBusy = true
-				encodeRequest!!.await()
+        return runCatching { encodeRequest!!.await() }.map {
+            SamPredictor(it)
 			}.getOrElse { exception ->
 				isBusy = false
 
                 when (exception) {
-                    is InterruptedException if !currentCoroutineContext().isActive -> return@launch
-                    is CancellationException -> return@launch
+                is InterruptedException if !currentCoroutineContext().isActive -> null
+                is CancellationException -> null
 					else -> {
 						LOG.error(exception) { "prediction job failed" }
 						throw exception
 					}
                 }
 			}
-
-			LOG.trace { "encodedImage received" }
-			val predictor = SamPredictor(encodedImage)
-
-			while (predictionJob.isActive) {
-				val (predictionRequest, estimateThreshold) = predictionChannel.receive()
-				ensureActive()
-				val newPredictionRequest = estimateThreshold || currentPrediction == null
-				if (newPredictionRequest) {
-					currentPrediction = predictor.predict(predictionRequest)
 				}
-				val prediction = currentPrediction!!
-				val predictionLabel = currentLabelToPaint
 
-				fun SamPrompt.getPoints(): List<PointPrompt> {
+    private fun SamPrompt.getPoints(): List<PointPrompt> {
 					return prompts.flatMap {
 						when (it) {
 							is MaskPrompt -> emptyList()
@@ -903,28 +909,23 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}
 
-				val points = prediction.prompt.getPoints()
+    private data class ThresholdPrediction(val img: RandomAccessibleInterval<NativeBoolType>, val interval: Interval)
 
-				if (estimateThreshold) {
-					/* If there is only a box (no points) then use the sub-interval of the box to estimate the threshold.
-					*   In all other cases, estimate threshold based on the entire image. */
-					val estimateOverBox = if (points.all { it.label > SamPointLabel.FOREGROUND }) intervalOfBox(points) else null
-					setBestEstimatedThreshold(estimateOverBox)
-				}
+    private fun thresholdPrediction(prediction: RandomAccessibleInterval<FloatType>): ThresholdPrediction? {
 
-                val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
-				val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE)
-
-				val predictedImage = prediction.image
-
-                val thresholdFilter = ArrayImgs.booleans(*predictedImage.dimensionsAsLongArray())
+        val dims = prediction.dimensionsAsLongArray()
+        val thresholdImg = ArrayImgs.booleans(*dims)
+        val thresholdCursor = thresholdImg
 					.extendValue(Float.NEGATIVE_INFINITY)
-                val thresholdCursor = thresholdFilter.interval(predictedImage).cursor()
-                val predictionMaskCursor = predictedImage
+            .interval(prediction)
+            .cursor()
+        val predictionMaskCursor = prediction
                     .extendValue(Float.NEGATIVE_INFINITY)
-                    .interval(predictedImage)
+            .interval(prediction)
                     .localizingCursor()
 
+        val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
+        val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE)
 				var noneAccepted = true
 				while (thresholdCursor.hasNext()) {
 					val predictionValue = predictionMaskCursor.next().get()
@@ -941,44 +942,52 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					}
 				}
 
+        if (noneAccepted)
+            return null
 
-				val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictedImage.dimensionsAsLongArray())
+        val interval = Intervals.createMinMax(minPoint[0], minPoint[1], maxPoint[0], maxPoint[1])
+        return ThresholdPrediction(thresholdImg, interval)
+    }
+
+    protected suspend fun selectConnectedComponents(
+        thresholdPrediction: RandomAccessibleInterval<NativeBoolType>,
+        prompt: SamPrompt
+    ): RandomAccessibleInterval<NativeBoolType>? {
+
+        val dims = thresholdPrediction.dimensionsAsLongArray()
+        val connectedComponents = ArrayImgs.unsignedLongs(*dims)
 				/* FIXME: This is annoying, but I don't see a better way around it at the moment.
-				*   `labelAllConnectedComponents` can be interrupted, but doing so causes an
-				*   internal method to `printStackTrace()` on the error. So even when
-				*   It's intentionally and interrupted and handeled, the consol still logs the
-				*   stacktrace to stderr. We temporarily wrap stderr to swalleow it.
-				*   When [https://github.com/imglib/imglib2-algorithm/issues/98] is resolved,
-				*   hopefully this will be as well */
+             `labelAllConnectedComponents` can be interrupted, but doing so causes an
+             internal method to `printStackTrace()` on the error. So even when
+             It's intentionally and interrupted and handeled, the console still logs the
+             stacktrace to stderr. We temporarily wrap stderr to swalleow it.
+             When [https://github.com/imglib/imglib2-algorithm/issues/98] is resolved,
+             hopefully this will be as well
+         */
 				val stdErr = System.err
 				System.setErr(NullPrintStream.INSTANCE)
 				try {
 					ConnectedComponents.labelAllConnectedComponents(
-						thresholdFilter,
+                thresholdPrediction,
 						connectedComponents,
 						StructuringElement.FOUR_CONNECTED
 					)
 				} catch (e: InterruptedException) {
 					System.setErr(stdErr)
 					LOG.debug(e) { "Connected Components Interrupted During SAM" }
-					cancel("Connected Components Interrupted During SAM")
-					continue
+            val cancellation = CancellationException("Connected Components Interrupted During SAM")
+            currentCoroutineContext().cancel(cancellation)
+            return null
 				} finally {
 					System.setErr(stdErr)
 				}
 
-
-				val previousPredictionInterval = lastPrediction?.maskInterval?.extendBy(1.0)?.smallestContainingInterval
-				if (noneAccepted) {
-					paintMask.requestRepaint(previousPredictionInterval)
-					lastPrediction = null
-					continue
-				}
+        val points = prompt.getPoints()
 
 				val acceptedComponents = points.asSequence()
 					.filter { it.label == SamPointLabel.FOREGROUND }
 					.map { it.x.toLong() to it.y.toLong() }
-					.filter { (x, y) -> thresholdFilter.getAt(x, y).get() }
+            .filter { (x, y) -> thresholdPrediction.getAt(x, y).get() }
 					.map { (x, y) -> connectedComponents.getAt(x, y).get() }
 					.toMutableSet()
 
@@ -988,7 +997,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
                         val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
                         val boxInterval = FinalInterval(minPos, maxPos)
-                        val thresholdCursor = thresholdFilter.interval(boxInterval).cursor()
+                val thresholdCursor = thresholdPrediction.interval(boxInterval).cursor()
                         val componentsCursor = connectedComponents.interval(boxInterval).cursor()
                         while (thresholdCursor.hasNext()) {
                             val meetsThreshold = thresholdCursor.next()
@@ -1000,62 +1009,162 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     }
                 }
 
-                val selectedComponents = connectedComponents.convertRAI(FloatType()) { source, output ->
-                    val value = if (source.get() in acceptedComponents) 1.0f else 0.0f
-                    output.set(value)
+        return connectedComponents.convertRAI(NativeBoolType()) { source, output ->
+            output.set(source.get() in acceptedComponents)
+        }
                 }
 
-                val (width, height) = predictedImage.dimensionsAsLongArray()
+
+    protected data class AlignedViewAndTransform(
+        val viewerInterval: IntervalView<NativeBoolType>,
+        val transform: AffineTransform2D
+    )
+
+    protected fun alignImageToViewer(
+        predictedMask: RandomAccessibleInterval<NativeBoolType>,
+        viewerMask: ViewerMask
+    ): AlignedViewAndTransform {
+
+        val (width, height) = predictedMask.dimensionsAsLongArray()
                 val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
                 val halfPixelOffset = Translation2D(.5, .5)
-                val translationToViewer =
-                    Translation2D(*paintMask.displayPointToMask(0, 0, currentDisplay).positionAsDoubleArray())
-                val predictionToViewerTransform =
-                    AffineTransform2D().concatenate(translationToViewer).concatenate(predictionToViewerScale)
+        val screenOriginMaskOffset = viewerMask.displayPointToMask(0, 0, currentDisplay)
+        val viewerTranslation = Translation2D(*screenOriginMaskOffset.positionAsDoubleArray())
+        val predictionToViewerTransform = AffineTransform2D()
+            .concatenate(viewerTranslation)
+            .concatenate(predictionToViewerScale)
                         .concatenate(halfPixelOffset)
-                val maskAlignedSelectedComponents = selectedComponents
-                    .extendValue(0.0)
-                    .interpolate(NLinearInterpolatorFactory())
+
+        val alignedView = predictedMask
+            .convertRAI(IntType()) { src, tgt -> tgt.set(if (src.get()) 1000 else -1000) }
+            .extendBorder()
+            .interpolateNearestNeighbor()
                     .affineReal(predictionToViewerTransform)
-                    .convert(UnsignedLongType(Label.INVALID)) { source, output -> output.set(if (source.get() > .8) predictionLabel else Label.INVALID) }
                     .addDimension()
                     .raster()
-                    .interval(paintMask.viewerImg)
+            .convert(NativeBoolType()) { src, tgt -> tgt.set(src.get() > 0) }
+            .interval(viewerMask.viewerImg)
 
 
-                val compositeMask = originalBackingImage!!
+        return AlignedViewAndTransform(alignedView, predictionToViewerTransform)
+    }
+
+    protected fun overlayPredictionOnViewerMask(
+        alignedPredictedLabels: RandomAccessibleInterval<NativeBoolType>,
+        overlay: ViewerMaskOverlay,
+        predictionLabel: Long
+    ) {
+        val compositeMask = overlay.background
                     .extendValue(Label.INVALID)
                     .convertWith(
-                        maskAlignedSelectedComponents,
+                alignedPredictedLabels,
                         UnsignedLongType(Label.INVALID)
                     ) { original, prediction, composite ->
                         val getCompositeVal = {
-                            val predictedVal = prediction.get()
-                            if (predictedVal == predictionLabel) predictionLabel else original.get()
+                    val inPrediction = prediction.get()
+                    if (inPrediction) predictionLabel else original.get()
                         }
                         val compositeVal =
                             if (maskPriority == MaskPriority.PREDICTION) getCompositeVal()
                             else original.get().takeIf { it != Label.INVALID } ?: getCompositeVal()
                         composite.set(compositeVal)
-                    }.interval(maskAlignedSelectedComponents)
+            }.interval(alignedPredictedLabels)
 
 				val compositeMaskAsVolatile = compositeMask.convertRAI(VolatileUnsignedLongType(0L)) { source, output ->
 					output.set(source.get())
 					output.isValid = true
 				}
 
-				paintMask.updateBackingImages(
+        with(overlay) {
+            viewerMask.updateBackingImages(
 					compositeMask to compositeMaskAsVolatile,
-					writableSourceImages = originalBackingImage to originalVolatileBackingImage
+                writableSourceImages = background to volatileBackground
 				)
+        }
 
-				val predictionInterval3D = Intervals.createMinMax(*minPoint, 0, *maxPoint, 0)
-				val predictionIntervalInViewerSpace = predictionToViewerTransform.estimateBounds(predictionInterval3D).smallestContainingInterval
+    }
 
-				paintMask.requestRepaint(predictionIntervalInViewerSpace union previousPredictionInterval)
-				lastPrediction = SamTaskInfo(maskSource, predictionIntervalInViewerSpace, encodedImage, predictionRequest)
+
+    private fun startPredictionJob() {
+        val maskSource = maskedSource ?: return
+        val overlay = viewerMask?.let { currentViewerMask }
+        val paintMask = overlay?.viewerMask ?: return
+
+        // clear the last prediction, so errors here aren't hidden by the last successful prediction
+        lastPrediction = null
+
+        predictionJob = SAM_TASK_SCOPE.launch(resetSAMTaskOnException) {
+
+            val predictor = getSamPredictor() ?: return@launch
+
+            while (predictionJob.isActive) {
+
+                val (prompt, estimateThreshold) = promptChannel.receive()
+                ensureActive()
+
+                val prediction = currentPrediction
+                    ?.takeUnless { estimateThreshold }
+                    ?: predictor.predict(prompt)
+                currentPrediction = prediction
+                val predictionLabel = currentLabelToPaint
+
+                val predictionImage = prediction.decodeResult.run {
+                    val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
+                    val centreFilteredLogits = morph2D.centre( 5 to 5).output
+                    prediction.raiFromResult(centreFilteredLogits)
 			}
+
+                val promptInDecodedSpace = prompt.scaleToDecodeOutput(prediction.encodeResult, prediction.decodeResult)
+
+                if (estimateThreshold)
+                    updateThresholdEstimate(promptInDecodedSpace, predictionImage)
+
+                val previousInterval = lastPrediction?.maskInterval
+                val previousRepaintInterval = previousInterval?.extendBy(1.0)?.smallestContainingInterval
+
+                val (binaryPredictionMask, predictionInterval2D) = thresholdPrediction(predictionImage) ?: let {
+                    paintMask.requestRepaint(previousRepaintInterval)
+                    lastPrediction = null
+                    continue
 		}
+
+                val selectedComponentMask =
+                    selectConnectedComponents(binaryPredictionMask, promptInDecodedSpace) ?: continue
+
+                val (alignedComponentMask, predictionToViewerTransform) = alignImageToViewer(
+                    selectedComponentMask,
+                    paintMask
+                )
+
+                overlayPredictionOnViewerMask(alignedComponentMask, overlay, predictionLabel)
+
+                val predictionInterval3D = Intervals.addDimension(predictionInterval2D, 0, 0)
+                val predictionIntervalInViewerSpace =
+                    predictionToViewerTransform.estimateBounds(predictionInterval3D).smallestContainingInterval
+
+                paintMask.requestRepaint(predictionIntervalInViewerSpace union previousRepaintInterval)
+                val encodedImage = predictor.encodeResult
+                lastPrediction = SamTaskInfo(
+                    maskSource,
+                    predictionIntervalInViewerSpace,
+                    encodedImage,
+                    prompt
+                )
+            }
+        }
+    }
+
+    private fun updateThresholdEstimate(prompt: SamPrompt, prediction: RandomAccessibleInterval<FloatType>) {
+
+        val points = prompt.getPoints()
+
+        /* If there is only a box (no points) then use the sub-interval of the box to estimate the threshold.
+         *   In all other cases, estimate threshold based on the entire image. */
+        val onlyBoxPoints = points.all { it.label > SamPointLabel.FOREGROUND }
+        val estimateOverBox =
+            if (onlyBoxPoints) intervalOfBox(points)
+            else null
+        setBestEstimatedThreshold(estimateOverBox, prediction)
 	}
 
 	private fun intervalOfBox(points: List<PointPrompt>): FinalInterval? {
@@ -1069,17 +1178,17 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 
-	private fun setBestEstimatedThreshold(interval: Interval? = null) {
+    private fun setBestEstimatedThreshold(interval: Interval? = null, prediction: RandomAccessibleInterval<FloatType>) {
 		/* [-40..30] seems from testing like a reasonable range to include the vast majority of
 		*  prediction values, excluding perhaps some extreme outliers (which imo is desirable) */
 		val binMapper = Real1dBinMapper<FloatType>(-40.0, 30.0, 256, false)
 		val histogram = LongArray(binMapper.binCount.toInt())
 
-		val threshPredictInterval = interval?.intersect(currentPrediction?.image)?.let { intersection ->
+        val threshPredictInterval = interval?.intersect(prediction)?.let { intersection ->
 			if (Intervals.isEmpty(intersection)) null else intersection
 		}
 
-		val predictionRAI = threshPredictInterval?.let { currentPrediction!!.image.interval(it) } ?: currentPrediction!!.image
+        val predictionRAI = threshPredictInterval?.let { prediction.interval(it) } ?: prediction
 		LoopBuilder.setImages(predictionRAI)
 			.forEachPixel {
 				val binIdx = binMapper.map(it).toInt()

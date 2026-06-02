@@ -8,7 +8,7 @@ class Sam3Config : SamTritonConfig<Sam3Config>(DEFAULT_ENCODER_NAME) {
     override fun getValue() = this
 
     companion object {
-        internal const val DEFAULT_ENCODER_NAME = "sam3_tracker_vision_encoder_fp16"
+        internal const val DEFAULT_ENCODER_NAME = "sam3_tracker_encoder_fp16"
     }
 }
 

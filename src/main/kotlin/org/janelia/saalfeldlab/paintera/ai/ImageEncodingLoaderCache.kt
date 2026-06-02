@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.renderState
 import org.janelia.saalfeldlab.paintera.ai.SessionRenderUnitState.Companion.withSessionId
 import org.janelia.saalfeldlab.paintera.ai.sam.Sam2EncodingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.sam.SamLinkEncodeRequester
 import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
 import org.janelia.saalfeldlab.paintera.cache.NavigationBasedRequestTimer
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
@@ -23,7 +24,7 @@ import java.io.InterruptedIOException
 
 abstract class ImageEncodingLoaderCache<V> : AsyncCacheWithLoader<RenderUnitState, V>(), AutoCloseable
 where V : EncoderResult {
-    abstract val embeddingRequester: ImageEmbeddingRequester<V>
+    abstract val embeddingRequester: SamLinkEncodeRequester<V>
 
     private var navigationBasedRequestTimer: NavigationBasedRequestTimer? = null
         set(value) {

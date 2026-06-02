@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.config.sam
 import com.google.gson.*
 import javafx.application.Platform
 import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleLongProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValueBase
 import javafx.geometry.HPos
@@ -31,7 +32,7 @@ import kotlin.reflect.KMutableProperty0
 sealed class SamModelConfig<T>(
     val defaultServiceUrl: String,
     val defaultDecoderLocation: String,
-    val defaultResponseTimeout: Int
+    val defaultResponseTimeout: Long
 ) : ObservableValueBase<T>() {
 
     protected val serviceUrlProperty = SimpleStringProperty(defaultServiceUrl)
@@ -40,8 +41,8 @@ sealed class SamModelConfig<T>(
     protected val decoderLocationProperty = SimpleStringProperty(defaultDecoderLocation)
     var decoderLocation: String by decoderLocationProperty.nonnull()
 
-    protected val responseTimeoutProperty = SimpleIntegerProperty(defaultResponseTimeout)
-    var responseTimeout: Int by responseTimeoutProperty.nonnull()
+    protected val responseTimeoutProperty = SimpleLongProperty(defaultResponseTimeout)
+    var responseTimeout: Long by responseTimeoutProperty.nonnull()
 
 
     init {
@@ -75,7 +76,7 @@ sealed class SamModelConfig<T>(
     override fun hashCode() = SamModelData(this).hashCode()
 
     companion object {
-        internal const val DEFAULT_RESPONSE_TIMEOUT = 10 * 1000
+        internal const val DEFAULT_RESPONSE_TIMEOUT = 10 * 1000L
 
         internal const val DEFAULT_TRITON_SERVICE = "https://sam-inference.janelia.org"
 
@@ -85,7 +86,7 @@ sealed class SamModelConfig<T>(
         internal data class SamModelData(
             val serviceUrl: String,
             val modelLocation: String,
-            val responseTimeout: Int,
+            val responseTimeout: Long,
         ) {
             constructor(config: SamModelConfig<*>) : this(
                 config.serviceUrl,
@@ -128,6 +129,8 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
                     addPropertyConfigRow(row, property as KMutableProperty0<String>, default as String)
                 T::class == Int::class ->
                     addPropertyConfigRow(row, property as KMutableProperty0<Number>, default as Int)
+                T::class == Long::class ->
+                    addPropertyConfigRow(row, property as KMutableProperty0<Number>, default as Long)
                 T::class == Boolean::class ->
                     addPropertyConfigRow(row, property as KMutableProperty0<Boolean>, default as Boolean)
 
@@ -151,6 +154,37 @@ open class SamModelConfigNode(private val config: SamModelConfig<*>) : GridPane(
 
             val optionField = NumberField.intField(
                 property.get().toInt(),
+                { it >= -1 },
+                ObjectField.SubmitOn.FOCUS_LOST, ObjectField.SubmitOn.ENTER_PRESSED
+            )
+            optionField.valueProperty().subscribe { _, value -> property.set(value.toInt()) }
+            val textField = optionField.textField.apply {
+                VBox.setVgrow(this, Priority.NEVER)
+                maxWidth = Double.MAX_VALUE
+                prefWidth - Double.MAX_VALUE
+            }
+
+            add(textField, 1, row)
+
+            default?.let {
+                val resetButton = newResetButton {
+                    setOnAction {
+                        textField.text = "$default"
+                        optionField.valueProperty().set(default)
+                    }
+                }
+                add(resetButton, 2, row)
+            }
+        }
+
+        internal fun GridPane.addPropertyConfigRow(
+            row: Int,
+            property: KMutableProperty0<Number>,
+            default: Long? = null
+        ) {
+
+            val optionField = NumberField.longField(
+                property.get().toLong(),
                 { it >= -1 },
                 ObjectField.SubmitOn.FOCUS_LOST, ObjectField.SubmitOn.ENTER_PRESSED
             )
@@ -298,7 +332,7 @@ abstract class SamModelConfigAdapter<T : SamModelConfig<*>> : PainteraSerializat
             json?.let {
                 it[::serviceUrl.name, { url: String -> serviceUrl = url }]
                 it[::decoderLocation.name, { model: String -> decoderLocation = model }]
-                it[::responseTimeout.name, { timeout: Int -> responseTimeout = timeout }]
+                it[::responseTimeout.name, { timeout: Long -> responseTimeout = timeout }]
             }
         }
     }

@@ -20,7 +20,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 	init {
 		activeViewerProperty.unbind()
-		activeViewerProperty.bind(mode!!.activeViewerProperty)
+		activeViewerProperty.bind(mode.activeViewerProperty)
 	}
 
 	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
@@ -29,7 +29,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 	private var replaceExistingSlice = false
 
-	override var currentDisplay: Boolean = false
+	override var currentDisplay: Boolean = true
 
 	override fun activate() {
 		/* freeze interpolation while the SAM tool is active; otherwise a composite-mask
