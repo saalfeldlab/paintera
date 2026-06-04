@@ -14,8 +14,8 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
@@ -49,7 +49,7 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 
 	public ModalGoldenAngleSaturatedHighlightingARGBStream(
 			final SelectedSegments selectedSegments,
-			final LockedSegments lockedSegments) {
+			final LockedSegmentsState lockedSegments) {
 
 		super(selectedSegments, lockedSegments);
 		seed = 1;

@@ -7,6 +7,7 @@ import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.config.*
+import org.janelia.saalfeldlab.paintera.config.sam.SamServiceConfigNode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 
@@ -38,7 +39,7 @@ class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings",
 
 	private val loggingConfigNode = LoggingConfigNode(paintera.properties.loggingConfig)
 
-	private val segmentAnythingConfigNode = SegmentAnythingConfigNode(paintera.properties.segmentAnythingConfig)
+	private val samServiceConfigNode = SamServiceConfigNode(paintera.properties.samServiceConfig)
 	private val painteraDirectoriesConfigNode = PainteraDirectoriesConfigNode(paintera.properties.painteraDirectoriesConfig)
 
 	init {
@@ -51,7 +52,7 @@ class SettingsView private constructor(val vBox: VBox ) : TitledPane("Settings",
 			children += scaleBarConfigNode
 			children += bookmarkConfigNode
 			children += arbitraryMeshConfigNode
-			children += segmentAnythingConfigNode
+			children += samServiceConfigNode
 			children += painteraDirectoriesConfigNode
 			children += screenScaleConfigNode.contents
 			children += loggingConfigNode.node

@@ -22,7 +22,7 @@ import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
@@ -126,7 +126,7 @@ open class PaintLabelMode : ViewLabelMode() {
 
 	private val activeSamTool = painteraActionSet(SEGMENT_ANYTHING__TOGGLE_MODE, PaintActionType.Paint) {
 		KEY_PRESSED(samTool.keyTrigger) {
-			verify { SamEmbeddingLoaderCache.canReachServer }
+			verify { SamEncoder.isHealthy }
 			verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
 			verify { activeTool !is SamTool }
 			verify {

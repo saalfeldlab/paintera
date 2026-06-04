@@ -14,7 +14,7 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import net.imglib2.type.label.Label;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
 /**
@@ -28,7 +28,7 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 
 	public AbstractSaturatedHighlightingARGBStream(
 			final SelectedSegments selectedSegments,
-			final LockedSegments lockedSegments) {
+			final LockedSegmentsState lockedSegments) {
 
 		super(selectedSegments, lockedSegments);
 	}
@@ -41,51 +41,67 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 	@Override
 	protected int argbImpl(final long fragmentId, final boolean colorFromSegmentId) {
 
-		final var segmentId = selectedSegments.getAssignment().getSegment(fragmentId);
-		final boolean isActiveSegment = selectedSegments.isSegmentSelected(segmentId);
+		final var segmentId = getSegmentId(fragmentId);
 		final long assigned = colorFromSegmentId ? segmentId : fragmentId;
-        int argb;
-		synchronized (argbCache) {
-            argb = argbCache.get(assigned);
-        }
-        if (argb == argbCache.getNoEntryValue()) {
-			double x = getDouble(seed + assigned);
-			x *= 6.0;
-			final int k = (int)x;
-			final int l = k + 1;
-			final double u = x - k;
-			final double v = 1.0 - u;
 
-			final int r = interpolate(rs, k, l, u, v);
-			final int g = interpolate(gs, k, l, u, v);
-			final int b = interpolate(bs, k, l, u, v);
+		return argbCache.computeIfAbsent(assigned, id -> {
 
-			argb = argb(r, g, b, alpha);
+			final Integer explicitArgb = explicitlySpecifiedColors.get(id);
+            if (explicitArgb != null)
+				return withFragmentSegmentAlpha(explicitArgb, id, fragmentId, segmentId);
 
-			synchronized (argbCache) {
-				argbCache.put(assigned, argb);
-			}
-		}
+            double x = getDoubleImpl(seed + assigned, colorFromSegmentId);
+            x *= 6.0;
+            final int k = (int) x;
+            final int l = k + 1;
+            final double u = x - k;
+            final double v = 1.0 - u;
 
-		if (Label.INVALID == fragmentId && !explicitlySpecifiedColors.contains(fragmentId)) {
-			argb = argb & 0x00ffffff | invalidSegmentAlpha;
-		} else if (lockedSegments.isLocked(segmentId) && hideLockedSegments) {
-			argb = argb & 0x00ffffff;
-		} else {
-			int alphaOverride = overrideAlpha.get(assigned);
-			int actualAlpha = alpha;
-			if (alphaOverride == overrideAlpha.getNoEntryValue()) {
-				if (isActiveSegment) {
-					if (isActiveFragment(fragmentId))
-						actualAlpha = activeFragmentAlpha;
-					else
-						actualAlpha = activeSegmentAlpha;
-				}
-			} else
-				actualAlpha = alphaOverride << 24;
-			argb = argb & 0x00ffffff | actualAlpha;
+            final int r = interpolate(rs, k, l, u, v);
+            final int g = interpolate(gs, k, l, u, v);
+            final int b = interpolate(bs, k, l, u, v);
+
+            final int argb = argb(r, g, b, alpha);
+            return withFragmentSegmentAlpha(argb, id, fragmentId, segmentId);
+		});
+	}
+
+	private int withFragmentSegmentAlpha(int argb, long assigned, long fragmentId, long segmentId) {
+
+        if (invalidFragmentDefault(fragmentId))
+			return (argb & 0x00ffffff) | invalidSegmentAlpha;
+
+		if (hideLockedSegment(segmentId))
+			return (argb & 0x00ffffff);
+
+		final Integer alphaOverride = overrideAlpha.get(assigned);
+		if (alphaOverride != null)
+			return (argb & 0x00ffffff) | alphaOverride << 24;
+
+		if (isActiveSegment(segmentId)) {
+			int alpha = isActiveFragment(fragmentId) ? activeFragmentAlpha : activeSegmentAlpha;
+			return (argb & 0x00ffffff) | alpha;
 		}
 
 		return argb;
+	}
+
+	/**
+	 * Query the segment id for the given fragment or segment id.
+	 * If the fragment is not part of a segment, return the fragment id.
+	 *
+	 * @param segmentOrFragmentId to get the associated segment id for
+	 * @return the segment id, OR fragment Id if the fragment is not part of a segment
+	 */
+	private long getSegmentId(long segmentOrFragmentId) {
+		return selectedSegments.getAssignment().getSegment(segmentOrFragmentId);
+	}
+
+	private boolean hideLockedSegment(long segmentId) {
+		return hideLockedSegments && isLockedSegment(segmentId);
+	}
+
+	private boolean invalidFragmentDefault(long fragmentId) {
+		return Label.INVALID == fragmentId && !explicitlySpecifiedColors.containsKey(fragmentId);
 	}
 }

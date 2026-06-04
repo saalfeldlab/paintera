@@ -31,12 +31,12 @@ internal fun coroutineBackedExecutorService(
 			return super.submit(task)
 		}
 
-		override fun <T : Any?> submit(task: Callable<T?>): Future<T?> {
+		override fun <T> submit(task: Callable<T?>): Future<T?> {
 			ensureNotShutdown()
 			return super.submit(task)
 		}
 
-		override fun <T : Any?> submit(task: Runnable, result: T?): Future<T?> {
+		override fun <T> submit(task: Runnable, result: T?): Future<T?> {
 			ensureNotShutdown()
 			return super.submit(task, result)
 		}
@@ -50,22 +50,15 @@ internal fun coroutineBackedExecutorService(
 			scope.launch {
 				if (!isShutdown) {
 					command.run()
-					futureInterceptor?.let { intercept ->
-						(command as? Future<*>)?.let { future ->
-							runCatching {
-								if (!isShutdown)
-									intercept(future.get())
-							}
-						}
-					}
+                    if (futureInterceptor == null || !isShutdown || command !is Future<*>)
+						return@launch
+
+					futureInterceptor(command.get())
 				}
 			}.invokeOnCompletion { cause ->
-				@Suppress("RemoveRedundantQualifierName") //ambiguous without qualifying CancellationException
-				when (cause) {
-					null -> Unit
-					is CancellationException -> (command as Future<*>).cancel(true)
-					else -> throw cause
-				}
+				(command as? Future<*>)
+					?.takeIf { cause is CancellationException }
+					?.cancel(true)
 			}
 		}
 	}

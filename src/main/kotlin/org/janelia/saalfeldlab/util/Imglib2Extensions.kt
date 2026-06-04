@@ -18,7 +18,6 @@ import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
-import org.janelia.saalfeldlab.util.math.similarTo
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -31,6 +30,36 @@ infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.le
 	?: this
 
 fun Interval.numElements() = Intervals.numElements(this)
+
+/**
+ * Return an expanded interval. [borderPercent] is a double that corresponds to the percent added to each dimension.
+ * For example, a [borderPercent] of 0.1 will expand 10% in each direction, for each dimension.
+ * It rounds to the nearestLong.
+ *
+ * convenience wrapper for [Intervals.expand] with percent expansion
+ *
+ * @param borderPercent percent to expand. Either a single value, or a value per dimension
+ * @return the expanded interval
+ */
+fun Interval.expand(vararg borderPercent: Double): Interval {
+	val dims = dimensionsAsLongArray()
+	return expand(*borderPercent.mapIndexed { idx, percent -> (dims[idx] * percent).roundToLong() }.toLongArray())
+}
+
+/**
+ * Return an [Interval] expanded by [border] in each direction.
+ * convenience wrapper for [Intervals.expand]
+ *
+ * @param border amount to expand in each direction. Either a single value, or a value per dimension
+ * @return the expanded interval
+ */
+fun Interval.expand(vararg border: Long): Interval {
+	return if (border.size == 1)
+		Intervals.expand(this, border[0])
+	else
+		Intervals.expand(this, *border)
+
+}
 
 fun RealInterval.shape() = maxAsDoubleArray().zip(minAsDoubleArray()).map { (max, min) -> max - min + 1 }.toDoubleArray()
 fun RealInterval.center() = DoubleArray(numDimensions()) { i -> (realMin(i) + realMax(i)) / 2.0 }
@@ -57,6 +86,8 @@ fun <T : RealType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: 
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Int) = Views.extendValue(this, extension)!!
 fun <T : IntegerType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Long) = Views.extendValue(this, extension)!!
 fun <T : BooleanType<T>, F : RandomAccessibleInterval<T>> F.extendValue(extension: Boolean) = Views.extendValue(this, extension)!!
+
+fun <T, F : RandomAccessibleInterval<T>> F.extendBorder() = Views.extendBorder(this)!!
 fun <T, F : RandomAccessibleInterval<T>> F.expandborder(vararg border: Long) = Views.expandBorder(this, *border)!!
 
 fun <T> RandomAccessible<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!

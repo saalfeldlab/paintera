@@ -30,6 +30,10 @@
 package org.janelia.saalfeldlab.bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
+import javafx.scene.canvas.GraphicsContext;
+import kotlin.Unit;
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.ViewerRenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
@@ -58,17 +62,12 @@ import org.janelia.saalfeldlab.fx.ObservablePosition;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
@@ -81,7 +80,7 @@ public class ViewerPanelFX
 		extends StackPane
 		implements TransformListener<AffineTransform3D>, RequestRepaint {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
 	private final ViewerRenderUnit renderUnit;
 
@@ -453,37 +452,6 @@ public class ViewerPanelFX
 		}
 	}
 
-	private static final AtomicInteger panelNumber = new AtomicInteger(1);
-
-	//	TODO: rendering
-	protected class RenderThreadFactory implements ThreadFactory {
-
-		private final String threadNameFormat;
-
-		private final AtomicInteger threadNumber = new AtomicInteger(1);
-
-		RenderThreadFactory() {
-
-			this.threadNameFormat = String.format("viewer-panel-fx-%d-thread-%%d", panelNumber.getAndIncrement());
-			LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
-		}
-
-		@Override
-		public Thread newThread(final Runnable r) {
-
-			final Thread t = new Thread(threadGroup, r,
-					String.format(threadNameFormat, threadNumber.getAndIncrement()),
-					0
-			);
-			LOG.debug("Creating thread with name {}", t.getName());
-			if (!t.isDaemon())
-				t.setDaemon(true);
-			if (t.getPriority() != Thread.NORM_PRIORITY)
-				t.setPriority(Thread.NORM_PRIORITY);
-			return t;
-		}
-	}
-
 	/**
 	 * @return {@link MouseCoordinateTracker#getIsInside()} ()}
 	 * @see MouseCoordinateTracker#getIsInside()
@@ -552,7 +520,7 @@ public class ViewerPanelFX
 	 */
 	public void setScreenScales(final double[] screenScales) {
 
-		LOG.debug("Setting screen scales to {}", screenScales);
+		LOG.debug(() -> "Setting screen scales to %s".formatted((Object) screenScales));
 		this.renderUnit.setScreenScales(screenScales.clone());
 	}
 
@@ -582,39 +550,81 @@ public class ViewerPanelFX
 
 			@Override
 			public void handle(long now) {
-				final var result = renderUnit.getRenderedImageProperty().get();
-				if (result != renderResult) {
+
+				try {
+					final var result = renderUnit.getRenderedImageProperty().get();
+					if (result == null || result == renderResult)
+						return;
 					renderResult = result;
-				}
 
-				if (renderResult != null) {
 					final Image image = renderResult.getImage();
-					if (image != null) {
-						final Interval screenInterval = renderResult.getScreenInterval();
-						final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+					if (image == null)
+						return;
 
-						canvasPane.getCanvas().getGraphicsContext2D().clearRect(
-								screenInterval.min(0), // dst X
-								screenInterval.min(1), // dst Y
-								screenInterval.dimension(0), // dst width
-								screenInterval.dimension(1)  // dst height
-						);
-						synchronized (image) {
-							canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-									image, // src
-									renderTargetRealInterval.realMin(0), // src X
-									renderTargetRealInterval.realMin(1), // src Y
-									renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-									renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-									screenInterval.min(0) - 1, // dst X
-									screenInterval.min(1) - 1, // dst Y
-									screenInterval.dimension(0) + 1, // dst width
-									screenInterval.dimension(1) + 1  // dst height
-							);
-						}
-					}
-				}
-			}
-		}.start();
-	}
+                    synchronized (image) {
+                        final Interval screenInterval = renderResult.getScreenInterval();
+                        final RealInterval renderTargetRealInterval = renderResult.getRenderTargetRealInterval();
+
+                        double imgX = renderTargetRealInterval.realMin(0);
+                        double imgW = renderTargetRealInterval.realMax(0) - imgX;
+                        double imgY = renderTargetRealInterval.realMin(1);
+                        double imgH = renderTargetRealInterval.realMax(1) - imgY;
+
+                        long screenX = screenInterval.min(0);
+                        long screenY = screenInterval.min(1);
+                        long screenW = screenInterval.dimension(0);
+                        long screenH = screenInterval.dimension(1);
+
+                        GraphicsContext graphics = canvasPane.getCanvas().getGraphicsContext2D();
+                        /* Read the doc for why we do this. */
+                        drawImageEffectiveSrcCopyBlendMode(
+                                graphics,
+                                image,
+                                screenX, screenY, screenW, screenH,
+                                imgX, imgY, imgW, imgH);
+                    }
+                } catch (Exception e) {
+                    LOG.error(e, () -> "Exception in ViewerPanelFX RenderAnimation Timer");
+                }
+            }
+        }.start();
+    }
+
+    /**
+     * JavaFX canvas has no SRC_COPY blend mode. To achieve the same effect, we need to ensure either:
+     * <ol>
+     *     <li>the image we are drawing is fully opaque; OR</li>
+     *     <li>there is no underlying image to blend with; OR</li>
+     *     <li>the underlying image is fully opaque, so the SRC_OVER (default) blend mode effectively is a SRC_COPY</li>
+     * </ol>
+     * <p>
+     * The solution we have is to draw a `Color.BLACK` rectangle over the region we want the image to be. This
+     * ensures the underlying image is fully opaque, which makes the SRC_OVER blend mode effectively a SRC_COPY.
+     * <p>
+     * NOTE: regarding the other options:
+     *  <ol>
+     *      <li>it's more expensive to iterate / allocated a new image and ensure all pixels are opaque</li>
+     *      <li>There is seemingly a bug with `clearRect` that leaves a seam on the top and left edge if you `clearRect` and immediately `drawImage` with the same screen region. I suspect this is a javafx bug, But I didn't dig in more. Easily reproducible with `clearRect` and `fillRect` over a sub region in a canvas.</li>
+     *      <li>(this is what our current implementation does)</li>
+     *  </ol>
+     */
+    private static void drawImageEffectiveSrcCopyBlendMode(
+            GraphicsContext graphics,
+            Image image,
+            double screenX, double screenY, double screenW, double screenH,
+            double imgX, double imgY, double imgW, double imgH) {
+
+        /* `clearRect` would be neater, but see the doc above for why we can't do that. */
+        graphics.save();
+        graphics.setFill(Color.BLACK);
+        graphics.fillRect(screenX, screenY, screenW, screenH);
+        graphics.restore();
+
+
+        graphics.drawImage(
+                image,
+                imgX, imgY, imgW, imgH,
+                screenX, screenY, screenW, screenH
+        );
+    }
 }

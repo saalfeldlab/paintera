@@ -779,9 +779,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		synchronized (this) {
 			final boolean canNotResetMask = isCreatingMask() || isApplyingMask.get();
-			LOG.debug("Can reset mask? {}", !canNotResetMask);
-			if (canNotResetMask)
+			if (canNotResetMask) {
+				LOG.error("Cannot reset mask: is creating mask? {} is applying mask? {}", isCreatingMask(), isApplyingMask.get());
 				throw new MaskInUse("Cannot reset the mask.");
+			}
 
 			var mask = getCurrentMask();
 			if (mask != null && mask.shutdown != null)

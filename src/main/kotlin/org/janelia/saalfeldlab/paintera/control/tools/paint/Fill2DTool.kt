@@ -35,7 +35,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 private val LOG = KotlinLogging.logger { }
 
-open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
+open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
 	override fun newToolBarControl() = super.newToolBarControl().also { item ->
@@ -119,7 +119,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					filter = true
 					onAction {
 						cancelFloodFill()
-						mode?.switchTool(mode.defaultTool)
+						mode?.apply { switchTool(defaultTool) }
 					}
 				}
 			}

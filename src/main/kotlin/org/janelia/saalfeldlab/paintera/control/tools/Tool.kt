@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.paintera
@@ -48,10 +49,10 @@ interface ToolBarItem {
 
 const val REQUIRES_ACTIVE_VIEWER = "REQUIRES_ACTIVE_VIEWER"
 
-abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
+abstract class ViewerTool(protected open val mode: ToolMode? = null) : Tool, ToolBarItem {
 
 	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = ConcurrentHashMap()
-	protected var subscriptions: Subscription = Subscription.EMPTY
+	protected var subscriptions: Subscription? = null
 	override val isValidProperty = SimpleBooleanProperty(true)
 
 	override fun activate() {
@@ -64,15 +65,13 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 			new?.viewer()?.let { installInto(it) }
 		}
 		val firstTimeOnly = AtomicBoolean(true)
-		subscriptions = subscriptions
-			.and(activeViewerSub)
-			.and {
+		subscriptions += activeViewerSub
+		subscriptions += sub@{
 				/* unsubscribing must be idempotent*/
 				if (!firstTimeOnly.getAndSet(false)) {
 					LOG.debug { "Tool deactivate ($this) called multiple times" }
-					return@and
+					return@sub
 				}
-
 				if (installedInto.isNotEmpty()) removeFromAll()
 				if (activeViewerProperty.isBound) activeViewerProperty.unbind()
 				activeViewerProperty.set(null)
@@ -80,8 +79,8 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 	}
 
 	override fun deactivate() {
-		subscriptions.unsubscribe()
-		subscriptions = Subscription.EMPTY
+		subscriptions?.unsubscribe()
+		subscriptions = null
 	}
 
 	override val statusProperty = SimpleStringProperty()

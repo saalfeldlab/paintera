@@ -8,6 +8,7 @@ import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
+import org.janelia.saalfeldlab.paintera.config.sam.SamServiceConfig
 
 class Properties : TransformListener<AffineTransform3D> {
 
@@ -60,7 +61,7 @@ class Properties : TransformListener<AffineTransform3D> {
 	val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
 	@Expose
-	val segmentAnythingConfig = SegmentAnythingConfig()
+	val samServiceConfig = SamServiceConfig()
 
 	@Expose
 	val painteraDirectoriesConfig = PainteraDirectoriesConfig()

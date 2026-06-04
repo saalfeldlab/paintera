@@ -44,8 +44,8 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener.
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.MetaPanel
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
 import java.io.File
-import java.net.URI
 import java.util.UUID
 import java.util.function.BiConsumer
 import java.util.function.Consumer
@@ -174,19 +174,10 @@ class OpenSourceDialog(
 	}
 
 	private fun createBrowseRecentButton(): MenuButton {
-		val recentLines = PainteraCache.RECENT_CONTAINERS.readLines().reversed()
-		val recentURIs = recentLines.map { runCatching { URI.create(it) }.getOrNull() }.filterNotNull()
-
-		val uriAsString = recentURIs.map {
-			if (it.scheme == "file")
-				it.path
-			else
-				it.toString()
-		}
 
 		return BrowseRecentFavorites.menuButton(
             "_Find",
-			uriAsString,
+			PainteraCache.RECENT_CONTAINERS.distinctCanonicalStrings(),
             N5FactoryOpener.FAVORITES,
             { updateFromDirectoryChooser() },
             { updateFromFileChooser() }

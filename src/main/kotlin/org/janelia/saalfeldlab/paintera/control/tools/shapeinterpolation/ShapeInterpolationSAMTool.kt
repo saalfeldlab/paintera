@@ -6,8 +6,8 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
-import org.janelia.saalfeldlab.paintera.cache.SamEmbeddingLoaderCache
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
@@ -15,12 +15,12 @@ import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolationController<*>, activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, private val shapeInterpolationMode: ShapeInterpolationMode<*>) : SamTool(activeSourceStateProperty, shapeInterpolationMode) {
+internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolationController<*>, activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ShapeInterpolationMode<*>) : SamTool(activeSourceStateProperty, mode) {
 
 
 	init {
 		activeViewerProperty.unbind()
-		activeViewerProperty.bind(mode!!.activeViewerProperty)
+		activeViewerProperty.bind(mode.activeViewerProperty)
 	}
 
 	override fun newToolBarControl()  = super.newToolBarControl().also { item ->
@@ -32,6 +32,10 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 	override var currentDisplay: Boolean = true
 
 	override fun activate() {
+		/* freeze interpolation while the SAM tool is active; otherwise a composite-mask
+		 * update can race getMask() and throw MaskInUse. Better future solution is to
+		 * more robustly control masked source access and modification  */
+		controller.freezeInterpolation = true
 		requestOnActivate = false
 		super.activate()
 
@@ -42,16 +46,16 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		 *  Cancel any that have not yet returned. */
 
 		var drawPrompt = false
-		shapeInterpolationMode.samSliceCache[depth]?.takeIf {
+		mode.samSliceCache[depth]?.takeIf {
 			val currentGlobalToViewerTransform = AffineTransform3D().also { activeViewer?.state?.getViewerTransform(it) }
 			it.globalToViewerTransform.hashable() == currentGlobalToViewerTransform.hashable()
 		}?.let  {
 			drawPrompt = true
 		} ?: let {
-			SamEmbeddingLoaderCache.cancelPendingRequests()
+            SamEncoder.cache.embeddingRequester.cancelPendingRequests()
 		}
 
-		val info = shapeInterpolationMode.cacheLoadSamSliceInfo(depth)
+		val info = mode.cacheLoadSamSliceInfo(depth)
 		maskedSource?.resetMasks(false)
 		/* only replace existing if we are at a slice, and it's not locked.
 		 * The cases are:
@@ -62,13 +66,15 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		viewerMask = controller.getMask(ignoreExisting = replaceExistingSlice)
 
 		if (drawPrompt)
-			info.prediction.drawPrompt()
+			info.prompt.drawPrompt()
 
-		requestPrediction(info.prediction)
+		requestPrediction(info.prompt)
 	}
 
 	override fun deactivate() {
 		super.deactivate()
+		/* unfreeze before composing the overlay, else setMaskOverlay would be a no-op */
+		controller.freezeInterpolation = false
 		controller.setMaskOverlay()
 	}
 
@@ -76,9 +82,11 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		lastPrediction?.apply {
 			/* cache the prediction. lock the cached slice, since this was applied manually */
 			super.applyPrediction()
-			shapeInterpolationMode.run {
+			/* unfreeze so addSelection can re-interpolate with the newly added slice */
+			controller.freezeInterpolation = false
+			mode.run {
 				addSelection(maskInterval, replaceExistingSlice = replaceExistingSlice)?.also {
-					it.prediction = predictionRequest
+					it.prompt = samPrompt
 					it.locked = true
 				}
 				switchTool(defaultTool)?.invokeOnCompletion {
@@ -95,7 +103,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-		super.actionSets.also { it += shapeInterpolationMode.extraActions() }
+		super.actionSets.also { it += mode.extraActions() }
 	}
 
 

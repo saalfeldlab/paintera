@@ -21,11 +21,13 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -44,11 +46,25 @@ import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
+import org.scijava.annotations.Index
 import kotlin.coroutines.cancellation.CancellationException
 
 private val LOG = KotlinLogging.logger {  }
 
 class ExportSourceState {
+
+	companion object {
+
+		internal val COMPRESSION_INDEX: Index<Compression.CompressionType?> = Index.load(
+			Compression.CompressionType::class.java,
+			Thread.currentThread().contextClassLoader
+		)
+
+		internal val DEFAULT_COMPRESSION = COMPRESSION_INDEX
+			.firstOrNull { it.annotation()?.value?.lowercase() == ZstandardCompression().type }
+			?: COMPRESSION_INDEX.first()
+	}
 
 	val backendProperty = SimpleObjectProperty<N5BackendLabel<*, *>?>()
 	val maxIdProperty = SimpleLongProperty(-1)
@@ -60,6 +76,8 @@ class ExportSourceState {
 	val segmentFragmentMappingProperty = SimpleBooleanProperty(true)
 	val scaleLevelProperty = SimpleIntegerProperty(0)
 	val dataTypeProperty = SimpleObjectProperty(DataType.UINT64)
+	val storageFormatProperty = SimpleObjectProperty<StorageFormat?>(null)
+    val compressionProperty = SimpleObjectProperty<Compression?>(null)
 
 	private val exportableSourceRAI: RandomAccessibleInterval<out NativeType<*>>?
 		get() {
@@ -130,7 +148,6 @@ class ExportSourceState {
 
 		val imgSize = source.grids[scaleLevel].run { gridDimensions.apply { forEachIndexed { idx, size -> set(idx, size * cellDimensions[idx]) } } }
 
-
 		val sourceMetadata: N5SpatialDatasetMetadata = metadata ?: N5SingleScaleMetadata(
 			dataset,
 			source.getSourceTransformCopy(0, scaleLevel),
@@ -142,10 +159,18 @@ class ExportSourceState {
 				imgSize,
 				source.grids[scaleLevel].cellDimensions,
 				dataType,
-				GzipCompression()
+				ZstandardCompression()
 			)
 		)
 
+
+		val compression = compressionProperty.value ?: sourceMetadata.attributes.compression
+
+		val (formatFromString : StorageFormat?, exportContainer : String) = StorageFormat.getStorageFromNestedScheme(exportLocation).let { pair -> pair.a to pair.b }
+		val formatFromChoice = storageFormatProperty.get()
+		val storageFormat = formatFromChoice ?: formatFromString
+
+		val writer = getWriterOrAlert(storageFormat, exportContainer, exportLocation, dataset, scaleLevel) ?: return null
 
 		val n5 = (backend as? SourceStateBackendN5<*, *>)?.container as? GsonKeyValueN5Reader
 
@@ -153,7 +178,7 @@ class ExportSourceState {
 		val cellGrid: CellGrid = source.getGrid(scaleLevel)
 		val sourceAttributes: DatasetAttributes = sourceMetadata.attributes
 
-		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, sourceAttributes.compression)
+		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, compression)
 
 		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
@@ -181,7 +206,6 @@ class ExportSourceState {
 		val incrementWritten = { -> blocksWritten.update { it + 1 } }
 
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
-			val writer = Paintera.n5Factory.newWriter(exportLocation)
 			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, translation)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, MAX_ID_KEY, maxIdProperty.value)
@@ -264,6 +288,31 @@ class ExportSourceState {
 		}
 		return exportJob
 	}
+
+	private fun getWriterOrAlert(
+		storageFormat: StorageFormat?,
+		exportContainer: String,
+		exportLocation: String,
+		dataset: String,
+		scaleLevel: Int?
+	): N5Writer? = runCatching {
+		Paintera.n5Factory.newWriter(storageFormat, exportContainer)
+	}.onFailure {
+		LOG.error(it) { }
+		PainteraAlerts.alert(Alert.AlertType.WARNING).apply {
+			title = "Export Failed"
+			headerText = "Export Failed.\nCould not open $exportLocation."
+			contentText = """
+										Export Location: 
+												$exportLocation
+										Dataset:        $dataset
+										Scale Level:    $scaleLevel
+										
+										Error:
+											${it.message}
+									""".trimIndent()
+		}.showAndWait()
+	}.getOrNull()
 }
 
 internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = downscaleTranslation(

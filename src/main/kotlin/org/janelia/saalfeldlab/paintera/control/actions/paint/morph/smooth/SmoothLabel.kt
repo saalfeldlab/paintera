@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import kotlinx.coroutines.*
@@ -10,7 +11,9 @@ import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.addListener
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
@@ -23,11 +26,18 @@ import kotlin.jvm.optionals.getOrNull
 
 object SmoothLabel : MenuAction("_Smooth...") {
 
+	private val LOG = KotlinLogging.logger {  }
+
 	internal var mainTaskLoop: Deferred<List<Interval>?>? = null
 	internal var smoothScope : SmoothScope = SmoothScope()
 	internal fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = smoothScope.submitUI(block)
 
 	internal class SmoothScope : ChannelLoop(
+		coroutineScope = CoroutineScope(
+			SupervisorJob()
+			+ Dispatchers.Default
+			+ CoroutineExceptionHandler { _, e -> LOG.error(e) { "Smooth Action Failed" }}
+		),
 		capacity = CONFLATED
 	) {
 		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -41,7 +51,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		verifyPermission(PaintActionType.Smooth, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onActionWithState<SmoothLabelState<*, *>> {
 
-			resetUpdateChannel()
+			resetAsyncState()
 			isBusy = false
 
 			val activatedReplacementLabel = AtomicLong(0)
@@ -95,6 +105,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 				subs.unsubscribe()
 				if (success != true) {
 					updateChannel.trySend(UpdateSignal.Cancel)
+					smoothScope.cancel()
 					deactivateReplacementLabel()
 				}
 				return@onActionWithState
@@ -104,7 +115,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 
 	private var updateChannel = Channel<UpdateSignal>(CONFLATED)
 
-	private fun resetUpdateChannel() {
+	private fun resetAsyncState() {
 		updateChannel.close()
 		updateChannel = Channel(CONFLATED)
 		smoothScope.cancel("New Smooth Scope Started")
@@ -157,7 +168,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 					UpdateSignal.Cancel -> {
 						// cancel the mainTaskLoop and break out
 						mainTaskLoop?.cancelAndJoin()
-						smoothScope.cancel()
+						smoothScope.cancelCurrent()
 						break
 					}
 
@@ -166,28 +177,22 @@ object SmoothLabel : MenuAction("_Smooth...") {
 					}
 
 					UpdateSignal.Finish -> {
-						val finishSmoothJob = smoothScope.submit {
-							intervals = smoothMask(false, resmoothType).map { it.smallestContainingInterval }
-						}
-						finishSmoothJob.invokeOnCompletion { cause ->
-							when (cause) {
-								null -> Unit
-								is CancellationException -> {
-									submitUI {
-										progress = 0.0
-									}
+						smoothScope.submit {
+							try {
+								intervals = smoothMask(false, resmoothType).map { it.smallestContainingInterval }
+							} catch (e: CancellationException) {
+								withContext(NonCancellable) {
+									smoothScope.submitUI { progress = 0.0 }
 									maskedSource.resetMasks()
 									paintera.baseView.orthogonalViews().requestRepaint()
 								}
-
-								else -> throw cause
+								throw e
 							}
 						}
-						finishSmoothJob
 					}
 				}
 
-				updateSmoothJob.invokeOnCompletion { _ -> isBusy = false }
+				updateSmoothJob.invokeOnCompletion { isBusy = false }
 
 				if (resmoothType == UpdateSignal.Finish) {
 					try {
@@ -213,21 +218,28 @@ object SmoothLabel : MenuAction("_Smooth...") {
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
 				}
 				try {
-					/* reset if an exception; throw unless cancellation */
+					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						smoothScope.cancelCurrent()
-						it.takeUnless { it is CancellationException }?.let { throw it }
+						it.takeUnless { it is CancellationException }?.let { error ->
+							LOG.error(error) { "Smooth failed" }
+							InvokeOnJavaFXApplicationThread {
+								Exceptions.exceptionAlert(Constants.NAME, "Smooth failed", error).show()
+							}
+						}
 					}
 				} finally {
-					submitUI { subscriptions.unsubscribe() }
+					submitUI {
+						cause ?: run { progress = 1.0 }
+						subscriptions.unsubscribe()
+					}
 					paintera.baseView.disabledPropertyBindings -= task
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)

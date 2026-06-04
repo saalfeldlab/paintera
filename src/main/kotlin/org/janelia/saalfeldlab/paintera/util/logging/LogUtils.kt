@@ -6,6 +6,7 @@ import ch.qos.logback.classic.util.ContextInitializer
 import dev.dirs.ProjectDirectories
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.slf4j.bridge.SLF4JBridgeHandler
 import picocli.CommandLine
 import java.lang.invoke.MethodHandles
 import java.nio.file.Path
@@ -81,9 +82,12 @@ object LogUtils {
 			logContextProperties.clear()
 		context.reset()
 		setLoggingProperties(context)
+		SLF4JBridgeHandler.removeHandlersForRootLogger()
+		SLF4JBridgeHandler.install()
 		ContextInitializer(context).autoConfig()
 		val levels = context.loggerList.associate { Pair(it.name, it.level) }
 		levels.forEach { (name, level) -> context.getLogger(name).level = level }
+
 	}
 
 	@JvmStatic

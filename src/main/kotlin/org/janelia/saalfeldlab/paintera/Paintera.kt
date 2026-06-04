@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.debug.DebugModeProperty
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.universe.PainteraN5Factory
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -129,10 +130,10 @@ class Paintera : Application() {
 			return
 		}
 
-		projectPath?.let {
-			notifySplashScreen(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
-			val projectUri = projectPath.toURI().toString()
-			PainteraCache.RECENT_PROJECTS.appendLine(projectUri, 15)
+		projectPath?.let { project ->
+			notifySplashScreen(SplashScreenUpdateNotification("Loading Project: ${project.path}", false))
+			val canonicalString = N5Helpers.canonicalString(project.toURI())
+			PainteraCache.RECENT_PROJECTS.appendLine(canonicalString, 15)
 		} ?: let {
 			notifySplashScreen(SplashScreenUpdateNumItemsNotification(2, false))
 			notifySplashScreen(SplashScreenUpdateNotification("Launching Paintera...", true))

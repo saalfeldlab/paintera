@@ -167,7 +167,9 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 				}
 			}
 		})
-		currentSource?.let { populateFrom(it) } ?: let {
+		runCatching { currentSource?.let { populateFrom(it) } }
+			.onFailure { LOG.warn(it) { "Unable to populate from current source ${currentSource?.name}" } }
+			.getOrNull() ?: let {
 			val scale0 = MipMapLevel(1, -1, FIELD_WIDTH, NAME_WIDTH, *SubmitOn.entries.toTypedArray())
 			provideAbsoluteValues(listOf(scale0), resolution, dimensions)
 			mipmapLevels += scale0

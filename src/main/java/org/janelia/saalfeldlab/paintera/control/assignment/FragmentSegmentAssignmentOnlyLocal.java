@@ -2,21 +2,23 @@ package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import com.google.gson.annotations.Expose;
 import gnu.trove.impl.Constants;
+import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongLongMap;
+import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
 import javafx.util.Pair;
+import kotlin.Unit;
 import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.LongSupplier;
@@ -68,19 +70,21 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		return new DoesNotPersist(persistError);
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
-	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap(
-			Constants.DEFAULT_CAPACITY,
-			Constants.DEFAULT_LOAD_FACTOR,
-			Label.TRANSPARENT,
-			Label.TRANSPARENT
-	);
+	private final TLongLongMap fragmentToSegmentMap =  new TLongLongHashMap(
+					Constants.DEFAULT_CAPACITY,
+					Constants.DEFAULT_LOAD_FACTOR,
+					Label.TRANSPARENT,
+					Label.TRANSPARENT
+			);
 
-	private final TLongObjectHashMap<TLongHashSet> segmentToFragmentsMap = new TLongObjectHashMap<>(
-			Constants.DEFAULT_CAPACITY,
-			Constants.DEFAULT_LOAD_FACTOR,
-			Label.TRANSPARENT
+	private final TLongObjectMap<TLongHashSet> segmentToFragmentsMap = new TSynchronizedLongObjectMap<>(
+			new TLongObjectHashMap<>(
+					Constants.DEFAULT_CAPACITY,
+					Constants.DEFAULT_LOAD_FACTOR,
+					Label.TRANSPARENT
+			)
 	);
 
 	private final Persister persister;
@@ -144,46 +148,49 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		} else {
 			id = segmentId;
 		}
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Returning {} for fragment {}: ", id, fragmentId);
-		}
+		LOG.trace(() -> "Returning %s for fragment %s: ".formatted(id, fragmentId));
 		return id;
 	}
 
 	@Override
 	public synchronized TLongHashSet getFragments(final long segmentId) {
 
-		final TLongHashSet fragments = segmentToFragmentsMap.get(segmentId);
-		return fragments == null ? new TLongHashSet(new long[]{segmentId}) : new TLongHashSet(fragments);
+		synchronized (segmentToFragmentsMap) {
+			final TLongHashSet fragments = segmentToFragmentsMap.get(segmentId);
+			return fragments == null ? new TLongHashSet(new long[]{segmentId}) : new TLongHashSet(fragments);
+		}
 	}
 
 	private void detachFragmentImpl(final Detach detach) {
 
 		LOG.debug("Detach {}", detach);
-		final long segmentFrom = fragmentToSegmentMap.get(detach.fragmentId);
-		if (fragmentToSegmentMap.get(detach.fragmentFrom) != segmentFrom) {
-			LOG.debug("{} not in same segment -- return without detach", detach);
-			return;
+		final long segmentFrom;
+		synchronized (fragmentToSegmentMap) {
+            segmentFrom = fragmentToSegmentMap.get(detach.fragmentId);
+            if (fragmentToSegmentMap.get(detach.fragmentFrom) != segmentFrom) {
+				LOG.debug("{} not in same segment -- return without detach", detach);
+				return;
+			}
 		}
 
 		final long fragmentId = detach.fragmentId;
 		final long fragmentFrom = detach.fragmentFrom;
 
-		this.fragmentToSegmentMap.remove(fragmentId);
-		LOG.debug("Removed {} from {}", fragmentId, this.fragmentToSegmentMap);
+		fragmentToSegmentMap.remove(fragmentId);
+		LOG.debug("Removed {} from {}", fragmentId, fragmentToSegmentMap);
 
 		LOG.debug("Removing fragment={} from segment={}", fragmentId, segmentFrom);
-		final TLongHashSet fragments = this.segmentToFragmentsMap.get(segmentFrom);
+		final TLongHashSet fragments = segmentToFragmentsMap.get(segmentFrom);
 		if (fragments != null) {
 			fragments.remove(fragmentId);
 			LOG.debug("Removed {} from {}", fragmentId, fragments);
 			if (fragments.isEmpty()) {
-				this.fragmentToSegmentMap.remove(fragmentFrom);
-				this.segmentToFragmentsMap.remove(segmentFrom);
+				fragmentToSegmentMap.remove(fragmentFrom);
+				segmentToFragmentsMap.remove(segmentFrom);
 			}
 		}
-		LOG.debug("Fragment-to-segment map after detach: {}", this.fragmentToSegmentMap);
-		LOG.debug("Segment-to-fragment map after detach: {}", this.segmentToFragmentsMap);
+		LOG.debug("Fragment-to-segment map after detach: {}", fragmentToSegmentMap);
+		LOG.debug("Segment-to-fragment map after detach: {}", segmentToFragmentsMap);
 	}
 
 	private void mergeFragmentsImpl(final Merge merge) {
@@ -201,21 +208,23 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		// return here
 		// Therefore, check if from is contained. Alternatively, compare
 		// getSegment( from ) == getSegment( to )
-		if (fragmentToSegmentMap.contains(from) && fragmentToSegmentMap.get(from) == fragmentToSegmentMap.get(into)) {
-			LOG.debug("Fragments already in same segment -- not merging");
-			return;
+		synchronized (fragmentToSegmentMap) {
+			if (fragmentToSegmentMap.containsKey(from) && fragmentToSegmentMap.get(from) == fragmentToSegmentMap.get(into)) {
+				LOG.debug("Fragments already in same segment -- not merging");
+				return;
+			}
 		}
 
-		final long segmentFrom = fragmentToSegmentMap.contains(from) ? fragmentToSegmentMap.get(from) : from;
+		final long segmentFrom = fragmentToSegmentMap.containsKey(from) ? fragmentToSegmentMap.get(from) : from;
 		final TLongHashSet fragmentsFrom = segmentToFragmentsMap.remove(segmentFrom);
 		LOG.debug("From segment: {} To segment: {}", segmentFrom, segmentInto);
 
-		if (!fragmentToSegmentMap.contains(into)) {
+		if (!fragmentToSegmentMap.containsKey(into)) {
 			LOG.debug("Adding segment {} to framgent {}", segmentInto, into);
 			fragmentToSegmentMap.put(into, segmentInto);
 		}
 
-		if (!segmentToFragmentsMap.contains(segmentInto)) {
+		if (!segmentToFragmentsMap.containsKey(segmentInto)) {
 			final TLongHashSet fragmentOnly = new TLongHashSet();
 			fragmentOnly.add(into);
 			LOG.debug("Adding fragments {} for segmentInto {}", fragmentOnly, segmentInto);

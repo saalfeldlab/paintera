@@ -13,14 +13,14 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-internal class ShapeInterpolationFillTool(private val controller : ShapeInterpolationController<*>, activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, val shapeInterpolationMode: ShapeInterpolationMode<*>) : Fill2DTool(activeSourceStateProperty, shapeInterpolationMode) {
+internal class ShapeInterpolationFillTool(private val controller : ShapeInterpolationController<*>, activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ShapeInterpolationMode<*>) : Fill2DTool(activeSourceStateProperty, mode) {
 
 
 	override val afterFill = ::addSelectionOverFillInterval
 
 	private fun addSelectionOverFillInterval(interval: Interval?) {
 		interval?.also {
-			val slice = shapeInterpolationMode.addSelection(it)
+			val slice = mode.addSelection(it)
 			slice?.locked = true
 		}
 	}
@@ -33,7 +33,7 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 	}
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
-		super.actionSets.also { it += shapeInterpolationMode.extraActions() }
+		super.actionSets.also { it += mode.extraActions() }
 	}
 
 

@@ -136,11 +136,14 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SHAPE_INTERPOLATION__SELECT_NEXT_SLICE               ( RIGHT ),
     SHAPE_INTERPOLATION__REMOVE_SLICE_1                  ( DELETE, "delete current slice "),
     SHAPE_INTERPOLATION__REMOVE_SLICE_2                  ( BACK_SPACE, "delete current slice  "),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT        ( OPEN_BRACKET, "shape interpolation: auto SAM: new slice left" ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT     ( QUOTE, "shape interpolation: auto SAM: new slice between closest slices" ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICES_BISECT_ALL ( SHIFT_DOWN + QUOTE, "shape interpolation: auto SAM: new slice between all slices" ),
-    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT       ( CLOSE_BRACKET, "shape interpolation: auto SAM: new slice right"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_BISECT_LEFT ( OPEN_BRACKET, "shape interpolation: auto SAM: new bisect slice left" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_BISECT_RIGHT( CLOSE_BRACKET, "shape interpolation: auto SAM: new bisect slice right"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_LEFT        ( SHIFT_DOWN + OPEN_BRACKET, "shape interpolation: auto SAM: new slice left" ),
+    SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_RIGHT       ( SHIFT_DOWN + CLOSE_BRACKET, "shape interpolation: auto SAM: new slice right"   ),
     SHAPE_INTERPOLATION__AUTO_SAM__NEW_SLICE_HERE        ( SHIFT_DOWN + A, "shape interpolation: auto SAM: new slice at current location"   ),
+    SHAPE_INTERPOLATION__AUTO_SAM__REFINE_AUTO_SLICES    ( ALT_DOWN + A, "shape interpolation: auto SAM: refine automatic slices"   ),
     GO_TO_LABEL                                          ( CONTROL_DOWN + L, "go-to-label")
     ;
 

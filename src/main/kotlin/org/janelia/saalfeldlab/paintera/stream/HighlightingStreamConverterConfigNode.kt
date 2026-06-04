@@ -44,13 +44,15 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 	private val activeSegmentAlphaInt = converter.activeSegmentAlphaProperty()
 
+	private val streamSetter = ARGBStreamSeedSetter(converter.stream)
+
 	init {
 		/* bind the label alpha */
 		alpha.addListener { _, _, new -> alphaInt.set(toIntegerBased(new.toDouble())) }
 		alphaInt.addListener { _, _, newv -> alpha.set(toDoubleBased(newv.toInt())) }
 		alpha.value = toDoubleBased(alphaInt.value)
 
-		/* bidn the active fragment alpha */
+		/* bind the active fragment alpha */
 		activeFragmentAlpha.addListener { _, _, new -> activeFragmentAlphaInt.set(toIntegerBased(new.toDouble())) }
 		activeFragmentAlphaInt.addListener { _, _, new -> activeFragmentAlpha.set(toDoubleBased(new.toInt())) }
 		activeFragmentAlpha.value = toDoubleBased(activeFragmentAlphaInt.value)
@@ -78,31 +80,41 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				++row
 			}
 
-			val streamSeedField = NumberField.longField(1, { true }, *ObjectField.SubmitOn.values())
-			streamSeedField.valueProperty().addListener { _, _, new -> new?.toLong()?.let { converter.stream.setSeed(it); converter.stream.clearCache() } }
-			converter.stream.addListener { streamSeedField.valueProperty().value = converter.stream.seed }
+			val streamSeedField = NumberField.longField(1, { true }, *ObjectField.SubmitOn.entries.toTypedArray())
+			streamSeedField.valueProperty().subscribe { _, new ->
+				val newSeed = new?.toLong() ?: return@subscribe //This shouldn't be possible, since the field is constrained to valid Long
+				streamSetter.setStreamSeed(newSeed)
+			}
+			converter.stream.subscribe {
+				streamSeedField.valueProperty().value = converter.stream.seed
+			}
 			streamSeedField.valueProperty().value = converter.stream.seed
+
 			streamSeedField.textField.tooltip = Tooltip("Press enter or focus different UI element to submit seed value.")
 			streamSeedField.textField.alignment = Pos.CENTER_RIGHT
 			HBox.setHgrow(streamSeedField.textField, Priority.ALWAYS)
 
-			val buttons = VBox(
-				TriangleButton.create(12.0).apply {
-					onMouseClicked = EventHandler { converter.stream.incSeed(); converter.stream.clearCache() }
-					rotate = 180.0
-				},
-				TriangleButton.create(12.0).apply { onMouseClicked = EventHandler { converter.stream.decSeed(); converter.stream.clearCache() } }
-			).apply {
-				alignment = Pos.CENTER_LEFT
-				spacing = 4.0
-			}
-			val seedBox = HBox(
-				Labels.withTooltip("Seed", "Seed value for pseudo-random color distribution"),
-				buttons,
-				streamSeedField.textField
-			).apply { spacing = 4.0 }
 
-			seedBox.alignment = Pos.CENTER
+			val seedBox = HBox().apply {
+				spacing = 4.0
+				alignment = Pos.CENTER
+
+				children += Labels.withTooltip("Seed", "Seed value for pseudo-random color distribution")
+				children += VBox().apply {
+					alignment = Pos.CENTER_LEFT
+					spacing = 4.0
+
+					children += TriangleButton.create(12.0).apply {
+						setOnMouseClicked { streamSetter.incrementStreamSeed() }
+						rotate = 180.0
+					}
+					children += TriangleButton.create(12.0).apply {
+						setOnMouseClicked { streamSetter.decrementStreamSeed() }
+					}
+				}
+				children += streamSeedField.textField
+			}
+
 			contents.children.add(seedBox)
 
 
@@ -173,7 +185,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			backgroundIdVisible.tooltip = Tooltip( "Make the background ID visible" )
 			val backgroundIsVisible = converter.getStream().overrideAlpha.get(BACKGROUND) != 0
 			backgroundIdVisible.selectedProperty().set(backgroundIsVisible)
-			backgroundIdVisible.selectedProperty().addListener { obs, oldv, visible ->
+			backgroundIdVisible.selectedProperty().addListener { _, _, visible ->
 				if (visible)
 					converter.getStream().overrideAlpha.remove(BACKGROUND)
 				else

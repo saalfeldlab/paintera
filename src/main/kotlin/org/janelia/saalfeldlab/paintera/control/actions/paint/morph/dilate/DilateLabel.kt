@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import kotlinx.coroutines.*
@@ -10,7 +11,9 @@ import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.addListener
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
@@ -24,10 +27,18 @@ import kotlin.math.ceil
 
 object DilateLabel : MenuAction("_Expand...") {
 
+	private val LOG = KotlinLogging.logger {  }
+
 	internal var mainTaskLoop: Deferred<List<Interval>?>? = null
 	internal var dilateScope : DilateScope = DilateScope()
 	internal fun submitUI(block: suspend CoroutineScope.() -> Unit): Job = dilateScope.submitUI(block)
+
 	internal class DilateScope : ChannelLoop(
+		coroutineScope = CoroutineScope(
+			SupervisorJob()
+			+ Dispatchers.Default
+			+ CoroutineExceptionHandler { _, e -> LOG.error(e) { "Dilate Action Failed" }}
+		),
 		capacity = CONFLATED
 	) {
 		private val pulseConflatedUILoop = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
@@ -161,28 +172,22 @@ object DilateLabel : MenuAction("_Expand...") {
 					}
 
 					UpdateSignal.Finish -> {
-						val finisDilateJob = dilateScope.submit {
-							intervals = dilateMask(false, redilateType).map { it.smallestContainingInterval }
-						}
-						finisDilateJob.invokeOnCompletion { cause ->
-							when (cause) {
-								null -> Unit
-								is CancellationException -> {
-									DilateLabel.submitUI {
-										progress = 0.0
-									}
+						dilateScope.submit {
+							try {
+								intervals = dilateMask(false, redilateType).map { it.smallestContainingInterval }
+							} catch (e: CancellationException) {
+								withContext(NonCancellable) {
+									dilateScope.submitUI { progress = 0.0 }
 									maskedSource.resetMasks()
 									paintera.baseView.orthogonalViews().requestRepaint()
 								}
-
-								else -> throw cause
+								throw e
 							}
 						}
-						finisDilateJob
 					}
 				}
 
-				updateDilateJob.invokeOnCompletion { cause -> isBusy = false }
+				updateDilateJob.invokeOnCompletion { isBusy = false }
 
 				if (redilateType == UpdateSignal.Finish) {
 					try {
@@ -204,25 +209,32 @@ object DilateLabel : MenuAction("_Expand...") {
 					maskedSource.apply {
 						val applyProgressProperty = SimpleDoubleProperty()
 						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							DilateLabel.submitUI { progress = it.toDouble() }
+							dilateScope.submitUI { progress = it.toDouble() }
 						}
 						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
 						applyUpdateSubscription.unsubscribe()
-						DilateLabel.submitUI { progress = 1.0 }
 					}
 					requestRepaintOverIntervals(intervals)
 					refreshMeshes()
 				}
 				try {
-					/* reset if an exception; throw unless cancellation */
+					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						dilateScope.cancelCurrent()
-						it.takeUnless { it is CancellationException }?.let { throw it }
+						it.takeUnless { it is CancellationException }?.let { error ->
+							LOG.error(error) { "Dilate failed" }
+							InvokeOnJavaFXApplicationThread {
+								Exceptions.exceptionAlert(Constants.NAME, "Dilate failed", error).show()
+							}
+						}
 					}
 				} finally {
-					DilateLabel.submitUI { subscriptions.unsubscribe() }
+					submitUI {
+						cause ?: run { progress = 1.0 }
+						subscriptions.unsubscribe()
+					}
 					paintera.baseView.disabledPropertyBindings -= task
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)

@@ -176,7 +176,14 @@ public class ValueDisplayListener<T> implements EventHandler<MouseEvent>, Transf
 
 	private static <T> Function<T, String> stringConverter(final T t) {
 		if (t instanceof Volatile<?>)
-			return it -> ((Volatile<?>)it).get().toString();
+			return it -> {
+				try {
+					return ((Volatile<?>)it).get().toString();
+				} catch (Exception e) {
+					LOG.warn(e, () -> "Error getting Value Display");
+					return "";
+				}
+			};
 		return T::toString;
 	}
 

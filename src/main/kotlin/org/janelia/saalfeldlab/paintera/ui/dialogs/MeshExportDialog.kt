@@ -130,10 +130,10 @@ private class MeshExportUI<K>(val model: MeshExportModel<K>) : VBox() {
 
 	private val scaleSpinner = Spinner<Int>().apply {
 		valueFactory = SpinnerValueFactory.IntegerSpinnerValueFactory(Integer.MIN_VALUE, Integer.MAX_VALUE).apply {
-			val minScaleBinding = Bindings.createIntegerBinding({ model.scaleLevels.min() }, model.scaleLevels)
+			val minScaleBinding = Bindings.createIntegerBinding({ model.scaleLevels.min() ?: 0 }, model.scaleLevels)
 			minProperty().bind(minScaleBinding)
 
-			val maxScaleBinding = Bindings.createIntegerBinding({ model.scaleLevels.max() }, model.scaleLevels)
+			val maxScaleBinding = Bindings.createIntegerBinding({ model.scaleLevels.max() ?: 0 }, model.scaleLevels)
 			maxProperty().bind(maxScaleBinding)
 
 			valueProperty().bindBidirectional(model.scaleLevel)
@@ -142,7 +142,7 @@ private class MeshExportUI<K>(val model: MeshExportModel<K>) : VBox() {
 		isEditable = true
 	}
 
-	private val formatComboBox = ComboBox<MeshFileFormat>(FXCollections.observableList(MeshFileFormat.entries)).apply {
+	private val formatComboBox = ComboBox(FXCollections.observableList(MeshFileFormat.entries)).apply {
 		valueProperty().bindBidirectional(model.fileFormat)
 		selectionModel.select(value)
 		maxWidth = Double.POSITIVE_INFINITY

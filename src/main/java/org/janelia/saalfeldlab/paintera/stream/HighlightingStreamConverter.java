@@ -3,12 +3,7 @@ package org.janelia.saalfeldlab.paintera.stream;
 import gnu.trove.map.TLongIntMap;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
@@ -56,18 +51,18 @@ public abstract class HighlightingStreamConverter<T>
 
 		super();
 		this.stream = stream;
-		seed.addListener((obs, oldv, newv) -> stream.setSeed(newv.longValue()));
-		alpha.addListener((obs, oldv, newv) -> stream.setAlpha(newv.intValue()));
-		activeFragmentAlpha.addListener((obs, oldv, newv) -> stream.setActiveFragmentAlpha(newv.intValue()));
-		activeSegmentAlpha.addListener((obs, oldv, newv) -> stream.setActiveSegmentAlpha(newv.intValue()));
-		hideLockedSegments.addListener((obs, oldv, newv) -> stream.setHideLockedSegments(newv));
+		seed.addListener((_, _, newv) -> stream.setSeed(newv.longValue()));
+		alpha.addListener((_, _, newv) -> stream.setAlpha(newv.intValue()));
+		activeFragmentAlpha.addListener((_, _, newv) -> stream.setActiveFragmentAlpha(newv.intValue()));
+		activeSegmentAlpha.addListener((_, _, newv) -> stream.setActiveSegmentAlpha(newv.intValue()));
+		hideLockedSegments.addListener((_, _, newv) -> stream.setHideLockedSegments(newv));
 		stream.setSeed(seed.get());
 		alpha.set(stream.getAlpha());
 		activeFragmentAlpha.set(stream.getActiveFragmentAlpha());
 		activeSegmentAlpha.set(stream.getActiveSegmentAlpha());
 		hideLockedSegments.set(stream.getHideLockedSegments());
 		stream.colorFromSegmentIdProperty().bind(this.colorFromSegmentId);
-		stream.addListener(obs -> {
+		stream.addListener(_ -> {
 			this.seed.set(stream.getSeed());
 			this.alpha.set(stream.getAlpha());
 			this.activeFragmentAlpha.set(stream.getActiveFragmentAlpha());

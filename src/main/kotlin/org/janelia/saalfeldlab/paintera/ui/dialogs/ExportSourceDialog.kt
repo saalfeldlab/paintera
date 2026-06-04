@@ -1,9 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs
 
+import javafx.beans.binding.ObjectBinding
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.geometry.HPos
+import javafx.geometry.Insets
 import javafx.geometry.Pos
+import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.ColumnConstraints
@@ -15,15 +18,21 @@ import javafx.util.StringConverter
 import net.imglib2.type.numeric.RealType
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.set
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
+import org.janelia.saalfeldlab.n5.Compression
+import org.janelia.saalfeldlab.n5.Compression.CompressionType
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.namedCombinationsCopy
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState
+import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState.Companion.COMPRESSION_INDEX
+import org.janelia.saalfeldlab.paintera.control.actions.ExportSourceState.Companion.DEFAULT_COMPRESSION
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.paintera
@@ -32,7 +41,10 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import kotlin.jvm.optionals.getOrNull
 
 object ExportSourceDialog {
@@ -75,7 +87,7 @@ object ExportSourceDialog {
 	}
 
 	private fun newDialog(state: ExportSourceState): Alert = PainteraAlerts.confirmation(EXPORT, CANCEL_LABEL).apply {
-		val choiceBox = createSourceChoiceBox().apply {
+        val choiceBox = sourceChoiceNode().apply {
 			maxWidth = Double.MAX_VALUE
 		}
 
@@ -114,7 +126,7 @@ object ExportSourceDialog {
 				maxWidth = Double.MAX_VALUE
 				state.exportLocationProperty.bindBidirectional(textProperty())
 			}
-			add(containerPathField, 2, 1, 2, 1)
+            add(containerPathField, 2, 1, 1, 1)
 			add(HBox().apply {
 				children += Button("Browse").apply {
 					setOnAction {
@@ -125,7 +137,7 @@ object ExportSourceDialog {
 						}
 					}
 				}
-				PainteraCache.RECENT_EXPORT_LOCATIONS.readLines().reversed().takeIf { it.isNotEmpty() }?.let { recentExports ->
+				PainteraCache.RECENT_EXPORT_LOCATIONS.distinctCanonicalStrings().takeIf { it.isNotEmpty() }?.let { recentExports ->
 					containerPathField.text = recentExports.firstOrNull()
 					containerPathField.prefColumnCount *= 2
 					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {
@@ -144,25 +156,19 @@ object ExportSourceDialog {
 
 
 			val smallOptions = GridPane().apply {
+                padding = Insets(5.0, 0.0, 5.0, 0.0)
+
+                hgap = 10.0
+                vgap = 5.0
 				columnConstraints.addAll(
 					ColumnConstraints().apply { halignment = HPos.RIGHT },
-					ColumnConstraints().apply {
-						hgrow = Priority.NEVER
-						minWidth = 10.0
-					},
+                    ColumnConstraints().apply { halignment = HPos.LEFT },
+
+                    ColumnConstraints().apply { halignment = HPos.RIGHT },
 					ColumnConstraints().apply { halignment = HPos.LEFT },
 
-					ColumnConstraints().apply {
-						halignment = HPos.CENTER
-						isFillWidth = true
-						hgrow = Priority.ALWAYS
-					},
 
 					ColumnConstraints().apply { halignment = HPos.RIGHT },
-					ColumnConstraints().apply {
-						hgrow = Priority.NEVER
-						minWidth = 10.0
-					},
 					ColumnConstraints().apply { halignment = HPos.LEFT },
 				)
 			}
@@ -181,46 +187,159 @@ object ExportSourceDialog {
 					prevScaleLevels = it
 				}
 			}
-			val dataTypeChoices = ChoiceBox(FXCollections.observableArrayList(*acceptableDataTypes)).apply {
-				converter = object : StringConverter<DataType>() {
+            //@formatter:off
+            val configNodes : List<List<ConfigNode?>> = listOf(
+                listOf( SegmentFragmentMappingConfig(state), StorageFormatConfig(state), ScaleLevelConfig(scaleLevelsBinding, state) ),
+                listOf(                                null,   CompressionConfig(state),                       DataTypeConfig(state) )
+            )
+            //@formatter:on
+
+            configNodes.forEachIndexed { row, nodes ->
+                nodes.forEachIndexed { colIdx, configNode ->
+                    configNode?.apply {
+                        val column = colIdx*2
+                        smallOptions[column, row] = label
+                        smallOptions[column + 1, row] = config
+                    }
+                }
+            }
+
+
+
+            object : StringConverter<StorageFormat?>() {
+                override fun toString(`object`: StorageFormat?) = `object`?.name?.uppercase() ?: "Default"
+
+                override fun fromString(string: String?): StorageFormat? {
+                    string ?: return null
+                    return runCatching { StorageFormat.valueOf(string.uppercase()) }.getOrNull()
+                }
+            }
+
+            add(smallOptions, 0, 3, GridPane.REMAINING, 1)
+        }
+    }
+
+    private interface ConfigNode {
+        val label: Label
+        val config: Node
+    }
+
+    private data class DataTypeConfig(override val label: Label, override val config: ChoiceBox<DataType>) : ConfigNode {
+        constructor(state: ExportSourceState) : this(
+            Label("Data Type").apply { alignment = Pos.BOTTOM_RIGHT },
+            ChoiceBox(FXCollections.observableArrayList(*acceptableDataTypes)).apply {
+                converter = DataTypeConverter
+                state.maxIdProperty.subscribe { maxId -> selectionModel.select(pickSmallestDataType(maxId.toLong())) }
+                state.dataTypeProperty.bind(selectionModel.selectedItemProperty())
+            }
+        )
+
+
+
+        companion object DataTypeConverter : StringConverter<DataType>() {
 					override fun toString(`object`: DataType?): String = `object`?.name?.uppercase() ?: "Select a Data Type..."
 					override fun fromString(string: String?) = DataType.fromString(string?.lowercase())
 				}
 			}
 
-			state.maxIdProperty.subscribe { maxId -> dataTypeChoices.selectionModel.select(pickSmallestDataType(maxId.toLong())) }
-			state.dataTypeProperty.bind(dataTypeChoices.selectionModel.selectedItemProperty())
+    private data class CompressionConfig(override val label: Label, override val config: ChoiceBox<CompressionType>) :
+        ConfigNode {
+        constructor(state: ExportSourceState) : this(
+            Label("Compression").apply { alignment = Pos.BOTTOM_RIGHT },
+            ChoiceBox<CompressionType>().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
+                converter = CompressionTypeConverter
+                itemsProperty().get().setAll(*COMPRESSION_INDEX.map { it.annotation() }.toTypedArray())
+                selectionModel.select(DEFAULT_COMPRESSION.annotation())
+                selectionModel.selectedItemProperty().subscribe { compressionType ->
+                    val compression = runCatching {
+                        COMPRESSION_INDEX.first { it.annotation() == compressionType }
+                            .className().let { cls ->
+                                Class.forName(cls)
+                                    .asSubclass(Compression::class.java)
+                                    .getDeclaredConstructor()
+                                    .newInstance()
+                            }
+                    }.getOrNull() ?: ZstandardCompression()
+                    state.compressionProperty.set(compression)
 
-			smallOptions.add(Label("Map Fragment to Segment ID").apply { alignment = Pos.BOTTOM_RIGHT }, 0, 0)
-			smallOptions.add(CheckBox().apply {
-				state.segmentFragmentMappingProperty.bind(selectedProperty())
-				selectedProperty().set(true)
-				alignment = Pos.CENTER_LEFT
-			}, 2, 0)
-			smallOptions.add(Label("Scale Level").apply { alignment = Pos.BOTTOM_RIGHT }, 4, 0)
-			smallOptions.add(ChoiceBox<Int>().apply {
-				alignment = Pos.CENTER_LEFT
+                }
+            }
+        )
+
+        companion object CompressionTypeConverter : StringConverter<CompressionType>() {
+            override fun toString(`object`: CompressionType) = `object`.value
+            override fun fromString(string: String) =
+                COMPRESSION_INDEX.first { it.annotation()!!.value == string }.annotation()
+        }
+    }
+
+
+    private data class ScaleLevelConfig(override val label: Label, override val config: ChoiceBox<Int>) : ConfigNode {
+        constructor(scaleLevelsBinding: ObjectBinding<ObservableList<Int>?>, state: ExportSourceState) : this(
+            Label("Scale Level").apply { alignment = Pos.BOTTOM_RIGHT },
+            ChoiceBox<Int>().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
 				itemsProperty().bind(scaleLevelsBinding)
 				itemsProperty().subscribe { _ -> selectionModel.selectFirst() }
 				state.scaleLevelProperty.bind(valueProperty())
-			}, 6, 0)
-			smallOptions.add(Label("Data Type").apply { alignment = Pos.BOTTOM_RIGHT }, 4, 1)
-			smallOptions.add(dataTypeChoices, 6, 1)
+            }
+        )
+    }
 
-			add(smallOptions, 0, 3, GridPane.REMAINING, 1)
+    private data class StorageFormatConfig(override val label: Label, override val config: ChoiceBox<StorageFormat?>) :
+        ConfigNode {
+
+        constructor(state: ExportSourceState) : this(
+
+            Label("Storage Format").apply { alignment = Pos.BOTTOM_RIGHT },
+
+            ChoiceBox<StorageFormat?>().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
+                converter = StorageFormatConverter
+                itemsProperty().get().setAll(null, *StorageFormat.entries.toTypedArray())
+                selectionModel.selectFirst()
+                selectionModel.selectedItemProperty().subscribe { format -> state.storageFormatProperty.set(format) }
+            }
+        )
+
+        companion object StorageFormatConverter : StringConverter<StorageFormat?>() {
+            override fun toString(`object`: StorageFormat?) = `object`?.name?.uppercase() ?: "Default"
+
+            override fun fromString(string: String?): StorageFormat? {
+                string ?: return null
+                return runCatching { StorageFormat.valueOf(string.uppercase()) }.getOrNull()
+            }
 		}
 	}
 
-	private fun createSourceChoiceBox(): ChoiceBox<ConnectomicsLabelState<*, *>> {
+    private data class SegmentFragmentMappingConfig(override val label: Label, override val config: CheckBox) :
+        ConfigNode {
+        constructor(state: ExportSourceState) : this(
+            Label("Map Fragment to Segment ID").apply { alignment = Pos.BOTTOM_RIGHT },
+            CheckBox().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
+                alignment = Pos.CENTER_LEFT
+                state.segmentFragmentMappingProperty.bind(selectedProperty())
+                selectedProperty().set(true)
+            }
+        )
+    }
+
+    private fun sourceChoiceNode(): ChoiceBox<ConnectomicsLabelState<*, *>> {
 		val choices = getValidExportSources()
 
 		return ChoiceBox(choices).apply {
+            maxWidth = Double.MAX_VALUE
 			val curChoiceIdx = choices.indexOfFirst { it == paintera.baseView.sourceInfo().currentState() }
 			if (curChoiceIdx != -1)
 				selectionModel.select(curChoiceIdx)
 			else
 				selectionModel.selectFirst()
-			maxWidth = Double.MAX_VALUE
 			converter = object : StringConverter<ConnectomicsLabelState<*, *>>() {
 				override fun toString(`object`: ConnectomicsLabelState<*, *>?): String = `object`?.nameProperty()?.get() ?: "Select a Source..."
 				override fun fromString(string: String?) = choices.first { it.nameProperty().get() == string }
@@ -254,6 +373,5 @@ object ExportSourceDialog {
 			}
 		}
 	}
-
 }
 

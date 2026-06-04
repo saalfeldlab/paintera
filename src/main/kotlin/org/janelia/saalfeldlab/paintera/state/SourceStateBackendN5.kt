@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.paintera.util.PainteraUtils.intervalInSourceSpace
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.isNotEmpty
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.union
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
@@ -98,18 +99,12 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	}
 
 	private fun VBox.addContainerAndDatasetChildren(n5ContainerState: N5ContainerState, metadataState: MetadataState) {
-		val containerUri = n5ContainerState.uri
-		val containerString = if (containerUri.scheme == "file")
-			containerUri.path
-		 else
-			 containerUri.toString()
+		val containerLocation = N5Helpers.canonicalString(n5ContainerState.uri)
 
 		val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `$containerString'")
+		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `$containerLocation'")
 
-
-
-		val container = TextField(containerString).apply { isEditable = false }
+		val container = TextField(containerLocation).apply { isEditable = false }
 		val dataset = TextField(metadataState.dataset).apply { isEditable = false }
 
 		children += HBox(containerLabel, container).apply { spacing = 10.0 }
