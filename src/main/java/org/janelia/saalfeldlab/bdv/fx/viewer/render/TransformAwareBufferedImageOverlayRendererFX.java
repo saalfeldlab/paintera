@@ -93,25 +93,6 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 				LOG.trace("Setting image to {}", sourceImage);
 				g.accept(null);
 
-				/*
-				 * NOTE: need to make the final image fully opaque to ensure that it is properly drawn on the screen later on.
-				 * It is only necessary because existing BlendMode options in JavaFX always perform some kind of blending with old contents of the displayed component.
-				 *
-				 * Ideally, we would use BlendMode.SRC if it was available (that would overwrite the destination with the source regardless of alpha).
-				 * See discussion about possibility of adding this mode in the future versions and more information here:
-				 *
-				 * https://bugs.openjdk.java.net/browse/JDK-8092156
-				 *
-				 * https://books.google.com/books?id=UxM2iXiFqbMC&pg=PA97&lpg=PA97&dq=Porter-Duff+%22source+over+destination%22&source=bl&ots=hYj5U2X5Lk&sig=ACfU3U095X67T4FghqCpgYrAhEWbNtd_xQ&hl=en&sa=X&ved=2ahUKEwjyg4rRufXfAhXvuFkKHfK8BysQ6AEwAnoECAcQAQ#v=snippet&q=%22overwrites%20the%20destination%20with%20the%20source%2C%20regardless%20of%20alpha%22&f=false
-				 *
-				 * https://docs.oracle.com/javase/8/javafx/api/javafx/scene/effect/BlendMode.html
-				 */
-				//FIXME: Pretty sure we don't want to be iterating over the entire render image AGAIN
-				// in the ovarlay renderer.... It has huge performance implications
-				//for (final ARGBType px : sourceImage.asArrayImg()) {
-				//	px.set(px.get() | FULL_OPACITY);
-				//}
-
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
 				// TODO add countdown latch to wait for setImage to return before notifying listeners
@@ -120,7 +101,6 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 						listener.transformChanged(paintedTransform);
 					}
 			});
-			//			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
 		}
 	}
 
