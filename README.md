@@ -340,23 +340,23 @@ Usage: Paintera [--add-n5-container=<container>...
   - Segment Anything [Automatic Labelling](#automatic-labelling-segment-anything)
   - Label Selection
 
-| Action                               | Description                                                                                |
-|--------------------------------------|--------------------------------------------------------------------------------------------|
-| `S`                                  | Toggle Shape Interpolation mode                                                            |
-| `Esc`                                | Exit current tool, or exit Shape Interpolation mode if no tool is active                   |
-| `Shift` + `Left` / `Shift` + `Right` | Move to first/last slice                                                                   |
-| `Left` / `Right`                     | Move to the previous/next slice                                                            |
-| `Enter`                              | Commit interpolated shape into canvas                                                      |
-| `Ctrl` + `P`                         | Toggle interpolation preview                                                               |
-| Left Click                           | Exclusively select the label under the cursor, **removing** all other labels at this slice |
-| Right Click                          | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
-| `F`                                  | Activate 2D Flood Fill Tool                                                                |
-| Hold `SPACE`                         | Activate PAINT Tool                                                                        |
-| `A`                                  | Activate SAM Tool                                                                          |
-| `'` (Single Quote)                   | Bisect nearest two slices with new SAM auto-segmentation slice                             |
-| `"` (Double Quote)                   | Bisect all slices with new SAM auto-segmentation slices                                    |
-| `[`                                  | Add a new SAM auto-segmentation slices to the beginning of the current slices              |
-| `]`                                  | Add a new SAM auto-segmentation slices to the end of the current slices                    |
+| Action                               | Description                                                                                                          |
+|--------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `S`                          | Toggle Shape Interpolation mode                                                                                              |
+| `Esc`                        | Exit current tool, or exit Shape Interpolation mode if no tool is active                                                     |
+| `Shift+Left` / `Shift+Right` | Move to first/last slice                                                                                                     |
+| `Left` / `Right`             | Move to the previous/next slice                                                                                              |
+| `Enter`                      | Commit interpolated shape into canvas                                                                                        |
+| `Ctrl` + `P`                 | Toggle interpolation preview                                                                                                 |
+| `Left Click`                 | Exclusively select the label under the cursor, **removing** all other labels at this slice                                   |
+| `Right Click`                | Inclusively select the label under the cursor, **keeping** all other labels at this slice                                    |
+| `F`                          | Activate 2D Flood Fill Tool                                                                                                  |
+| Hold `SPACE`                 | Activate PAINT Tool                                                                                                          |
+| `A`                          | Activate SAM Tool                                                                                                            |
+| `'` (Single Quote)           | Bisect nearest two slices with new SAM auto-segmentation slice                                                               |
+| `"` (Double Quote)           | Bisect all slices with new SAM auto-segmentation slices                                                                      |
+| `Shift+[` / `Shift+]`        | Add a new SAM auto-segmentation slice to the left/right of the current left-most slice                                       |
+| `[` / `]`                    | Add a new SAM auto-segmentation slice bisecting the nearest slices. If at a slice, between the current and left/right slice. |
 
 #### Automatic Labelling: Segment Anything
 - Integrates Segment Anything to predict automatic segmentations, based on the underlying image
@@ -367,14 +367,14 @@ Usage: Paintera [--add-n5-container=<container>...
 - See [technical notes](#automatic-labelling-with-segment-anything) for more information
 See [Technical Notes](#)
 
-| Action               | Description                                                           |
-|----------------------|-----------------------------------------------------------------------|
-| `A`                  | Start automatic labelling mode                                        |
-| Left Click / `Enter` | Paint current automatic segmentation to the canvas                    |
-| `Ctrl` + Left Click  | Add point which should be **inside** of the automatic segmentation    |
-| `Ctrl` + Right Click | Add point which should be **outside** of the automatic segmentation   |
-| Left Click Drag      | Create box prompt for automatic segmentation                          |
-| `Ctrl` + Scroll      | Increase or decrease the prediction threshold to use for segmentation |
+| Action                 | Description                                                           |
+|------------------------|-----------------------------------------------------------------------|
+| `A`                    | Start automatic labelling mode                                        |
+| `Left Click` / `Enter` | Paint current automatic segmentation to the canvas                    |
+| `Ctrl+Left Click`      | Add point which should be **inside** of the automatic segmentation    |
+| `Ctrl+Right Click`     | Add point which should be **outside** of the automatic segmentation   |
+| `Left Click Drag`      | Create box prompt for automatic segmentation                          |
+| `Ctrl+Scroll`          | Increase or decrease the prediction threshold to use for segmentation |
 
 ## Supported Data
 
@@ -606,43 +606,57 @@ Navigation is suspended while exploring segmentations so the same embedding can 
 #### Generating a Segmentation
 ###### Real-time Predictions
 As mentioned above, the predictions can be done very quickly even on CPU. However there are some limitations to be aware
-about. The Segment anyting model normalizes the images during encoding to be `1024x1024`. This means that no matter the
-resolution of our display, or the resolution of your data, the highest resolution prediction will be `1024x1024` per view.
-The image that is sent to the model is only that of the current active view, at the highest screen-scale that is specified.
-This means that it is likely the case that the view sent to the model is less than, or nearly `1024` along it's max dimension
-anyway, so this effect may not even be noticeable when accepting a segmentation prediction.
+about. The Segment anyting model normalizes the images during encoding to be a specific input size. For SAM 1 and 2, its 
+`1024x1024`, for SAM 3, its `1008x1008`. This means that larger resolution viewer images will be downscaled to the target
+encoder input size. The image that is sent to the model is only that of the current active view, at the highest screen-scale
+that is specified. This means that it is likely that the view sent to the model is less than, or nearly the target input size
+anyway, so this effect may not even be noticeable when accepting a segmentation prediction. As a concrete example, a 4K 
+display with a width of `3840 pixels`, in a typical Paintera layout of a 2x2 grid of ortho views, in full screen, with the
+side panel open, the image sent to SAM will be roughly 1440, so will be likely downsampled some before being encoded.
 
 An examples of the downscaling applied to an image on a 4K monitor with a `3840x2160` resolution:
-- Fullscreen Paintera, with the default 2x2 grid, and side panel turned off
-    - Each view will be `1920x1080`
-    - Max dimensions is `1920`, so the image will be scaled down by roughly `50%`
+- Fullscreen Paintera, with the default 2x2 grid, and side panel turned on (default behavior)
+    - side panel is roughly `300` pixels horizontally so max width is roughly `3540`
+    - Each view will be roughly `1770x1080`
+    - Max dimensions is `1770`, so the image will be scaled down to either `1024` along it's width, or `1008` for SAM 3 
 
-Since Segment Anything operates only on `1024x1024` images, in cases like the above, not only will the image be
+Since Segment Anything operates on these encoded images, in cases like the above, since the image will be
 downscaled prior to sending it to the encoding service, the visual screen scale of the view will also temporarily be
 set to match the resolution of the prediction image. This ensures that:
 1. performance for the prediction is independant from screen size
 2. refreshing the view is quicker, since it is only done at the reduced resolution of the prediction image
 
 Importantly, in cases where the specified screen scale is already a more aggressive downscale that would be automatically
-done as mentioned above, Paintera will use the lower-resolution screen scale. This ensures the prediction matches what
-is displayed, but also allows you to determine whether you want a full-res (that is `1024x1024`) prediction, or a smaller,
-but faster one.
+done as mentioned above, Paintera will use the lower-resolution screen scale. 
+
+SAM also outputs decoded predictions at a smaller resolution. For SAM 1 and SAM 2, this is `256x256` and for SAM 3 this is `288x288`.
+This means that the highest resolution the predictions will be before post-processing is the decoded dimension, which is likely
+smaller than the input image size. It will be scaled up to the original viewer size of the image encoded, so it will align properly. 
+
+###### "Centre" filtering
+A grayscale "centre" filter is used to reduce the occurence of  small islands and holes that are due to the noisy-ness of the prediction. 
 
 ###### Thresholding
-When predicting over an image, the model returns an image of float values representing the probability that the given pixel
-lies inside the desired segmentation. Using `Ctrl` + Scroll you can modify the threshold at which the segmentation is accepted.
-This operates on the same prediction, such that modifying the threshold does not require re-predicting the segmentation
+When predicting over an image, the model returns an image of float value of logits, roughly corresponding to a probability 
+that the given pixel lies inside the desired segmentation. Using `Ctrl + Scroll` you can modify the threshold at which 
+the segmentation is accepted. This operates on the same prediction, such that modifying the threshold does not require
+re-predicting the segmentation.
+
+The initial threshold is calculated using Otsu's algorithm over the bounding box of the prediction, or the whole prediction if
+no bounding box is provided. 
+
 ###### Connected Components
 The resulting thresholded image is then filtered such that the resulting segmentation is a connected component. This helps
 remove unwanted noisy edges of the prediction, that are not actually touching the segmentation under the cursor.
 - When using `Ctrl` mode with include points, any connected component that contains an included point will be included
 in the segmentation, even if the components themselves are not connected, or if they also contain an excluded point
+- When a bounding box is used, any connected component that has some portion that overlaps with the bounding box is included. 
 
 ###### Running Prediction Service Locally
 
-If you want to run the service locally, follow the instruction at [JaneliaSciComp/SAM_service](https://github.com/JaneliaSciComp/SAM_service/tree/main).
-
-Then, before launching Paintera, set the enviornmental variable `SAM_SERVICE_HOST` to the hostname or ip-address of the new service host.
+Paintera uses a gRPC connection to an Nvidia Triton Inference Server. Running your own inference server, and pointing the SAM Settings
+in the Paintera project to your own server should work. Be mindful that the specific model inputs/outputs need to match what Paintera 
+expects. Refernece the [saalfeldlab/sam-link](https://github.com/saalfeldlab/sam-link) JVM library for more specific information.
 
 
 <details>
@@ -717,5 +731,6 @@ We recommend setting these JVM options:
 | Option  | Description                                               |
 |---------|-----------------------------------------------------------|
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
+| -XX:SoftRefLRUPolicyMSPerMB=10 | time to hold soft references before GC|
 </details>
 </details>
