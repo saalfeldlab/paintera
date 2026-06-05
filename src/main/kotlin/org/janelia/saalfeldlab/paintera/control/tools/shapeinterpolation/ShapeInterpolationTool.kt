@@ -31,9 +31,6 @@ import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
-import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant
-import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.BOX
-import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.DISTANCE_POINTS
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.modes.getInterpolantPrompt
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
@@ -220,8 +217,8 @@ internal class ShapeInterpolationTool(
 
 		if (!newPrediction && refresh) {
 			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
-				val promptStyles = if (mode.samStyleDistancePointToggle.get()) DISTANCE_POINTS else BOX
-				val prompt = getInterpolantPrompt(promptStyles, renderState = samSliceInfo.renderState)
+				val promptStyle = mode.samAutoInterpolantStyleProperty.get()
+				val prompt = getInterpolantPrompt(promptStyle, renderState = samSliceInfo.renderState)
 				samSliceInfo.updatePrompt(prompt)
 			}
 
