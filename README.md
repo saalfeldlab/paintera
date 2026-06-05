@@ -656,7 +656,9 @@ in the segmentation, even if the components themselves are not connected, or if 
 
 Paintera uses a gRPC connection to an Nvidia Triton Inference Server. Running your own inference server, and pointing the SAM Settings
 in the Paintera project to your own server should work. Be mindful that the specific model inputs/outputs need to match what Paintera 
-expects. Refernece the [saalfeldlab/sam-link](https://github.com/saalfeldlab/sam-link) JVM library for more specific information.
+expects. Reference the [saalfeldlab/sam-link](https://github.com/saalfeldlab/sam-link) JVM library for more specific information. 
+
+More specific instruction for running the SAM Inference Server can be found at https://github.com/JaneliaSciComp/triton-sam2
 
 
 <details>
