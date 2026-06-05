@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
+import org.janelia.saalfeldlab.paintera.ai.sam.MultipleChoicePrompt
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.ControllerState
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController.SliceInfo
@@ -46,6 +47,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.*
+import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode.SamAutoInterpolantStyle
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
@@ -62,7 +64,9 @@ import org.janelia.saalfeldlab.samlink.decode.SamPointLabel
 import org.janelia.saalfeldlab.samlink.decode.SamPrompt
 import org.janelia.saalfeldlab.util.*
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
-import org.kordamp.ikonli.fontawesome.FontAwesome
+import org.kordamp.ikonli.Ikon
+import org.kordamp.ikonli.fontawesome6.FontAwesomeRegular
+import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid
 import java.util.concurrent.CancellationException
 
 private val LOG = KotlinLogging.logger { }
@@ -149,7 +153,16 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
 	}
 
-	internal val samStyleDistancePointToggle = SimpleBooleanProperty(true)
+	internal enum class SamAutoInterpolantStyle {
+		/** Box around interpolant*/
+		BOX,
+		/** Foreground Point at inner-most distance per connected component  */
+		DISTANCE_POINTS,
+		/** Best IoU over each SamAutoInterpolantStyle */
+		AUTO
+	}
+
+	internal val samAutoInterpolantStyleProperty = SimpleObjectProperty(SamAutoInterpolantStyle.AUTO)
 
 	private fun modeActions(): List<ActionSet> {
 		return mutableListOf(
@@ -264,13 +277,19 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			painteraActionSet("change auto sam style") {
 				KEY_PRESSED(KeyCode.B) {
 					onAction {
-						samStyleDistancePointToggle.set(!samStyleDistancePointToggle.get())
+						val newStyle = samAutoInterpolantStyleProperty.get().let {
+							val nextIdx = (SamAutoInterpolantStyle.entries.indexOf(it) + 1) % SamAutoInterpolantStyle.entries.size
+							val nextStyle = SamAutoInterpolantStyle.entries[nextIdx]
+							samAutoInterpolantStyleProperty.set(nextStyle)
+							nextStyle
+						}
 
-						data class SamStyleToggle(val icon: FontAwesome, val title: String, val text: String)
-						val (toggle, title, text) = if (samStyleDistancePointToggle.get())
-							SamStyleToggle(FontAwesome.TOGGLE_LEFT, "Toggle Sam Style", "Style: Interpolant Distance Point")
-						else
-							SamStyleToggle(FontAwesome.TOGGLE_RIGHT, "Toggle Sam Style", "Style: Interpolant Interval")
+						data class SamStyleToggle(val icon: Ikon, val title: String, val text: String)
+						val (toggle, title, text) = when (newStyle) {
+							SamAutoInterpolantStyle.BOX -> SamStyleToggle(FontAwesomeRegular.SQUARE, "Toggle Sam Style", "Style: Interpolant Interval")
+							SamAutoInterpolantStyle.DISTANCE_POINTS -> SamStyleToggle(FontAwesomeSolid.RULER, "Toggle Sam Style", "Style: Interpolant Distance Point")
+							SamAutoInterpolantStyle.AUTO -> SamStyleToggle(FontAwesomeSolid.BOLT, "Toggle Sam Style", "Style: Auto")
+						}
 
 						InvokeOnJavaFXApplicationThread {
 							val notification = Notifications.create()
@@ -564,8 +583,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 			val interpolationPrompt = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
 				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-				val promptStyle = if (samStyleDistancePointToggle.get()) DISTANCE_POINTS else BOX
-
+				val promptStyle = samAutoInterpolantStyleProperty.get()
 				interpolantInViewer.getInterpolantPrompt(promptStyle, renderState = renderState)
 			} ?: let {
 				val (x, y) = renderState.viewerToRenderPoint(width / 2.0, height / 2.0)
@@ -747,7 +765,7 @@ enum class PromptFromInterpolant {
  * @param renderState
  * @return
  */
-internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(vararg promptStyles: PromptFromInterpolant = arrayOf(BOX), renderState: RenderUnitState? = null): SamPrompt {
+private fun IntervalView<UnsignedLongType>.getInterpolantBasePrompt(vararg promptStyles: PromptFromInterpolant = arrayOf(BOX), renderState: RenderUnitState? = null): SamPrompt {
 	val prompt = SamPrompt()
 	val styles = promptStyles.takeUnless { it.isEmpty() } ?: arrayOf(BOX)
 	for (style in styles) {
@@ -778,6 +796,32 @@ internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(vararg promptSt
 					}
 				}
 			}
+		}
+	}
+	return prompt
+}
+
+/**
+ * Get a SamPrompt for a given interpolant. If a specific [SamAutoInterpolantStyle] is provided,
+ * it will be used. By default [SamAutoInterpolantStyle.AUTO] will be used, which aggregates
+ * multiple prompts to later be decided during decoding.
+ *
+ * @param style to prefer for SamAutoInterpolation
+ * @param renderState
+ * @return
+ */
+internal fun IntervalView<UnsignedLongType>.getInterpolantPrompt(
+	style: SamAutoInterpolantStyle,
+	renderState: RenderUnitState
+): SamPrompt {
+	val prompt = when (style) {
+		SamAutoInterpolantStyle.BOX -> getInterpolantBasePrompt(BOX, renderState = renderState)
+		SamAutoInterpolantStyle.DISTANCE_POINTS -> getInterpolantBasePrompt(DISTANCE_POINTS, renderState = renderState)
+		SamAutoInterpolantStyle.AUTO -> {
+			val boxPrompt = getInterpolantBasePrompt(BOX, renderState = renderState)
+			val distancePointsPrompt = getInterpolantBasePrompt(DISTANCE_POINTS, renderState = renderState)
+			val boxAndDistPrompt = listOf( boxPrompt, distancePointsPrompt)
+			MultipleChoicePrompt(boxAndDistPrompt)
 		}
 	}
 	return prompt

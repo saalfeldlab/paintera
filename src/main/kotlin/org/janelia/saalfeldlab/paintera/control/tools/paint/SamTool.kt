@@ -72,6 +72,7 @@ import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.renderState
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.ai.sam.MAX_DIM_TARGET
+import org.janelia.saalfeldlab.paintera.ai.sam.MultipleChoicePrompt
 import org.janelia.saalfeldlab.paintera.ai.sam.SamPredictor
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -1099,12 +1100,14 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             while (predictionJob.isActive) {
 
-                val (prompt, estimateThreshold) = promptChannel.receive()
+                var (prompt, estimateThreshold) = promptChannel.receive()
                 ensureActive()
 
                 val prediction = currentPrediction
                     ?.takeUnless { estimateThreshold }
                     ?: predictor.predict(prompt)
+
+				prompt = (prompt as? MultipleChoicePrompt)?.preferredPrompt ?: prompt
                 currentPrediction = prediction
                 val predictionLabel = currentLabelToPaint
 

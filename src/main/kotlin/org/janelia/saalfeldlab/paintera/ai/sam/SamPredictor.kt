@@ -4,11 +4,13 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.real.FloatType
+import net.imglib2.util.ImgUtil
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.samlink.decode.DecoderResult
 import org.janelia.saalfeldlab.samlink.decode.SamDecoder
 import org.janelia.saalfeldlab.samlink.decode.SamDecoder.Companion.newDecoder
 import org.janelia.saalfeldlab.samlink.decode.SamPrompt
+import org.janelia.saalfeldlab.samlink.decode.SamPromptBase
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import org.janelia.saalfeldlab.util.*
 
@@ -24,6 +26,47 @@ private fun cachedOrNewDecoder(encodedImage: EncoderResult): SamDecoder<*> {
     return decoder
 }
 
+/**
+ * Wrapper for multiple independent SamPrompts. When treated as a `SamPrompt` it behaves as the first prompt.
+ *
+ * Useful for testing multiple prompts and choosing the best by some metric. For example, the best
+ * IoU across a few automatically generated prompts.
+ *
+ * @property independentPrompts to offer
+ */
+internal class MultipleChoicePrompt(val independentPrompts: List<SamPrompt>) : SamPrompt() {
+
+    /**
+     * Preferred prompt index. Default to first propmt.
+     */
+    var preferredPromptIndex: Int = 0
+        set(value) {
+            independentPrompts[value] /* just to throw if [value] is out of range */
+            field = value
+        }
+
+    val preferredPrompt
+            get() = independentPrompts[preferredPromptIndex]
+
+    init {
+        require(independentPrompts.isNotEmpty()) {
+            "MultipleChoicePrompt requires at least one independent prompt"
+        }
+    }
+
+    override fun copy(): SamPrompt {
+        return preferredPrompt.copy()
+    }
+
+    override fun flatten(): List<SamPromptBase> {
+        return preferredPrompt.flatten()
+    }
+
+    override fun scale(xScale: Float, yScale: Float): SamPrompt {
+        return preferredPrompt.scale(xScale, yScale)
+    }
+}
+
 
 class SamPredictor(
     val encodeResult: EncoderResult,
@@ -36,7 +79,17 @@ class SamPredictor(
     fun predict(prompt: SamPrompt): SamPrediction {
 
         synchronized(this) {
-            val result = SamDecoder.decode(decoder, encodeResult, prompt)
+            val result =
+                if (prompt is MultipleChoicePrompt) {
+                    val (idx, res) = prompt.independentPrompts.mapIndexed { index, independentPrompt ->
+                        index to SamDecoder.decode(decoder, encodeResult, independentPrompt)
+                    }.maxBy { (_, res) -> res.ious.max() }
+                    prompt.preferredPromptIndex = idx
+                    res
+                } else {
+                    SamDecoder.decode(decoder, encodeResult, prompt)
+                }
+
             /* TODO: Consider exposing this, or choosing a different default.
             *   1 mask-based refinement seems reasonable, and to work well. */
             var refinePrompt: SamPrompt

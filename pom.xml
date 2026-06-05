@@ -429,6 +429,12 @@
 			<version>12.4.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.kordamp.ikonli</groupId>
+			<artifactId>ikonli-fontawesome6-pack</artifactId>
+			<version>12.4.0</version>
+		</dependency>
+
 		<!--		Tests-->
 		<dependency>
 			<groupId>org.jetbrains.kotlin</groupId>
