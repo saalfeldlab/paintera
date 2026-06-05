@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.paintera.ai.sam
 
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
+import net.imglib2.realtransform.Scale2D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.util.ImgUtil
@@ -118,21 +120,37 @@ class SamPredictor(
          * @param logits to converter to RandomAccessibleInterval. By default [DecoderResult.bestMask] but can be provided.
          * @return the RandomAccessibleInterval.
          */
-        fun raiFromResult(logits: FloatArray = decodeResult.bestMask) : RandomAccessibleInterval<FloatType> {
-            val decodedImg = ArrayImgs.floats(
-                logits,
-                decodeResult.maskSize.toLong(),
-                decodeResult.maskSize.toLong(),
-            )
+        fun raiInDecodeSpace(logits: FloatArray = decodeResult.bestMask): RandomAccessibleInterval<FloatType> {
+            val decodeEdgeSize = decodeResult.maskSize.toLong()
+            val decodedImg = ArrayImgs.floats(logits, decodeEdgeSize, decodeEdgeSize)
             val scale = encodeResult.inputSize.toDouble() / decodeResult.maskSize
-            val croppedWidth = (encodeResult.scaledWidth / scale).toLong()
-                .coerceAtMost(decodeResult.maskSize.toLong())
-            val croppedHeight = (encodeResult.scaledHeight / scale).toLong()
-                .coerceAtMost(decodeResult.maskSize.toLong())
+
+            val croppedWidth = (encodeResult.scaledWidth / scale).toLong().coerceAtMost(decodeEdgeSize)
+            val croppedHeight = (encodeResult.scaledHeight / scale).toLong().coerceAtMost(decodeEdgeSize)
+
             val decoderContentInterval = Intervals.createMinSize(0, 0, croppedWidth, croppedHeight)
             return decodedImg
                 .extendBorder()
                 .interval(decoderContentInterval)
+        }
+
+        fun raiInPromptSpace(logits: FloatArray = decodeResult.bestMask): RandomAccessibleInterval<FloatType> {
+            val decodeRai = raiInDecodeSpace(logits)
+            with(encodeResult) {
+                val decodeToSourceScale = (sourceWidth / decodeRai.dimension(0).toDouble())
+
+                val sourceInterval = Intervals.createMinSize(0, 0, sourceWidth.toLong(), sourceHeight.toLong())
+                val sourceRai = decodeRai
+                    .interpolate(NLinearInterpolatorFactory())
+                    .affine(Scale2D(decodeToSourceScale, decodeToSourceScale))
+                    .raster()
+                    .interval(sourceInterval)
+
+                val arrayImg = ArrayImgs.floats(*sourceRai.dimensionsAsLongArray())
+                ImgUtil.copy(sourceRai, arrayImg)
+
+                return arrayImg
+            }
         }
     }
 }

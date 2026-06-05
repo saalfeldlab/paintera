@@ -32,6 +32,7 @@ import kotlinx.coroutines.channels.Channel
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealPoint
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.histogram.Real1dBinMapper
@@ -40,7 +41,7 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.*
 import net.imglib2.type.logic.NativeBoolType
-import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileFloatType
@@ -332,7 +333,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val prediction = currentPrediction!!.decodeResult.run {
                             val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
                             val centreFilteredLogits = morph2D.centre( 5 to 5).output
-                            currentPrediction!!.raiFromResult(centreFilteredLogits)
+                            currentPrediction!!.raiInDecodeSpace(centreFilteredLogits)
                         }
 
                         val viewerMask = currentViewerMask!!.viewerMask
@@ -917,31 +918,31 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         val dims = prediction.dimensionsAsLongArray()
         val thresholdImg = ArrayImgs.booleans(*dims)
         val thresholdCursor = thresholdImg
-					.extendValue(Float.NEGATIVE_INFINITY)
-            .interval(prediction)
-            .cursor()
-        val predictionMaskCursor = prediction
-                    .extendValue(Float.NEGATIVE_INFINITY)
-            .interval(prediction)
-                    .localizingCursor()
+			.extendValue(Float.NEGATIVE_INFINITY)
+			.interval(prediction)
+			.cursor()
+		val predictionMaskCursor = prediction
+			.extendValue(Float.NEGATIVE_INFINITY)
+			.interval(prediction)
+			.localizingCursor()
 
-        val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
-        val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE)
-				var noneAccepted = true
-				while (thresholdCursor.hasNext()) {
-					val predictionValue = predictionMaskCursor.next().get()
-					val thresholdValue = predictionValue >= threshold
-					thresholdCursor.next().set(thresholdValue)
-					if (thresholdValue) {
-						noneAccepted = false
-						val pos = predictionMaskCursor.positionAsLongArray()
-						minPoint[0] = min(minPoint[0], pos[0])
-						minPoint[1] = min(minPoint[1], pos[1])
+		val minPoint = longArrayOf(Long.MAX_VALUE, Long.MAX_VALUE)
+		val maxPoint = longArrayOf(Long.MIN_VALUE, Long.MIN_VALUE)
+		var noneAccepted = true
+		while (thresholdCursor.hasNext()) {
+			val predictionValue = predictionMaskCursor.next().get()
+			val thresholdValue = predictionValue >= threshold
+			thresholdCursor.next().set(thresholdValue)
+			if (thresholdValue) {
+				noneAccepted = false
+				val pos = predictionMaskCursor.positionAsLongArray()
+				minPoint[0] = min(minPoint[0], pos[0])
+				minPoint[1] = min(minPoint[1], pos[1])
 
-						maxPoint[0] = max(maxPoint[0], pos[0])
-						maxPoint[1] = max(maxPoint[1], pos[1])
-					}
-				}
+				maxPoint[0] = max(maxPoint[0], pos[0])
+				maxPoint[1] = max(maxPoint[1], pos[1])
+			}
+		}
 
         if (noneAccepted)
             return null
@@ -1016,15 +1017,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 }
 
 
-    protected data class AlignedViewAndTransform(
-        val viewerInterval: IntervalView<NativeBoolType>,
+    protected data class AlignedViewAndTransform<T>(
+        val viewerInterval: IntervalView<T>,
         val transform: AffineTransform2D
     )
 
-    protected fun alignImageToViewer(
-        predictedMask: RandomAccessibleInterval<NativeBoolType>,
+    protected fun <T : NumericType<T>> alignImageToViewer(
+        predictedMask: RandomAccessibleInterval<T>,
         viewerMask: ViewerMask
-    ): AlignedViewAndTransform {
+    ): AlignedViewAndTransform<T> {
 
         val (width, height) = predictedMask.dimensionsAsLongArray()
                 val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
@@ -1037,13 +1038,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         .concatenate(halfPixelOffset)
 
         val alignedView = predictedMask
-            .convertRAI(IntType()) { src, tgt -> tgt.set(if (src.get()) 1000 else -1000) }
             .extendBorder()
             .interpolateNearestNeighbor()
-                    .affineReal(predictionToViewerTransform)
-                    .addDimension()
-                    .raster()
-            .convert(NativeBoolType()) { src, tgt -> tgt.set(src.get() > 0) }
+            .affineReal(predictionToViewerTransform)
+            .addDimension()
+            .raster()
             .interval(viewerMask.viewerImg)
 
 
@@ -1111,28 +1110,28 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 currentPrediction = prediction
                 val predictionLabel = currentLabelToPaint
 
-                val predictionImage = prediction.decodeResult.run {
+                val (decodeSpacePrediction, promptSpacePrediction) = prediction.decodeResult.run {
                     val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
                     val centreFilteredLogits = morph2D.centre( 5 to 5).output
-                    prediction.raiFromResult(centreFilteredLogits)
-			}
+                    prediction.raiInDecodeSpace(centreFilteredLogits) to prediction.raiInPromptSpace(centreFilteredLogits)
+				}
 
                 val promptInDecodedSpace = prompt.scaleToDecodeOutput(prediction.encodeResult, prediction.decodeResult)
 
                 if (estimateThreshold)
-                    updateThresholdEstimate(promptInDecodedSpace, predictionImage)
+                    updateThresholdEstimate(promptInDecodedSpace, decodeSpacePrediction)
 
                 val previousInterval = lastPrediction?.maskInterval
                 val previousRepaintInterval = previousInterval?.extendBy(1.0)?.smallestContainingInterval
 
-                val (binaryPredictionMask, predictionInterval2D) = thresholdPrediction(predictionImage) ?: let {
+                val (binaryPredictionMask, predictionInterval2D) = thresholdPrediction(promptSpacePrediction) ?: let {
                     paintMask.requestRepaint(previousRepaintInterval)
                     lastPrediction = null
                     continue
 		}
 
                 val selectedComponentMask =
-                    selectConnectedComponents(binaryPredictionMask, promptInDecodedSpace) ?: continue
+                    selectConnectedComponents(binaryPredictionMask, prompt) ?: continue
 
                 val (alignedComponentMask, predictionToViewerTransform) = alignImageToViewer(
                     selectedComponentMask,
@@ -1167,7 +1166,65 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         val estimateOverBox =
             if (onlyBoxPoints) intervalOfBox(points)
             else null
-        setBestEstimatedThreshold(estimateOverBox, prediction)
+        /* filter the threshold estimate based on the rendered source space; restrict to the box region if present */
+        val inSourceFilter = sourceSpaceFilter(prediction, estimateOverBox)
+		setBestEstimatedThreshold(estimateOverBox, prediction, inSourceFilter)
+	}
+
+	/**
+	 * Boolean filter image in prediction space. Useful for filtering out non-source values from threshold estimation.
+	 * If this isn't done, the threshold estimate is thrown off by the background pixels. In this case background refers
+	 * to the background of the rendered image, not the background within the rendered source(s).
+	 *
+	 * @param prediction prediction image to align to filter to
+	 * @param interval subset to only compute the filter over that sub-region of [prediction] instead
+	 * of the entire prediction, avoiding redundant work when the estimate is already restricted to a box.
+	 *
+	 * @return the filter image, positioned to align with [prediction], or null when filtering is unnecessary; that is,
+	 *  when every pixel is in-source (nothing to exclude) or no pixel is in-source (nothing to keep). A null return
+	 *  signals downstream to skip filtering.
+	 */
+	private fun sourceSpaceFilter(
+		prediction: RandomAccessibleInterval<FloatType>,
+		interval: Interval? = null
+	): RandomAccessibleInterval<NativeBoolType>? {
+		/* only cover the region the estimate will actually histogram (the box, if any), not the whole prediction */
+		val region = interval?.intersect(prediction)?.takeUnless { Intervals.isEmpty(it) } ?: prediction
+		val offset = region.minAsLongArray()
+
+		val decodeToViewerScale = renderState.width.toDouble() / prediction.dimension(0)
+		val sources = renderState.sources.map { sac ->
+			val sourceToGlobal = AffineTransform3D().also { sac.spimSource.getSourceTransform(renderState.timepoint, 0, it) }
+			sourceToGlobal to sac.spimSource.getSource(renderState.timepoint, 0).asRealInterval.extendBy(0.5)
+		}
+
+		val coverage = ArrayImgs.booleans(*region.dimensionsAsLongArray())
+		val viewerPoint = RealPoint(3)
+		val globalPoint = RealPoint(3)
+		val sourcePoint = RealPoint(3)
+		var anyCovered = false
+		var allCovered = true
+		val cursor = coverage.localizingCursor()
+		val position = DoubleArray(3)
+		while (cursor.hasNext()) {
+			cursor.fwd()
+			/* cursor is local to the region; shift by the region offset to get the absolute prediction coordinate */
+			position[0] = (offset[0] + cursor.getLongPosition(0)) * decodeToViewerScale
+			position[1] = (offset[1] + cursor.getLongPosition(1)) * decodeToViewerScale
+			viewerPoint.setPosition(position)
+			renderState.transform.applyInverse(globalPoint, viewerPoint)
+			val covered = sources.any { (sourceToGlobal, sourceInterval) ->
+				sourceToGlobal.applyInverse(sourcePoint, globalPoint)
+				Intervals.contains(sourceInterval, sourcePoint)
+			}
+			if (covered)
+				anyCovered = true
+			else
+				allCovered = false
+			cursor.get().set(covered)
+		}
+		/* position the filter at the region so it aligns with the matching sub-interval of the prediction */
+		return coverage.translate(*offset).takeIf { anyCovered && !allCovered }
 	}
 
 	private fun intervalOfBox(points: List<PointPrompt>): FinalInterval? {
@@ -1181,7 +1238,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 
-    private fun setBestEstimatedThreshold(interval: Interval? = null, prediction: RandomAccessibleInterval<FloatType>) {
+    private fun setBestEstimatedThreshold(
+		interval: Interval? = null,
+	    prediction: RandomAccessibleInterval<FloatType>,
+	    filter: RandomAccessibleInterval<NativeBoolType>? = null
+	) {
 		/* [-40..30] seems from testing like a reasonable range to include the vast majority of
 		*  prediction values, excluding perhaps some extreme outliers (which imo is desirable) */
 		val binMapper = Real1dBinMapper<FloatType>(-40.0, 30.0, 256, false)
@@ -1192,12 +1253,24 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 
         val predictionRAI = threshPredictInterval?.let { prediction.interval(it) } ?: prediction
-		LoopBuilder.setImages(predictionRAI)
-			.forEachPixel {
-				val binIdx = binMapper.map(it).toInt()
-				if (binIdx != -1)
-					histogram[binIdx]++
-			}
+		if (filter != null) {
+			val sourcePredictionIntersectionRai = threshPredictInterval?.let { filter.interval(it) } ?: filter
+			LoopBuilder.setImages(predictionRAI, sourcePredictionIntersectionRai)
+				.forEachPixel { predictionValue, inSource ->
+					if (inSource.get()) {
+						val binIdx = binMapper.map(predictionValue).toInt()
+						if (binIdx != -1)
+							histogram[binIdx]++
+					}
+				}
+		} else {
+			LoopBuilder.setImages(predictionRAI)
+				.forEachPixel {
+					val binIdx = binMapper.map(it).toInt()
+					if (binIdx != -1)
+						histogram[binIdx]++
+				}
+		}
 
 
 		val binVar = FloatType()
