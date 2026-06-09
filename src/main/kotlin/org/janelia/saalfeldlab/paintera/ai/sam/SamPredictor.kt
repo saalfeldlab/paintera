@@ -141,6 +141,7 @@ class SamPredictor(
 
                 val sourceInterval = Intervals.createMinSize(0, 0, sourceWidth.toLong(), sourceHeight.toLong())
                 val sourceRai = decodeRai
+                    .extendBorder()
                     .interpolate(NLinearInterpolatorFactory())
                     .affine(Scale2D(decodeToSourceScale, decodeToSourceScale))
                     .raster()
