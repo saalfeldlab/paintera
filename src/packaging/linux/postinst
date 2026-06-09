@@ -25,6 +25,10 @@ case "$1" in
 DESKTOP_COMMANDS_INSTALL
 ln -s /opt/paintera/bin/paintera /usr/local/bin/paintera
 LAUNCHER_AS_SERVICE_COMMANDS_INSTALL
+if [ -f /opt/paintera/lib/app/paintera.svg ]; then
+    install -Dm644 /opt/paintera/lib/app/paintera.svg /usr/share/icons/hicolor/scalable/apps/paintera.svg
+    command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
@@ -37,4 +41,3 @@ LAUNCHER_AS_SERVICE_COMMANDS_INSTALL
 esac
 
 exit 0
-

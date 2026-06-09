@@ -5,7 +5,7 @@
 --win-menu-group ${windows.vendor}
 --win-shortcut
 --vendor ${windows.vendor}
---icon "${project.basedir}/img/icons/icon-draft.ico"
+--icon "${project.basedir}/img/icons/paintera.ico"
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"

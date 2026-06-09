@@ -964,6 +964,31 @@
 						</executions>
 					</plugin>
 					<plugin>
+						<!-- copy the scalable icon into the jpackage input dir so the .deb can install it to the hicolor theme -->
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-resources-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>copy-linux-icon-svg</id>
+								<phase>prepare-package</phase>
+								<goals>
+									<goal>copy-resources</goal>
+								</goals>
+								<configuration>
+									<outputDirectory>${project.build.directory}/dependency</outputDirectory>
+									<resources>
+										<resource>
+											<directory>${project.basedir}/img</directory>
+											<includes>
+												<include>paintera.svg</include>
+											</includes>
+										</resource>
+									</resources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
 						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
 						<groupId>io.github.wiverson</groupId>
 						<artifactId>jtoolprovider-plugin</artifactId>

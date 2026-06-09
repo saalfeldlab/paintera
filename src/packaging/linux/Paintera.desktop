@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=APPLICATION_NAME
+Comment=APPLICATION_DESCRIPTION
+Exec=APPLICATION_LAUNCHER
+Icon=paintera
+Terminal=false
+Type=Application
+Categories=DEPLOY_BUNDLE_CATEGORY
+StartupWMClass=org.janelia.saalfeldlab.paintera.Paintera

@@ -21,6 +21,8 @@ set -e
 case "$1" in
     purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
         rm -f /usr/local/bin/paintera
+        rm -f /usr/share/icons/hicolor/scalable/apps/paintera.svg
+        command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     ;;
 
     *)
