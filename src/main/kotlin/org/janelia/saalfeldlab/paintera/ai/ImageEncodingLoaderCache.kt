@@ -123,7 +123,7 @@ object SamEncoder {
     var isHealthy: Boolean by healthCheckProperty.nonnull()
 
     private var subscriptions: Subscription? = null
-    val cacheProperty by lazy {
+    private val lazyCacheProperty = lazy {
         SimpleObjectProperty<ImageEncodingLoaderCache<*>>(Sam2EncodingLoaderCache()).apply {
             subscriptions?.unsubscribe()
             isHealthy = false
@@ -135,6 +135,36 @@ object SamEncoder {
 
         }
     }
-
+    val cacheProperty by lazyCacheProperty
     var cache: ImageEncodingLoaderCache<*> by cacheProperty.nonnull()
+
+    /**
+     * Invalidate all cache entries and cancel in-flight requests.
+     *
+     */
+    fun reset() {
+        if (lazyCacheProperty.isInitialized()) {
+            cache.apply {
+                stopNavigationBasedRequests()
+                embeddingRequester.cancelPendingRequests()
+                cancelUnfinishedRequests()
+                invalidateAll()
+            }
+        }
+    }
+
+    /**
+     * Shutdown the current ImageEncodingLoaderCache, if one was initialized.
+     *
+     */
+    fun shutdown() {
+        if (lazyCacheProperty.isInitialized()) {
+            /* failure to close shouldn't block the quit path */
+            runCatching { cache.close() }.onFailure {
+                LOG.warn(it) { "Failed to close the Image Encoder Cache" }
+            }
+        }
+    }
+
+    private val LOG = KotlinLogging.logger {}
 }
