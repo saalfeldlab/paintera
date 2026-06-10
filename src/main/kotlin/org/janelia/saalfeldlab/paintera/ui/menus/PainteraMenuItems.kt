@@ -5,7 +5,6 @@ import javafx.beans.binding.BooleanBinding
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
-import javafx.stage.DirectoryChooser
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -19,6 +18,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.OpenProjectDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
@@ -37,7 +37,7 @@ enum class PainteraMenuItems(
 	private val requiredActionTypes: Array<ActionType> = emptyArray()
 ) {
 	NEW_PROJECT("_New Project", requiredActionTypes = arrayOf(OpenProject)),
-	OPEN_PROJECT("Open _Project...", icon = FontAwesome.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
+	OPEN_PROJECT("Open _Project...", PBK.OPEN_PROJECT, icon = FontAwesome.FOLDER_OPEN, requiredActionTypes = arrayOf(OpenProject, LoadProject)),
 	OPEN_SOURCE("_Open Source...", PBK.OPEN_SOURCE, FontAwesome.FOLDER_OPEN, arrayOf(AddSource)),
 	EXPORT_SOURCE("_Export Source...", PBK.EXPORT_SOURCE, FontAwesome.FLOPPY_O, arrayOf(ExportSource)),
 	SAVE("_Save", PBK.SAVE, FontAwesome.FLOPPY_O, arrayOf(SaveProject)),
@@ -80,7 +80,7 @@ enum class PainteraMenuItems(
 			return mapOf(
 				NEW_PROJECT { Paintera.application.loadProject() },
 				OPEN_PROJECT {
-					DirectoryChooser().showDialog(paintera.pane.scene.window)?.let { newProject ->
+					OpenProjectDialog.showAndWaitForResponse()?.let { newProject ->
 						Paintera.application.loadProject(newProject.path)
 					}
 				},
