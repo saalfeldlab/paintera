@@ -83,7 +83,7 @@ class Paintera : Application() {
 	private fun start(primaryStage: Stage, windowPosition: WindowPosition?) {
 
 		primaryStage.title = Constants.NAME
-		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0, true)
+		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0)
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		registerStylesheets(primaryStage.scene)
 
