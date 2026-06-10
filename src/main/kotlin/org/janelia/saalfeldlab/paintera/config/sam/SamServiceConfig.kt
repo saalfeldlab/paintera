@@ -63,7 +63,7 @@ class SamServiceConfig(
             Paintera.ifPaintable {
                 runCatching {
                     /* failure to closing the current cache shouldn't impact the new cache */
-                    SamEncoder.cache.close()
+                    SamEncoder.shutdown()
                 }
                 LOG.trace { "Closing ${SamEncoder.cache::class.simpleName} Image Encoder Cache" }
                 SamEncoder.cache = when (currentSamConfig) {

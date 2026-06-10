@@ -30,6 +30,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintable
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.paintableRunnables
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
@@ -83,7 +84,7 @@ class Paintera : Application() {
 	private fun start(primaryStage: Stage, windowPosition: WindowPosition?) {
 
 		primaryStage.title = Constants.NAME
-		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0, true)
+		primaryStage.scene = Scene(paintera.pane, -1.0, -1.0)
 		primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		registerStylesheets(primaryStage.scene)
 
@@ -302,6 +303,7 @@ class Paintera : Application() {
 
 		paintera.baseView.stop()
 		paintera.projectDirectory.close()
+		SamEncoder.reset()
 		n5Factory.clear()
 
 		var windowPosition : WindowPosition? = null

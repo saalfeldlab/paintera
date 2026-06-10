@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthoViewerOptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
+import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -310,6 +311,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		LOG.debug("Quitting!")
 		baseView.stop()
 		projectDirectory.close()
+		SamEncoder.shutdown()
 		Platform.exit()
 		if (DeviceManager.closeDevices()) {
 			/* due to a bug (https://bugs.openjdk.org/browse/JDK-8232862) when MIDI devices are opened, the thread

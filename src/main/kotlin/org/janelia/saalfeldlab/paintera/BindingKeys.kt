@@ -60,6 +60,7 @@ object PainteraBaseKeys {
     const val RESET_3D_LOCATION                = "Reset 3D Location"
     const val CENTER_3D_LOCATION               = "Center 3D Location"
     const val SAVE_3D_PNG                      = "Save 3D As PNG"
+    const val OPEN_PROJECT                     = "Open Project"
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
         OPEN_SOURCE                  byKeyCombo CONTROL_DOWN + O,
@@ -87,6 +88,7 @@ object PainteraBaseKeys {
         CREATE_NEW_LABEL_DATASET                    byKeyCombo CONTROL_DOWN + SHIFT_DOWN + N,
         SHOW_REPL_TABS                              byKeyCombo SHORTCUT_DOWN + ALT_DOWN + T,
         TOGGLE_FULL_SCREEN                          byKeyCombo F11,
+        OPEN_PROJECT                                byKeyCombo ALT_DOWN + O,
 	)
 
 	@JvmStatic

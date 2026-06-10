@@ -29,9 +29,11 @@ import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import net.imglib2.Cursor
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealCursor
 import net.imglib2.RealPoint
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
@@ -48,6 +50,7 @@ import net.imglib2.type.volatiles.VolatileFloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
+import net.imglib2.view.RandomAccessibleIntervalCursor
 import org.apache.commons.io.output.NullPrintStream
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
@@ -791,6 +794,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	open fun applyPrediction() {
 		lastPrediction?.submitPrediction()
 		clearPromptDrawings()
+		/*
+		 * the prediction job paints into the mask captured when the job started; that mask was
+		 * just applied and detached, so cancel and let the next request restart with a fresh mask
+		 */
+		predictionJob.cancel()
 	}
 
 	private fun SamTaskInfo.submitPrediction() {
@@ -999,7 +1007,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
                         val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
                         val boxInterval = FinalInterval(minPos, maxPos)
-                val thresholdCursor = thresholdPrediction.interval(boxInterval).cursor()
+						thresholdPrediction.extendBorder().randomAccess(boxInterval)
+						val thresholdCursor = RandomAccessibleIntervalCursor(thresholdPrediction.extendBorder(), boxInterval)
                         val componentsCursor = connectedComponents.interval(boxInterval).cursor()
                         while (thresholdCursor.hasNext()) {
                             val meetsThreshold = thresholdCursor.next()
