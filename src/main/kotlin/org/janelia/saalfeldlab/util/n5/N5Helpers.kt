@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.*
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v04.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
@@ -51,6 +52,7 @@ import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.File
 import java.io.IOException
 import java.net.URI
+import java.nio.file.Paths
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
@@ -932,7 +934,7 @@ object N5Helpers {
 		if (n5Location.scheme == "file" || n5Location.scheme.isNullOrBlank()) {
 			/* get the canonical path if possible, otherwise return the path */
 			runCatching {
-				return File(n5Location).canonicalPath
+				return Paths.get(n5Location).toFile().canonicalPath
 			}
 			return n5Location.path
 		}
@@ -942,12 +944,13 @@ object N5Helpers {
 
 	/**
 	 * [URI.create] called with [n5Location] before forwarding to [canonicalString(URI)].
-	 * if [URI.create] fails, [n5Location] is returned directly.
+	 * on error [n5Location] is returned directly.
 	 */
 	@JvmStatic
 	fun canonicalString(n5Location: String): String {
 		runCatching {
-			return canonicalString(URI.create(n5Location))
+			val parsedUri = StorageFormat.parseUri(n5Location).b
+			return canonicalString(parsedUri)
 		}
 		return n5Location
 	}

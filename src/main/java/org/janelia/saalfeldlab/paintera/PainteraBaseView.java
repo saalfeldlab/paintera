@@ -218,7 +218,7 @@ public class PainteraBaseView {
 		activeModeProperty.set(AppControlMode.INSTANCE);
 
 
-		this.allowedActionsProperty = new AllowedActionsProperty(getNode().cursorProperty());
+		this.allowedActionsProperty = new AllowedActionsProperty();
 
 		this.allowedActionsProperty.bind(Bindings.createObjectBinding(() -> {
 			final var activeMode = activeModeProperty.get();

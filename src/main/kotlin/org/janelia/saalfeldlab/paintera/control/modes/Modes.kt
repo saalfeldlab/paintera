@@ -140,8 +140,14 @@ interface ToolMode : SourceMode {
 				/* If the mode was changed before we can activate, switch to null */
 				val activeMode = paintera.baseView.activeModeProperty.value
 				activeTool = when {
-					activeMode != this@ToolMode -> null // wrong mode
-					tool?.isValidProperty?.value == false -> null // tool is not currently valid
+					activeMode != this@ToolMode -> {
+						LOG.info { "$tool is not valid for the active mode ${activeMode}, not activating" }
+						null
+					}
+					tool?.isValidProperty?.value == false -> {
+						LOG.info { "$tool is not currently valid, not activating" }
+						null
+					}
 					else -> tool?.also {
 						it.activate()
 						LOG.debug { "Activated $it" }

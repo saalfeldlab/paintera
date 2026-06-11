@@ -122,17 +122,23 @@ object SamEncoder {
     val healthCheckProperty = SimpleBooleanProperty(false)
     var isHealthy: Boolean by healthCheckProperty.nonnull()
 
+    /* for control messages, like health checks. */
+    private val controlScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private fun checkHealth(cache: ImageEncodingLoaderCache<*>) {
+        controlScope.launch {
+            isHealthy = runCatching { cache.healthCheck() }
+                .onFailure { LOG.warn(it) { "SAM encoder health check failed" } }
+                .getOrDefault(false)
+        }
+    }
+
     private var subscriptions: Subscription? = null
     private val lazyCacheProperty = lazy {
         SimpleObjectProperty<ImageEncodingLoaderCache<*>>(Sam2EncodingLoaderCache()).apply {
             subscriptions?.unsubscribe()
             isHealthy = false
-            subscriptions += subscribe { it ->
-                it.loaderScope.launch {
-                    isHealthy = it.healthCheck()
-                }
-            }
-
+            subscriptions += subscribe { it -> checkHealth(it) }
         }
     }
     val cacheProperty by lazyCacheProperty
@@ -150,6 +156,7 @@ object SamEncoder {
                 cancelUnfinishedRequests()
                 invalidateAll()
             }
+            checkHealth(cache)
         }
     }
 
@@ -159,6 +166,9 @@ object SamEncoder {
      */
     fun shutdown() {
         if (lazyCacheProperty.isInitialized()) {
+            /* a closed encoder is not healthy; if a new cache replaces this one, its health
+             * check will update this again */
+            isHealthy = false
             /* failure to close shouldn't block the quit path */
             runCatching { cache.close() }.onFailure {
                 LOG.warn(it) { "Failed to close the Image Encoder Cache" }
