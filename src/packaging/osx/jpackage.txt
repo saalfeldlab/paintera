@@ -1,6 +1,6 @@
 --name ${app.name}
 --app-version ${app.version}
---icon "${project.basedir}/img/icons/icon-draft.icns"
+--icon "${project.basedir}/img/icons/paintera.icns"
 --dest "${project.build.directory}/installer-${matrix.os}"
 --main-class ${main-class}
 --input "${project.build.directory}/dependency"
