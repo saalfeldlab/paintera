@@ -3,12 +3,9 @@ package org.janelia.saalfeldlab.paintera.control.actions;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.Cursor;
 
 import java.util.Optional;
 
@@ -24,43 +21,28 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 
 	private static final AllowedActions EMPTY_ACTION_SET = new AllowedActions.AllowedActionsBuilder().create();
 
-	private final ObjectProperty<Cursor> cursorProperty;
-	private final ChangeListener<Cursor> cursorChangeListener;
 	private final BooleanProperty isDisabled = new SimpleBooleanProperty(false);
-	private Cursor previousCursor = Cursor.DEFAULT;
 
 	private boolean suspendPermissions = false;
 
-	public AllowedActionsProperty(final ObjectProperty<Cursor> cursorProperty) {
+	public AllowedActionsProperty() {
 
-		this(null, "", cursorProperty);
+		this(null, "");
 	}
 
-	public AllowedActionsProperty(final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
+	public AllowedActionsProperty(final AllowedActions initialValue) {
 
-		this(null, "", initialValue, cursorProperty);
+		this(null, "", initialValue);
 	}
 
-	public AllowedActionsProperty(final Object bean, final String name, final ObjectProperty<Cursor> cursorProperty) {
+	public AllowedActionsProperty(final Object bean, final String name) {
 
-		this(bean, name, null, cursorProperty);
+		this(bean, name, null);
 	}
 
-	public AllowedActionsProperty(final Object bean, final String name, final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
+	public AllowedActionsProperty(final Object bean, final String name, final AllowedActions initialValue) {
 
 		super(bean, name, initialValue);
-		this.cursorProperty = cursorProperty;
-		this.cursorChangeListener = createCursorChangeListener(this.cursorProperty);
-		this.isDisabled.addListener(this::disableActionsListener);
-	}
-
-	private static ChangeListener<Cursor> createCursorChangeListener(final ObjectProperty<Cursor> cursorProp) {
-
-		return (observable, oldValue, newValue) -> {
-			if (newValue != Cursor.WAIT) {
-				cursorProp.set(Cursor.WAIT);
-			}
-		};
 	}
 
 	/**
@@ -77,21 +59,6 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 	public void enable() {
 
 		isDisabled.set(false);
-	}
-
-	private void disableActionsListener(final ObservableValue<? extends Boolean> obs, final Boolean previouslyDisabled, final Boolean disable) {
-		/* Do nothing if no change */
-		if (previouslyDisabled == disable)
-			return;
-		if (disable) {
-			/* store the current cursor*/
-			this.previousCursor = this.cursorProperty.get();
-			cursorProperty.addListener(cursorChangeListener);
-			this.cursorProperty.set(Cursor.WAIT);
-		} else {
-			this.cursorProperty.removeListener(cursorChangeListener);
-			this.cursorProperty.set(this.previousCursor);
-		}
 	}
 
 	/**
