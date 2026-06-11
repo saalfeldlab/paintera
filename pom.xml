@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>43.0.0</version>
+		<version>44.0.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -214,6 +214,13 @@
 			<groupId>se.sawano.java</groupId>
 			<artifactId>alphanumeric-comparator</artifactId>
 			<version>${alphanumeric-comparator.version}</version>
+		</dependency>
+
+		<!-- add blosc-java so we don't need to install blosc separately -->
+		<dependency>
+			<groupId>com.scalableminds</groupId>
+			<artifactId>blosc-java</artifactId>
+			<version>0.3-1.21.6</version>
 		</dependency>
 
 		<!--		logging -->
