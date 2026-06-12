@@ -27,6 +27,8 @@ import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -37,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.get
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.convertRAI
@@ -177,9 +180,10 @@ class ExportSourceState {
 		val cellGrid: CellGrid = source.getGrid(scaleLevel)
 		val sourceAttributes: DatasetAttributes = sourceMetadata.attributes
 
-		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.blockSize, dataType, compression)
+		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.chunkSize, dataType, compression)
 
-		val totalBlocks = cellGrid.gridDimensions.reduce { acc, dim -> acc * dim }
+		val iterationGrid = if (n5 != null) CellGrid(sourceAttributes.dimensions, sourceAttributes.blockSize) else cellGrid
+		val totalBlocks = iterationGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
 		val labelProp = SimpleStringProperty("Blocks Processed:\t0 / $totalBlocks").apply {
 			bind(count.createNonNullValueBinding { "Blocks Processed:\t$it / $totalBlocks" })
@@ -205,8 +209,8 @@ class ExportSourceState {
 		val incrementWritten = { -> blocksWritten.update { it + 1 } }
 
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
-			exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, translation)
-			writer.setAttribute(dataset, "paintera/isLabel", true)
+			val createdAttributes = exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, translation)
+			writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/isLabel", true)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", maxIdProperty.value)
 			val scaleLevelDataset = "$dataset/s$scaleLevel"
@@ -214,12 +218,12 @@ class ExportSourceState {
 			n5?.let {
 				forEachBlockExists(it, sourceMetadata.path, { incrementProcessed() }) { cellInterval ->
 					val cellRai = exportRAI.interval(cellInterval)
-					N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
+					N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, createdAttributes)
 					incrementWritten()
 				}
 			} ?: forEachBlock(cellGrid) { cellInterval ->
 				val cellRai = exportRAI.interval(cellInterval)
-				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, exportAttributes)
+				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, createdAttributes)
 				incrementProcessed()
 				incrementWritten()
 			}
@@ -335,15 +339,17 @@ internal fun exportOmeNGFFMetadata(
 	datasetAttributes: DatasetAttributes,
 	sourceMetadata: N5SpatialDatasetMetadata,
 	translation: DoubleArray = sourceMetadata.offset,
-) {
+): DatasetAttributes {
 	val scaleLevelDataset = "$dataset/s$scaleLevel"
 	writer.createGroup(dataset)
-	val newDatasetAttrs = writer.createDataset(scaleLevelDataset, datasetAttributes)
+	val createdAttributes = writer.createDataset(scaleLevelDataset, datasetAttributes)
 
+	/* zarr2 containers get OME-Zarr 0.4 metadata; everything else get 0.5 */
+	val ngffVersion = if (writer is ZarrKeyValueWriter) "0.4" else "0.5"
 	val exportMetadata = OmeNgffMetadata.buildForWriting(
-		newDatasetAttrs.numDimensions,
+		datasetAttributes.numDimensions,
 		dataset,
-		"0.5",
+		ngffVersion,
 		arrayOf(
 			Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
 			Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
@@ -359,4 +365,5 @@ internal fun exportOmeNGFFMetadata(
 		writer,
 		dataset
 	)
+	return createdAttributes
 }
