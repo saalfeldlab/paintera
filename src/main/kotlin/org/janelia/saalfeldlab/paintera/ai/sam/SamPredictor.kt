@@ -130,7 +130,6 @@ class SamPredictor(
 
             val decoderContentInterval = Intervals.createMinSize(0, 0, croppedWidth, croppedHeight)
             return decodedImg
-                .extendBorder()
                 .interval(decoderContentInterval)
         }
 

@@ -29,11 +29,9 @@ import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import net.imglib2.Cursor
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.RealCursor
 import net.imglib2.RealPoint
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
