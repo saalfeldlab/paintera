@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml
 import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.OpenSourceState
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -71,7 +72,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 	fun reparseSelection(selection : String) {
 		n5Factory.remove(selection)
 		openSourceState.containerState?.reader?.let {
-			n5ContainerStateCache -= selection
+			N5ContainerStateCache.cache -= selection
 			parseN5LoaderCache.invalidate(it)
 		}
 		selectionChanged(selection)
@@ -87,7 +88,7 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 			isBusyProperty.set(true)
 			openSourceState.statusProperty.unbind()
 			openSourceState.statusProperty.set("Opening container...")
-			val state = n5ContainerStateCache.getOrPut(newSelection) {
+			val state = N5ContainerStateCache.cache.getOrPut(newSelection) {
 				val n5 = n5Factory.openReaderOrNull(newSelection)
 				ensureActive()
 				n5?.let { N5ContainerState(it) }
@@ -117,7 +118,6 @@ class N5FactoryOpener(private val openSourceState: OpenSourceState) {
 		internal val H5_EXTENSIONS = arrayOf("*.h5", "*.hdf", "*.hdf5")
 
 		private val LOG: KLogger = KotlinLogging.logger {}
-		internal val n5ContainerStateCache = HashMap<String, N5ContainerState?>()
 
 		private fun <T> getPainteraConfig(vararg segments: String, fallback: () -> T) = PainteraConfigYaml.getConfig(fallback, *segments) as T
 
