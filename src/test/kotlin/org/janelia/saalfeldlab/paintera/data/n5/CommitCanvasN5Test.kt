@@ -239,8 +239,8 @@ class CommitCanvasN5Test {
 					}
 				}
 
-				val uniqueBlock = writer.readBlock(uniqueBlock0Group, uniqueBlockAttributes, *blockPos)
-				assertEquals(labels, TLongHashSet(uniqueBlock.data as LongArray))
+				val uniqueBlock = writer.readBlock<LongArray>(uniqueBlock0Group, uniqueBlockAttributes, *blockPos)
+				assertEquals(labels, TLongHashSet(uniqueBlock.data))
 			}
 
 			val lookup = LabelBlockLookupFromN5Relative(scaleMappingPattern)
