@@ -13,19 +13,20 @@ import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.channelAxis
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fallbackAxes
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.getAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.isLabelMultiset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.spatialAxes
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.timeAxis
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
@@ -35,7 +36,7 @@ interface MetadataState {
 
 	var n5ContainerState: N5ContainerState
 
-	val metadata: N5Metadata
+	val metadata: SpatialMetadata
 	var datasetAttributes: DatasetAttributes
 	var transform: AffineTransform3D
 	var isLabel: Boolean
@@ -44,9 +45,7 @@ interface MetadataState {
 	var maxIntensity: Double
 	var resolution: DoubleArray
 	var translation: DoubleArray
-	var spatialAxes: Map<Axis, Int>
-	var channelAxis: Pair<Axis, Int>?
-	var timeAxis: Pair<Axis, Int>?
+	var axes: Array<Axis>
 	var virtualCrop: Interval?
 	var unit: String
 	val reader: N5Reader
@@ -75,17 +74,16 @@ interface MetadataState {
 
 		@JvmStatic
 		fun <T : MetadataState> setBy(source: T, target: T) {
-			target.transform.set(source.transform)
 			target.isLabelMultiset = source.isLabelMultiset
 			target.isLabel = source.isLabel
 			target.datasetAttributes = source.datasetAttributes
 			target.minIntensity = source.minIntensity
 			target.maxIntensity = source.maxIntensity
-			target.resolution = source.resolution.copyOf()
-			target.translation = source.translation.copyOf()
+			target.updateTransform(source.transform)
 			target.virtualCrop = source.virtualCrop?.let { FinalInterval(it.minAsLongArray(), it.maxAsLongArray()) }
 			target.unit = source.unit
 			target.group = source.group
+			target.axes = source.axes.copyOf()
 		}
 	}
 }
@@ -103,9 +101,7 @@ open class SingleScaleMetadataState(
 	override var maxIntensity = metadata.maxIntensity()
 	override var resolution = metadata.resolution
 	override var translation = metadata.offset
-	override var spatialAxes = metadata.spatialAxes
-	override var channelAxis: Pair<Axis, Int>? = metadata.channelAxis
-	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
+	override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
 	override var virtualCrop: Interval? = null
 	override var unit: String = metadata.unit()
 	override val reader
@@ -212,11 +208,15 @@ class PainteraDataMultiscaleMetadataState(
 	val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata)
 
 	override var virtualCrop: Interval? = null
-		get() = field
 		set(value) {
 			dataMetadataState.virtualCrop = value
 			field = value
 		}
+
+	override fun updateTransform(newTransform: AffineTransform3D) {
+		dataMetadataState.updateTransform(newTransform)
+		super.updateTransform(newTransform)
+	}
 
 	override fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
 			where D : NativeType<D>, T : Volatile<D>, T : NativeType<T> {
@@ -277,48 +277,73 @@ class MetadataUtils {
 
 		@JvmStatic
 		fun MetadataState.getAxes(): Array<Axis>? {
-			val axesMetadata = when (this) {
-				is SingleScaleMetadataState -> metadata
-				is MultiScaleMetadataState -> highestResMetadata
-				else -> null
-			}
-
-			return when (axesMetadata) {
-				is NgffSingleScaleAxesMetadata -> axesMetadata.axes
-				else -> null
-			}
+			val axesMetadata =
+				when (this) {
+					is SingleScaleMetadataState -> metadata
+					is MultiScaleMetadataState -> highestResMetadata
+					else -> null
+				} as? AxisMetadata
+			return axesMetadata?.axes
 		}
 
-		val N5SpatialDatasetMetadata.spatialAxes: Map<Axis, Int>
-			get() = when (this) {
-				is NgffSingleScaleAxesMetadata -> {
-					axes.mapIndexed { idx, axis -> axis to idx }
-						.filter { (axis, _) -> axis.type == Axis.SPACE && axis.name in SpatialAxes.labels }
-						.associate { (axis, idx) -> axis to idx }
-				}
+		@JvmStatic
+		fun MetadataState.fallbackAxes(): Array<Axis> {
+			val shape = datasetAttributes.dimensions
 
-				else -> mapOf(
-					Axis("spatial", "x", unit()) to 0,
-					Axis("spatial", "y", unit()) to 1,
-					Axis("spatial", "z", unit()) to 2
-				)
+			val descendingByDimLen = shape.mapIndexed { dimIdx, length -> dimIdx to length }
+				.sortedByDescending { (_, len) -> len }
+
+			val spatialIndices = descendingByDimLen.take(3).map { it.first }.toSet()
+			val thirdIndex = descendingByDimLen.getOrNull(3)
+			val fourthIndex = descendingByDimLen.getOrNull(4)
+
+			/* Assume time is larger than channel, but if they're the same, assume channel is first*/
+			val (channelIdx, timeIdx) =
+				if (thirdIndex?.second == fourthIndex?.second)
+					thirdIndex?.first to fourthIndex?.first
+				else
+					fourthIndex?.first to thirdIndex?.first
+
+			val spatialAxesIter = listOf(
+				Axis(Axis.SPACE, "x", "pixel"),
+				Axis(Axis.SPACE, "y", "pixel"),
+				Axis(Axis.SPACE, "z", "pixel")
+			).iterator()
+
+			val axisByHeuristics = Array(shape.size) {
+				when (it) {
+					in spatialIndices -> spatialAxesIter.next() /* spatial axes are the 3 largest */
+					channelIdx -> Axis(Axis.CHANNEL, "c", "")
+					timeIdx -> Axis(Axis.TIME, "t", "")
+					else -> Axis(Axis.CHANNEL, "$it", "")
+				}
 			}
 
-		val N5SpatialDatasetMetadata.channelAxis: Pair<Axis, Int>?
+			return axisByHeuristics
+		}
+
+		val N5SpatialDatasetMetadata.spatialAxes: Map<Int, Axis>?
+			get() = (this as? AxisMetadata)?.run {
+					axes.mapIndexed { idx, axis -> idx to axis  }
+						.filter { (_, axis) -> axis.type == Axis.SPACE && axis.name in SpatialAxes.labels }
+						.associate { (idx, axis) -> idx to axis }
+				}
+
+		val N5SpatialDatasetMetadata.channelAxis: Pair<Int, Axis>?
 			get() = when (this) {
 				is NgffSingleScaleAxesMetadata -> {
-					axes.mapIndexed { idx, axis -> axis to idx }
-						.firstOrNull() { (axis, _) -> axis.type == Axis.CHANNEL }
+					axes.mapIndexed { idx, axis -> idx to axis }
+						.firstOrNull { (_, axis) -> axis.type == Axis.CHANNEL }
 				}
 
 				else -> null
 			}
 
-		val N5SpatialDatasetMetadata.timeAxis: Pair<Axis, Int>?
+		val N5SpatialDatasetMetadata.timeAxis: Pair<Int, Axis>?
 			get() = when (this) {
 				is NgffSingleScaleAxesMetadata -> {
-					axes.mapIndexed { idx, axis -> axis to idx }
-						.firstOrNull() { (axis, _) -> axis.type == Axis.TIME }
+					axes.mapIndexed { idx, axis -> idx to axis }
+						.firstOrNull { (_, axis) -> axis.type == Axis.TIME }
 				}
 
 				else -> null

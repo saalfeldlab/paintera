@@ -7,7 +7,6 @@ import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -22,12 +21,9 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.OpenProjectDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.OpenDialogMenuEntry
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.IntersectingSourceStateOpener
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.kordamp.ikonli.fontawesome.FontAwesome
-import java.util.function.Supplier
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
 enum class PainteraMenuItems(
@@ -69,10 +65,6 @@ enum class PainteraMenuItems(
 
 	companion object {
 
-		private operator fun OpenDialogMenuEntry.invoke(pbv: PainteraBaseView, projectDir : Supplier<String>) {
-			onAction().accept(pbv, projectDir)
-		}
-
 		private val replDialog = ReplDialog(paintera.gateway.context, "paintera" to this)
 
 		private fun PainteraMainWindow.namedEventHandlers(): Map<PainteraMenuItems, EventHandler<ActionEvent>> {
@@ -84,7 +76,6 @@ enum class PainteraMenuItems(
 						Paintera.application.loadProject(newProject.path)
 					}
 				},
-				OPEN_SOURCE { OpenSourceDialog.menuEntry(baseView, getProjectDirectory) },
 				EXPORT_SOURCE { ExportSourceDialog.askAndExport() },
 				SAVE { saveOrSaveAs() },
 				SAVE_AS { saveAs() },
