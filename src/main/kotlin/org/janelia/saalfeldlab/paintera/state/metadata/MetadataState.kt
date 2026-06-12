@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.o
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.spatialAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.timeAxis
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
@@ -407,7 +406,7 @@ class MetadataUtils {
 					N5ContainerState(it)
 				}
 			}
-			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(container) {
+			val containerState = N5ContainerStateCache.cache.getOrPut(container) {
 				newContainerState
 			} ?: newContainerState ?: return null
 			return createMetadataState(containerState, dataset)
@@ -443,7 +442,7 @@ class MetadataUtils {
 			val newContainerState by lazy(LazyThreadSafetyMode.NONE) { N5ContainerState(reader) }
 			/* Realistically, the null case should never be triggered, but the return type of `getOrPut` is nullable,
 			 * so this is the safe thing to do. In either case, it should be the same result. */
-			val containerState = N5FactoryOpener.n5ContainerStateCache.getOrPut(reader.uri.toString()) { newContainerState }
+			val containerState = N5ContainerStateCache.cache.getOrPut(reader.uri.toString()) { newContainerState }
 				?: newContainerState
 
 			return createMetadataState(containerState, dataset)

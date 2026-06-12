@@ -8,7 +8,6 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5FactoryOpener
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -54,11 +53,11 @@ class ReadOnlyN5ContainerStateTest {
 		}
 
 		private fun verifyCacheSize(expected: Int) {
-			assertEquals(expected, N5FactoryOpener.Companion.n5ContainerStateCache.size)
+			assertEquals(expected, N5ContainerStateCache.cache.size)
 		}
 
 		private fun verifyCacheContains(path: String) {
-			assertTrue(N5FactoryOpener.Companion.n5ContainerStateCache.containsKey(path))
+			assertTrue(N5ContainerStateCache.cache.containsKey(path))
 		}
 
 		private fun assertReadOnly(container: N5ContainerState) {
@@ -74,7 +73,7 @@ class ReadOnlyN5ContainerStateTest {
 
 	@BeforeEach
 	fun clearCache() {
-		N5FactoryOpener.Companion.n5ContainerStateCache.clear()
+		N5ContainerStateCache.cache.clear()
 	}
 
 	@Test
@@ -106,7 +105,7 @@ class ReadOnlyN5ContainerStateTest {
 		val state1 = MetadataUtils.createMetadataState(n5, dataset)
 
 		assertNotNull(state1)
-		assertTrue(N5FactoryOpener.Companion.n5ContainerStateCache.size > 0)
+		assertTrue(N5ContainerStateCache.cache.size > 0)
 
 		val state2 = MetadataUtils.createMetadataState(n5, dataset)
 

@@ -39,9 +39,9 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.f
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.metadataIsValid
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
@@ -321,8 +321,8 @@ object N5Helpers {
 	@Throws(MaxIDNotSpecified::class, IOException::class)
 	fun idService(n5: N5Reader, dataset: String?): IdService {
 		LOG.debug { "Requesting id service for $n5:$dataset" }
-		val maxId = n5.getAttribute(dataset, "maxId", Long::class.java)
-			?: n5.getAttribute(dataset, "paintera/maxId", Long::class.java)
+		val maxId = n5.getAttribute(dataset, MAX_ID_KEY, Long::class.java)
+			?: n5.getAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", Long::class.java)
 		LOG.debug { "Found maxId=$maxId" }
 		return when {
 			maxId == null && n5 is N5Writer -> throw MaxIDNotSpecified("Required attribute `maxId` not specified for dataset `$dataset` in container `$n5`.")
@@ -796,7 +796,7 @@ object N5Helpers {
 
 	/**
 	 * Iterates through each block in the specified dataset that exists and performs an action using the provided lambda function.
-	 * `forEachBlockExists` will be called asynchrounsly only on blocks that exist (checked via [KeyValueAccess#exists]).
+	 * `forEachBlockExists` will be called asynchrounsly only on blocks that exist (checked via [N5Reader.blockExists]).
 	 * `forEachBlock` is called asynchronously for each block regardless of existence.
 	 *
 	 * If both `forEachBlockExists` and `forEachBlock` are provided, `forEachBlock` will be called twice for blocks that exist.
