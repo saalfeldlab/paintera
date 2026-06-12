@@ -56,8 +56,8 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
+import org.janelia.saalfeldlab.paintera.control.actions.OpenSource
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceDialog
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
@@ -412,8 +412,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 	}
 
 	fun addOpenDatasetAction(target: Node): ActionSet {
-
-		val actionSet = OpenSourceDialog.actionSet(baseView)
+		val actionSet = OpenSource.actionSet()
 		target.installActionSet(actionSet)
 		return actionSet
 	}

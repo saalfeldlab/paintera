@@ -32,11 +32,11 @@ class SlicedSourceMetadataTest {
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
 			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.Companion.getJsonAdapter())
-			Paintera.Companion.n5Factory.gsonBuilder(builder)
+			Paintera.n5Factory.gsonBuilder(builder)
 		}
 
 		private fun writer(tmp: Path): N5Writer =
-			Paintera.Companion.n5Factory.newWriter(tmp.toAbsolutePath().toString())
+			Paintera.n5Factory.newWriter(tmp.toAbsolutePath().toString())
 
 		private fun createDataset(
 			n5: N5Writer,
@@ -350,13 +350,13 @@ class SlicedSourceMetadataTest {
 		assertNotNull(metadataState)
 		assertEquals(5, metadataState.datasetAttributes.numDimensions)
 
-		metadataState.spatialAxes = mapOf<Axis, Int>(
-			Axis(Axis.SPACE, "x") to 0,
-			Axis(Axis.SPACE, "y") to 1,
-			Axis(Axis.SPACE, "z") to 3
+		metadataState.axes = arrayOf(
+			Axis(Axis.SPACE, "x"),
+			Axis(Axis.SPACE, "y"),
+			Axis(Axis.CHANNEL, "c"),
+			Axis(Axis.SPACE, "z"),
+			Axis(Axis.TIME, "t")
 		)
-		val spatialAxes = metadataState.spatialAxes
-		assertEquals(3, spatialAxes.size)
 
 		val sources = getSources(metadataState)
 

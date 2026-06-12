@@ -29,6 +29,8 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.alert
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.confirmation
+import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.setButtonText
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
@@ -61,6 +63,7 @@ object DataSourceDialogs {
 				ButtonType.NEXT to "_Skip",
 				ButtonType.CANCEL to "_Cancel"
 			)
+
 			headerText = "Define label-to-block-lookup for on-the-fly mesh generation"
 			dialogPane.content = TextArea(
 				"""
@@ -97,6 +100,7 @@ object DataSourceDialogs {
 			ButtonType.NEXT -> LabelBlockLookupNoBlocks()
 
 			else -> throw CancellationException("Add Source Cancelled")
+
 		}
 	}
 
@@ -136,6 +140,7 @@ object DataSourceDialogs {
 			isEditable = false
 			isWrapText = true
 		}
+
 		val maxIdFormatter = PositiveLongTextFormatter()
 		val maxIdProperty = SimpleObjectProperty<Long?>(null)
 
@@ -263,17 +268,17 @@ object DataSourceDialogs {
 				when (buttonType) {
 					ButtonType.OK -> {
 						val maxId = maxIdProperty.get() ?: Label.INVALID
-					runCatching {
-						n5.setAttribute(dataset, "maxId", maxId)
-						N5IdService(n5, dataset, maxId)
-					}.getOrElse {
-						LocalIdService(maxId)
-					}
+						runCatching {
+							n5.setAttribute(dataset, "maxId", maxId)
+							N5IdService(n5, dataset, maxId)
+						}.getOrElse {
+							LocalIdService(maxId)
+						}
 					}
 					ButtonType.NEXT -> {
-					task.get()?.cancel()
-					LocalIdService(1)
-				}
+						task.get()?.cancel()
+						LocalIdService(1)
+					}
 					else -> throw CancellationException("Open Source Cancelled")
 				}
 			}.await()
