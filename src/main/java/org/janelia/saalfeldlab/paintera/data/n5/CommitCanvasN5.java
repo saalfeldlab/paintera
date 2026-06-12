@@ -424,7 +424,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		boolean currentEmptyBehavior = updatedAccess.getArrayLength() == 0;
 		if (updatedAccess.isValid() && currentEmptyBehavior) {
-			n5.deleteBlock(dataset, blockPosition);
+			n5.deleteBlock(dataset, attributes, blockPosition);
 			return null;
 		}
 
@@ -687,7 +687,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 								new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
 
 						if (byteData == null) {
-							datasetSpec.container.deleteBlock(datasetSpec.dataset, blockSpecCopy.pos);
+							datasetSpec.container.deleteBlock(datasetSpec.dataset, datasetSpec.attributes, blockSpecCopy.pos);
 						} else {
 							final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(
 									Intervals.dimensionsAsIntArray(backgroundWithCanvas),
