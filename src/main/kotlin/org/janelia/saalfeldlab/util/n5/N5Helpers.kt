@@ -73,7 +73,6 @@ object N5Helpers {
 	private val LOG = KotlinLogging.logger { }
 
 	val GROUP_PARSERS = listOf<N5MetadataParser<*>>(
-		OmeNgffV05MetadataParser(),
 		OmeNgffMetadataParser(),
 		PainteraRawMultiScaleParser(),
 		PainteraLabelMultiScaleParser(),
