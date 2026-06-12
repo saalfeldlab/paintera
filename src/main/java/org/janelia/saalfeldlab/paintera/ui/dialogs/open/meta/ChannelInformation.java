@@ -50,6 +50,11 @@ public class ChannelInformation {
 		return this.channelSelection.get().clone();
 	}
 
+	public ObjectProperty<int[]> channelSelectionProperty() {
+
+		return channelSelection;
+	}
+
 	public Node getNode() {
 
 		final TextField channels = new TextField();

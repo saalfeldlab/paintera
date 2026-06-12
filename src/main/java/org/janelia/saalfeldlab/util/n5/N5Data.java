@@ -278,15 +278,15 @@ public class N5Data {
 	 */
 	private static int[] getXyzAxes(MetadataState metadataState) {
 
-		final Map<Axis, Integer> spatialAxes = metadataState.getSpatialAxes();
+		final Axis[] axes = metadataState.getAxes();
 		final var xyzAxes = new int[]{-1,-1,-1};
-		spatialAxes.forEach((axis, idx) -> {
-			final String name = axis.getName().toLowerCase();
+		for (int idx = 0; idx < axes.length; idx++) {
+			final String name = axes[idx].getName().toLowerCase();
 
 			if (name.equals("x")) xyzAxes[0] = idx;
 			if (name.equals("y")) xyzAxes[1] = idx;
 			if (name.equals("z")) xyzAxes[2] = idx;
-		});
+		}
 		for (int idx : xyzAxes) {
 			assert idx >= 0;
 		}
