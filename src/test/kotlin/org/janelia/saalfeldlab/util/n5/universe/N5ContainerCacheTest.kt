@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.util.n5.universe
 import org.janelia.saalfeldlab.n5.N5KeyValueWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
@@ -68,9 +68,19 @@ class N5ContainerCacheTest {
 		val uri = tempDir.resolve("test.n5").toUri().toString()
 		val writer = n5Factory.newWriter(uri)
 		val reader = n5Factory.openReader(uri, allowWriter = false)
-		
+
 		assertNotSame(writer, reader, "Writer should not be returned as reader when allowWriter=false")
 		assertTrue(reader !is N5Writer, "Reader should not be a writer when allowWriter=false")
+	}
+
+	@Test
+	fun `test allowWriter false honored when format cannot be inferred from uri`(@TempDir tempDir: Path) {
+		val uri = tempDir.resolve("container").toUri().toString()
+		val writer = n5Factory.newWriter(uri)
+		val reader = n5Factory.openReader(uri, allowWriter = false)
+
+		assertTrue(reader !is N5Writer, "Reader should not be a writer when allowWriter=false")
+		assertNotSame(writer, reader, "Writer should not be returned as reader when allowWriter=false")
 	}
 	
 	@Test
@@ -232,7 +242,7 @@ class N5ContainerCacheTest {
 		// Test Zarr format
 		val zarrUri = tempDir.resolve("test.zarr").toUri().toString()
 		val zarrWriter = n5Factory.newWriter(zarrUri)
-		assertTrue(zarrWriter is ZarrKeyValueWriter, "Should create Zarr writer")
+		assertTrue(zarrWriter is ZarrV3KeyValueWriter, "Should create Zarr writer")
 		
 		// Both should be cached
 		assertSame(n5Writer, n5Factory.openWriter(n5Uri))
