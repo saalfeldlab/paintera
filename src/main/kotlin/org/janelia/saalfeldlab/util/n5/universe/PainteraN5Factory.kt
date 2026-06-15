@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.util.n5.universe
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.janelia.saalfeldlab.n5.KeyValueAccess
 import org.janelia.saalfeldlab.n5.N5Exception
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5URI
@@ -9,7 +10,6 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.universe.N5FactoryWithCache
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import java.net.URI
-import java.nio.file.Paths
 
 class PainteraN5Factory : N5FactoryWithCache() {
 
@@ -22,61 +22,94 @@ class PainteraN5Factory : N5FactoryWithCache() {
 		preferredStorageFormat(StorageFormat.N5)
 	}
 
+    internal class ThreadLocalConditional(val initial : Boolean) : ThreadLocal<Boolean>() {
+        override fun initialValue(): Boolean {
+            return initial
+        }
+
+        fun <T> allowOrNull(allow: () -> T): T? =
+            if (get()) allow() else null
+
+        fun <T> use(allow: Boolean, invoke: () -> T): T {
+            set(allow)
+            try {
+                return invoke()
+            } finally {
+                remove()
+            }
+        }
+    }
+
+
+    /* whether to allow a writer to be returned as a reader. */
+    private val allowWriterAsReader = ThreadLocalConditional(true)
+
+    /* whether to allow creating a new n5 container if one doesn't already exist.  */
+    private val allowCreateContainer = ThreadLocalConditional(false)
+
+    @Synchronized
 	@Throws(N5ContainerDoesntExist::class)
-	override fun openReader(format: StorageFormat?, uri: URI): N5Reader {
-		return openReader(format, uri, allowWriter = true)
+    override fun openReader(format: StorageFormat?, access: KeyValueAccess, location: URI): N5Reader {
+        val cachedReader by lazy(LazyThreadSafetyMode.NONE) { getReaderFromCache(format, location) }
+        val cachedWriterAsReader by lazy(LazyThreadSafetyMode.NONE) {
+            allowWriterAsReader.allowOrNull { getWriterFromCache(format, location) as? N5Reader }
 	}
-
-	@JvmSynthetic
-	internal fun openReader(uri: String, allowWriter: Boolean) = StorageFormat.parseUri(uri).run { openReader(a, b, allowWriter) }
-
-	@JvmSynthetic
-	internal fun openReader(format: StorageFormat?, uri: URI, allowWriter: Boolean): N5Reader {
-		val normalUri = normalizeUri(uri)
-		val n5ReaderFromCache by lazy(LazyThreadSafetyMode.NONE) { getReaderFromCache(format, normalUri) }
-		val n5WriterFromCache by lazy(LazyThreadSafetyMode.NONE) {
-			if (allowWriter) getWriterFromCache(format, normalUri)
-			else null
-		}
-		val newReader by lazy(LazyThreadSafetyMode.NONE) {
+        val openReader by lazy(LazyThreadSafetyMode.NONE) {
 			try {
-				super.openReader(format, uri)
+                super.openReader(format, access, location)
 			} catch (e: N5Exception.N5IOException) {
 				if (e.message?.startsWith("No container exists at") == true)
-					throw N5ContainerDoesntExist(uri.toString(), e)
+                    throw N5ContainerDoesntExist(location.toString(), e)
 				throw e
 			}
 		}
-		return n5ReaderFromCache ?: n5WriterFromCache ?: newReader
+        return cachedReader /* reader was cached */
+            ?: cachedWriterAsReader /* writer was cached, but can be returned as N5Reader */
+            ?: openReader /* open and cache if valid N5 Container*/
+    }
 
-	}
+    @JvmSynthetic
+    internal fun openReader(uri: String, allowWriter: Boolean): N5Reader = allowWriterAsReader.use(allowWriter) { super.openReader(uri) }
 
+    @Synchronized
 	@Throws(N5ContainerDoesntExist::class)
-	override fun openWriter(format: StorageFormat?, uri: URI): N5Writer {
-		return getWriterFromCache(format, normalizeUri(uri)) ?: openAndCacheExistingN5Writer(format, uri)
+    override fun openWriter(format: StorageFormat?, access: KeyValueAccess, location: URI): N5Writer {
+        val cachedWriter by lazy(LazyThreadSafetyMode.NONE) {
+            getWriterFromCache(format, location)
+        }
+        val createNewWriter by lazy(LazyThreadSafetyMode.NONE) {
+            allowCreateContainer.allowOrNull<N5Writer> { super.openWriter(format, access, location) }
+        }
+        val openExistingWriter by lazy(LazyThreadSafetyMode.NONE) {
+            openAndCacheExistingN5Writer(format, access, location)
+        }
+        return cachedWriter /* Writer already cached, return it */
+            ?: createNewWriter /* not cached, but we are allowed to create it if necessary, so do it*/
+            ?: openExistingWriter /* not cached, and can't create new, but if an N5 Container exists, we can still get the writer for it.*/
 	}
 
-	fun newWriter(uri: String): N5Writer =
-		runCatching { openWriter(uri) }.getOrNull()
-			?: StorageFormat.parseUri(uri).let {
-				super.openWriter(it.a, it.b)
+    @Synchronized
+    fun newWriter(uri: String): N5Writer {
+        runCatching { openWriter(uri) }.getOrNull()?.let { return it }
+        val (format, asUri) = StorageFormat.parseUri(uri).run { a to b }
+        return allowCreateContainer.use(true) {
+            val kva = getKeyValueAccess(asUri, false)!!
+            openWriter(format, kva, asUri)
+        }
 			}
 
+    @Synchronized
 	fun newWriter(format: StorageFormat?, uri: String): N5Writer {
 		val asUri = StorageFormat.parseUri(uri).b
-		return runCatching {
-			openWriter(format, asUri)
+        runCatching { openWriter(format, asUri) }.getOrNull()?.let { return it }
+        return allowCreateContainer.use(true) {
+            val kva = getKeyValueAccess(asUri, false)!!
+            openWriter(format, kva, asUri)
 		}
-			.getOrNull()
-			?: super.openWriter(format, asUri) /* must be the last `openWriter` that doesn't call an override version */
     }
 
     fun openWriterOrNull(uri: String): N5Writer? =
-		runCatching {
-			val (format, location) = StorageFormat.getStorageFromNestedScheme(uri).let { it.a to it.b }
-			val asUri = StorageFormat.parseUri(location).b
-			openWriter(format, asUri)
-		}
+        runCatching { openWriter(uri) }
 			.onFailure { LOG.debug(it) { "Unable to open $uri as N5Writer" } }
 			.getOrNull()
 
@@ -99,37 +132,18 @@ class PainteraN5Factory : N5FactoryWithCache() {
 			}.getOrThrow()
 
 	@Throws(N5ContainerDoesntExist::class)
-	private fun openAndCacheExistingN5Writer(format: StorageFormat?, uri: URI): N5Writer {
-		/* We only want a writer if the container exists. Check by attempting to get a writer.
+    private fun openAndCacheExistingN5Writer(format: StorageFormat?, access: KeyValueAccess, location: URI): N5Writer {
+        /* We only want a writer if the container exists. Check by attempting to get a reader.
 		*  If we don't error, open the writer */
-		runCatching { openReader(format, uri) }
+        runCatching { openReader(format, access, location) }
 			.onSuccess { (it as? N5HDF5Reader)?.close() }
 			.getOrThrow()
 
-		return super.openWriter(format, uri)
+        return super.openWriter(format, access, location)
 	}
 
 	companion object {
 		private val LOG = KotlinLogging.logger { }
-
-
-		//FIXME Caleb: Copied and converted from [N5FactoryWithCache#normalizeUri]. Should be public (or protected)!
-		private fun normalizeUri(uri: URI): URI {
-			if (uri.isAbsolute && uri.scheme != "file") {
-				return uri.normalize()
-			}
-
-			val uriFromPath: URI = if (uri.isAbsolute) {
-				Paths.get(uri).normalize().toUri()
-			} else {
-				Paths.get(uri.path).normalize().toUri()
-			}
-
-			// By default, Path.toUri() adds a trailing `/` if it's a directory.
-			// We remove this trailing slash to avoid unintended cache issues.
-			val uriWithoutTrailingSlash = uriFromPath.toString().removeSuffix("/")
-			return URI.create(uriWithoutTrailingSlash).normalize()
-		}
 	}
 }
 
