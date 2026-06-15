@@ -2,25 +2,20 @@ package org.janelia.saalfeldlab.paintera.control.actions
 
 import dev.dirs.UserDirectories
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValue
-import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.scene.control.*
 import javafx.scene.effect.InnerShadow
 import javafx.scene.layout.Background
 import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Pane
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.DirectoryChooser
 import javafx.stage.FileChooser
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.fx.ui.ObjectField.Companion.stringField
@@ -35,9 +30,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceNode
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import java.io.File
-import java.util.UUID
 import java.util.function.Consumer
 
 private val LOG = KotlinLogging.logger {}
@@ -93,6 +86,10 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 		text = "ERROR"
 	}
 
+	private val errorStateProperty = model.containerStateProperty.createObservableBinding(model.activeNodeProperty) {
+		model.containerState to model.activeNode
+	}
+
 	init {
 		padding = Insets(10.0)
 
@@ -105,13 +102,7 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 			InvokeOnJavaFXApplicationThread { model.type = sourceType }
 		}
 
-		with(model) {
-			val openSourceStateChangeBinding = activeNodeProperty.createObservableBinding(containerStateProperty) { UUID.randomUUID() }
-			openSourceStateChangeBinding.subscribe { _ ->
-				openSourceStateChangeBinding.get()
-				combineErrorMessages()
-			}
-		}
+		errorStateProperty.subscribe { _ -> combineErrorMessages() }
 
 		val typeChoiceButton = MatchSelectionMenuButton(SourceType.entries.map(SourceType::toString), "_Type") {
 			model.type = SourceType.valueOf(it!!)
