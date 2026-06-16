@@ -69,7 +69,7 @@ public class N5OpenSourceHelper {
 			PainteraBaseView viewer) {
 
 		final DatasetAttributes attributes = Objects.requireNonNull(model.getMetadataState()).getDatasetAttributes();
-		if (attributes.getNumDimensions() == 4) {
+		if (false && attributes.getNumDimensions() == 4) {
 			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
 			final var channels = getChannels(model, channelSelection, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
@@ -96,7 +96,7 @@ public class N5OpenSourceHelper {
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getPropagationQueue()
 		);
-		invoke(() -> viewer.addState(rep)).join();
+		invoke(() -> viewer.addState(rep));
 	}
 
 	public static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>

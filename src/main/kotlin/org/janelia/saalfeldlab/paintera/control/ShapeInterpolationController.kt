@@ -230,7 +230,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		activeViewer = viewer
 
 		/* Store all the previous activated Ids*/
-		lastSelectedId = assignment.getSegment(selectedIds.lastSelection)
+		lastSelectedId = assignment.getSegment(selectedIds.lastSelection) //FIXME: selectedIds has outdated listeners from previous SamTool (I think)
 		if (lastSelectedId == Label.INVALID) lastSelectedId = idService.next()
 		selectNewInterpolationId()
 		initialGlobalToViewerTransform = globalToViewerTransform

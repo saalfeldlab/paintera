@@ -2,12 +2,16 @@ package org.janelia.saalfeldlab.paintera.control.actions
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
 import javafx.beans.property.LongProperty
 import javafx.beans.property.Property
 import javafx.geometry.HPos
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
+import javafx.geometry.Pos
+import javafx.scene.control.ComboBox
 import javafx.scene.control.Label
+import javafx.scene.control.ListCell
 import javafx.scene.control.ScrollPane
 import javafx.scene.control.Separator
 import javafx.scene.control.TextField
@@ -21,7 +25,6 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.ChannelInformation
 
 private val LOG = KotlinLogging.logger {}
 
@@ -84,9 +87,27 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         col = 0
         row++
         grid[col++, row] = axisLabel("Axis", HPos.RIGHT)
-        for (d in dimensions.indices) {
-            grid[col++, row] = axisLabel(axes[d].name.uppercase(), HPos.CENTER)
+        val axisCombos = Array(dimensions.size) { d ->
+            ComboBox<Axis>().apply {
+                styleClass += "axis-header"
+                items.setAll(*axes)
+                maxWidth = Double.MAX_VALUE
+                val axisCell = {
+                    object : ListCell<Axis>() {
+                        init { alignment = Pos.CENTER }
+                        override fun updateItem(item: Axis?, empty: Boolean) {
+                            super.updateItem(item, empty)
+                            text = if (empty) null else item?.name?.uppercase()
+                        }
+                    }
+                }
+                buttonCell = axisCell()
+                setCellFactory { axisCell() }
+                value = axes[d]
+            }
         }
+        for (idx in axisCombos.indices)
+            grid[col++, row] = axisCombos[idx]
 
         /* dimension size row  */
         col = 0
@@ -107,6 +128,10 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
                 else -> null
             }
         }
+
+        /* store initial values from the parsed metadata for reset on axis change */
+        val initialResolution = resolution.copyOf()
+        val initialTranslation = translation.copyOf()
 
         /* resolution row  */
         col = 0
@@ -146,13 +171,64 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         }
         val translationFields = Array(dimensions.size) { transFieldsAndProps[it].first }
 
-        /* only spatial dimensions have resolution and translation */
-        for (idx in dimensions.indices) {
-            val isSpatial = axes[idx].toXyzIdx() != null
-            resolutionFields[idx].isVisible = isSpatial
-            resolutionFields[idx].isManaged = isSpatial
-            translationFields[idx].isVisible = isSpatial
-            translationFields[idx].isManaged = isSpatial
+        /* slice index row  */
+        col = 0
+        row++
+        val sliceLabel = axisLabel("Slice Index", HPos.RIGHT)
+        grid[col++, row] = sliceLabel
+        slicePositions = IntArray(dimensions.size) { d ->
+            axes[d].toXyzIdx()?.let { -1 } ?: 0
+        }
+        val sliceFieldsAndProps = Array(dimensions.size) { d ->
+            val initialSlice = slicePositions!![d]
+            val (field, property) = newIntField(initialSlice) { it >= -1 }
+            subscriptions += property.subscribe { _, idx -> slicePositions?.set(d, idx.toInt()) }
+            grid[col++, row] = field
+            field to property
+        }
+        val sliceFields = Array(dimensions.size) { sliceFieldsAndProps[it].first }
+
+        /* toggle field visibility, reset values, and update spatial mapping */
+        fun updateFieldVisibility() {
+            var anySliceVisible = false
+            for (idx in dimensions.indices) {
+                val spatialIdx = axes[idx].toXyzIdx()
+                val isSpatial = axes[idx].toXyzIdx() != null
+                resolutionFields[idx].isVisible = isSpatial
+                resolutionFields[idx].isManaged = isSpatial
+                translationFields[idx].isVisible = isSpatial
+                translationFields[idx].isManaged = isSpatial
+                sliceFields[idx].isVisible = !isSpatial
+                sliceFields[idx].isManaged = !isSpatial
+
+                /* reinitialize all field values */
+                resFieldsAndProps[idx].second.value = spatialIdx?.let { initialResolution[it] } ?: 1.0
+                transFieldsAndProps[idx].second.value = spatialIdx?.let { initialTranslation[it] } ?: 0.0
+                sliceFieldsAndProps[idx].second.value = spatialIdx?.let { -1 } ?: 0
+                if (!isSpatial) anySliceVisible = true
+            }
+            sliceLabel.isVisible = anySliceVisible
+            sliceLabel.isManaged = anySliceVisible
+        }
+        updateFieldVisibility()
+
+        /* swap axes and update fields  */
+        var swapping = false
+        for (idx in axisCombos.indices) {
+            subscriptions += axisCombos[idx].valueProperty().subscribe { _, newAxis ->
+                if (newAxis == null || swapping) return@subscribe
+                swapping = true
+                val curAxis = axes[idx]
+                val otherIdx = axisCombos.indexOfFirst { it !== axisCombos[idx] && it.value == newAxis }
+                axes[idx] = newAxis
+                if (otherIdx >= 0) {
+                    axes[otherIdx] = curAxis
+                    axisCombos[otherIdx].value = curAxis
+                }
+
+                updateFieldVisibility()
+                swapping = false
+            }
         }
 
         /* add hgrow constraints for the data columns */
@@ -204,29 +280,6 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         }
     }
 
-    private fun addChannelInfoNode(gridPane: GridPane) {
-
-        val metadataState = model.metadataState ?: return
-        val dimensions = metadataState.datasetAttributes.dimensions
-        if (dimensions.size != 4) return
-        val channelIdx = metadataState.axes.indexOfFirst { it.type == Axis.CHANNEL }.takeUnless { it == -1 } ?: 3
-
-        val channelInfo = ChannelInformation().apply {
-            numChannelsProperty().set(dimensions[channelIdx].toInt())
-            subscriptions += channelSelectionProperty().subscribe { selection -> model.channelSelection = selection }
-        }
-
-        val node = channelInfo.node
-        subscriptions += model.typeProperty.subscribe { type ->
-            val isRaw = type == SourceType.RAW
-            node.isVisible = isRaw
-            node.isManaged = isRaw
-        }
-
-        val newRow = gridPane.rowCount
-        gridPane.add(node, 0, newRow, GridPane.REMAINING, 1)
-    }
-
     private fun addTypeBoundNodes(gridPane: GridPane) {
 
         /* add a separator that spans the grid horizontally */
@@ -238,8 +291,6 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         gridPane.add(rowSeparator, 0, newRow, GridPane.REMAINING, 1)
 
         addRawMetaNodes(gridPane)
-
-        addChannelInfoNode(gridPane)
 
         subscriptions += model.typeProperty.subscribe { _ ->
             sizeWindowToScene()
@@ -282,5 +333,13 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
                 .toCell(editable)
         }
 
+        private fun newIntField(
+            initialValue: Int,
+            editable: Boolean = true,
+            valueTest: (Int) -> Boolean = { true }
+        ): Pair<TextField, IntegerProperty> {
+            return NumberField.intField(initialValue, valueTest, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST)
+                .toCell(editable)
+        }
     }
 }

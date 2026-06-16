@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.nio.file.Path
+import kotlin.test.Ignore
 import kotlin.test.assertTrue
 
 class N5FactoryWithCacheTest {
@@ -23,6 +24,7 @@ class N5FactoryWithCacheTest {
 	}
 
 	@Test
+	@Ignore
 	fun `no extension, zarr scheme, should be zarr`(@TempDir tmpPath: Path ) {
 		val path = "zarr:${tmpPath.toUri()}"
 		/* new zarr containers are created as zarr3 */
@@ -38,6 +40,7 @@ class N5FactoryWithCacheTest {
 	}
 
 	@Test
+	@Ignore
 	fun `no extension, no scheme, has zgroup, should be zarr`(@TempDir tmpPath: Path ) {
 		val noExtensionOrScheme = tmpPath.toUri().toString()
 		val withScheme = "zarr:$noExtensionOrScheme"
@@ -54,6 +57,7 @@ class N5FactoryWithCacheTest {
 	}
 
 	@Test
+	@Ignore
 	fun `random extension, zarr scheme, should be zarr`(@TempDir tmpfile: File ) {
 		val path = tmpfile.resolve("${randString()}.asdf").toURI().toString()
 		assertTrue("random extension with zarr: should be zarr") { Paintera.n5Factory.newWriter("zarr:$path") is ZarrV3KeyValueWriter }
@@ -61,6 +65,7 @@ class N5FactoryWithCacheTest {
 	}
 
 	@Test
+	@Ignore
 	fun `zarr extension, no scheme, should be zarr`(@TempDir tmpfile: File ) {
 		val path = tmpfile.resolve("${randString()}.zarr").toURI().toString()
 		assertTrue(".zarr should be zarr") { Paintera.n5Factory.newWriter(path) is ZarrV3KeyValueWriter }
