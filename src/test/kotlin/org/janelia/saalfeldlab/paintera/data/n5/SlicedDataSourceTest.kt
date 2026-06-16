@@ -36,11 +36,11 @@ class SlicedDataSourceTest {
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
 			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
-			Paintera.Companion.n5Factory.gsonBuilder(builder)
+			Paintera.n5Factory.options.gsonBuilder(builder)
 		}
 
 		private fun writer(tmp: Path): N5Writer =
-			Paintera.Companion.n5Factory.newWriter(tmp.toAbsolutePath().toString())
+			Paintera.n5Factory.newWriter(tmp.toAbsolutePath().toString())
 
 		private fun createDataset(
 			writer: N5Writer,
@@ -60,7 +60,7 @@ class SlicedDataSourceTest {
 		): ImagesWithTransform<*, *> {
 			val queue = SharedQueue(1, 1)
 			return if (forceSlice3D != null) {
-				val transform = MetadataUtils.Companion.transformFromResolutionOffset(DEFAULT_RES, DEFAULT_OFFSET)
+				val transform = MetadataUtils.transformFromResolutionOffset(DEFAULT_RES, DEFAULT_OFFSET)
 				N5Data.openRaw<Nothing, Nothing>(writer, dataset, transform, xyzAxes, queue, 0, forceSlice3D) as ImagesWithTransform<*, *>
 			} else {
 				N5Data.openRaw<Nothing, Nothing>(writer, dataset, DEFAULT_RES, DEFAULT_OFFSET, xyzAxes, queue, 0) as ImagesWithTransform<*, *>
