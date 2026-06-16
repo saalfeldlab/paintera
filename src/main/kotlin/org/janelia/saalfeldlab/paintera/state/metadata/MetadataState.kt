@@ -322,13 +322,6 @@ class MetadataUtils {
 			return axisByHeuristics
 		}
 
-		val N5SpatialDatasetMetadata.spatialAxes: Map<Int, Axis>?
-			get() = (this as? AxisMetadata)?.run {
-					axes.mapIndexed { idx, axis -> idx to axis  }
-						.filter { (_, axis) -> axis.type == Axis.SPACE && axis.name in SpatialAxes.labels }
-						.associate { (idx, axis) -> idx to axis }
-				}
-
 		val N5SpatialDatasetMetadata.channelAxis: Pair<Int, Axis>?
 			get() = when (this) {
 				is NgffSingleScaleAxesMetadata -> {
