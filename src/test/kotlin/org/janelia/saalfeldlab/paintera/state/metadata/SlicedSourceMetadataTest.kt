@@ -31,7 +31,7 @@ class SlicedSourceMetadataTest {
 		@BeforeAll
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
-			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.Companion.getJsonAdapter())
+			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
 			Paintera.n5Factory.gsonBuilder(builder)
 		}
 

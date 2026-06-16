@@ -689,7 +689,7 @@ public class N5Data {
 
 		final int dimensions = cachedLabelMultisetImage.numDimensions();
 		if (dimensions != 3) {
-			throw new UnsupportedOperationException("Label Multiset Type is only supported for 3D data, but " + dataset + " iss " + dimensions + " dimensional");
+			throw new UnsupportedOperationException("Label Multiset Type is only supported for 3D data, but " + dataset + " is " + dimensions + " dimensional");
 		}
 
 		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
@@ -765,13 +765,12 @@ public class N5Data {
 	 * @param metadataState state object for the MultiscaleMetadata we are accessing
 	 * @param priority      in fetching queue
 	 * @return multi-scale image data with cache invalidation
-	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unchecked")
 	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final MultiScaleMetadataState metadataState,
 			final SharedQueue queue,
-			final int priority) throws IOException {
+			final int priority) {
 
 		SpatialMultiscaleMetadata<N5SpatialDatasetMetadata> metadata = metadataState.getMetadata();
 		final String[] ssPaths = metadata.getPaths();

@@ -67,21 +67,3 @@ internal suspend fun asyncDiscoverAndParseRecursive(
 		}
 	}.await()
 }
-
-fun main() {
-	var waiting = 5
-	var n5 = N5Factory.createReader("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")
-	var paths = mutableSetOf<String>()
-	val parseJob = CoroutineScope(Dispatchers.IO).launch {
-			asyncDiscoverAndParseRecursive(n5, "/", { println("deeplist: $it")}) {
-				if (paths.add(it.path))
-					println("parse: ${it.path}")
-			}
-	}
-	runBlocking {
-		delay(1000)
-		parseJob.cancel()
-		println("cancelled!")
-		delay(1000)
-	}
-}
