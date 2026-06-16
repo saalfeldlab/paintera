@@ -10,7 +10,7 @@ import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
-import javafx.beans.Observable
+import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -144,7 +144,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override val statusProperty = SimpleStringProperty()
 
-	private val selectedIdListener: (obs: Observable) -> Unit = {
+	private val selectedIdListener = InvalidationListener {
 		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
 	}
 
@@ -297,6 +297,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}
 		}
 		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT.style in it.styleClass } }
+		statePaintContext?.selectedIds?.removeListener(selectedIdListener)
 		paintera.baseView.disabledPropertyBindings -= this
         lastPrediction?.maskInterval?.let { currentViewerMask?.viewerMask?.requestRepaint(it) }
 		viewerMask = null
