@@ -256,12 +256,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
 		stage.icons.addAll(
-			Image("/icon-16.png"),
-			Image("/icon-32.png"),
-			Image("/icon-48.png"),
-			Image("/icon-64.png"),
-			Image("/icon-96.png"),
-			Image("/icon-128.png")
+			Image("icons/logo/icon-16.png"),
+			Image("icons/logo/icon-32.png"),
+			Image("icons/logo/icon-48.png"),
+			Image("icons/logo/icon-64.png"),
+			Image("icons/logo/icon-96.png"),
+			Image("icons/logo/icon-128.png")
 		)
 		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty)
 
