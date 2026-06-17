@@ -358,7 +358,7 @@ internal fun exportOmeNGFFMetadata(
 		arrayOf(translation)
 	)
 
-	OmeNgffMetadataParser().writeMetadata(
+	OmeNgffMetadataParser(writer).writeMetadata(
 		exportMetadata,
 		writer,
 		dataset

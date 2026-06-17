@@ -73,7 +73,7 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 			val job: Deferred<Map<String, N5TreeNode>?>
 		)
 
-		private data class ParseN5Wrapper(
+		internal data class ParseN5Wrapper(
 			val reader: HashableN5Reader,
 			val path: String = "/",
 			val list: ObservableMap<String, N5TreeNode>,
@@ -91,7 +91,7 @@ class ParsedN5LoaderCache(loaderScope: CoroutineScope = CoroutineScope(Dispatche
 			override fun hashCode() = reader.hashCode()
 		}
 
-		private data class HashableN5Reader(val reader: N5Reader, val uri: URI = reader.uri) : N5Reader by reader {
+		internal data class HashableN5Reader(val reader: N5Reader, val uri: URI = reader.uri) : N5Reader by reader {
 			override fun equals(other: Any?) =
 				when (other) {
 					is N5Reader -> uri == other.uri
