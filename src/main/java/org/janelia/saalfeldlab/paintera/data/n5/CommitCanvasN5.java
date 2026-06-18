@@ -446,8 +446,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final RandomAccessibleInterval<I> data,
 			final int[] relativeFactors,
 			final int[] size,
-			final Interval blockInterval,
-			final long[] blockPosition
+			final Interval blockInterval
 	) {
 
 		final I i = data.getType().createVariable();
@@ -459,7 +458,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(N5Utils.<I>open(n5, dataset), blockInterval);
 		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
 
-		N5Utils.saveBlock(output, n5, dataset, attributes, blockPosition);
+		N5Utils.saveBlock(Views.translate(output, Intervals.minAsLongArray(blockInterval)), n5, dataset, attributes);
 		return blockDiff;
 	}
 
@@ -772,7 +771,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 						final RandomAccessibleInterval<I> mergedData = Converters
 								.convert(backgroundWithCanvas, (s, t) -> pickFirstIfSecondIsInvalid(s.getA(), s.getB(), t),
 										type.createVariable());
-						N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes, blockSpecCopy.pos);
+						N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes);
 
 						// Store block diff locally (no synchronization needed yet)
 						localBlockDiffs.put(blockId, createBlockDiffFromCanvasIntegerType(backgroundWithCanvas));
@@ -958,8 +957,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 					Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
 					relativeFactors,
 					size,
-					targetInterval,
-					blockSpec.pos);
+					targetInterval);
 			blockDiffsAt.put(targetBlock, blockDiff);
 		}
 	}
