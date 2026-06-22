@@ -72,8 +72,8 @@ public class N5TypesTest {
 		final String multisetGroup = "multiset-group";
 		writer.createGroup(noMultisetGroup);
 		writer.createGroup(multisetGroup);
-		writer.setAttribute(noMultisetGroup, N5Helpers.LABEL_MULTISETTYPE_KEY, false);
-		writer.setAttribute(multisetGroup, N5Helpers.LABEL_MULTISETTYPE_KEY, true);
+		writer.setAttribute(noMultisetGroup, N5Helpers.IS_LABEL_MULTISET_KEY, false);
+		writer.setAttribute(multisetGroup, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup));
 		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroup, false));
 		assertTrue(N5Types.isLabelMultisetType(writer, multisetGroup));
@@ -90,8 +90,8 @@ public class N5TypesTest {
 		writer.createDataset(noMultisetGroupMultiscale + "/s1", defaultAttributes);
 		writer.createDataset(multisetGroupMultiscale + "/s0", defaultAttributes);
 		writer.createDataset(multisetGroupMultiscale + "/s1", defaultAttributes);
-		writer.setAttribute(noMultisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, false);
-		writer.setAttribute(multisetGroupMultiscale + "/s0", N5Helpers.LABEL_MULTISETTYPE_KEY, true);
+		writer.setAttribute(noMultisetGroupMultiscale + "/s0", N5Helpers.IS_LABEL_MULTISET_KEY, false);
+		writer.setAttribute(multisetGroupMultiscale + "/s0", N5Helpers.IS_LABEL_MULTISET_KEY, true);
 		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale));
 		assertFalse(N5Types.isLabelMultisetType(writer, noMultisetGroupMultiscale, true));
 		assertFalse(N5Types.isLabelMultisetType(writer, multisetGroupMultiscale));
