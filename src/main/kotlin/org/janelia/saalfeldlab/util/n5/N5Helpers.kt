@@ -64,7 +64,6 @@ object N5Helpers {
 	const val OFFSET_KEY = "offset"
 	const val UNIT_KEY = "unit"
 	const val DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors"
-	const val LABEL_MULTISETTYPE_KEY = "isLabelMultiset"
 	const val MAX_NUM_ENTRIES_KEY = "maxNumEntries"
 	const val PAINTERA_DATA_KEY = "painteraData"
 	const val PAINTERA_DATA_DATASET = "data"

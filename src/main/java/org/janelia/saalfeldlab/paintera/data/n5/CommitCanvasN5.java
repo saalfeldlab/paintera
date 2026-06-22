@@ -388,7 +388,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	) throws IOException {
 
 		LOG.debug(() -> "Checking if dataset %s is label multiset type.".formatted(dataset));
-		if (!N5Helpers.getBooleanAttribute(n5, dataset, N5Helpers.LABEL_MULTISETTYPE_KEY, false)) {
+		if (!N5Helpers.getBooleanAttribute(n5, dataset, N5Helpers.IS_LABEL_MULTISET_KEY, false)) {
 			throw new RuntimeException("Only label multiset type accepted currently!");
 		}
 	}
