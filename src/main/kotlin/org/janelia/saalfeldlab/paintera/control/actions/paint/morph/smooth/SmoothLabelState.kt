@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth
 
 import com.google.common.util.concurrent.AtomicDouble
 import javafx.event.Event
-import javafx.util.Subscription
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -25,6 +24,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -66,26 +66,15 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         action.verify("Mask is in Use") { !this@SmoothLabelState.maskedSource.isMaskInUseBinding().get() }
     }
 
-    fun progressStatusSubscription(): Subscription = let {
-
-        val applyingMaskProperty = maskedSource.isApplyingMaskProperty()
-        listOf(progressProperty, applyingMaskProperty).subscribe {
-            val progress = progressProperty.get()
-            val applying = applyingMaskProperty.get()
-
-            statusProperty.value = when {
-                progress == 0.0 -> Status.Empty
-                progress == 1.0 -> Status.Done
-                applying -> Status.Applying
-                progress > 0.0 && progress < 1.0 -> SmoothStatus.Smoothing
-                else -> Status.Empty
-            }
-        }
-    }
-
     @set:Synchronized
     @get:Synchronized
     private var currentSmoothedCellImg: SmoothedCellImage? = null
+
+    /* the last computed preview mask, kept alive so the preview toggle can hide/show it without
+     * recomputing. `previewMaskValid` is cleared when a parameter changes while preview is off, so the
+     * next enable recomputes instead of showing a stale result. */
+    internal var previewMask: SourceMask? = null
+    internal var previewMaskValid: Boolean = false
 
     @Synchronized
     fun getSmoothedCellImage(
@@ -167,19 +156,9 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         }
         val labelsToSmooth = getSelectedLabels()
         val blocksWithLabel = blocksForLabels(scaleLevel, labelsToSmooth)
-        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, blocksWithLabel, cellDims)
 
-        if (update >= UpdateSignal.Full)
-            SmoothLabel.submitUI {
-                /* The listener only resets to zero if going backward, so do this first */
-                progress = 0.0
-                /* Just to show the operation has started */
-                progress = .05
-            }
-
-
+        val viewerIntervals = if (preview) viewerIntervalsInSourceSpace() else emptySet<Interval>()
         val intervalsWithLabel = if (preview) {
-            val viewerIntervals = viewerIntervalsInSourceSpace()
             blocksWithLabel.flatMap { labelBlock ->
                 viewerIntervals.mapNotNull { viewerInterval ->
                     viewerInterval.intersect(labelBlock).takeIf { it.isNotEmpty() }
@@ -188,9 +167,42 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         } else
             blocksWithLabel
 
+        /* For preview, size the compute cells to the visible region so the morphology runs as one block
+         * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
+         * over-computing the full cell depth for a thin view slab. */
+        val computeCellDims = if (preview && cellDims == null)
+            previewCellDimensions(intervalsWithLabel, cellDims)
+        else cellDims
+        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, blocksWithLabel, computeCellDims)
 
-        val intervalsToProcess =
-            intervalsWithLabel.mapTo(mutableSetOf()) { it.extendBy(*smoothedCellImage.kernelSizePadding) }
+        if (update >= UpdateSignal.Full) {
+            setStatus(SmoothStatus.Smoothing)
+            SmoothLabel.submitUI {
+                /* The listener only resets to zero if going backward, so do this first */
+                progress = 0.0
+                /* Just to show the operation has started */
+                progress = .05
+            }
+        }
+
+
+        val kernelPadding = smoothedCellImage.kernelSizePadding
+        val intervalsToProcess = if (preview)
+            /* Extend the in-plane region by the kernel for the expand ring, then clip back to the visible
+             * slabs. This drops the ±kernel OUTPUT slices perpendicular to each view (never displayed); the
+             * kernel-radius INPUT context is still read per output cell internally by PaddedCell. */
+            intervalsWithLabel.flatMap { region ->
+                viewerIntervals.mapNotNull { slab ->
+                    region.extendBy(*kernelPadding).intersect(slab).takeIf { it.isNotEmpty() }
+                }
+            }.toSet()
+        else
+            intervalsWithLabel.mapTo(mutableSetOf()) { it.extendBy(*kernelPadding) }
+
+        /* a preview mask hidden by a prior toggle-off would otherwise leak when we recompute */
+        previewMask?.takeIf { it !== maskedSource.currentMask }?.shutdown?.run()
+        previewMask = null
+        previewMaskValid = false
 
         val mask = newSourceMask()
         val processInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
@@ -234,8 +246,21 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
                     requestRepaintOverIntervals()
                 if (cause == null) {
                     maskedSource.resetMasks()
-                    maskedSource.setMask(mask) { it >= 0 }
-                    requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                    if (update == UpdateSignal.Finish) {
+                        /* apply path: the mask must be current so applyMaskOverIntervals can write it */
+                        maskedSource.setMask(mask) { it >= 0 }
+                        requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                    } else {
+                        /* preview: always compute, but only display the result when the toggle is on */
+                        if (previewProperty.get()) {
+                            maskedSource.setMask(mask) { it >= 0 }
+                            requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                        } else {
+                            requestRepaintOverIntervals()
+                        }
+                        previewMask = mask
+                        previewMaskValid = true
+                    }
                 }
                 val finalProgress = when (cause) {
                     null -> 1.0
@@ -243,6 +268,9 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
                     else -> throw cause
                 }
                 SmoothLabel.submitUI { progress = finalProgress }
+                /* the computed mask is now displayed; Ready means it can be applied. the Finish apply path
+                 * advances this to Applying/Done in SmoothLabel.startSmoothTask's completion handler */
+                setStatus(if (cause == null) Status.Ready else Status.Empty)
             }
         }
 

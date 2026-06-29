@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate
 
 import com.google.common.util.concurrent.AtomicDouble
 import javafx.event.Event
-import javafx.util.Subscription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -18,10 +17,10 @@ import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilatedCellImage.Companion.createDilatedCellImage
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -62,25 +61,14 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 		action.verify("Mask is in Use") { !this@DilateLabelState.maskedSource.isMaskInUseBinding().get() }
 	}
 
-	fun progressStatusSubscription(): Subscription = let {
-		val applyingMaskProperty = maskedSource.isApplyingMaskProperty()
-		listOf(progressProperty, applyingMaskProperty).subscribe {
-			val progress = progressProperty.get()
-			val applying = applyingMaskProperty.get()
-
-			statusProperty.value = when {
-				progress == 0.0 -> Status.Empty
-				progress == 1.0 -> Status.Done
-				applying -> Status.Applying
-				progress > 0.0 && progress < 1.0 -> DilateStatus.Dilating
-				else -> Status.Empty
-			}
-		}
-	}
-
 	@set:Synchronized
 	@get:Synchronized
 	private var currentDilatedCellImg: DilatedCellImage? = null
+
+	/* the last computed preview mask, kept alive so the preview toggle can hide/show it without
+	 * recomputing. `previewMaskValid` is cleared when a parameter changes while preview is off. */
+	internal var previewMask: SourceMask? = null
+	internal var previewMaskValid: Boolean = false
 
 	@Synchronized
 	fun getDilatedCellImage(labelsToDilate: LongArray, blocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage {
@@ -139,27 +127,45 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 
 		val labelsToDilate = getSelectedLabels()
 		val blocksWithLabel = blocksForLabels(scaleLevel, labelsToDilate)
-		val dilatedCellImage = getDilatedCellImage(labelsToDilate, blocksWithLabel, cellDims)
-
-		if (update >= UpdateSignal.Full)
-			DilateLabel.submitUI {
-				/* The listener only resets to zero if going backward, so do this first */
-				progress = 0.0
-				/* Just to show the operation has started */
-				progress = .05
-			}
-
 
 		val intervalsWithLabel = if (preview)
 			viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
 		else
 			blocksWithLabel
 
-		/* Dilation needs to pad the intervals based on the kernel size, so when
-		* processing the intervals, we need to ensure we account for the padding.
-		* Potentially, we could track the interval to find the minimal extend we can process,
-		* instead of always doing the max. This should otherwise be safe to do though.*/
-		val intervalsToProcess = intervalsWithLabel.mapTo(mutableSetOf()) { it.extendBy(*dilatedCellImage.kernelSizePadding) }
+		/* For preview, size the compute cells to the visible region so the morphology runs as one block
+		 * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
+		 * over-computing the full cell depth for a thin view slab. */
+		val computeCellDims = if (preview && cellDims == null)
+			previewCellDimensions(intervalsWithLabel, cellDims)
+		else cellDims
+		val dilatedCellImage = getDilatedCellImage(labelsToDilate, blocksWithLabel, computeCellDims)
+
+		if (update >= UpdateSignal.Full) {
+			setStatus(DilateStatus.Dilating)
+			DilateLabel.submitUI {
+				/* The listener only resets to zero if going backward, so do this first */
+				progress = 0.0
+				/* Just to show the operation has started */
+				progress = .05
+			}
+		}
+
+
+		/* Dilation needs to pad the intervals based on the kernel size, so when processing the intervals,
+		* we need to ensure we account for the padding (the result extends a kernel radius beyond the label).
+		* For preview the visible slabs already span the screen in-plane, so in-plane growth is covered, and
+		* extending would only add OUTPUT slices perpendicular to each view that are never displayed; the
+		* kernel-radius INPUT context is still read per output cell internally by PaddedCell. */
+		val intervalsToProcess = if (preview)
+			intervalsWithLabel
+		else
+			intervalsWithLabel.mapTo(mutableSetOf()) { it.extendBy(*dilatedCellImage.kernelSizePadding) }
+
+		/* a preview mask hidden by a prior toggle-off would otherwise leak when we recompute */
+		previewMask?.takeIf { it !== maskedSource.currentMask }?.shutdown?.run()
+		previewMask = null
+		previewMaskValid = false
 
 		val mask = newSourceMask()
 		val processInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
@@ -205,8 +211,21 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 				if (cause == null) {
 
 					maskedSource.resetMasks()
-					maskedSource.setMask(mask) { it >= 0 }
-					requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+					if (update == UpdateSignal.Finish) {
+						/* apply path: the mask must be current so applyMaskOverIntervals can write it */
+						maskedSource.setMask(mask) { it >= 0 }
+						requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+					} else {
+						/* preview: always compute, but only display the result when the toggle is on */
+						if (previewProperty.get()) {
+							maskedSource.setMask(mask) { it >= 0 }
+							requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+						} else {
+							requestRepaintOverIntervals()
+						}
+						previewMask = mask
+						previewMaskValid = true
+					}
 				}
 				val finalProgress = when (cause) {
 					null -> 1.0
@@ -214,6 +233,9 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 					else -> throw cause
 				}
 				DilateLabel.submitUI { progress = finalProgress }
+				/* the computed mask is now displayed; Ready means it can be applied. the Finish apply path
+				 * advances this to Applying/Done in DilateLabel.startDilateTask's completion handler */
+				setStatus(if (cause == null) Status.Ready else Status.Empty)
 			}
 		}
 
