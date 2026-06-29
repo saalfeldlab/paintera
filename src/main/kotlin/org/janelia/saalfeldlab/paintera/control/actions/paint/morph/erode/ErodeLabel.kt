@@ -144,12 +144,22 @@ object ErodeLabel : MenuAction("_Shrink...") {
 			updateChannel.trySend(UpdateSignal.Full)
 		}
 
+		/* preview toggle: re-show the cached mask if still valid, recompute if stale, hide when turned off */
+		val previewSubscription = listOf(previewProperty).addListener {
+			updateChannel.trySend(
+				when {
+					!previewProperty.get() -> UpdateSignal.HidePreview
+					previewMaskValid && previewMask != null -> UpdateSignal.ShowPreview
+					else -> UpdateSignal.Full
+				}
+			)
+		}
+
 		/* Initialize the kernelSize */
 		val resolution = getLevelResolution(scaleLevel)
 		kernelSizeProperty.set(ceil(resolution.min()).toInt())
 
-		val subscriptions = updateSubscription
-			.and(progressStatusSubscription)
+		val subscriptions = updateSubscription.and(previewSubscription)
 
 		paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 		mainTaskLoop = erodeScope.async {
@@ -165,6 +175,25 @@ object ErodeLabel : MenuAction("_Shrink...") {
 						mainTaskLoop?.cancelAndJoin()
 						erodeScope.cancelCurrent()
 						break
+					}
+
+					UpdateSignal.HidePreview -> erodeScope.submit {
+						withContext(NonCancellable) {
+							maskedSource.hideCurrentMask()
+							requestRepaintOverIntervals(intervals)
+							erodeScope.submitUI { progress = 0.0 }
+							setStatus(Status.Ready)
+						}
+					}
+
+					UpdateSignal.ShowPreview -> erodeScope.submit {
+						withContext(NonCancellable) {
+							previewMask?.let { mask ->
+								if (maskedSource.currentMask !== mask) maskedSource.setMask(mask) { it >= 0 }
+								requestRepaintOverIntervals(intervals)
+								setStatus(Status.Ready)
+							}
+						}
 					}
 
 					UpdateSignal.Partial, UpdateSignal.Full -> erodeScope.submit {
@@ -236,6 +265,10 @@ object ErodeLabel : MenuAction("_Shrink...") {
 						subscriptions.unsubscribe()
 					}
 					paintera.baseView.disabledPropertyBindings -= task
+					/* shut down a preview mask that was hidden */
+					previewMask?.takeIf { it !== maskedSource.currentMask }?.shutdown?.run()
+					previewMask = null
+					previewMaskValid = false
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)
 				}
