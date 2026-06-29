@@ -129,7 +129,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1520,9 +1519,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final int[] blockSize = new int[grid.numDimensions()];
 		grid.cellDimensions(blockSize);
 
-		final AtomicReference<HashMap<Long, TLongHashSet>> labelToBlocks = new AtomicReference<>(new HashMap<>());
-
-		final List<Future<?>> jobs = new ArrayList<>();
+		record BlockLabels(long blockId, Set<Long> labels) {}
+		final List<Future<BlockLabels>> jobs = new ArrayList<>();
 		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 			final long blockId = blockIt.next();
 			IntervalIndexer.indexToPosition(blockId, gridDimensions, gridPosition);
@@ -1541,28 +1539,28 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				continue;
 			}
 
-			final Future<?> job = threadPool.submit(() -> {
+			final Future<BlockLabels> job = threadPool.submit(() -> {
 				LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
 				final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
-				final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
-				labelToBlocks.getAndUpdate(map -> {
-					final HashMap<Long, TLongHashSet> updatedMap = new HashMap<>(map);
-					for (Long label : labelsForBlock) {
-						updatedMap.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
-					}
-					return updatedMap;
-				});
+				final Set<Long> labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+				return new BlockLabels(blockId, labelsForBlock);
 			});
 			jobs.add(job);
 		}
-		for (Future<?> job : jobs) {
+
+		/* reduce single-threaded after the jobs are done, so that in-place adds are safe */
+		final HashMap<Long, TLongHashSet> labelToBlocks = new HashMap<>();
+		for (final Future<BlockLabels> job : jobs) {
+			final BlockLabels blockLabels;
 			try {
-				job.get();
+				blockLabels = job.get();
 			} catch (InterruptedException | ExecutionException e) {
 				throw new RuntimeException(e);
 			}
+			for (final Long label : blockLabels.labels())
+				labelToBlocks.computeIfAbsent(label, k -> new TLongHashSet()).add(blockLabels.blockId());
 		}
-		return labelToBlocks.getAcquire();
+		return labelToBlocks;
 	}
 
 	/**
