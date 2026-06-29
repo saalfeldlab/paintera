@@ -166,7 +166,6 @@ object MorphOperations {
  * 1. Allocating a full padded buffer for every cell
  * 2. Copying the cell data back after processing
  *
- * @param T the pixel type
  * @param cell the core cell (writes here go to the actual cell storage)
  * @param paddedInterval the full padded interval (must contain cellInterval)
  * @param type the type of the PaddedCell
@@ -177,16 +176,28 @@ class PaddedCell<T : NativeType<T>>(
     type: T,
 ) : AbstractInterval(paddedInterval), RandomAccessibleInterval<T> {
 
-    // Calculate padding amounts
+    /* per dimension padding size before and after cell interval */
     private val paddingBefore = LongArray(numDimensions()) { d -> cell.min(d) - paddedInterval.min(d) }
     private val paddingAfter = LongArray(numDimensions()) { d -> paddedInterval.max(d) - cell.max(d) }
 
+    /* cell bounds cached for the random-access fast path */
+    private val cellMin = LongArray(numDimensions()) { cell.min(it) }
+    private val cellMax = LongArray(numDimensions()) { cell.max(it) }
+
+    /* per-dimension index into borderSlabs for the before/after padding slab, or -1 if absent */
+    private val slabBeforeIndex = IntArray(numDimensions()) { -1 }
+    private val slabAfterIndex = IntArray(numDimensions()) { -1 }
+
+    /* allocate min/max bounds once for each borderSlab for the random-access fast path */
+    private val slabBoundsMin = mutableListOf<LongArray>()
+    private val slabBoundsMax = mutableListOf<LongArray>()
+
+    private val factory = ArrayImgFactory(type)
+
     /**
-     * Border slabs - only allocate memory for the actual padding regions.
-     *
-     * For each dimension d, we create up to 2 slabs:
-     * - "before" slab: covers [paddedMin, cellMin-1] in dimension d
-     * - "after" slab: covers [cellMax+1, paddedMax] in dimension d
+     * For each dimension, we create up to 2 slabs:
+     * - "before" slab: covers [paddedMin, cellMin-1]
+     * - "after" slab: covers [cellMax+1, paddedMax]
      *
      * Each slab spans the full padded extent in dimensions < d, and the cell extent in dimensions > d.
      * This ensures slabs don't overlap.
@@ -195,49 +206,24 @@ class PaddedCell<T : NativeType<T>>(
      * fillAllFrom() to initialize the values from a source.
      */
     private val borderSlabs: List<RandomAccessibleInterval<T>> = buildList {
-        val factory = ArrayImgFactory(type)
-
         for (d in 0 until numDimensions()) {
-            // "Before" slab in dimension d
+
+            /* build the before slab for this dimension */
             if (paddingBefore[d] > 0) {
-                val slabMin = LongArray(numDimensions()) { dim ->
-                    when {
-                        dim < d -> paddedInterval.min(dim)  // Full padded extent for earlier dims
-                        dim == d -> paddedInterval.min(d)   // Padding region in this dim
-                        else -> cell.min(dim)       // Cell extent for later dims
-                    }
-                }
-                val slabMax = LongArray(numDimensions()) { dim ->
-                    when {
-                        dim < d -> paddedInterval.max(dim)
-                        dim == d -> cell.min(d) - 1  // Up to (but not including) cell
-                        else -> cell.max(dim)
-                    }
-                }
-                val slabDims = LongArray(numDimensions()) { dim -> slabMax[dim] - slabMin[dim] + 1 }
-                val slab = factory.create(*slabDims)
-                add(Views.translate(slab, *slabMin))
+                val slab = newSlab(d, paddedInterval.min(d), cell.min(d) - 1)
+                slabBeforeIndex[d] = size
+                slabBoundsMin.add(slab.minAsLongArray());
+                slabBoundsMax.add(slab.maxAsLongArray());
+                add(slab)
             }
 
-            // "After" slab in dimension d
+            /* build the after slab for this dimension */
             if (paddingAfter[d] > 0) {
-                val slabMin = LongArray(numDimensions()) { dim ->
-                    when {
-                        dim < d -> paddedInterval.min(dim)
-                        dim == d -> cell.max(d) + 1  // Start after cell
-                        else -> cell.min(dim)
-                    }
-                }
-                val slabMax = LongArray(numDimensions()) { dim ->
-                    when {
-                        dim < d -> paddedInterval.max(dim)
-                        dim == d -> paddedInterval.max(d)
-                        else -> cell.max(dim)
-                    }
-                }
-                val slabDims = LongArray(numDimensions()) { dim -> slabMax[dim] - slabMin[dim] + 1 }
-                val slab = factory.create(*slabDims)
-                add(Views.translate(slab, *slabMin))
+                val slab = newSlab(d, cell.max(d) + 1, paddedInterval.max(d))
+                slabAfterIndex[d] = size
+                slabBoundsMin.add(slab.minAsLongArray());
+                slabBoundsMax.add(slab.maxAsLongArray());
+                add(slab)
             }
         }
     }
@@ -249,17 +235,36 @@ class PaddedCell<T : NativeType<T>>(
     }
 
     /**
-     * Check if a position is within the core cell interval.
+     * Creates a new slab along dimension [d] with the same shape as the cell in
+     * non [d] dimenesions. Slab covers the volume between [min, max], directly adjacent
+     * to the cell. Resulting slab has "depth" [max - min + 1] along the [d] dimension.
+     *
+     * @param d to extend a slab along
+     * @param min position of the slab in dimension [d]
+     * @param max position of the slab in dimension [d]
+     * @return the array img of the slab
      */
-    private fun isInCell(position: Localizable): Boolean {
-        for (d in 0 until numDimensions()) {
-            val pos = position.getLongPosition(d)
-            if (pos < cell.min(d) || pos > cell.max(d)) {
-                return false
+    private fun newSlab(d: Int, min: Long, max: Long): RandomAccessibleInterval<T> {
+        val min = LongArray(numDimensions()) { dim ->
+            when {
+                dim < d -> paddedInterval.min(dim)  // Full padded extent for earlier dims
+                dim == d -> min                         // Padding region in this dim
+                else -> cell.min(dim)               // Cell extent for later dims
             }
         }
-        return true
+        val max = LongArray(numDimensions()) { dim ->
+            when {
+                dim < d -> paddedInterval.max(dim)
+                dim == d -> max                         // Up to cell (exclusive)
+                else -> cell.max(dim)
+            }
+        }
+        val slabDims = LongArray(numDimensions()) { dim -> max[dim] - min[dim] + 1 }
+        return factory
+            .create(*slabDims)
+            .translate(*min)
     }
+
 
     override fun randomAccess(): RandomAccess<T> = PaddedCellRandomAccess()
 
@@ -290,7 +295,8 @@ class PaddedCell<T : NativeType<T>>(
      * @param extendedSource a RandomAccessible that provides values for all positions
      */
     fun fillAllFrom(extendedSource: RandomAccessible<T>) {
-        // Fill the cell region
+
+        /* fill the cell region */
         val cellSourceView = extendedSource.interval(cell)
         val cellCursor = Views.flatIterable(cell).cursor()
         val cellSourceCursor = Views.flatIterable(cellSourceView).cursor()
@@ -298,7 +304,7 @@ class PaddedCell<T : NativeType<T>>(
             cellCursor.next().set(cellSourceCursor.next())
         }
 
-        // Fill the padding slabs
+        /* Fill the padding slabs */
         fillPaddingFrom(extendedSource)
     }
 
@@ -312,91 +318,139 @@ class PaddedCell<T : NativeType<T>>(
         private val slabAccesses: List<RandomAccess<T>> = borderSlabs.map { it.randomAccess() }
         private var currentAccessIndex: Int = -1  // -1 means cell, >= 0 means slab index
 
+        /** the backing access that is valid for the current position */
+        private var currentAccess: RandomAccess<T> = cellAccess
+
+        /** min valid position for the current access. useful for bounds checking optimizations */
+        private val curMin = LongArray(n)
+        /** max valid position for the current access. useful for bounds checking optimizations */
+        private val curMax = LongArray(n)
+
         init {
-            // Initialize position to the min of the padded interval
             for (d in 0 until n) {
                 position[d] = paddedInterval.min(d)
             }
             updateCurrentAccess()
         }
 
-        private fun updateCurrentAccess() {
-            currentAccessIndex = if (isInCell(this)) {
-                -1
-            } else {
-                // Find the slab containing this position
-                borderSlabs.indexOfFirst { Intervals.contains(it, this) }
+        /**
+         * Resolve which region the current position falls in. A padding position belongs to the
+         * slab of its highest out-of-cell dimension; slabs span the full padded extent in lower
+         * dimensions and only the cell extent in higher ones, so each padding position lands in
+         * exactly one slab and this resolves it without scanning the slab list. Returns -1 for the
+         * cell.
+         *  ┌────────────────────┐
+         *  │         0          │ 0 = top band; full PADDED width
+         *  │───┬────────────┬───│
+         *  │   │            │   │ 1 = left strip
+         *  │ 1 │     -1     │ 2 │ 2 = right strip
+         *  │   │            │   │ only the CELL's row range
+         *  │───┴────────────┴───│
+         *  │         3          │ 3 = bottom band; full PADDED width
+         *  └────────────────────┘
+         */
+        private fun getRegionIndex(): Int {
+            for (d in n - 1 downTo 0) {
+                val pos = position[d]
+                if (pos < cellMin[d]) return slabBeforeIndex[d]
+                if (pos > cellMax[d]) return slabAfterIndex[d]
             }
+            return -1
         }
 
-        private fun currentAccess(): RandomAccess<T> =
-            if (currentAccessIndex < 0) cellAccess else slabAccesses[currentAccessIndex]
-
-        override fun get(): T {
-            val access = currentAccess()
-            access.setPosition(this)
-            return access.get()
+        /* update active access for the current position, cache its bounds, and seed it to the current position */
+        private fun updateCurrentAccess() {
+            currentAccessIndex = getRegionIndex()
+            if (currentAccessIndex < 0) {
+                currentAccess = cellAccess
+                cellMin.copyInto(curMin)
+                cellMax.copyInto(curMax)
+            } else {
+                currentAccess = slabAccesses[currentAccessIndex]
+                slabBoundsMin[currentAccessIndex].copyInto(curMin)
+                slabBoundsMax[currentAccessIndex].copyInto(curMax)
+            }
+            currentAccess.setPosition(this)
         }
+
+        override fun get(): T = currentAccess.get()
 
         override fun fwd(d: Int) {
-            position[d] = position[d] + 1
-            updateCurrentAccess()
+            position[d]++
+            if (position[d] <= curMax[d])
+                currentAccess.fwd(d)
+            else
+                updateCurrentAccess()
         }
 
         override fun bck(d: Int) {
-            position[d] = position[d] - 1
-            updateCurrentAccess()
+            position[d]--
+            if (position[d] >= curMin[d])
+                currentAccess.bck(d)
+            else
+                updateCurrentAccess()
         }
 
         override fun move(distance: Int, d: Int) {
-            position[d] = position[d] + distance
-            updateCurrentAccess()
+            position[d] += distance
+            val pos = position[d]
+            if (pos in curMin[d]..curMax[d])
+                currentAccess.move(distance, d)
+            else
+                updateCurrentAccess()
         }
 
         override fun move(distance: Long, d: Int) {
-            position[d] = position[d] + distance
-            updateCurrentAccess()
+            position[d] += distance
+            val pos = position[d]
+            if (pos in curMin[d]..curMax[d])
+                currentAccess.move(distance, d)
+            else
+                updateCurrentAccess()
         }
 
         override fun move(distance: Localizable) {
-            for (d in 0 until n) {
-                position[d] = position[d] + distance.getLongPosition(d)
-            }
-            updateCurrentAccess()
+            for (d in 0 until n)
+                position[d] += distance.getLongPosition(d)
+            if (getRegionIndex() == currentAccessIndex)
+                currentAccess.move(distance)
+            else
+                updateCurrentAccess()
         }
 
         override fun move(distance: IntArray) {
-            for (d in 0 until n) {
-                position[d] = position[d] + distance[d]
-            }
-            updateCurrentAccess()
+            for (d in 0 until n)
+                position[d] += distance[d]
+            if (getRegionIndex() == currentAccessIndex)
+                currentAccess.move(distance)
+            else
+                updateCurrentAccess()
         }
 
         override fun move(distance: LongArray) {
-            for (d in 0 until n) {
-                position[d] = position[d] + distance[d]
-            }
-            updateCurrentAccess()
+            for (d in 0 until n)
+                position[d] += distance[d]
+            if (getRegionIndex() == currentAccessIndex)
+                currentAccess.move(distance)
+            else
+                updateCurrentAccess()
         }
 
         override fun setPosition(pos: Localizable) {
-            for (d in 0 until n) {
+            for (d in 0 until n)
                 position[d] = pos.getLongPosition(d)
-            }
             updateCurrentAccess()
         }
 
         override fun setPosition(pos: IntArray) {
-            for (d in 0 until n) {
+            for (d in 0 until n)
                 position[d] = pos[d].toLong()
-            }
             updateCurrentAccess()
         }
 
         override fun setPosition(pos: LongArray) {
-            for (d in 0 until n) {
+            for (d in 0 until n)
                 position[d] = pos[d]
-            }
             updateCurrentAccess()
         }
 

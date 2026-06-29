@@ -82,3 +82,15 @@ where T : MorphCommonModel, T : MaskedSourceActionState<*, *, *> {
 	val globalDilatedInterval = maskedSource.getSourceTransformForMask(MaskInfo(timepoint, scaleLevel)).estimateBounds(dilatedInterval)
 	paintera.baseView.orthogonalViews().requestRepaint(globalDilatedInterval)
 }
+
+/** upper bound on a preview compute-cell edge, to keep per-cell memory bounded for oblique views */
+internal const val PREVIEW_MAX_CELL_SIZE = 96
+
+/** Cell dimensions for a preview computation, sized to the visible region instead of to the kernel. */
+internal fun previewCellDimensions(intervals: Collection<Interval>, fallback: IntArray?): IntArray? {
+	if (intervals.isEmpty()) return fallback
+	val bounds = intervals.reduce { a, b -> Intervals.union(a, b) }
+	return IntArray(bounds.numDimensions()) { d ->
+		bounds.dimension(d).toInt().coerceIn(1, PREVIEW_MAX_CELL_SIZE)
+	}
+}
