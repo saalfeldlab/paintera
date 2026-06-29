@@ -17,13 +17,14 @@ import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.Status
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.setStatus
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.ceil
 
 object DilateLabel : MenuAction("_Expand...") {
 
@@ -136,9 +137,6 @@ object DilateLabel : MenuAction("_Expand...") {
 	private fun DilateLabelState<*, *>.startDilateTask() {
 		val prevScales = viewer.screenScales
 
-		/* update status based on progress */
-		val progressStatusSubscription = progressStatusSubscription()
-
 		/* these should only trigger on change */
 		val updateSubscription = listOf(replacementLabelProperty, infillStrategyProperty, kernelSizeProperty).addListener {
 			updateChannel.trySend(UpdateSignal.Full)
@@ -157,7 +155,7 @@ object DilateLabel : MenuAction("_Expand...") {
 
 		/* Initialize the kernelSize */
 		val resolution = getLevelResolution(scaleLevel)
-		kernelSizeProperty.set(ceil(resolution.min()).toInt())
+		kernelSizeProperty.set(resolution.min())
 
 		val subscriptions = updateSubscription.and(previewSubscription)
 
@@ -232,23 +230,25 @@ object DilateLabel : MenuAction("_Expand...") {
 		}.also { task ->
 			paintera.baseView.disabledPropertyBindings[task] = isBusyProperty
 			task.invokeOnCompletion { cause ->
-
-				if (cause == null) {
-					val intervals = task.getCompleted()
-					maskedSource.apply {
-						val applyProgressProperty = SimpleDoubleProperty()
-						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							dilateScope.submitUI { progress = it.toDouble() }
-						}
-						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
-						applyUpdateSubscription.unsubscribe()
-					}
-					requestRepaintOverIntervals(intervals)
-					refreshMeshes()
-				}
 				try {
+					if (cause == null) {
+						setStatus(Status.Applying)
+						val intervals = task.getCompleted()
+						maskedSource.apply {
+							val applyProgressProperty = SimpleDoubleProperty()
+							val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
+								dilateScope.submitUI { progress = it.toDouble() }
+							}
+							applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
+							applyUpdateSubscription.unsubscribe()
+						}
+						requestRepaintOverIntervals(intervals)
+						refreshMeshes()
+						setStatus(Status.Done)
+					}
 					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
+						setStatus(Status.Empty)
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						dilateScope.cancelCurrent()
@@ -258,6 +258,16 @@ object DilateLabel : MenuAction("_Expand...") {
 								Exceptions.exceptionAlert(Constants.NAME, "Dilate failed", error).show()
 							}
 						}
+					}
+				} catch (applyError: Throwable) {
+					/* the apply phase failed; reset so the dialog isn't stranded at Applying */
+					setStatus(Status.Empty)
+					maskedSource.resetMasks()
+					paintera.baseView.orthogonalViews().requestRepaint()
+					dilateScope.cancelCurrent()
+					LOG.error(applyError) { "Dilate apply failed" }
+					InvokeOnJavaFXApplicationThread {
+						Exceptions.exceptionAlert(Constants.NAME, "Dilate apply failed", applyError).show()
 					}
 				} finally {
 					submitUI {

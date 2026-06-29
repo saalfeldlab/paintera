@@ -7,9 +7,11 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.event.ActionEvent
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.geometry.Pos
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import org.controlsfx.control.ToggleSwitch
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import net.imglib2.algorithm.convolution.fast_gauss.FastGauss
@@ -29,12 +31,8 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.denyClose
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import org.janelia.saalfeldlab.paintera.ui.hvGrow
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.exp
-import kotlin.math.floor
 import kotlin.math.log10
-import kotlin.math.min
 import kotlin.math.pow
-import kotlin.math.roundToInt
 
 private val LOG = KotlinLogging.logger { }
 
@@ -124,8 +122,6 @@ internal class SmoothLabelUI(val model: SmoothLabelModel) : VBox(10.0) {
 		}
 		children += InfillStrategyUI.makeConfigurationNode(model)
 
-
-
 		val kernelIsChanging = SimpleBooleanProperty(false)
 		val thresholdIsChanging = SimpleBooleanProperty(false)
 		sliderIsChanging.bind(kernelIsChanging.or(thresholdIsChanging))
@@ -135,6 +131,14 @@ internal class SmoothLabelUI(val model: SmoothLabelModel) : VBox(10.0) {
 		}
 		children += VBox(10.0).apply {
 			children += gaussianThresholdNode(thresholdIsChanging)
+		}
+
+		children += HBox().apply {
+			alignment = Pos.CENTER_RIGHT
+			children += ToggleSwitch("Preview result").apply {
+				selectedProperty().bindBidirectional(model.previewProperty)
+				tooltip = Tooltip("Render the result live over the canvas; toggle off to compare against the original")
+			}
 		}
 
 		children += HBox(10.0).apply {
@@ -169,18 +173,18 @@ internal class SmoothLabelUI(val model: SmoothLabelModel) : VBox(10.0) {
 		val max = resolution.max()
 		val defaultKernelSize = model.morphDirectionProperty.get().defaultKernelSize(resolution)
 
-		val minKernelSize = floor(min / 2).toInt()
-		val maxKernelSize = (max * 10).toInt()
+		val minKernelSize = min / 2
+		val maxKernelSize = max * 10
 		val kernelSizeSlider = Slider(
-			log10(minKernelSize.toDouble()).coerceAtLeast(0.0),
-			log10(maxKernelSize.toDouble()),
-			log10(defaultKernelSize.toDouble())
+			log10(minKernelSize),
+			log10(maxKernelSize),
+			log10(defaultKernelSize)
 		)
-		val kernelSizeField = NumberField.intField(defaultKernelSize, { it > 0.0 }, *SubmitOn.entries.toTypedArray())
+		val kernelSizeField = NumberField.doubleField(defaultKernelSize, { it > 0.0 }, *SubmitOn.entries.toTypedArray())
 
 		/* slider sets field */
 		kernelSizeSlider.valueProperty().subscribe { old, new ->
-			kernelSizeField.valueProperty().set(10.0.pow(new.toDouble()).roundToInt())
+			kernelSizeField.valueProperty().set(10.0.pow(new.toDouble()))
 		}
 
 		kernelIsChanging.bind(kernelSizeSlider.valueChangingProperty())
@@ -194,7 +198,7 @@ internal class SmoothLabelUI(val model: SmoothLabelModel) : VBox(10.0) {
 				kernelSizeSlider.valueProperty().set(sliderVal)
 			}
 
-			model.kernelSizeProperty.set(fieldVal.toInt())
+			model.kernelSizeProperty.set(fieldVal.toDouble())
 		}
 
 		/* the field and slider should both be responsive to direct changes to the model */

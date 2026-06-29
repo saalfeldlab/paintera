@@ -7,7 +7,9 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.event.ActionEvent
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.geometry.Pos
 import javafx.scene.layout.HBox
+import org.controlsfx.control.ToggleSwitch
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import kotlinx.coroutines.delay
@@ -28,7 +30,6 @@ import org.janelia.saalfeldlab.paintera.ui.hvGrow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.log10
 import kotlin.math.pow
-import kotlin.math.roundToInt
 
 private val LOG = KotlinLogging.logger { }
 
@@ -107,7 +108,7 @@ internal class ErodeLabelUI(val model: ErodeLabelModel) : VBox(10.0) {
 	init {
 		isFillWidth = true
 		children += HBox(10.0).apply {
-			children += LabelSelectionUI.Companion.makeConfigurationNode(model).hvGrow {
+			children += LabelSelectionUI.makeConfigurationNode(model).hvGrow {
 				maxHeight = Double.MAX_VALUE
 				maxWidth = Double.MAX_VALUE
 			}
@@ -115,9 +116,15 @@ internal class ErodeLabelUI(val model: ErodeLabelModel) : VBox(10.0) {
 
 		children += InfillStrategyUI.makeConfigurationNode(model)
 
-
 		children += VBox(10.0).apply {
 			children += kernelSizeNode(kernelIsChanging)
+		}
+		children += HBox().apply {
+			alignment = Pos.CENTER_RIGHT
+			children += ToggleSwitch("Preview result").apply {
+				selectedProperty().bindBidirectional(model.previewProperty)
+				tooltip = Tooltip("Render the result live over the canvas; toggle off to compare against the original")
+			}
 		}
 		children += HBox(10.0).apply {
 			children += TextField().apply {
@@ -150,19 +157,17 @@ internal class ErodeLabelUI(val model: ErodeLabelModel) : VBox(10.0) {
 		val min = resolution.min()
 		val max = resolution.max()
 
-		val minKernelSize = min.toInt()
-		val maxKernelSize = (max * 10).toInt()
-		val defaultKernelSize = minKernelSize
+		val maxKernelSize = max * 10
 		val kernelSizeSlider = Slider(
-			log10(minKernelSize.toDouble()).coerceAtLeast(0.0),
-			log10(maxKernelSize.toDouble()),
-			log10(defaultKernelSize.toDouble())
+			log10(min),
+			log10(maxKernelSize),
+			log10(min)
 		)
-		val kernelSizeField = NumberField.intField(defaultKernelSize, { it > 0.0 }, *SubmitOn.entries.toTypedArray())
+		val kernelSizeField = NumberField.doubleField(min, { it > 0.0 }, *SubmitOn.entries.toTypedArray())
 
 		/* slider sets field */
 		kernelSizeSlider.valueProperty().subscribe { old, new ->
-			kernelSizeField.valueProperty().set(10.0.pow(new.toDouble()).roundToInt())
+			kernelSizeField.valueProperty().set(10.0.pow(new.toDouble()))
 		}
 
 		kernelIsChanging.bind(kernelSizeSlider.valueChangingProperty())
@@ -176,7 +181,7 @@ internal class ErodeLabelUI(val model: ErodeLabelModel) : VBox(10.0) {
 				kernelSizeSlider.valueProperty().set(sliderVal)
 			}
 
-			model.kernelSizeProperty.set(fieldVal.toInt())
+			model.kernelSizeProperty.set(fieldVal.toDouble())
 		}
 
 		/* the field and slider should both be responsive to direct changes to the model */
@@ -186,7 +191,7 @@ internal class ErodeLabelUI(val model: ErodeLabelModel) : VBox(10.0) {
 
 		val resetBtn = Button().apply {
 			addStyleClass(RESET_ICON)
-			setOnAction { kernelSizeField.valueProperty().set(defaultKernelSize) }
+			setOnAction { kernelSizeField.valueProperty().set(min) }
 			tooltip = Tooltip("Reset Threshold")
 		}
 
@@ -217,7 +222,7 @@ fun main() {
 			val curState = (dialog.dialogPane.content as? ErodeLabelUI)?.model ?: return@InvokeOnJavaFXApplicationThread
 			var prev = curState.progressProperty.get()
 			while (prev < 1.0) {
-				prev = prev + .05
+                prev += .05
 				curState.apply {
 					statusProperty.value = statuses.random()
 					progressProperty.set(prev)

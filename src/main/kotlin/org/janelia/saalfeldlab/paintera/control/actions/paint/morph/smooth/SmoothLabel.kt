@@ -17,8 +17,10 @@ import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.Status
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.setStatus
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import java.util.concurrent.atomic.AtomicLong
@@ -135,9 +137,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	private fun SmoothLabelState<*, *>.startSmoothTask() {
 		val prevScales = viewer.screenScales
 
-		/* update status based on progress */
-		val progressStatusSubscription = progressStatusSubscription()
-
 		/* these should only trigger on change */
 		val updateSubscription = listOf(
 			replacementLabelProperty,
@@ -238,23 +237,25 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		}.also { task ->
 			paintera.baseView.disabledPropertyBindings[task] = isBusyProperty
 			task.invokeOnCompletion { cause ->
-
-				if (cause == null) {
-					val intervals = task.getCompleted()
-					maskedSource.apply {
-						val applyProgressProperty = SimpleDoubleProperty()
-						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							submitUI { progress = it.toDouble() }
-						}
-						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
-						applyUpdateSubscription.unsubscribe()
-					}
-					requestRepaintOverIntervals(intervals)
-					refreshMeshes()
-				}
 				try {
+					if (cause == null) {
+						setStatus(Status.Applying)
+						val intervals = task.getCompleted()
+						maskedSource.apply {
+							val applyProgressProperty = SimpleDoubleProperty()
+							val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
+								submitUI { progress = it.toDouble() }
+							}
+							applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
+							applyUpdateSubscription.unsubscribe()
+						}
+						requestRepaintOverIntervals(intervals)
+						refreshMeshes()
+						setStatus(Status.Done)
+					}
 					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
+						setStatus(Status.Empty)
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						smoothScope.cancelCurrent()
@@ -264,6 +265,16 @@ object SmoothLabel : MenuAction("_Smooth...") {
 								Exceptions.exceptionAlert(Constants.NAME, "Smooth failed", error).show()
 							}
 						}
+					}
+				} catch (applyError: Throwable) {
+					/* the apply phase failed; reset so the dialog isn't stuck at Applying */
+					setStatus(Status.Empty)
+					maskedSource.resetMasks()
+					paintera.baseView.orthogonalViews().requestRepaint()
+					smoothScope.cancelCurrent()
+					LOG.error(applyError) { "Smooth apply failed" }
+					InvokeOnJavaFXApplicationThread {
+						Exceptions.exceptionAlert(Constants.NAME, "Smooth apply failed", applyError).show()
 					}
 				} finally {
 					submitUI {
