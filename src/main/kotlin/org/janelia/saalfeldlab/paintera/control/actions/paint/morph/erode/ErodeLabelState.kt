@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode
 
-import com.google.common.util.concurrent.AtomicDouble
+import java.util.concurrent.atomic.AtomicInteger
 import javafx.event.Event
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodedCellImage.Companion.createErodedCellImage
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
@@ -199,21 +198,17 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
             }
         }
 
-        val localProgress = AtomicDouble(.1)
+        val totalUnits = intervalsToProcess.size
+        val completedUnits = AtomicInteger(0)
 
         coroutineScope {
             launch {
-                val increment = (.99 - .1) / intervalsToProcess.size
                 for (interval in intervalsToProcess) {
                     launch {
-                        var approachTotal = 0.0
-                        processInterval(interval).collect { _ ->
-                            if (update >= UpdateSignal.Full) {
-                                val addProgress = (increment - approachTotal) * .25
-                                approachTotal += addProgress
-                                localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
-                                ErodeLabel.submitUI { progress = localProgress.get() }
-                            }
+                        processInterval(interval).collect { }
+                        if (update >= UpdateSignal.Full) {
+                            val done = completedUnits.incrementAndGet()
+                            ErodeLabel.submitUI { progress = .05 + .94 * (done.toDouble() / totalUnits) }
                         }
                     }
                 }

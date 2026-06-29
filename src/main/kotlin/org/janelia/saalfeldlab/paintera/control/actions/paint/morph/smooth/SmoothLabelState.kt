@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth
 
-import com.google.common.util.concurrent.AtomicDouble
+import java.util.concurrent.atomic.AtomicInteger
 import javafx.event.Event
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -223,21 +223,17 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
             }
         }
 
-        val localProgress = AtomicDouble(.1)
+        val totalUnits = intervalsToProcess.size
+        val completedUnits = AtomicInteger(0)
 
         coroutineScope {
             launch {
-                val increment = (.99 - .1) / intervalsToProcess.size
                 for (interval in intervalsToProcess) {
                     launch {
-                        var approachTotal = 0.0
-                        processInterval(interval).collect { _ ->
-                            if (update >= UpdateSignal.Full) {
-                                val addProgress = (increment - approachTotal) * .25
-                                approachTotal += addProgress
-                                localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
-                                SmoothLabel.submitUI { progress = localProgress.get() }
-                            }
+                        processInterval(interval).collect { }
+                        if (update >= UpdateSignal.Full) {
+                            val done = completedUnits.incrementAndGet()
+                            SmoothLabel.submitUI { progress = .05 + .94 * (done.toDouble() / totalUnits) }
                         }
                     }
                 }
