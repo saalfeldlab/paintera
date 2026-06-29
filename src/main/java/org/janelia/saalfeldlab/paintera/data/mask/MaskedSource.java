@@ -797,6 +797,24 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		this.isBusy.set(false);
 	}
 
+	/**
+	 * Hide the current mask from display without shutting down its store, so the same {@link SourceMask}
+	 * can be re-shown later via {@link #setMask}. Unlike {@link #resetMasks}, the mask is preserved (no
+	 * {@code shutdown} is run); the caller keeps the reference and is responsible for eventually shutting it
+	 * down. While hidden the original source is shown (constant-INVALID overlay). After this call
+	 * {@code getCurrentMask()} is {@code null}, so {@link #setMask} can re-wire the same mask cheaply.
+	 */
+	public synchronized void hideCurrentMask() throws MaskInUse {
+
+		final boolean canNotHide = isCreatingMask() || isApplyingMask.get();
+		if (canNotHide) {
+			LOG.error("Cannot hide mask: is creating mask? {} is applying mask? {}", isCreatingMask(), isApplyingMask.get());
+			throw new MaskInUse("Cannot hide the mask.");
+		}
+		setCurrentMask(null);
+		setMasksConstant();
+	}
+
 	public void forgetCanvases() throws CannotClearCanvas {
 
 		synchronized (this) {
