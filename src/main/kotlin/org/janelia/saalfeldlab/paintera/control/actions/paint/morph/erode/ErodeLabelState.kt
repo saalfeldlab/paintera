@@ -218,6 +218,7 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
                     }
                 }
             }.invokeOnCompletion { cause ->
+                cause?.let { mask.shutdown?.run() }
                 if (cause != null || update >= UpdateSignal.Full)
                     requestRepaintOverIntervals()
                 if (cause == null) {

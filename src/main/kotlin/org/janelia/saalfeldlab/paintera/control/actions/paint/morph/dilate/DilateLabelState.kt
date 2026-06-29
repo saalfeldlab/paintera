@@ -206,10 +206,10 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 					}
 				}
 			}.invokeOnCompletion { cause ->
+				cause?.let { mask.shutdown?.run() }
 				if (cause != null || update >= UpdateSignal.Full)
 					requestRepaintOverIntervals()
 				if (cause == null) {
-
 					maskedSource.resetMasks()
 					if (update == UpdateSignal.Finish) {
 						/* apply path: the mask must be current so applyMaskOverIntervals can write it */

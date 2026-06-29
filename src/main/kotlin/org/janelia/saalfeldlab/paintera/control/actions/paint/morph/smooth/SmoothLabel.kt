@@ -148,15 +148,15 @@ object SmoothLabel : MenuAction("_Smooth...") {
 			updateChannel.trySend(UpdateSignal.Full)
 		}
 
-		/* preview toggle: re-show the cached mask if still valid, recompute if stale, hide when turned off */
+		/* preview toggle: show/hide an existing preview */
 		val previewSubscription = listOf(previewProperty).addListener {
-			updateChannel.trySend(
-				when {
-					!previewProperty.get() -> UpdateSignal.HidePreview
-					previewMaskValid && previewMask != null -> UpdateSignal.ShowPreview
-					else -> UpdateSignal.Full
-				}
-			)
+			if (previewMaskValid && previewMask != null)
+				updateChannel.trySend(
+					if (previewProperty.get())
+						UpdateSignal.ShowPreview
+					else
+						UpdateSignal.HidePreview
+				)
 		}
 
 		/* Initialize the kernelSize */

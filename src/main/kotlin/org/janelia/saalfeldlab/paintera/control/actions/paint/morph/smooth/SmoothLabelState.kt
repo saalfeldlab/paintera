@@ -242,6 +242,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
                     }
                 }
             }.invokeOnCompletion { cause ->
+                cause?.let { mask.shutdown?.run() }
                 if (cause != null || update >= UpdateSignal.Full)
                     requestRepaintOverIntervals()
                 if (cause == null) {
