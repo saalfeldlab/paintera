@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.type.numeric.IntegerType
 import org.controlsfx.control.StatusBar
-import org.janelia.saalfeldlab.fx.ui.NumberField
-import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -29,15 +27,14 @@ import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils.findMaxId
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.id.N5IdService
+import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.alert
-import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.confirmation
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.setButtonText
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
-import java.util.function.LongPredicate
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.roundToInt
 
@@ -57,13 +54,24 @@ object DataSourceDialogs {
 		group: String?,
 		source: DataSource<*, *>,
 	): LabelBlockLookup {
-		val alert = confirmation().apply {
+		val alert = alert(Alert.AlertType.CONFIRMATION).apply {
+			buttonTypes.setAll(ButtonType.OK, ButtonType.NEXT, ButtonType.CANCEL)
+			setButtonText(
+				ButtonType.OK to "_Ok",
+				ButtonType.NEXT to "_Skip",
+				ButtonType.CANCEL to "_Cancel"
+			)
 			headerText = "Define label-to-block-lookup for on-the-fly mesh generation"
 			dialogPane.content = TextArea(
 				"""
-					Could not deserialize label-to-block-lookup for dataset `$group` in N5 container at `${reader?.uri}` that is required for on-the-fly mesh generation. 
-					If you are not interested in 3D meshes, press cancel. Otherwise, press OK. 
-					Generating meshes on the fly will be slow as the sparsity of objects cannot be utilized.
+					Could not deserialize label-to-block-lookup for dataset `$group` in N5 container at 
+						${reader?.uri}
+						
+					label-to-block-lookup is required for fast on-the-fly mesh generation.
+					To proceed with slow mesh generation, press "OK".
+					If you are not interested in 3D meshes, press "Skip". 
+					
+					Press "Cancel" to cancel adding this source. 
 				""".trimIndent()
 			).apply {
 				isEditable = false
@@ -86,7 +94,9 @@ object DataSourceDialogs {
 				LabelBlockLookupAllBlocks(dims, blockSizes)
 			}
 
-			else -> LabelBlockLookupNoBlocks()
+			ButtonType.NEXT -> LabelBlockLookupNoBlocks()
+
+			else -> throw CancellationException("Add Source Cancelled")
 		}
 	}
 
@@ -102,36 +112,47 @@ object DataSourceDialogs {
 		// https://bugs.openjdk.java.net/browse/JDK-8157399
 
 		val alert: Alert = alert(Alert.AlertType.CONFIRMATION).apply {
-			setButtonText(ButtonType.OK to "_Ok", ButtonType.CANCEL to "_Cancel")
-			headerText = "maxId not specified in dataset."
+			buttonTypes.setAll(ButtonType.OK, ButtonType.NEXT, ButtonType.CANCEL)
+			setButtonText(
+				ButtonType.OK to "_Ok",
+				ButtonType.NEXT to "_Skip",
+				ButtonType.CANCEL to "_Cancel",
+			)
+			headerText = "Max ID not specified in dataset."
 		}
 		val ta = TextArea().apply {
 			text = """
-				Could not read maxId attribute from dataset '$dataset'' in container '$n5'. 
+				Could not read maxId attribute from dataset '$dataset'' in container at 
+					'${n5.uri}'.
+				 
 				You can specify the max id manually, or read it from the data set (this can take a long time if your data is big).
-				Alternatively, press cancel to load the data set without an id service. 
-				Fragment-segment-assignments and selecting new (wrt to the data) labels require an id service 
-				and will not be available if you press cancel.
+				Alternatively, press "Skip" to load the data set without an id service. 
+				Fragment-segment-assignments require an id service and will not be available if you press "Skip".
+				
+				Press "Cancel" or close the window to stop loading the dataset. 
 			""".trimIndent()
 			prefColumnCount *= 2
 			prefRowCount *= 2
 			isEditable = false
 			isWrapText = true
 		}
-		val maxIdField = NumberField.longField(
-			Label.Companion.INVALID,
-			LongPredicate { v: Long -> true },
-			ObjectField.SubmitOn.ENTER_PRESSED,
-			ObjectField.SubmitOn.FOCUS_LOST
-		)
-		val maxIdIsInvalid = maxIdField.valueProperty().lessThan(0L)
+		val maxIdFormatter = PositiveLongTextFormatter()
+		val maxIdProperty = SimpleObjectProperty<Long?>(null)
+
+		maxIdFormatter.valueProperty().bindBidirectional(maxIdProperty)
+		val maxIdField = TextField().apply {
+			alignment = Pos.BASELINE_RIGHT
+			textFormatter = maxIdFormatter
+			textProperty().subscribe { _, _ -> commitValue() }
+		}
 		val task = SimpleObjectProperty<Job?>()
 		val isNotRunning = task.isNull
-		val cannotClickOk = task.isNotNull.or(maxIdIsInvalid)
-		maxIdField.textField.editableProperty().bind(isNotRunning)
-		alert.dialogPane.lookupButton(ButtonType.OK).disableProperty().bind(cannotClickOk)
+		val cannotClickOk = task.isNotNull.or(maxIdProperty.isNull)
+		maxIdField.editableProperty().bind(isNotRunning)
+		val disableOkButton = alert.dialogPane.lookupButton(ButtonType.OK).disableProperty()
+		disableOkButton.bind(cannotClickOk)
 		val scanDataButtonText = "_Scan Data"
-		val cancelButtonText = "_Cancel"
+		val interruptScanButtonText = "_Interrupt"
 		val scanButton = Button(scanDataButtonText).apply {
 			tooltip = Tooltip("").also {
 				val buttonTextNoMnemonics = textProperty().map { it?.replace("_", "") }
@@ -140,7 +161,7 @@ object DataSourceDialogs {
 			prefWidth = 100.0
 		}
 
-		val initialValue: LongProperty = SimpleLongProperty(maxIdField.valueProperty().get())
+		val initialValue: LongProperty = SimpleLongProperty(maxIdProperty.get() ?: Label.INVALID)
 		val statusBar = StatusBar().apply {
 			prefWidth = 220.0
 			graphic = scanButton
@@ -152,7 +173,7 @@ object DataSourceDialogs {
 		}
 
 		val runOnScanData = {
-			initialValue.set(maxIdField.valueProperty().get())
+			initialValue.set(maxIdProperty.get() ?: Label.INVALID)
 			val maxTracker = MutableStateFlow(Label.INVALID)
 
 			val grid = source.getGrid(0)
@@ -188,14 +209,14 @@ object DataSourceDialogs {
 				when (cause) {
 					is CancellationException -> {
 						val initialValue = initialValue.get()
-						LOG.info { "Setting next id field ${maxIdField.valueProperty()} to initial value $initialValue" }
-						maxIdField.valueProperty().set(initialValue)
+						LOG.info { "Setting next id field $maxIdProperty to initial value $initialValue" }
+						maxIdProperty.set(initialValue)
 						statusBar.progress = 0.0
 					}
 
 					null -> {
 						InvokeOnJavaFXApplicationThread {
-							maxIdField.value = maxTracker.value
+							maxIdProperty.value = maxTracker.value
 							scanButton.text = scanDataButtonText
 						}
 					}
@@ -208,15 +229,15 @@ object DataSourceDialogs {
 
 		val runOnCancel = {
 			task.set(null)
-			LOG.info { "Setting next id field ${maxIdField.valueProperty()} to initial value $initialValue" }
-			maxIdField.valueProperty().set(initialValue.get())
+			LOG.info { "Setting next id field $maxIdProperty to initial value $initialValue" }
+			maxIdProperty.set(initialValue.get())
 			statusBar.progress = 0.0
 			null
 		}
 
 		val actionCycle = sequence {
 			while (true) {
-				yield(runOnScanData to cancelButtonText)
+				yield(runOnScanData to interruptScanButtonText)
 				yield(runOnCancel to scanDataButtonText)
 			}
 		}.iterator()
@@ -229,26 +250,31 @@ object DataSourceDialogs {
 			job = action()
 		}
 
-		val maxIdBox = HBox(Label("Max Id:"), maxIdField.textField, statusBar).apply {
+		val maxIdBox = HBox(Label("Max Id:"), maxIdField, statusBar).apply {
 			alignment = Pos.CENTER
-			HBox.setHgrow(maxIdField.textField, Priority.ALWAYS)
+			HBox.setHgrow(maxIdField, Priority.ALWAYS)
 		}
 
 		alert.dialogPane.content = VBox(ta, maxIdBox)
 
 		return runBlocking {
 			InvokeOnJavaFXApplicationThread {
-				if (alert.showAndWait().getOrNull() == ButtonType.OK) {
-					val maxId = maxIdField.valueProperty().get()
+				val buttonType = alert.showAndWait().getOrNull()
+				when (buttonType) {
+					ButtonType.OK -> {
+						val maxId = maxIdProperty.get() ?: Label.INVALID
 					runCatching {
 						n5.setAttribute(dataset, "maxId", maxId)
 						N5IdService(n5, dataset, maxId)
 					}.getOrElse {
 						LocalIdService(maxId)
 					}
-				} else {
+					}
+					ButtonType.NEXT -> {
 					task.get()?.cancel()
 					LocalIdService(1)
+				}
+					else -> throw CancellationException("Open Source Cancelled")
 				}
 			}.await()
 		}
