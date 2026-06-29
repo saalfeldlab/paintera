@@ -128,7 +128,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -513,13 +512,22 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedIntervalOverCanvas);
 
-			final var labelToBlocks = paintAffectedPixels(
-					affectedBlocks,
-					mask,
-					canvas,
-					canvas.getCellGrid(),
-					paintedIntervalOverCanvas,
-					acceptAsPainted);
+			final ExecutorService paintPool = Executors.newFixedThreadPool(
+					Runtime.getRuntime().availableProcessors(),
+					new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build());
+			final Map<Long, TLongHashSet> labelToBlocks;
+			try {
+				labelToBlocks = paintAffectedPixels(
+						affectedBlocks,
+						mask,
+						canvas,
+						canvas.getCellGrid(),
+						paintedIntervalOverCanvas,
+						acceptAsPainted,
+						paintPool);
+			} finally {
+				paintPool.shutdown();
+			}
 
 			for (var label : labelToBlocks.entrySet()) {
 				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
@@ -594,10 +602,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (mask == null)
 			return;
 
-		final ExecutorService applyPool = Executors.newFixedThreadPool(
-				Runtime.getRuntime().availableProcessors(),
-				new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build()
-		);
+		int nThreads = Runtime.getRuntime().availableProcessors();
+		final ExecutorService applyService = Executors.newFixedThreadPool(nThreads, new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build());
+		final ExecutorService paintPixelService = Executors.newFixedThreadPool(nThreads, new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build());
 		final ArrayList<Future<?>> applies = new ArrayList<>();
 		synchronized (this) {
 			final boolean maskCanBeApplied = !this.isCreatingMask() && this.getCurrentMask() == mask && !this.isApplyingMask.get() && !this.isPersisting();
@@ -625,7 +632,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				continue;
 
 
-			var applyFuture = applyPool.submit(() -> {
+			var applyFuture = applyService.submit(() -> {
 				final int[] blockSize = new int[grid.numDimensions()];
 				grid.cellDimensions(blockSize);
 
@@ -637,7 +644,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						canvas,
 						grid,
 						intervalOverCanvas,
-						acceptAsPainted);
+						acceptAsPainted,
+						paintPixelService);
 
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					final double progress = completedTasks.incrementAndGet() / (double)expectedTasks;
@@ -705,7 +713,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (mask.getInvalidateVolatile() != null)
 			mask.getInvalidateVolatile().invalidateAll();
 
-		applyPool.shutdown();
+		applyService.shutdown();
+		paintPixelService.shutdown();
 		this.isBusy.set(false);
 	}
 
@@ -1501,7 +1510,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<C> canvas,
 			final CellGrid grid,
 			final Interval paintedInterval,
-			final Predicate<Long> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted,
+			final ExecutorService threadPool) {
 
 		final long[] currentMin = new long[grid.numDimensions()];
 		final long[] currentMax = new long[grid.numDimensions()];
@@ -1512,8 +1522,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final AtomicReference<HashMap<Long, TLongHashSet>> labelToBlocks = new AtomicReference<>(new HashMap<>());
 
-		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build();
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
 		final List<Future<?>> jobs = new ArrayList<>();
 		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 			final long blockId = blockIt.next();
@@ -1554,7 +1562,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				throw new RuntimeException(e);
 			}
 		}
-		threadPool.shutdown();
 		return labelToBlocks.getAcquire();
 	}
 
