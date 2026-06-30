@@ -9,24 +9,16 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.paintera.ui.hGrow
-import kotlin.math.roundToInt
 
 enum class MorphDirection(val info: String) {
 	Shrink( "Only apply the operation inward over the selected labels (Shrink)"),
 	Expand( "Only apply the operation outward from the selected labels (Expand)") {
-		override fun defaultKernelSize(resolution: DoubleArray): Int {
-			val min = resolution.min()
-			val max = resolution.max()
-			return (min + (max - min) / 4.0).roundToInt()
-		}
+		override fun defaultKernelSize(resolution: DoubleArray) = 1.5 * resolution.min()
 	},
 	Both( "Apply the operation into and out from the selected labels (Grow and Shrink)");
 
-	open fun defaultKernelSize(resolution: DoubleArray): Int {
-		val min = resolution.min()
-		val max = resolution.max()
-		return (min + (max - min) / 2.0).roundToInt()
-	}
+	/** default kernel size in physical. ~2 voxels in size along the highest resolution dimension */
+	open fun defaultKernelSize(resolution: DoubleArray): Double = 2.0 * resolution.min()
 
 }
 

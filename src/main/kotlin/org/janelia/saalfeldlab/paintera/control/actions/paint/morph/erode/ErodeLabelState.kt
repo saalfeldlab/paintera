@@ -1,8 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode
 
-import com.google.common.util.concurrent.AtomicDouble
+import java.util.concurrent.atomic.AtomicInteger
 import javafx.event.Event
-import javafx.util.Subscription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -18,10 +17,10 @@ import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodedCellImage.Companion.createErodedCellImage
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.extendValue
@@ -61,25 +60,14 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
         action.verify("Mask is in Use") { !this@ErodeLabelState.maskedSource.isMaskInUseBinding().get() }
     }
 
-    fun progressStatusSubscription(): Subscription = let {
-        val applyingMaskProperty = maskedSource.isApplyingMaskProperty()
-        listOf(progressProperty, applyingMaskProperty).subscribe {
-            val progress = progressProperty.get()
-            val applying = applyingMaskProperty.get()
-
-            statusProperty.value = when {
-                progress == 0.0 -> Status.Empty
-                progress == 1.0 -> Status.Done
-                applying -> Status.Applying
-                progress > 0.0 && progress < 1.0 -> ErodeStatus.Eroding
-                else -> Status.Empty
-            }
-        }
-    }
-
     @set:Synchronized
     @get:Synchronized
     private var currentErodedCellImg: ErodedCellImage? = null
+
+    /* the last computed preview mask, kept alive so the preview toggle can hide/show it without
+     * recomputing. `previewMaskValid` is cleared when a parameter changes while preview is off. */
+    internal var previewMask: SourceMask? = null
+    internal var previewMaskValid: Boolean = false
 
     @Synchronized
     fun getErodedCellImage(
@@ -159,23 +147,36 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
         val labelsToErode = getSelectedLabels()
         val blocksWithLabel = blocksForLabels(scaleLevel, labelsToErode)
 
-        val erodedCellImage = getErodedCellImage(labelsToErode, blocksWithLabel, cellDims)
+        val intervalsWithLabel = if (preview)
+            viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
+        else
+            blocksWithLabel
 
-        if (update >= UpdateSignal.Full)
+        /* For preview, size the compute cells to the visible region so the morphology runs as one block
+         * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
+         * over-computing the full cell depth for a thin view slab. */
+        val computeCellDims = if (preview && cellDims == null)
+            previewCellDimensions(intervalsWithLabel, cellDims)
+        else cellDims
+        val erodedCellImage = getErodedCellImage(labelsToErode, blocksWithLabel, computeCellDims)
+
+        if (update >= UpdateSignal.Full) {
+            setStatus(ErodeStatus.Eroding)
             ErodeLabel.submitUI {
                 /* The listener only resets to zero if going backward, so do this first */
                 progress = 0.0
                 /* Just to show the operation has started */
                 progress = .05
             }
+        }
 
-
-        val intervalsWithLabel = if (preview)
-            viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
-        else
-            blocksWithLabel
 
         val intervalsToProcess = intervalsWithLabel
+
+        /* a preview mask hidden by a prior toggle-off would otherwise leak when we recompute */
+        previewMask?.takeIf { it !== maskedSource.currentMask }?.shutdown?.run()
+        previewMask = null
+        previewMaskValid = false
 
         val mask = newSourceMask()
         val processInterval: suspend CoroutineScope.(RealInterval) -> Flow<Int> = { slice ->
@@ -197,31 +198,41 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
             }
         }
 
-        val localProgress = AtomicDouble(.1)
+        val totalUnits = intervalsToProcess.size
+        val completedUnits = AtomicInteger(0)
 
         coroutineScope {
             launch {
-                val increment = (.99 - .1) / intervalsToProcess.size
                 for (interval in intervalsToProcess) {
                     launch {
-                        var approachTotal = 0.0
-                        processInterval(interval).collect { _ ->
-                            if (update >= UpdateSignal.Full) {
-                                val addProgress = (increment - approachTotal) * .25
-                                approachTotal += addProgress
-                                localProgress.updateAndGet { (it + addProgress).coerceAtMost(1.0) }
-                                ErodeLabel.submitUI { progress = localProgress.get() }
-                            }
+                        processInterval(interval).collect { }
+                        if (update >= UpdateSignal.Full) {
+                            val done = completedUnits.incrementAndGet()
+                            ErodeLabel.submitUI { progress = .05 + .94 * (done.toDouble() / totalUnits) }
                         }
                     }
                 }
             }.invokeOnCompletion { cause ->
+                cause?.let { mask.shutdown?.run() }
                 if (cause != null || update >= UpdateSignal.Full)
                     requestRepaintOverIntervals()
                 if (cause == null) {
                     maskedSource.resetMasks()
-                    maskedSource.setMask(mask) { it >= 0 }
-                    requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                    if (update == UpdateSignal.Finish) {
+                        /* apply path: the mask must be current so applyMaskOverIntervals can write it */
+                        maskedSource.setMask(mask) { it >= 0 }
+                        requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                    } else {
+                        /* preview: always compute, but only display the result when the toggle is on */
+                        if (previewProperty.get()) {
+                            maskedSource.setMask(mask) { it >= 0 }
+                            requestRepaintOverIntervals(intervalsToProcess.map { it.smallestContainingInterval })
+                        } else {
+                            requestRepaintOverIntervals()
+                        }
+                        previewMask = mask
+                        previewMaskValid = true
+                    }
                 }
                 val finalProgress = when (cause) {
                     null -> 1.0
@@ -229,6 +240,9 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
                     else -> throw cause
                 }
                 ErodeLabel.submitUI { progress = finalProgress }
+                /* the computed mask is now displayed; Ready means it can be applied. the Finish apply path
+                 * advances this to Applying/Done in ErodeLabel.startErodeTask's completion handler */
+                setStatus(if (cause == null) Status.Ready else Status.Empty)
             }
         }
 

@@ -128,9 +128,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -513,13 +511,22 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedIntervalOverCanvas);
 
-			final var labelToBlocks = paintAffectedPixels(
-					affectedBlocks,
-					mask,
-					canvas,
-					canvas.getCellGrid(),
-					paintedIntervalOverCanvas,
-					acceptAsPainted);
+			final ExecutorService paintPool = Executors.newFixedThreadPool(
+					Runtime.getRuntime().availableProcessors(),
+					new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build());
+			final Map<Long, TLongHashSet> labelToBlocks;
+			try {
+				labelToBlocks = paintAffectedPixels(
+						affectedBlocks,
+						mask,
+						canvas,
+						canvas.getCellGrid(),
+						paintedIntervalOverCanvas,
+						acceptAsPainted,
+						paintPool);
+			} finally {
+				paintPool.shutdown();
+			}
 
 			for (var label : labelToBlocks.entrySet()) {
 				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
@@ -594,10 +601,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (mask == null)
 			return;
 
-		final ExecutorService applyPool = Executors.newFixedThreadPool(
-				Runtime.getRuntime().availableProcessors(),
-				new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build()
-		);
+		int nThreads = Runtime.getRuntime().availableProcessors();
+		final ExecutorService applyService = Executors.newFixedThreadPool(nThreads, new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build());
+		final ExecutorService paintPixelService = Executors.newFixedThreadPool(nThreads, new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build());
 		final ArrayList<Future<?>> applies = new ArrayList<>();
 		synchronized (this) {
 			final boolean maskCanBeApplied = !this.isCreatingMask() && this.getCurrentMask() == mask && !this.isApplyingMask.get() && !this.isPersisting();
@@ -625,7 +631,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				continue;
 
 
-			var applyFuture = applyPool.submit(() -> {
+			var applyFuture = applyService.submit(() -> {
 				final int[] blockSize = new int[grid.numDimensions()];
 				grid.cellDimensions(blockSize);
 
@@ -637,7 +643,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						canvas,
 						grid,
 						intervalOverCanvas,
-						acceptAsPainted);
+						acceptAsPainted,
+						paintPixelService);
 
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					final double progress = completedTasks.incrementAndGet() / (double)expectedTasks;
@@ -705,7 +712,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		if (mask.getInvalidateVolatile() != null)
 			mask.getInvalidateVolatile().invalidateAll();
 
-		applyPool.shutdown();
+		applyService.shutdown();
+		paintPixelService.shutdown();
 		this.isBusy.set(false);
 	}
 
@@ -795,6 +803,24 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		}
 
 		this.isBusy.set(false);
+	}
+
+	/**
+	 * Hide the current mask from display without shutting down its store, so the same {@link SourceMask}
+	 * can be re-shown later via {@link #setMask}. Unlike {@link #resetMasks}, the mask is preserved (no
+	 * {@code shutdown} is run); the caller keeps the reference and is responsible for eventually shutting it
+	 * down. While hidden the original source is shown (constant-INVALID overlay). After this call
+	 * {@code getCurrentMask()} is {@code null}, so {@link #setMask} can re-wire the same mask cheaply.
+	 */
+	public synchronized void hideCurrentMask() throws MaskInUse {
+
+		final boolean canNotHide = isCreatingMask() || isApplyingMask.get();
+		if (canNotHide) {
+			LOG.error("Cannot hide mask: is creating mask? {} is applying mask? {}", isCreatingMask(), isApplyingMask.get());
+			throw new MaskInUse("Cannot hide the mask.");
+		}
+		setCurrentMask(null);
+		setMasksConstant();
 	}
 
 	public void forgetCanvases() throws CannotClearCanvas {
@@ -1483,7 +1509,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<C> canvas,
 			final CellGrid grid,
 			final Interval paintedInterval,
-			final Predicate<Long> acceptAsPainted) {
+			final Predicate<Long> acceptAsPainted,
+			final ExecutorService threadPool) {
 
 		final long[] currentMin = new long[grid.numDimensions()];
 		final long[] currentMax = new long[grid.numDimensions()];
@@ -1492,11 +1519,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final int[] blockSize = new int[grid.numDimensions()];
 		grid.cellDimensions(blockSize);
 
-		final AtomicReference<HashMap<Long, TLongHashSet>> labelToBlocks = new AtomicReference<>(new HashMap<>());
-
-		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("paint-affected-pixels-%d").build();
-		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
-		final List<Future<?>> jobs = new ArrayList<>();
+		record BlockLabels(long blockId, Set<Long> labels) {}
+		final List<Future<BlockLabels>> jobs = new ArrayList<>();
 		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 			final long blockId = blockIt.next();
 			IntervalIndexer.indexToPosition(blockId, gridDimensions, gridPosition);
@@ -1515,29 +1539,28 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				continue;
 			}
 
-			final Future<?> job = threadPool.submit(() -> {
+			final Future<BlockLabels> job = threadPool.submit(() -> {
 				LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
 				final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
-				final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
-				labelToBlocks.getAndUpdate(map -> {
-					final HashMap<Long, TLongHashSet> updatedMap = new HashMap<>(map);
-					for (Long label : labelsForBlock) {
-						updatedMap.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
-					}
-					return updatedMap;
-				});
+				final Set<Long> labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+				return new BlockLabels(blockId, labelsForBlock);
 			});
 			jobs.add(job);
 		}
-		for (Future<?> job : jobs) {
+
+		/* reduce single-threaded after the jobs are done, so that in-place adds are safe */
+		final HashMap<Long, TLongHashSet> labelToBlocks = new HashMap<>();
+		for (final Future<BlockLabels> job : jobs) {
+			final BlockLabels blockLabels;
 			try {
-				job.get();
+				blockLabels = job.get();
 			} catch (InterruptedException | ExecutionException e) {
 				throw new RuntimeException(e);
 			}
+			for (final Long label : blockLabels.labels())
+				labelToBlocks.computeIfAbsent(label, k -> new TLongHashSet()).add(blockLabels.blockId());
 		}
-		threadPool.shutdown();
-		return labelToBlocks.getAcquire();
+		return labelToBlocks;
 	}
 
 	/**

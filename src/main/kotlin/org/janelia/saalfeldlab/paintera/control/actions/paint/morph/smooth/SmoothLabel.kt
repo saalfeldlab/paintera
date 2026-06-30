@@ -17,8 +17,10 @@ import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.InfillStrategy
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.Status
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.setStatus
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import java.util.concurrent.atomic.AtomicLong
@@ -135,9 +137,6 @@ object SmoothLabel : MenuAction("_Smooth...") {
 	private fun SmoothLabelState<*, *>.startSmoothTask() {
 		val prevScales = viewer.screenScales
 
-		/* update status based on progress */
-		val progressStatusSubscription = progressStatusSubscription()
-
 		/* these should only trigger on change */
 		val updateSubscription = listOf(
 			replacementLabelProperty,
@@ -149,12 +148,23 @@ object SmoothLabel : MenuAction("_Smooth...") {
 			updateChannel.trySend(UpdateSignal.Full)
 		}
 
+		/* preview toggle: show/hide an existing preview */
+		val previewSubscription = listOf(previewProperty).addListener {
+			if (previewMaskValid && previewMask != null)
+				updateChannel.trySend(
+					if (previewProperty.get())
+						UpdateSignal.ShowPreview
+					else
+						UpdateSignal.HidePreview
+				)
+		}
+
 		/* Initialize the kernelSize */
 		val resolution = getLevelResolution(scaleLevel)
 		val initKernelSize = morphDirectionProperty.get().defaultKernelSize(resolution)
 		kernelSizeProperty.set(initKernelSize)
 
-		val subscriptions = updateSubscription.and(progressStatusSubscription)
+		val subscriptions = updateSubscription.and(previewSubscription)
 
 		paintera.baseView.orthogonalViews().setScreenScales(doubleArrayOf(prevScales[0]))
 		mainTaskLoop = smoothScope.async {
@@ -170,6 +180,25 @@ object SmoothLabel : MenuAction("_Smooth...") {
 						mainTaskLoop?.cancelAndJoin()
 						smoothScope.cancelCurrent()
 						break
+					}
+
+					UpdateSignal.HidePreview -> smoothScope.submit {
+						withContext(NonCancellable) {
+							maskedSource.hideCurrentMask()
+							requestRepaintOverIntervals(intervals)
+							submitUI { progress = 0.0 }
+							setStatus(Status.Ready)
+						}
+					}
+
+					UpdateSignal.ShowPreview -> smoothScope.submit {
+						withContext(NonCancellable) {
+							previewMask?.let { mask ->
+								if (maskedSource.currentMask !== mask) maskedSource.setMask(mask) { it >= 0 }
+								requestRepaintOverIntervals(intervals)
+								setStatus(Status.Ready)
+							}
+						}
 					}
 
 					UpdateSignal.Partial, UpdateSignal.Full -> smoothScope.submit {
@@ -208,23 +237,25 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		}.also { task ->
 			paintera.baseView.disabledPropertyBindings[task] = isBusyProperty
 			task.invokeOnCompletion { cause ->
-
-				if (cause == null) {
-					val intervals = task.getCompleted()
-					maskedSource.apply {
-						val applyProgressProperty = SimpleDoubleProperty()
-						val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
-							submitUI { progress = it.toDouble() }
-						}
-						applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
-						applyUpdateSubscription.unsubscribe()
-					}
-					requestRepaintOverIntervals(intervals)
-					refreshMeshes()
-				}
 				try {
+					if (cause == null) {
+						setStatus(Status.Applying)
+						val intervals = task.getCompleted()
+						maskedSource.apply {
+							val applyProgressProperty = SimpleDoubleProperty()
+							val applyUpdateSubscription = applyProgressProperty.subscribe { it ->
+								submitUI { progress = it.toDouble() }
+							}
+							applyMaskOverIntervals(currentMask, intervals, applyProgressProperty) { it >= 0 }
+							applyUpdateSubscription.unsubscribe()
+						}
+						requestRepaintOverIntervals(intervals)
+						refreshMeshes()
+						setStatus(Status.Done)
+					}
 					/* reset on any exception; log + surface non-cancellation errors to the user */
 					cause?.let {
+						setStatus(Status.Empty)
 						maskedSource.resetMasks()
 						paintera.baseView.orthogonalViews().requestRepaint()
 						smoothScope.cancelCurrent()
@@ -235,12 +266,26 @@ object SmoothLabel : MenuAction("_Smooth...") {
 							}
 						}
 					}
+				} catch (applyError: Throwable) {
+					/* the apply phase failed; reset so the dialog isn't stuck at Applying */
+					setStatus(Status.Empty)
+					maskedSource.resetMasks()
+					paintera.baseView.orthogonalViews().requestRepaint()
+					smoothScope.cancelCurrent()
+					LOG.error(applyError) { "Smooth apply failed" }
+					InvokeOnJavaFXApplicationThread {
+						Exceptions.exceptionAlert(Constants.NAME, "Smooth apply failed", applyError).show()
+					}
 				} finally {
 					submitUI {
 						cause ?: run { progress = 1.0 }
 						subscriptions.unsubscribe()
 					}
 					paintera.baseView.disabledPropertyBindings -= task
+					/* shut down a preview mask that was hidden */
+					previewMask?.takeIf { it !== maskedSource.currentMask }?.shutdown?.run()
+					previewMask = null
+					previewMaskValid = false
 					maskedSource.resetMasks()
 					paintera.baseView.orthogonalViews().setScreenScales(prevScales)
 				}
