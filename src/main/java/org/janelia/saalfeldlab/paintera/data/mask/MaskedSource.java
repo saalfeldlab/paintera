@@ -957,9 +957,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				nextState.accept("Successfully finished committing canvas.");
 			}
 		}).onEnd((result, cause) -> {
-			animateProgressBar.accept(1.0);
-			this.isPersistingProperty.set(false);
-			this.isBusy.set(false);
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				animateProgressBar.accept(1.0);
+				this.isPersistingProperty.set(false);
+				this.isBusy.set(false);
+			});
 		}).onFailed(cause -> {
 			synchronized (this) {
 				LOG.error("Unable to commit canvas", cause);
