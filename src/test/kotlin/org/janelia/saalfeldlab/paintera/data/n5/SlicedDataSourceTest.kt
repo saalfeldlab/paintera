@@ -13,6 +13,8 @@ import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
@@ -163,7 +165,9 @@ class SlicedDataSourceTest {
 		}
 
 		val queue = SharedQueue(1, 1)
-		val results = N5Data.openRawMultiscale<UnsignedByteType, VolatileUnsignedByteType>(n5, group, queue = queue, priority = 0)
+		/* open through parsed metadata, the only multiscale open path */
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(n5), group) as MultiScaleMetadataState
+		val results = N5Data.openRawMultiscale<UnsignedByteType, VolatileUnsignedByteType>(metadataState, queue = queue, priority = 0)
 
 		assertNotNull(results)
 		assertEquals(3, results.size)
