@@ -24,7 +24,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.PainteraDataMultiscaleMet
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.testdata.TestData
 import org.janelia.saalfeldlab.paintera.testdata.TestData.TestCase
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
@@ -89,7 +89,7 @@ class ExportSourceStateTest {
 	}
 
 	val metadataState = MetadataUtils.createMetadataState(EXPORT_TEST_N5, LABEL_MULTISET_DATASET)!! as PainteraDataMultiscaleMetadataState
-	val metadata = metadataState.metadata as N5PainteraLabelMultiScaleGroup
+	val metadata = metadataState.metadata as N5PainteraLabelMultiscaleGroup
 	val labelBackend = N5BackendLabel.createFrom<Nothing, Nothing>(metadataState, Executors.newSingleThreadExecutor()) as N5BackendPainteraDataset
 
 	val source = let {
@@ -113,7 +113,7 @@ class ExportSourceStateTest {
 		val exportState = ExportSourceState().apply {
 
 			backendProperty.set(labelBackend)
-			maxIdProperty.set(metadata.maxId)
+			maxIdProperty.set(metadata.maxId!!)
 			sourceProperty.set(source)
 			scaleLevelProperty.set(scaleLevel)
 			dataTypeProperty.set(DataType.UINT8)
