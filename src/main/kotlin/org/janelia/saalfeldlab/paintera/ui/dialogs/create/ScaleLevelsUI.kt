@@ -2,6 +2,10 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 
 import javafx.beans.binding.Bindings
 import javafx.beans.property.BooleanProperty
+import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.LongProperty
+import javafx.beans.property.Property
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.collections.ListChangeListener
 import javafx.geometry.HPos
@@ -27,12 +31,31 @@ import org.controlsfx.validation.ValidationResult
 import org.controlsfx.validation.ValidationSupport
 import org.controlsfx.validation.Validator
 import org.controlsfx.validation.decoration.GraphicValidationDecoration
+import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.fx.ui.NumberField
+import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_ICON
 import org.janelia.saalfeldlab.paintera.Style.REMOVE_ICON
 import org.janelia.saalfeldlab.paintera.addStyleClass
+
+internal const val SCALE_FIELD_WIDTH = 60.0
+
+/** Bind the field's x, y, z bidirectionally to [values]. */
+internal fun <P : Property<Number>> SpatialField<P>.boundTo(values: SpatialValues<P>) = apply {
+	x.valueProperty().bindBidirectional(values.xProperty)
+	y.valueProperty().bindBidirectional(values.yProperty)
+	z.valueProperty().bindBidirectional(values.zProperty)
+}
+
+/** Display [values] read-only. */
+internal fun <P : Property<Number>> SpatialField<P>.displaying(values: SpatialValues<P>) = apply {
+	editable = false
+	x.valueProperty().bind(values.xProperty)
+	y.valueProperty().bind(values.yProperty)
+	z.valueProperty().bind(values.zProperty)
+}
 
 /**
  * UI for a [ScaleLevelsModel] as a single shared grid:
@@ -59,8 +82,26 @@ class ScaleLevelsUI(
 		}
 	}
 
-	/* stable per-level cell nodes, reused across rebuilds so the fields and their validation decorations are not reparented */
-	private class RowNodes(val relative: Node, val absolute: Node, val resolution: Node, val dimensions: Node, val maxEntries: Node, val remove: Button)
+	private inner class RowNodes(level: ScaleLevel) {
+		val relativeField: SpatialField<IntegerProperty> = SpatialField.intField(1, { it > 0 }, SCALE_FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+			.boundTo(level.relativeDownsamplingFactors)
+		val absoluteField: SpatialField<IntegerProperty> = SpatialField.intField(1, { true }, SCALE_FIELD_WIDTH).displaying(level.absoluteDownsamplingFactors)
+		val resolutionField: SpatialField<DoubleProperty> = SpatialField.doubleField(1.0, { true }, SCALE_FIELD_WIDTH).displaying(level.resolution)
+		val dimensionsField: SpatialField<LongProperty> = SpatialField.longField(1, { true }, SCALE_FIELD_WIDTH).displaying(level.dimensions)
+		val maxEntriesField: NumberField<IntegerProperty> = NumberField.intField(level.maxNumberOfEntries.value, { true }, *SubmitOn.entries.toTypedArray()).apply {
+			valueProperty().bindBidirectional(level.maxNumberOfEntries)
+			textField.prefWidth = SCALE_FIELD_WIDTH
+			textField.minWidth = Region.USE_PREF_SIZE
+		}
+		val remove = Button().apply {
+			addStyleClass(REMOVE_ICON)
+			setOnAction {
+				it.consume()
+				model.removeLevel(level)
+			}
+			disableProperty().bind(Bindings.size(model.levels).lessThanOrEqualTo(1))
+		}
+	}
 
 	private val rowNodesByLevel = mutableMapOf<ScaleLevel, RowNodes>()
 	private val levelSupports = mutableMapOf<ScaleLevel, ValidationSupport>()
@@ -70,34 +111,14 @@ class ScaleLevelsUI(
 		children += HBox(addButton).apply { alignment = Pos.TOP_RIGHT }
 		children += grid
 
-		model.levels.forEach { registerLevelDecorations(it) }
-		model.levels.addListener(ListChangeListener { change ->
-			while (change.next()) {
-				if (change.wasAdded()) change.addedSubList.forEach { registerLevelDecorations(it) }
-			}
-			rebuild()
-		})
+		model.levels.addListener(ListChangeListener { rebuild() })
 		/* the Max Entries column only applies to label multiset datasets */
 		labelMultisetProperty.subscribe { _, _ -> rebuild() }
 		rebuild()
 	}
 
 	private fun rowNodesFor(level: ScaleLevel): RowNodes = rowNodesByLevel.getOrPut(level) {
-		RowNodes(
-			groupNode(level.relativeDownsamplingFactors),
-			groupNode(level.absoluteDownsamplingFactors),
-			groupNode(level.resolution),
-			groupNode(level.dimensions),
-			level.maxNumberOfEntries.textField,
-			Button().apply {
-				addStyleClass(REMOVE_ICON)
-				setOnAction {
-					it.consume()
-					model.removeLevel(level)
-				}
-				disableProperty().bind(Bindings.size(model.levels).lessThanOrEqualTo(1))
-			}
-		)
+		RowNodes(level).also { registerLevelDecorations(level, it.dimensionsField) }
 	}
 
 	private fun groupNode(field: SpatialField<*>) = HBox(field.x.textField, field.y.textField, field.z.textField)
@@ -110,20 +131,20 @@ class ScaleLevelsUI(
 		val showMaxEntries = labelMultisetProperty.value
 		val totalRows = 1 + model.levels.size
 
-		/* leading "Scale N:" label column, right aligned */
+		/* leading "Scale N:" label column, right aligned; s0's relative factors are fixed at 1 */
 		model.levels.forEachIndexed { index, level ->
-			if (index == 0) level.relativeDownsamplingFactors.editable = false
+			rowNodesFor(level).relativeField.editable = index != 0
 			val label = Label("Scale $index:").apply { minWidth = Region.USE_PREF_SIZE }
 			grid.add(label, 0, index + 1)
 			GridPane.setHalignment(label, HPos.RIGHT)
 		}
 
 		val groups = buildList {
-			add(Group("Relative Factors") { it.relative })
-			add(Group("Absolute Factors") { it.absolute })
-			add(Group("Resolution") { it.resolution })
-			add(Group("Dimensions") { it.dimensions })
-			if (showMaxEntries) add(Group("Max Entries") { it.maxEntries })
+			add(Group("Relative Factors") { groupNode(it.relativeField) })
+			add(Group("Absolute Factors") { groupNode(it.absoluteField) })
+			add(Group("Resolution") { groupNode(it.resolutionField) })
+			add(Group("Dimensions") { groupNode(it.dimensionsField) })
+			if (showMaxEntries) add(Group("Max Entries") { it.maxEntriesField.textField })
 		}
 
 		var column = 1
@@ -167,22 +188,22 @@ class ScaleLevelsUI(
 			super.createTooltip(message).apply { showDelay = Duration.ZERO }
 	}
 
-	private fun registerLevelDecorations(level: ScaleLevel) {
+	private fun registerLevelDecorations(level: ScaleLevel, dimensionsField: SpatialField<LongProperty>) {
 		val support = ValidationSupport()
 		(support.validationDecorator as? GraphicValidationDecoration)?.let {
 			support.validationDecoratorProperty().set(AlignableGraphicValidationDecoration(Pos.BOTTOM_RIGHT))
 		}
-		mapOf(
-			level.dimensions.x to model.blockSize.x,
-			level.dimensions.y to model.blockSize.y,
-			level.dimensions.z to model.blockSize.z,
-		).forEach { (dimension, blockSize) ->
-			support.registerValidator(dimension.textField, false, Validator<String> { _, _ ->
-				ValidationResult.fromErrorIf(dimension.textField, "Dimension size is zero. Remove this scale level.", dimension.value.toInt() <= 0)
-					?.addWarningIf(dimension.textField, "Dimension is smaller than block size. Consider removing this scale level.", dimension.value.toInt() <= blockSize.value.toInt())
+		listOf(
+			Triple(level.dimensions.xProperty, model.blockSize.xProperty, dimensionsField.x),
+			Triple(level.dimensions.yProperty, model.blockSize.yProperty, dimensionsField.y),
+			Triple(level.dimensions.zProperty, model.blockSize.zProperty, dimensionsField.z),
+		).forEach { (dimension, blockSize, field) ->
+			support.registerValidator(field.textField, false, Validator<String> { _, _ ->
+				ValidationResult.fromErrorIf(field.textField, "Dimension size is zero. Remove this scale level.", dimension.value.toInt() <= 0)
+					?.addWarningIf(field.textField, "Dimension is smaller than block size. Consider removing this scale level.", dimension.value.toInt() <= blockSize.value.toInt())
 			})
 			/* revalidate when the block size changes; ControlsFX only revalidates on the field's own value */
-			blockSize.valueProperty().subscribe { _ -> support.revalidate() }
+			blockSize.subscribe { _ -> support.revalidate() }
 		}
 		levelSupports[level] = support
 		/* ControlsFX only decorates after the first value edit; enable initial decoration so an already-invalid

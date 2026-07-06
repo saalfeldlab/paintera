@@ -11,18 +11,16 @@ import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
 import javafx.util.Subscription
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
-import org.janelia.saalfeldlab.fx.ui.SpatialField
 
 /**
- * The scale [levels] and associated logic that keep them consistent with the base spatial fields.
+ * The scale [levels] and associated logic that keep them consistent with the base spatial values.
  * Level 0 is the base; adding/removing levels re-bases the pyramid and
  * recomputes each level's derived values.
  */
 interface ScaleLevelsModel {
 
 	val levels: ObservableList<ScaleLevel>
-	val blockSize: SpatialField<IntegerProperty>
+	val blockSize: SpatialValues<IntegerProperty>
 
 	/** True when any level has a non-positive dimension; disables Create. */
 	val invalidProperty: ReadOnlyBooleanProperty
@@ -39,19 +37,19 @@ interface ScaleLevelsModel {
 
 	companion object {
 		fun default(): ScaleLevelsModel = DefaultScaleLevelsModel(
-			SpatialField.longField(1, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()),
-			SpatialField.doubleField(1.0, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()),
-			SpatialField.doubleField(0.0, { true }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()),
-			SpatialField.intField(1, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+			SpatialValues.longValues(1),
+			SpatialValues.doubleValues(1.0),
+			SpatialValues.doubleValues(0.0),
+			SpatialValues.intValues(1)
 		)
 	}
 }
 
 internal class DefaultScaleLevelsModel(
-	private val dimensions: SpatialField<LongProperty>,
-	private val resolution: SpatialField<DoubleProperty>,
-	private val offset: SpatialField<DoubleProperty>,
-	override val blockSize: SpatialField<IntegerProperty>
+	private val dimensions: SpatialValues<LongProperty>,
+	private val resolution: SpatialValues<DoubleProperty>,
+	private val offset: SpatialValues<DoubleProperty>,
+	override val blockSize: SpatialValues<IntegerProperty>
 ) : ScaleLevelsModel {
 
 	override val levels: ObservableList<ScaleLevel> = FXCollections.observableArrayList()
@@ -87,9 +85,9 @@ internal class DefaultScaleLevelsModel(
 	private fun trackLevelDimensions() {
 		levelDimensionSubscription.unsubscribe()
 		levelDimensionSubscription = levels
-			.flatMap { listOf(it.dimensions.x, it.dimensions.y, it.dimensions.z) }
+			.flatMap { listOf(it.dimensions.xProperty, it.dimensions.yProperty, it.dimensions.zProperty) }
 			.fold(Subscription.EMPTY) { subscription, dimension ->
-				subscription.and(dimension.valueProperty().subscribe { _ -> recomputeInvalid() })
+				subscription.and(dimension.subscribe { _ -> recomputeInvalid() })
 			}
 		recomputeInvalid()
 	}
@@ -98,8 +96,7 @@ internal class DefaultScaleLevelsModel(
 		invalidWrapper.value = levels.any { level -> level.dimensions.asLongArray().any { it <= 0 } }
 	}
 
-	private fun newLevel(downsamplingFactor: Int) =
-		ScaleLevel(downsamplingFactor, -1, SCALE_FIELD_WIDTH, *SubmitOn.entries.toTypedArray())
+	private fun newLevel(downsamplingFactor: Int) = ScaleLevel(downsamplingFactor, -1)
 
 	override fun addLevel() {
 		val newLevel = newLevel(2)
@@ -155,9 +152,9 @@ internal class DefaultScaleLevelsModel(
 
 		data class ReduceBaseData(val dimension: LongProperty, val resolution: DoubleProperty, val offset: DoubleProperty)
 
-		val xData = ReduceBaseData(dimensions.x.valueProperty(), resolution.x.valueProperty(), offset.x.valueProperty())
-		val yData = ReduceBaseData(dimensions.y.valueProperty(), resolution.y.valueProperty(), offset.y.valueProperty())
-		val zData = ReduceBaseData(dimensions.z.valueProperty(), resolution.z.valueProperty(), offset.z.valueProperty())
+		val xData = ReduceBaseData(dimensions.xProperty, resolution.xProperty, offset.xProperty)
+		val yData = ReduceBaseData(dimensions.yProperty, resolution.yProperty, offset.yProperty)
+		val zData = ReduceBaseData(dimensions.zProperty, resolution.zProperty, offset.zProperty)
 
 		listOf(xData, yData, zData).zip(relativeFactors).forEach { (baseData, factor) ->
 			baseData.dimension.value /= factor
@@ -166,38 +163,35 @@ internal class DefaultScaleLevelsModel(
 			baseData.offset.value += (baseData.resolution.value - prevRes) / 2.0
 		}
 
-		newBaseScale.relativeDownsamplingFactors.apply {
-			x.valueProperty().value = 1
-			y.valueProperty().value = 1
-			z.valueProperty().value = 1
-		}
+		newBaseScale.relativeDownsamplingFactors.setValues(1, 1, 1)
 	}
 
 	private fun adjustSubsequentScale(removedScale: ScaleLevel, nextScale: ScaleLevel) {
 		nextScale.relativeDownsamplingFactors.apply {
 			removedScale.relativeDownsamplingFactors.let {
-				x.valueProperty().value *= it.x.valueProperty().value
-				y.valueProperty().value *= it.y.valueProperty().value
-				z.valueProperty().value *= it.z.valueProperty().value
+				xProperty.value *= it.xProperty.value
+				yProperty.value *= it.yProperty.value
+				zProperty.value *= it.zProperty.value
 			}
 		}
 	}
 
 	private fun provideAbsoluteValues(levels: List<ScaleLevel>) {
-		val baseAbsoluteFactors = SpatialField.intField(1, { true }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).also { it.editable = false }.also {
-			it.x.valueProperty().bind(levels[0].relativeDownsamplingFactors.x.valueProperty())
-			it.y.valueProperty().bind(levels[0].relativeDownsamplingFactors.y.valueProperty())
-			it.z.valueProperty().bind(levels[0].relativeDownsamplingFactors.z.valueProperty())
+		val baseAbsoluteFactors = SpatialValues.intValues(1).apply {
+			xProperty.bind(levels[0].relativeDownsamplingFactors.xProperty)
+			yProperty.bind(levels[0].relativeDownsamplingFactors.yProperty)
+			zProperty.bind(levels[0].relativeDownsamplingFactors.zProperty)
 		}
 		levels[0].displayAbsoluteValues(resolution, baseAbsoluteFactors, dimensions)
 
 		var previousAbsoluteFactors = baseAbsoluteFactors
 		if (levels.size > 1) {
 			levels.subList(1, levels.size).forEach { level ->
-				val absoluteFactors = SpatialField.intField(1, { true })
-				absoluteFactors.x.valueProperty().bind(previousAbsoluteFactors.x.valueProperty().multiply(level.relativeDownsamplingFactors.x.valueProperty()))
-				absoluteFactors.y.valueProperty().bind(previousAbsoluteFactors.y.valueProperty().multiply(level.relativeDownsamplingFactors.y.valueProperty()))
-				absoluteFactors.z.valueProperty().bind(previousAbsoluteFactors.z.valueProperty().multiply(level.relativeDownsamplingFactors.z.valueProperty()))
+				val absoluteFactors = SpatialValues.intValues(1).apply {
+					xProperty.bind(previousAbsoluteFactors.xProperty.multiply(level.relativeDownsamplingFactors.xProperty))
+					yProperty.bind(previousAbsoluteFactors.yProperty.multiply(level.relativeDownsamplingFactors.yProperty))
+					zProperty.bind(previousAbsoluteFactors.zProperty.multiply(level.relativeDownsamplingFactors.zProperty))
+				}
 				level.displayAbsoluteValues(resolution, absoluteFactors, dimensions)
 				previousAbsoluteFactors = absoluteFactors
 			}
