@@ -20,7 +20,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.KeyBindingsDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.OpenProjectDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
-import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.intersecting.IntersectingSourceStateOpener
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.kordamp.ikonli.fontawesome.FontAwesome
@@ -42,7 +41,6 @@ enum class PainteraMenuItems(
 	CYCLE_FORWARD("Cycle _Forward", PBK.CYCLE_CURRENT_SOURCE_FORWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
 	CYCLE_BACKWARD("Cycle _Backward", PBK.CYCLE_CURRENT_SOURCE_BACKWARD, requiredActionTypes = arrayOf(ChangeActiveSource)),
 	TOGGLE_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_CURRENT_SOURCE_VISIBILITY),
-	NEW_LABEL_SOURCE("_Label Source...", PBK.CREATE_NEW_LABEL_DATASET, requiredActionTypes = arrayOf(AddSource)),
 	NEW_CONNECTED_COMPONENT_SOURCE("_Fill Connected Components...", PBK.FILL_CONNECTED_COMPONENTS, requiredActionTypes = arrayOf(CreateVirtualSource)),
 	NEW_THRESHOLDED_SOURCE("_Threshold...", PBK.THRESHOLDED, requiredActionTypes = arrayOf(CreateVirtualSource)),
 	TOGGLE_MENU_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_MENUBAR_VISIBILITY, requiredActionTypes = arrayOf(ToggleMenuBarVisibility)),
@@ -90,7 +88,6 @@ enum class PainteraMenuItems(
 				CYCLE_FORWARD { baseView.sourceInfo().incrementCurrentSourceIndex() },
 				CYCLE_BACKWARD { baseView.sourceInfo().decrementCurrentSourceIndex() },
 				TOGGLE_VISIBILITY { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() },
-				NEW_LABEL_SOURCE { CreateDatasetHandler.createAndAddNewLabelDataset(baseView, getProjectDirectory) },
 				SHOW_REPL { replDialog.show() },
 				FULL_SCREEN { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
 				SHOW_README { ReadMeDialog.openReadme() },
