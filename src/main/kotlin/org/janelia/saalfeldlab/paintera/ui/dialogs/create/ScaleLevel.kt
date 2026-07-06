@@ -3,73 +3,52 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.LongProperty
-import javafx.scene.layout.Region
-import org.janelia.saalfeldlab.fx.ui.NumberField
-import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
-import org.janelia.saalfeldlab.fx.ui.SpatialField
+import javafx.beans.property.SimpleIntegerProperty
 
 /**
  * A single scale level of the mipmap pyramid.
  */
-class ScaleLevel private constructor(
-	val relativeDownsamplingFactors: SpatialField<IntegerProperty>,
-	val maxNumberOfEntries: NumberField<IntegerProperty>,
-	fieldWidth: Double
-) {
+class ScaleLevel(downsamplingFactor: Int, maxNumEntries: Int) {
 
-	constructor(downsamplingFactor: Int, maxNumEntries: Int, fieldWidth: Double, vararg submitOn: SubmitOn) : this(
-        relativeDownsamplingFactors = SpatialField.intField(downsamplingFactor, { it > 0 }, fieldWidth, *submitOn),
-        maxNumberOfEntries = NumberField.intField(maxNumEntries, { true }, *submitOn),
-        fieldWidth = fieldWidth
-	)
+	val relativeDownsamplingFactors = SpatialValues.intValues(downsamplingFactor)
+	val maxNumberOfEntries: IntegerProperty = SimpleIntegerProperty(maxNumEntries)
 
-	val baseDimensions = SpatialField.longField(-1, { true }, fieldWidth).apply { editable = false }
-	val absoluteDownsamplingFactors = SpatialField.intField(1, { true }, fieldWidth).apply { editable = false }
-	val dimensions = SpatialField.longField(1, { true }, fieldWidth).apply {
-		editable = false
-		x.valueProperty().bind(baseDimensions.x.valueProperty().divide(absoluteDownsamplingFactors.x.valueProperty()))
-		y.valueProperty().bind(baseDimensions.y.valueProperty().divide(absoluteDownsamplingFactors.y.valueProperty()))
-		z.valueProperty().bind(baseDimensions.z.valueProperty().divide(absoluteDownsamplingFactors.z.valueProperty()))
+	val baseDimensions = SpatialValues.longValues(-1)
+	val absoluteDownsamplingFactors = SpatialValues.intValues(1)
+	val dimensions = SpatialValues.longValues(1).apply {
+		xProperty.bind(baseDimensions.xProperty.divide(absoluteDownsamplingFactors.xProperty))
+		yProperty.bind(baseDimensions.yProperty.divide(absoluteDownsamplingFactors.yProperty))
+		zProperty.bind(baseDimensions.zProperty.divide(absoluteDownsamplingFactors.zProperty))
 	}
-	val resolution = SpatialField.doubleField(1.0, { true }, fieldWidth).apply { editable = false }
-
-	init {
-		maxNumberOfEntries.textField.apply {
-			prefWidth = fieldWidth
-			minWidth = Region.USE_PREF_SIZE
-		}
-	}
+	val resolution = SpatialValues.doubleValues(1.0)
 
 	/** Bind the absolute factors, resolution and dimensions to the given base values; pass null to unbind. */
 	fun displayAbsoluteValues(
-		baseResolution: SpatialField<DoubleProperty>?,
-		absoluteDownsamplingFactors: SpatialField<IntegerProperty>?,
-		baseDimensions: SpatialField<LongProperty>?
+		baseResolution: SpatialValues<DoubleProperty>?,
+		absoluteDownsamplingFactors: SpatialValues<IntegerProperty>?,
+		baseDimensions: SpatialValues<LongProperty>?
 	) {
-		listOf(this.baseDimensions, this.absoluteDownsamplingFactors, this.resolution).forEach { field ->
-			field.x.valueProperty().unbind()
-			field.y.valueProperty().unbind()
-			field.z.valueProperty().unbind()
+		listOf(this.baseDimensions, this.absoluteDownsamplingFactors, this.resolution).forEach { values ->
+			values.xProperty.unbind()
+			values.yProperty.unbind()
+			values.zProperty.unbind()
 		}
 
 		if (baseResolution == null || absoluteDownsamplingFactors == null || baseDimensions == null)
 			return
 
-		val absX = absoluteDownsamplingFactors.x.valueProperty()
-		val absY = absoluteDownsamplingFactors.y.valueProperty()
-		val absZ = absoluteDownsamplingFactors.z.valueProperty()
-		this.absoluteDownsamplingFactors.x.valueProperty().bind(absX)
-		this.absoluteDownsamplingFactors.y.valueProperty().bind(absY)
-		this.absoluteDownsamplingFactors.z.valueProperty().bind(absZ)
-		this.resolution.x.valueProperty().bind(baseResolution.x.valueProperty().multiply(absX))
-		this.resolution.y.valueProperty().bind(baseResolution.y.valueProperty().multiply(absY))
-		this.resolution.z.valueProperty().bind(baseResolution.z.valueProperty().multiply(absZ))
-		this.baseDimensions.x.valueProperty().bind(baseDimensions.x.valueProperty())
-		this.baseDimensions.y.valueProperty().bind(baseDimensions.y.valueProperty())
-		this.baseDimensions.z.valueProperty().bind(baseDimensions.z.valueProperty())
+		this.absoluteDownsamplingFactors.xProperty.bind(absoluteDownsamplingFactors.xProperty)
+		this.absoluteDownsamplingFactors.yProperty.bind(absoluteDownsamplingFactors.yProperty)
+		this.absoluteDownsamplingFactors.zProperty.bind(absoluteDownsamplingFactors.zProperty)
+		this.resolution.xProperty.bind(baseResolution.xProperty.multiply(absoluteDownsamplingFactors.xProperty))
+		this.resolution.yProperty.bind(baseResolution.yProperty.multiply(absoluteDownsamplingFactors.yProperty))
+		this.resolution.zProperty.bind(baseResolution.zProperty.multiply(absoluteDownsamplingFactors.zProperty))
+		this.baseDimensions.xProperty.bind(baseDimensions.xProperty)
+		this.baseDimensions.yProperty.bind(baseDimensions.yProperty)
+		this.baseDimensions.zProperty.bind(baseDimensions.zProperty)
 	}
 
 	fun downsamplingFactors() = relativeDownsamplingFactors.asDoubleArray()
 
-	fun maxNumEntries() = maxNumberOfEntries.valueProperty().get()
+	fun maxNumEntries() = maxNumberOfEntries.value
 }
