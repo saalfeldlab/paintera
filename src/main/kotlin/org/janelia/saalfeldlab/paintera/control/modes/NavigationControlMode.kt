@@ -40,6 +40,9 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.absoluteValue
 import kotlin.math.max
@@ -179,6 +182,7 @@ object NavigationTool : ViewerTool() {
 
 			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, resetRotationController)
 			actionSets += goToPositionAction()
+			actionSets += sliceDimensionActions(translationController!!)
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
 	}
@@ -273,6 +277,58 @@ object NavigationTool : ViewerTool() {
 							}
 						}
 					}
+				}
+			}
+		}
+
+	/** The metadata of the currently selected nD source, if any; drives the held-key scroll-through-dimension actions. */
+	private fun activeMetadataState(): MetadataState? {
+		val state = paintera.baseView.sourceInfo().currentState().get() ?: return null
+		return ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
+	}
+
+	/** Move the view one source-voxel along the active source's canonical [slot] (0=x, 1=y, 2=z); follows the source grid even if its transform is rotated. */
+	private fun translateAlongSourceAxis(slot: Int, voxelStep: Double) {
+		val metadataState = activeMetadataState() ?: return
+		val sourceToWorld = metadataState.transform
+		val worldShift = doubleArrayOf(sourceToWorld[0, slot] * voxelStep, sourceToWorld[1, slot] * voxelStep, sourceToWorld[2, slot] * voxelStep)
+		synchronized(globalTransformManager) {
+			val global = AffineTransform3D()
+			globalTransformManager.getTransform(global)
+			global.concatenate(AffineTransform3D().apply { setTranslation(*worldShift) })
+			globalTransformManager.setTransform(global)
+		}
+	}
+
+	/** Step the active source's non-spatial axis whose name starts with [axisLetter] ("c"/"t") by [step] slices, clamped, and repaint. */
+	private fun scrollNonSpatialSlice(axisLetter: Char, step: Long) {
+		val metadataState = activeMetadataState() ?: return
+		val axisIndex = metadataState.axes.indexOfFirst { it.name?.lowercase()?.firstOrNull() == axisLetter }
+		if (axisIndex < 0) return
+		val extent = metadataState.datasetAttributes.dimensions[axisIndex]
+		val positions = metadataState.slicePositions
+		val newPosition = (positions[axisIndex] + step).coerceIn(0L, extent - 1L)
+		if (newPosition != positions[axisIndex]) {
+			positions[axisIndex] = newPosition
+			paintera.baseView.orthogonalViews().requestRepaint()
+		}
+	}
+
+	/** Hold X/Y/Z/C/T and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */
+	private fun sliceDimensionActions(translationController: TranslationController): ActionSet =
+		painteraActionSet("scroll-slice-dimension", NavigationActionType.Slice) {
+			listOf(KeyCode.X to 0, KeyCode.Y to 1, KeyCode.Z to 2).forEach { (key, slot) ->
+				ScrollEvent.SCROLL {
+					name = "scroll-slice-source-${key.getName().lowercase()}"
+					keysDown(key)
+					onAction { translateAlongSourceAxis(slot, -ControlUtils.getBiggestScroll(it).sign) }
+				}
+			}
+			listOf(KeyCode.C to 'c', KeyCode.T to 't').forEach { (key, axisLetter) ->
+				ScrollEvent.SCROLL {
+					name = "scroll-slice-source-$axisLetter"
+					keysDown(key)
+					onAction { scrollNonSpatialSlice(axisLetter, -ControlUtils.getBiggestScroll(it).sign.toLong()) }
 				}
 			}
 		}
