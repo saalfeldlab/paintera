@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdat
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.control.actions.OpenSource
+import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDataset
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ExportSourceDialog
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -140,6 +141,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 		baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
 
 		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane)
+		globalActionHandlers + addCreateLabelDatasetAction(paneWithStatus.pane)
 		globalActionHandlers + addExportDatasetAction(paneWithStatus.pane)
 
 		viewerToTransforms[orthogonalViews.topLeft.viewer()] = orthogonalViews.topLeft
@@ -413,6 +415,12 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 	fun addOpenDatasetAction(target: Node): ActionSet {
 		val actionSet = OpenSource.actionSet()
+		target.installActionSet(actionSet)
+		return actionSet
+	}
+
+	fun addCreateLabelDatasetAction(target: Node): ActionSet {
+		val actionSet = CreateDataset.actionSet()
 		target.installActionSet(actionSet)
 		return actionSet
 	}

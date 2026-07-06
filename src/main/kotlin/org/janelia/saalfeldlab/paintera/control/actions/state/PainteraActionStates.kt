@@ -117,16 +117,16 @@ open class NavigationActionState<S : SourceState<*, *>>(
 	var rotationController by verifiable("Rotation Controller for Active Viewer") { NavigationTool.rotationController }
 	var zoomController by verifiable("Zoom Controller for Active Viewer") { NavigationTool.zoomController }
 
-	fun translateToCoordinate( x: Double, y: Double, z: Double, ) {
+	fun translateToCoordinate( x: Double? = null, y: Double? = null, z: Double? = null) {
 		val source = sourceState.dataSource
 		val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
 		val currentSourceCoordinate = RealPoint(3).also {
 			viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it)
 		}
 
-		val sourceDeltaX = x - currentSourceCoordinate.getDoublePosition(0)
-		val sourceDeltaY = y - currentSourceCoordinate.getDoublePosition(1)
-		val sourceDeltaZ = z - currentSourceCoordinate.getDoublePosition(2)
+		val sourceDeltaX = x?.let { it - currentSourceCoordinate.getDoublePosition(0) } ?: 0.0
+		val sourceDeltaY = y?.let { it - currentSourceCoordinate.getDoublePosition(1) } ?: 0.0
+		val sourceDeltaZ = z?.let { it - currentSourceCoordinate.getDoublePosition(2) } ?: 0.0
 
 		val viewerCenterInSource = RealPoint(3)
 		viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, viewerCenterInSource)

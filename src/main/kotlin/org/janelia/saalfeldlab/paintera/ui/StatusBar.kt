@@ -22,6 +22,9 @@ import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListe
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.util.n5.SpatialMapping
 
 private const val NOT_APPLICABLE = "N/A"
 
@@ -143,11 +146,29 @@ internal class StatusBar() : HBox() {
 	}
 
 	internal fun setSourceCoordinateStatus(point: RealPoint?) {
-		val coords = point?.let {
-			CoordinateDisplayListener.realPointToString(point)
-		} ?: NOT_APPLICABLE
+		val coords = point?.let { sourcePositionString(it) } ?: NOT_APPLICABLE
 		InvokeOnJavaFXApplicationThread {
 			sourceCoordinateStatus = coords
+		}
+	}
+
+	/**
+	 * The full nD source position under the cursor as `(value:Axis, ...)` in source-axis order: spatial axes take the
+	 * cursor position, non-spatial (c/t/...) axes their fixed slice. Falls back to the plain 3D point for a source with
+	 * no N5 metadata.
+	 */
+	private fun sourcePositionString(point: RealPoint): String {
+		val state = paintera.baseView.sourceInfo().currentState().get()
+		val metadataState = ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
+			?: return CoordinateDisplayListener.realPointToString(point)
+		val axes = metadataState.axes
+		val xyzSourceAxes = SpatialMapping.xyzSourceAxes(axes)
+		val slicePositions = metadataState.slicePositions
+		return (0 until metadataState.datasetAttributes.numDimensions).joinToString(prefix = "(", postfix = ")") { axis ->
+			val slot = xyzSourceAxes.indexOfFirst { it == axis }
+			val value = if (slot >= 0) Math.round(point.getDoublePosition(slot)) else slicePositions[axis]
+			val name = (axes.getOrNull(axis)?.name?.ifBlank { null } ?: "axis $axis").uppercase()
+			"$value:$name"
 		}
 	}
 

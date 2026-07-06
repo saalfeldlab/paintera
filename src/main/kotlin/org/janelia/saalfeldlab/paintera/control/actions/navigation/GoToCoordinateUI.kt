@@ -1,46 +1,21 @@
 package org.janelia.saalfeldlab.paintera.control.actions.navigation
 
-import javafx.beans.property.DoubleProperty
 import javafx.beans.property.SimpleDoubleProperty
+import javafx.beans.property.SimpleLongProperty
 import javafx.geometry.Insets
 import javafx.geometry.Pos
-import javafx.scene.control.Alert
 import javafx.scene.control.Label
 import javafx.scene.control.TextField
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.fx.actions.Action
-import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.PositiveDoubleTextFormatter
+import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.ui.hvGrow
 import org.janelia.saalfeldlab.paintera.ui.vGrow
 
 
-class GoToCoordinateUI(val model: Model) : HBox() {
-
-	interface Model {
-
-		val xProperty : DoubleProperty
-		val yProperty : DoubleProperty
-		val zProperty : DoubleProperty
-
-		fun Action<*>.getDialog(header: String, title : String = name?.replace("_", "") ?: "Go to Coordinate"): Alert {
-			return PainteraAlerts.confirmation("Go", "Cancel").apply {
-				this.title = title
-				headerText = header
-				dialogPane.content = GoToCoordinateUI(this@Model)
-			}
-		}
-	}
-
-	open class Default : Model {
-
-		override val xProperty = SimpleDoubleProperty()
-		override val yProperty = SimpleDoubleProperty()
-		override val zProperty = SimpleDoubleProperty()
-	}
+class GoToCoordinateUI(val model: GoToCoordinateModel) : HBox() {
 
 	init {
 
@@ -52,19 +27,25 @@ class GoToCoordinateUI(val model: Model) : HBox() {
 
 		}
 		children += HBox().hvGrow {
-			listOf("X" to model.xProperty, "Y" to model.yProperty, "Z" to model.zProperty).forEach { (axis, property) ->
+			model.positionProperties.forEach { positionProperty ->
 				children += VBox().hvGrow {
 					spacing = 5.0
 					children += HBox().hGrow {
-						children += Label(axis)
+						children += Label(positionProperty.label)
 						alignment = Pos.BOTTOM_CENTER
 					}
 					children += TextField().hGrow {
-						promptText = "Source $axis Coordinate... "
-						textFormatter = PositiveDoubleTextFormatter().apply {
-							value = property.value
-							property.bind(valueProperty())
-
+						promptText = "Source ${positionProperty.label.uppercase()} Coordinate"
+						when (val property = positionProperty.property) {
+							is SimpleDoubleProperty -> textFormatter = PositiveDoubleTextFormatter().apply {
+								value = property.value
+								property.bind(valueProperty())
+							}
+							is SimpleLongProperty -> textFormatter = PositiveLongTextFormatter().apply {
+								value = property.value
+								property.bind(valueProperty())
+							}
+							else -> error("Unsupported property type: ${property::class}")
 						}
 					}
 				}

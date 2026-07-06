@@ -44,6 +44,7 @@ import bdv.viewer.render.MipmapOrdering;
 import bdv.viewer.render.MipmapOrdering.Level;
 import bdv.viewer.render.MipmapOrdering.MipmapHints;
 import bdv.viewer.render.Prefetcher;
+import org.janelia.saalfeldlab.paintera.data.SlicedRenderSource;
 import bdv.viewer.render.SimpleVolatileProjector;
 import bdv.viewer.render.VolatileProjector;
 import javafx.animation.AnimationTimer;
@@ -871,6 +872,8 @@ public class MultiResolutionRendererGeneric<T> {
 		final RandomAccessibleInterval<T> img = source.getSource(timepoint, mipmapIndex);
 		if (VolatileCachedCellImg.class.isInstance(img))
 			((VolatileCachedCellImg<?, ?>) img).setCacheHints(cacheHints);
+		else if (source instanceof SlicedRenderSource && ((SlicedRenderSource) source).isSliced())
+			((SlicedRenderSource) source).setSliceCacheHints(mipmapIndex, cacheHints);
 
 		final RealRandomAccessible<T> ipimg = source.getInterpolatedSource(timepoint, mipmapIndex, interpolation);
 
@@ -936,6 +939,14 @@ public class MultiResolutionRendererGeneric<T> {
 					interpolation,
 					cellsRandomAccess
 			);
+		} else if (source instanceof SlicedRenderSource && ((SlicedRenderSource) source).isSliced()) {
+			/* an nD source's getSource is a sliced view; prefetch its backing's cells at the current slice instead */
+			final AffineTransform3D sourceToScreen = viewerTransform.copy();
+			final AffineTransform3D sourceTransform = new AffineTransform3D();
+			source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
+			sourceToScreen.concatenate(sourceTransform);
+			sourceToScreen.preConcatenate(screenScaleTransform);
+			((SlicedRenderSource) source).prefetchSlice(mipmapIndex, sourceToScreen, screenInterval, interpolation, prefetchCacheHints);
 		}
 	}
 
