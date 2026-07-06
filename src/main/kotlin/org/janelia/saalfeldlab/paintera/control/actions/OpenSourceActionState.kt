@@ -62,9 +62,11 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 
 		parseN5LoaderCache.cancelUnfinishedRequests()
 		parseN5LoaderCache.loaderScope.launch {
-			isBusyProperty.set(true)
-			statusProperty.unbind()
-			statusProperty.set("Opening container...")
+			InvokeOnJavaFXApplicationThread {
+				isBusyProperty.set(true)
+				statusProperty.unbind()
+				statusProperty.set("Opening container...")
+			}
 			val state = N5ContainerStateCache.cache.getOrPut(newSelection) {
 				val n5 = n5Factory.openReaderOrNull(newSelection)
 				ensureActive()
@@ -74,7 +76,7 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 			if (parseJob?.await()?.isNotEmpty() == true)
 				cacheAsRecent(newSelection)
 		}.invokeOnCompletion { cause ->
-			isBusyProperty.set(false)
+			InvokeOnJavaFXApplicationThread { isBusyProperty.set(false) }
 			when (cause) {
 				null -> Unit
 				is CancellationException -> LOG.trace(cause) {}
@@ -89,8 +91,10 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 		defaultModel?.writableContainerState = state
 		InvokeOnJavaFXApplicationThread { activeNode = null }
 		state ?: let {
-			statusProperty.unbind()
-			statusProperty.value = "Container not found"
+			InvokeOnJavaFXApplicationThread {
+				statusProperty.unbind()
+				statusProperty.value = "Container not found"
+			}
 			validDatasets.clear()
 			parseJob = null
 			return null
@@ -109,7 +113,7 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 			invokeOnCompletion { cause ->
 				validDatasets.unbindContent(observableMap)
 				statusUpdateJob.cancel()
-				statusProperty.value = ""
+				InvokeOnJavaFXApplicationThread { statusProperty.value = "" }
 				when (cause) {
 					null -> Unit
 					is CancellationException -> {
