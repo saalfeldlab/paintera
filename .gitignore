@@ -31,3 +31,4 @@ canvases
 # ignore scijava scripts if presetn
 ci-build.sh
 ci-setup-github-actions.sh
+tests_data/
