@@ -15,18 +15,22 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataPars
 import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache.Companion.HashableN5Reader
 import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache.Companion.ParseN5Wrapper
 import org.janelia.saalfeldlab.util.coroutineBackedExecutorService
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleMetadata.PainteraDataMultiscaleParser
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup.PainteraLabelMultiscaleParser
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiscaleGroup.PainteraRawMultiscaleParser
 import java.util.concurrent.*
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.coroutineContext
 
 private object BaseParsers {
-    val GROUP = listOf<N5MetadataParser<*>>(
-        PainteraRawMultiScaleParser(),
-        PainteraLabelMultiScaleParser(),
-        PainteraDataMultiScaleParser(),
+
+    val PAINTERA_GROUP = listOf<N5MetadataParser<*>>(
+        PainteraRawMultiscaleParser(),
+        PainteraLabelMultiscaleParser(),
+        PainteraDataMultiscaleParser()
+    )
+
+    val GENERIC_GROUP = listOf<N5MetadataParser<*>>(
         N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
         N5MultiScaleMetadata.MultiScaleParser()
     )
@@ -38,7 +42,7 @@ private object BaseParsers {
     )
 }
 
-fun getGroupParsers(n5: N5Reader) = listOf<N5MetadataParser<*>>(OmeNgffMetadataParser(n5)) + BaseParsers.GROUP
+fun getGroupParsers(n5: N5Reader) = BaseParsers.PAINTERA_GROUP + OmeNgffMetadataParser(n5) + BaseParsers.GENERIC_GROUP
 fun getMetadataParsers(n5: N5Reader) = BaseParsers.METADATA
 
 private fun getDiscoverer(n5: N5Reader, executorService: ExecutorService): N5DatasetDiscoverer {

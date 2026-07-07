@@ -15,7 +15,6 @@ import net.imglib2.img.cell.CellGrid
 import net.imglib2.iterator.IntervalIterator
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.ScaleAndTranslation
-import net.imglib2.realtransform.Translation3D
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -24,8 +23,7 @@ import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
-import org.janelia.saalfeldlab.n5.universe.metadata.*
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
@@ -43,9 +41,6 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
 import java.io.IOException
 import java.net.URI
@@ -57,6 +52,7 @@ import kotlin.coroutines.coroutineContext
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
+	const val IMGLIB2_NAMESPACE = "imglib2"
 	const val IS_LABEL_MULTISET_KEY = "isLabelMultiset"
 	const val MAX_ID_KEY = "maxId"
 	const val PAINTERA_NAMESPACE = "paintera"
@@ -70,6 +66,19 @@ object N5Helpers {
 	const val PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET = "fragment-segment-assignment"
 	const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
 	private val LOG = KotlinLogging.logger { }
+
+	/** The canonical x, y, z, c, t, ... axes for a source of [numDimensions] with no axis metadata. */
+	@JvmStatic
+	fun canonicalAxes(numDimensions: Int): Array<Axis> = Array(numDimensions) { idx ->
+		when (idx) {
+			0 -> Axis(Axis.SPACE, "x", "pixel")
+			1 -> Axis(Axis.SPACE, "y", "pixel")
+			2 -> Axis(Axis.SPACE, "z", "pixel")
+			3 -> Axis(Axis.CHANNEL, "c", null)
+			4 -> Axis(Axis.TIME, "t", null)
+			else -> Axis(Axis.CHANNEL, "c$idx", null)
+		}
+	}
 
 	/**
 	 * Check if a group is a paintera data set:
@@ -203,28 +212,6 @@ object N5Helpers {
 			discoverAndParseRecursive(container.reader, dataset)
 		}
 		return containerState to node
-	}
-
-	/**
-	 * Adjust [AffineTransform3D] by scaling and translating appropriately.
-	 *
-	 * @param transform                  to be adjusted wrt to downsampling factors
-	 * @param downsamplingFactors        at target level
-	 * @param initialDownsamplingFactors at source level
-	 * @return adjusted [AffineTransform3D]
-	 */
-	@JvmStatic
-	fun considerDownsampling(
-		transform: AffineTransform3D,
-		downsamplingFactors: DoubleArray,
-		initialDownsamplingFactors: DoubleArray,
-	): AffineTransform3D {
-		val shift = DoubleArray(downsamplingFactors.size)
-		for (d in downsamplingFactors.indices) {
-			transform[transform[d, d] * downsamplingFactors[d] / initialDownsamplingFactors[d], d] = d
-			shift[d] = 0.5 / initialDownsamplingFactors[d] - 0.5 / downsamplingFactors[d]
-		}
-		return transform.concatenate(Translation3D(*shift))
 	}
 
 	@Deprecated(
@@ -418,130 +405,6 @@ object N5Helpers {
 		return joiner.apply(group, getCoarsestLevel(n5, group))
 	}
 
-	/**
-	 * @param n5       container
-	 * @param group    group
-	 * @param key      key for array attribute
-	 * @param fallBack if key not present, return this value instead
-	 * @return value of attribute at `key` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getDoubleArrayAttribute(
-		n5: N5Reader,
-		group: String,
-		key: String?,
-		vararg fallBack: Double,
-	): DoubleArray {
-		return getDoubleArrayAttribute(n5, group, key, false, *fallBack)
-	}
-
-	/**
-	 * @param n5       container
-	 * @param group    group
-	 * @param key      key for array attribute
-	 * @param reverse  set to `true` to reverse order of array entries
-	 * @param fallBack if key not present, return this value instead
-	 * @return value of attribute at `key` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getDoubleArrayAttribute(
-		n5: N5Reader,
-		group: String,
-		key: String?,
-		reverse: Boolean,
-		vararg fallBack: Double,
-	): DoubleArray {
-		if (reverse) {
-			val toReverse = getDoubleArrayAttribute(n5, group, key, false, *fallBack)
-			LOG.debug { "Will reverse $toReverse" }
-			var i = 0
-			var k = toReverse.size - 1
-			while (i < toReverse.size / 2) {
-				val tmp = toReverse[i]
-				toReverse[i] = toReverse[k]
-				toReverse[k] = tmp
-				++i
-				--k
-			}
-			LOG.debug { "Reversed $toReverse" }
-			return toReverse
-		}
-		return if (isPainteraDataset(n5, group)) {
-			getDoubleArrayAttribute(n5, "$group/$PAINTERA_DATA_DATASET", key, false, *fallBack)
-		} else try {
-			n5.getAttribute(group, key, DoubleArray::class.java) ?: fallBack
-		} catch (e: ClassCastException) {
-			LOG.debug(e) { "Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead." }
-			n5.getAttribute(group, key, LongArray::class.java)?.map { it.toDouble() }?.toDoubleArray() ?: fallBack
-		}
-	}
-
-	/**
-	 * @param n5    container
-	 * @param group group
-	 * @return value of attribute at `"resolution"` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getResolution(n5: N5Reader, group: String): DoubleArray {
-		return getResolution(n5, group, false)
-	}
-
-	/**
-	 * @param n5      container
-	 * @param group   group
-	 * @param reverse set to `true` to reverse order of array entries
-	 * @return value of attribute at `"resolution"` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getResolution(n5: N5Reader, group: String, reverse: Boolean): DoubleArray {
-		return getDoubleArrayAttribute(n5, group, RESOLUTION_KEY, reverse, 1.0, 1.0, 1.0)
-	}
-
-	/**
-	 * @param n5    container
-	 * @param group group
-	 * @return value of attribute at `"offset"` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getOffset(n5: N5Reader, group: String): DoubleArray {
-		return getOffset(n5, group, false)
-	}
-
-	/**
-	 * @param n5      container
-	 * @param group   group
-	 * @param reverse set to `true` to reverse order of array entries
-	 * @return value of attribute at `"offset"` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getOffset(n5: N5Reader, group: String, reverse: Boolean): DoubleArray {
-		return getDoubleArrayAttribute(n5, group, OFFSET_KEY, reverse, 0.0, 0.0, 0.0)
-	}
-
-	/**
-	 * @param n5    container
-	 * @param group group
-	 * @return value of attribute at `"downsamplingFactors"` as `double[]`
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getDownsamplingFactors(n5: N5Reader, group: String): DoubleArray {
-		return getDoubleArrayAttribute(n5, group, DOWNSAMPLING_FACTORS_KEY, 1.0, 1.0, 1.0)
-	}
-
 	@JvmStatic
 	@Throws(IOException::class)
 	fun getBooleanAttribute(n5: N5Reader?, group: String?, attribute: String?, fallback: Boolean): Boolean {
@@ -578,31 +441,6 @@ object N5Helpers {
 	}
 
 	/**
-	 * @param n5    container
-	 * @param group group
-	 * @return [AffineTransform3D] that transforms voxel space to real world coordinate space.
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getTransform(n5: N5Reader, group: String): AffineTransform3D {
-		return getTransform(n5, group, false)
-	}
-
-	/**
-	 * @param n5                       container
-	 * @param group                    group
-	 * @param reverseSpatialAttributes reverse offset and resolution attributes if `true`
-	 * @return [AffineTransform3D] that transforms voxel space to real world coordinate space.
-	 * @throws IOException if any n5 operation throws [IOException]
-	 */
-	@JvmStatic
-	@Throws(IOException::class)
-	fun getTransform(n5: N5Reader, group: String, reverseSpatialAttributes: Boolean): AffineTransform3D {
-		return fromResolutionAndOffset(getResolution(n5, group, reverseSpatialAttributes), getOffset(n5, group, reverseSpatialAttributes))
-	}
-
-	/**
 	 * @param metadataState object containing the metadata information and context for the dataset we are interrogating.
 	 * @return unsupported lookup if `is not a paintera dataset`, [LabelBlockLookup] otherwise.
 	 * @throws IOException if any n5 operation throws [IOException]
@@ -621,7 +459,8 @@ object N5Helpers {
 				val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
 				val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
 				val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
-				LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup).write(metadataState.writer!!)
+				val labelBlockLookupGroup = LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup)
+				labelBlockLookupGroup.writeMetadata(labelBlockLookupGroup, metadataState.writer!!, labelBlockLookupGroup.path)
 				relativeLookup
 			}
 			LOG.debug { "Got lookup type: ${lookup.javaClass}" }

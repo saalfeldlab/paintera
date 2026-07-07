@@ -9,7 +9,7 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup
 import java.util.concurrent.ExecutorService
 
 interface N5BackendLabel<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend<D, T> {
@@ -47,7 +47,7 @@ interface N5BackendLabel<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBa
 				      T : NativeType<T> {
 
 			return when (metadataState.metadata) {
-				is N5PainteraLabelMultiScaleGroup -> N5BackendPainteraDataset(
+				is N5PainteraLabelMultiscaleGroup -> N5BackendPainteraDataset(
 					metadataState,
 					propagationQueue,
 					true

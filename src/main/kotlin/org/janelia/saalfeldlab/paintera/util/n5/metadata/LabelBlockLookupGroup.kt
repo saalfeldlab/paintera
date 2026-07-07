@@ -7,12 +7,12 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataGroup
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataWriter
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
-import org.janelia.saalfeldlab.util.n5.metadata.MetadataWriter
 
-class LabelBlockLookupGroup(private val parentGroup: String, private val groupName: String, private val numScales: Int, private val labelBlockLookup: LabelBlockLookup) :
-	N5MetadataGroup<N5SingleScaleMetadata>, MetadataWriter {
+class LabelBlockLookupGroup(private val parentGroup: String, private val groupName: String, numScales: Int, private val labelBlockLookup: LabelBlockLookup) :
+	N5MetadataGroup<N5SingleScaleMetadata>, N5MetadataWriter<LabelBlockLookupGroup> {
 
 	val children = Array(numScales) { i ->
 		N5SingleScaleMetadata(
@@ -25,14 +25,15 @@ class LabelBlockLookupGroup(private val parentGroup: String, private val groupNa
 			labelBlockLookupAttributes
 		)
 	}
-	override fun write(n5: N5Writer) {
+
+	override fun writeMetadata(lblGroupMetadata: LabelBlockLookupGroup, n5: N5Writer, path: String) {
 		if (!n5.exists(path)) {
 			n5.createGroup(path)
 		}
 		n5[path, "isMultiscale"] = true
-		n5[path, "labelBlockLookup"] = labelBlockLookup
-		n5[parentGroup, "labelBlockLookup"] = labelBlockLookup
-		getChildrenMetadata().forEach {
+		n5[path, "labelBlockLookup"] = lblGroupMetadata.labelBlockLookup
+		n5[lblGroupMetadata.parentGroup, "labelBlockLookup"] = lblGroupMetadata.labelBlockLookup
+		lblGroupMetadata.childrenMetadata.forEach {
 			n5.createDataset(it.path, it.attributes)
 		}
 	}
