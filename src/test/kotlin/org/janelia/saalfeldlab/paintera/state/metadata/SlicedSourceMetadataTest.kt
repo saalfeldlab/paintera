@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -32,7 +31,7 @@ class SlicedSourceMetadataTest {
 		fun setupN5Factory() {
 			val builder = GsonBuilder()
 			builder.registerTypeHierarchyAdapter(LabelBlockLookup::class.java, LabelBlockLookupAdapter.getJsonAdapter())
-			Paintera.n5Factory.gsonBuilder(builder)
+			Paintera.n5Factory.options { it.gsonBuilder(builder) }
 		}
 
 		private fun writer(tmp: Path): N5Writer =
@@ -76,10 +75,12 @@ class SlicedSourceMetadataTest {
 			metadataState.getData<Nothing, Nothing>(queue, 0) as Array<ImagesWithTransform<*, *>>
 
 		private fun assertSource3D(source: ImagesWithTransform<*, *>, x: Long, y: Long, z: Long) {
-			assertEquals(3, source.data.numDimensions())
-			assertEquals(x, source.data.dimension(0))
-			assertEquals(y, source.data.dimension(1))
-			assertEquals(z, source.data.dimension(2))
+			/* the data is kept nD and projected to 3D live by the source; the carried grid is the 3D (x, y, z) presentation */
+			val grid = source.grid
+			assertEquals(3, grid.numDimensions())
+			assertEquals(x, grid.imgDimension(0))
+			assertEquals(y, grid.imgDimension(1))
+			assertEquals(z, grid.imgDimension(2))
 		}
 	}
 
@@ -212,6 +213,37 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
+	fun `test 1D dataset is not yet openable (metadata parsing limitation)`(@TempDir tmp: Path) {
+		val n5 = writer(tmp)
+		val dataset = "test1d"
+		createDataset(n5, dataset, longArrayOf(50), intArrayOf(32))
+
+		/* SpatialMapping embeds 1D to [n, 1, 1] (covered in SpatialMappingTest), but n5-universe metadata parsing
+		 * does not recognize a 1D dataset, so it cannot be opened end-to-end yet */
+		assertEquals(null, MetadataUtils.createMetadataState(tmp.toAbsolutePath().toString(), dataset))
+	}
+
+	@Test
+	fun `test 2D dataset embedded as 3D source`(@TempDir tmp: Path) {
+		val n5 = writer(tmp)
+		val dataset = "test2d"
+		val dims = longArrayOf(50, 60)
+		createDataset(n5, dataset, dims, intArrayOf(32, 32))
+
+		val path = tmp.toAbsolutePath().toString()
+		val metadataState = MetadataUtils.createMetadataState(path, dataset)
+
+		assertNotNull(metadataState)
+		assertEquals(2, metadataState.datasetAttributes.numDimensions)
+
+		/* a 2D source embeds a singleton z so Paintera sees a 3D source */
+		val sources = getSources(metadataState)
+		assertNotNull(sources)
+		assertEquals(1, sources.size)
+		assertSource3D(sources[0], 50, 60, 1)
+	}
+
+	@Test
 	fun `test 3D dataset unchanged through metadata state`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test3d"
@@ -329,7 +361,7 @@ class SlicedSourceMetadataTest {
 
 		val sources4d = getSources(state4d)
 		assertNotNull(sources4d)
-		assertEquals(3, sources4d[0].data.numDimensions())
+		assertEquals(3, sources4d[0].grid.numDimensions())
 
 		state4d.n5ContainerState = state3d.n5ContainerState.readOnlyCopy()
 		assertReadOnly(state4d.n5ContainerState)
@@ -396,7 +428,27 @@ class SlicedSourceMetadataTest {
 	}
 
 	@Test
-	fun `test 4D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
+	fun `test sliced and embedded label sources carry a 3D block grid`(@TempDir tmp: Path) {
+		val n5 = writer(tmp)
+		/* a sliced view is not a cell image, so the source must carry its 3D block grid for canvas/commit/mesh */
+		createLabelDataset(n5, "label5d", longArrayOf(100, 100, 100, 2, 3), intArrayOf(50, 50, 50, 1, 1))
+		createDataset(n5, "label2d", longArrayOf(80, 90), intArrayOf(40, 45))
+
+		val path = tmp.toAbsolutePath().toString()
+
+		val grid5d = getSources(MetadataUtils.createMetadataState(path, "label5d")!!)[0].grid
+		assertNotNull(grid5d)
+		assertEquals(listOf(100L, 100L, 100L), grid5d!!.imgDimensions.toList())
+		assertEquals(listOf(50, 50, 50), IntArray(3).also { grid5d.cellDimensions(it) }.toList())
+
+		val grid2d = getSources(MetadataUtils.createMetadataState(path, "label2d")!!)[0].grid
+		assertNotNull(grid2d)
+		assertEquals(listOf(80L, 90L, 1L), grid2d!!.imgDimensions.toList())
+		assertEquals(listOf(40, 45, 1), IntArray(3).also { grid2d.cellDimensions(it) }.toList())
+	}
+
+	@Test
+	fun `test 4D LabelMultiset reduced to 3D multiset`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test4d_label_multiset"
 		val dims = longArrayOf(50, 60, 70, 3)
@@ -416,15 +468,17 @@ class SlicedSourceMetadataTest {
 		assertEquals(true, metadataState.isLabel)
 		assertEquals(true, metadataState.isLabelMultiset)
 
-		// Attempting to get sources should throw UnsupportedOperationException
-		// because LabelMultiset is only supported for 3D data
-		assertFailsWith<UnsupportedOperationException> {
-			getSources(metadataState)
-		}
+		/* a >3D label multiset is reduced to a 3D view, preserving the LabelMultisetType */
+		val sources = getSources(metadataState)
+
+		assertNotNull(sources)
+		assertEquals(1, sources.size)
+
+		assertSource3D(sources[0], 50, 60, 70)
 	}
 
 	@Test
-	fun `test 5D LabelMultiset throws UnsupportedOperationException`(@TempDir tmp: Path) {
+	fun `test 5D LabelMultiset reduced to 3D multiset`(@TempDir tmp: Path) {
 		val n5 = writer(tmp)
 		val dataset = "test5d_label_multiset"
 		val dims = longArrayOf(50, 60, 70, 3, 2)
@@ -444,10 +498,12 @@ class SlicedSourceMetadataTest {
 		assertEquals(true, metadataState.isLabel)
 		assertEquals(true, metadataState.isLabelMultiset)
 
-		// Attempting to get sources should throw UnsupportedOperationException
-		// because LabelMultiset is only supported for 3D data
-		assertFailsWith<UnsupportedOperationException> {
-			getSources(metadataState)
-		}
+		/* a >3D label multiset is reduced to a 3D view, preserving the LabelMultisetType */
+		val sources = getSources(metadataState)
+
+		assertNotNull(sources)
+		assertEquals(1, sources.size)
+
+		assertSource3D(sources[0], 50, 60, 70)
 	}
 }
