@@ -26,6 +26,9 @@ import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.SLICE_POSITIONS_KEY
+import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
@@ -138,6 +141,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 				state.resolution.let { map.add(RESOLUTION, context[it]) }
 				state.offset.let { map.add(OFFSET, context[it]) }
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addSlicePositions(state.backend, context)
 
 			}
 			return map
@@ -173,6 +177,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 				with(GsonExtensions) {
 					val backend = context.fromClassInfo<ConnectomicsChannelBackend<CD, V>>(json, BACKEND)!!
 					backend.virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
+				restoreSlicePositions(backend, context.get<LongArray?>(json, SLICE_POSITIONS_KEY))
 
 					ConnectomicsChannelState(
 						backend,

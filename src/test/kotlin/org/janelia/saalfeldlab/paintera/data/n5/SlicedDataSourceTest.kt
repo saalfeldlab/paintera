@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.data.n5
 
 import bdv.cache.SharedQueue
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -57,9 +58,9 @@ class SlicedDataSourceTest {
 			dataset: String,
 			xyzAxes: IntArray = DEFAULT_XYZ_AXES,
 			forceSlice3D: Boolean? = null
-		): ImagesWithTransform<*, *> {
+		): ImagesWithTransform<*, *> = runBlocking {
 			val queue = SharedQueue(1, 1)
-			return if (forceSlice3D != null) {
+			if (forceSlice3D != null) {
 				val transform = MetadataUtils.transformFromResolutionOffset(DEFAULT_RES, DEFAULT_OFFSET)
 				N5Data.openRaw<Nothing, Nothing>(writer, dataset, transform, xyzAxes, queue, 0, forceSlice3D) as ImagesWithTransform<*, *>
 			} else {
@@ -73,9 +74,10 @@ class SlicedDataSourceTest {
 			vararg sizes: Long
 		) {
 			assertNotNull(result)
-			assertEquals(numDims, result.data.numDimensions())
+			/* the data is kept nD and projected to 3D by the source; the carried grid is the presented view */
+			assertEquals(numDims, result.grid.numDimensions())
 			sizes.forEachIndexed { idx, size ->
-				assertEquals(size, result.data.dimension(idx))
+				assertEquals(size, result.grid.imgDimension(idx))
 			}
 		}
 	}
@@ -141,7 +143,7 @@ class SlicedDataSourceTest {
 	}
 
 	@Test
-	fun `test multiscale opening`(@TempDir tmp: Path) {
+	fun `test multiscale opening`(@TempDir tmp: Path) = runBlocking {
 		val n5 = writer(tmp)
 		val group = "multiscale"
 
@@ -161,7 +163,7 @@ class SlicedDataSourceTest {
 		}
 
 		val queue = SharedQueue(1, 1)
-		val results = N5Data.openRawMultiscale<UnsignedByteType, VolatileUnsignedByteType>(n5, group, queue, 0)
+		val results = N5Data.openRawMultiscale<UnsignedByteType, VolatileUnsignedByteType>(n5, group, queue = queue, priority = 0)
 
 		assertNotNull(results)
 		assertEquals(3, results.size)

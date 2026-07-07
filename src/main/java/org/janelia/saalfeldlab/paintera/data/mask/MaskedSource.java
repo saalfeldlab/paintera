@@ -13,56 +13,30 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.AbstractInterval;
-import net.imglib2.FinalInterval;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
+import net.imglib2.*;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealInterval;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.img.DiskCachedCellImg;
-import net.imglib2.cache.img.DiskCachedCellImgFactory;
-import net.imglib2.cache.img.DiskCachedCellImgOptions;
-import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.img.*;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.basictypeaccess.LongAccess;
-import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.iterator.LocalizingIntervalIterator;
@@ -103,31 +77,23 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
 import org.janelia.saalfeldlab.paintera.util.IntervalIterable;
 import org.janelia.saalfeldlab.paintera.util.ReusableIntervalIterator;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.n5.SpatialMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -211,6 +177,20 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private final int[][] blockSizes;
 
+	/* the canvas matches the dataset's nD block grid, with a (== dataset block grid per scale).
+	 * for a 3D source these equal the 3D dimensions/blockSizes */
+	private final long[][] canvasDimensions;
+
+	private final int[][] canvasBlockSizes;
+
+	private final MetadataState canvasMetadataState;
+
+	private final int[] canvasXyzSourceAxes;
+
+	private final int canvasNumDimensions;
+
+	private final boolean canvasIsSliced;
+
 	private final ObjectProperty<SourceMask> currentMaskProperty = new SimpleObjectProperty<>(null);
 
 	private final BooleanProperty isPersistingProperty = new SimpleBooleanProperty(false);
@@ -282,6 +262,31 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				.mapToObj(level -> Intervals.dimensionsAsLongArray(this.source.getSource(0, level)))
 				.toArray(long[][]::new);
 		this.blockSizes = blockSizes;
+
+		/* derive the canvas grid from the source's metadata; if the source is 3D already, this is the same */
+		this.canvasMetadataState = (source instanceof N5DataSource<?, ?> n5DataSource) ? n5DataSource.getMetadataState() : null;
+		if (canvasMetadataState != null) {
+			this.canvasNumDimensions = canvasMetadataState.getDatasetAttributes().getNumDimensions();
+			this.canvasXyzSourceAxes = SpatialMapping.Companion.xyzSourceAxes(canvasMetadataState.getAxes());
+		} else {
+			this.canvasNumDimensions = NUM_DIMENSIONS;
+			this.canvasXyzSourceAxes = new int[]{0, 1, 2};
+		}
+		this.canvasIsSliced = !(canvasNumDimensions == NUM_DIMENSIONS && canvasXyzSourceAxes[0] == 0 && canvasXyzSourceAxes[1] == 1 && canvasXyzSourceAxes[2] == 2);
+		if (canvasIsSliced) {
+			final long[] datasetDimensions = canvasMetadataState.getDatasetAttributes().getDimensions();
+			final int[] datasetBlockSize = canvasMetadataState.getDatasetAttributes().getBlockSize();
+			this.canvasDimensions = new long[dimensions.length][];
+			this.canvasBlockSizes = new int[blockSizes.length][];
+			for (int level = 0; level < dimensions.length; ++level) {
+				this.canvasDimensions[level] = mapSpatialToSource(dimensions[level], canvasXyzSourceAxes, datasetDimensions, canvasNumDimensions);
+				this.canvasBlockSizes[level] = mapSpatialToSource(blockSizes[level], canvasXyzSourceAxes, datasetBlockSize, canvasNumDimensions);
+			}
+		} else {
+			this.canvasDimensions = this.dimensions;
+			this.canvasBlockSizes = this.blockSizes;
+		}
+
 		this.dataCanvases = new DiskCachedCellImg[source.getNumMipmapLevels()];
 		this.canvases = new TmpVolatileHelpers.RaiWithInvalidate[source.getNumMipmapLevels()];
 		this.dMasks = new RealRandomAccessible[this.canvases.length];
@@ -300,8 +305,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				this.queue,
 				dataCanvases,
 				canvases,
-				this.dimensions,
-				this.blockSizes));
+				this.canvasDimensions,
+				this.canvasBlockSizes));
 		this.cacheDirectory.set(initialCacheDirectory);
 
 		this.affectedBlocksByLabel = new ConcurrentHashMap[canvases.length];
@@ -316,6 +321,99 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		});
 
 		setMasksConstant();
+	}
+
+	/**
+	 * Place the xyz values at their source axis positions and the slice values at every other axis position.
+	 *
+	 * @param xyzValues     the x, y, z values
+	 * @param xyzSourceAxes source axis supplying each of x, y, z; `-1` for an absent dimension
+	 * @param sliceValues   values to keep at the non-spatial axes
+	 * @param numDimensions 
+	 */
+	private static long[] mapSpatialToSource(final long[] xyzValues, final int[] xyzSourceAxes, final long[] sliceValues, final int numDimensions) {
+
+		final long[] nd = new long[numDimensions];
+		for (int axis = 0; axis < numDimensions; ++axis) {
+			final int spatialIdx = xyzIdxIfSpatial(axis, xyzSourceAxes);
+			nd[axis] = spatialIdx >= 0 ? xyzValues[spatialIdx] : sliceValues[axis];
+		}
+		return nd;
+	}
+
+	private static int[] mapSpatialToSource(final int[] xyzValues, final int[] xyzSourceAxes, final int[] sliceValues, final int numDimensions) {
+
+		final int[] nd = new int[numDimensions];
+		for (int axis = 0; axis < numDimensions; ++axis) {
+			final int spatialIdx = xyzIdxIfSpatial(axis, xyzSourceAxes);
+			nd[axis] = spatialIdx >= 0 ? xyzValues[spatialIdx] : sliceValues[axis];
+		}
+		return nd;
+	}
+
+	/**
+	 * given an `axis` in the source, return the x,y,z index if it's spatial. otherwise -1.
+	 *
+	 * @param axis          source axis to test if spatial
+	 * @param xyzSourceAxes source axes supplying each of x, y, z
+	 */
+	private static int xyzIdxIfSpatial(final int axis, final int[] xyzSourceAxes) {
+
+		for (int idx = 0; idx < xyzSourceAxes.length; ++idx)
+			if (xyzSourceAxes[idx] == axis)
+				return idx;
+		return -1;
+	}
+
+	/** The mapping that reduces the nD canvas store to a canonical 3D (x, y, z) view at the current slice positions. */
+	private SpatialMapping canvasMapping() {
+
+		return new SpatialMapping(canvasNumDimensions, canvasXyzSourceAxes, canvasMetadataState.getSlicePositions());
+	}
+
+	/** The current 3D (x, y, z) slice of the nD data canvas. no-op for a 3D source */
+	private RandomAccessibleInterval<UnsignedLongType> canvasSlice(final int level) {
+
+        if (canvasIsSliced)
+			return canvasMapping().to3D(dataCanvases[level]);
+        return dataCanvases[level];
+    }
+
+	private RandomAccessibleInterval<VolatileUnsignedLongType> canvasSliceVolatile(final int level) {
+
+        if (canvasIsSliced)
+			return canvasMapping().to3D(canvases[level].getRai());
+
+        return canvases[level].getRai();
+    }
+
+	/**
+	 * Map 3D block indices (over the stored 3D grid at {@code level}) to nD block indices in the canvas store at the current slice.
+	 */
+	private long[] xyzToSourceBlocks(final TLongSet blocksXYZ, final int level) {
+
+		if (!canvasIsSliced) return blocksXYZ.toArray();
+		final CellGrid sourceGrid = dataCanvases[level].getCellGrid();
+		final long[] sourceGridDimensions = sourceGrid.getGridDimensions();
+		final int[] sourceBlockSize = new int[sourceGrid.numDimensions()];
+		sourceGrid.cellDimensions(sourceBlockSize);
+		final long[] sourcePos = new long[sourceGrid.numDimensions()];
+
+		final long[] slicePositions = canvasMetadataState.getSlicePositions();
+
+		final CellGrid xyzGrid = source.getGrid(level);
+		final long[] xyzPos = new long[xyzGrid.numDimensions()];
+		final TLongHashSet sourceBlocks = new TLongHashSet();
+
+		for (final long xyzBlock : blocksXYZ.toArray()) {
+			xyzGrid.getCellGridPositionFlat(xyzBlock, xyzPos);
+			for (int axis = 0; axis < sourcePos.length; ++axis) {
+				final int spatialIdx = xyzIdxIfSpatial(axis, canvasXyzSourceAxes);
+				sourcePos[axis] = spatialIdx >= 0 ? xyzPos[spatialIdx] : slicePositions[axis] / sourceBlockSize[axis];
+			}
+			sourceBlocks.add(IntervalIndexer.positionToIndex(sourcePos, sourceGridDimensions));
+		}
+		return sourceBlocks.toArray();
 	}
 
 	public ReadOnlyBooleanProperty isApplyingMaskProperty() {
@@ -501,15 +599,15 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			LOG.debug("Applying mask: {}", mask);
 			final MaskInfo maskInfo = mask.getInfo();
-			final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
-			final CellGrid grid = canvas.getCellGrid();
+			final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSlice(maskInfo.level);
+			final CellGrid grid = source.getGrid(maskInfo.level);
 
 			final int[] blockSize = new int[grid.numDimensions()];
 			grid.cellDimensions(blockSize);
 
 			final FinalInterval paintedIntervalOverCanvas = Intervals.intersect(canvas, paintedInterval);
 
-			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedIntervalOverCanvas);
+			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), grid, paintedIntervalOverCanvas);
 
 			final ExecutorService paintPool = Executors.newFixedThreadPool(
 					Runtime.getRuntime().availableProcessors(),
@@ -520,7 +618,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						affectedBlocks,
 						mask,
 						canvas,
-						canvas.getCellGrid(),
+					grid,
 						paintedIntervalOverCanvas,
 						acceptAsPainted,
 						paintPool);
@@ -543,7 +641,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					0);
 
 			LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
-			this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
+			this.affectedBlocks.addAll(xyzToSourceBlocks(paintedBlocksAtHighestResolution, 0));
 
 			propagationExecutor.submit(() -> {
 				try {
@@ -618,8 +716,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final var completedTasks = new AtomicInteger();
 
 		final MaskInfo maskInfo = mask.getInfo();
-		final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
-		final CellGrid grid = canvas.getCellGrid();
+		/* paint into the current 3D slice of the (possibly nD) canvas; the stored 3D grid is used for the block math */
+		final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSlice(maskInfo.level);
+		final CellGrid grid = source.getGrid(maskInfo.level);
 		final RandomAccessibleInterval<UnsignedLongType> maskRai = mask.getRai();
 
 		/* Start as busy, so a new mask isn't generated until we are done applying this one. */
@@ -665,7 +764,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 				LOG.debug("Added affected block: {}", blocksByLabelByLevel);
 				synchronized (affectedBlocks) {
-					affectedBlocks.addAll(paintedBlocksAtHighestResolution);
+					affectedBlocks.addAll(xyzToSourceBlocks(paintedBlocksAtHighestResolution, 0));
 				}
 
 				try {
@@ -750,8 +849,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			return blocks;
 		}
 
-		final CellGrid grid = this.dataCanvases[blocksLevel].getCellGrid();
-		final CellGrid targetGrid = this.dataCanvases[targetLevel].getCellGrid();
+		final CellGrid grid = source.getGrid(blocksLevel);
+		final CellGrid targetGrid = source.getGrid(targetLevel);
 		final double[] toTargetScale = DataSource.getRelativeScales(this, 0, blocksLevel, targetLevel);
 		return org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
 				blocks.toArray(),
@@ -996,7 +1095,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		} else {
 			final RealRandomAccessible<VolatileUnsignedLongType> canvas = Views.interpolate(
 					Views.extendValue(
-							this.canvases[level].getRai(),
+							canvasSliceVolatile(level),
 							new VolatileUnsignedLongType(Label.INVALID)
 					), new NearestNeighborInterpolatorFactory<>()
 			);
@@ -1084,7 +1183,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		} else {
 			final RealRandomAccessible<UnsignedLongType> dataCanvas = Views.interpolate(
 					Views.extendValue(
-							dataCanvases[level],
+							canvasSlice(level),
 							new UnsignedLongType(Label.INVALID)
 					),
 					new NearestNeighborInterpolatorFactory<>()
@@ -1112,7 +1211,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	public RandomAccessibleInterval<UnsignedLongType> getReadOnlyDataCanvas(final int t, final int level) {
 
 		return Converters.convert(
-				(RandomAccessibleInterval<UnsignedLongType>)this.dataCanvases[level],
+				canvasSlice(level),
 				new TypeIdentity<>(),
 				new UnsignedLongType()
 		);
@@ -1140,7 +1239,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 */
 	private static Map<Long, Set<Long>> downsampleBlocks(
 			final RandomAccessible<UnsignedLongType> source,
-			final CachedCellImg<UnsignedLongType, LongAccess> img,
+			final RandomAccessibleInterval<UnsignedLongType> img,
+			final CellGrid grid,
 			final TLongSet affectedBlocks,
 			final int[] steps,
 			final Interval interval,
@@ -1148,7 +1248,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final TaskExecutor taskExecutor = TaskExecutors.forExecutorService(propagationExecutor);
 
-		final BlockSpec blockSpec = new BlockSpec(img.getCellGrid());
+		/* img is the (possibly nD) canvas's current 3D slice; write through it, addressed by the carried 3D grid */
+		final BlockSpec blockSpec = new BlockSpec(grid);
 
 		final long[] intersectedCellMin = new long[blockSpec.grid.numDimensions()];
 		final long[] intersectedCellMax = new long[blockSpec.grid.numDimensions()];
@@ -1269,9 +1370,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Predicate<Long> isPaintedForeground,
 			final ExecutorService propagationExecutor) {
 
-		final RandomAccessibleInterval<UnsignedLongType> atPaintedLevel = dataCanvases[paintedLevel];
+		/* propagate within the current 3D slice of each (possibly nD) canvas level; the carried 3D grids drive the
+		 * block math and the slice views write through to the right nD slab */
+		final RandomAccessibleInterval<UnsignedLongType> atPaintedLevel = canvasSlice(paintedLevel);
 		for (int lowerResLevel = paintedLevel + 1; lowerResLevel < getNumMipmapLevels(); ++lowerResLevel) {
-			final CachedCellImg<UnsignedLongType, LongAccess> lowerResCanvas = dataCanvases[lowerResLevel];
+			final RandomAccessibleInterval<UnsignedLongType> lowerResCanvas = canvasSlice(lowerResLevel);
 			final double[] paintedToLowerScales = DataSource.getRelativeScales(this, 0, paintedLevel, lowerResLevel);
 			final Interval intervalAtLowerRes = scaleIntervalToLevel(intervalAtPaintedScale, paintedLevel, lowerResLevel);
 
@@ -1296,6 +1399,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final var blocksModifiedByLabel = downsampleBlocks(
 					Views.extendValue(atPaintedLevel, new UnsignedLongType(Label.INVALID)),
 					lowerResCanvas,
+					source.getGrid(lowerResLevel),
 					affectedBlocksAtLowerRes,
 					steps,
 					intervalAtLowerRes,
@@ -1318,8 +1422,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval intervalAtHigherRes = scaleIntervalToLevel(intervalAtPaintedScale, paintedLevel, higherResLevel);
 
 			// upsample
-			final CachedCellImg<UnsignedLongType, LongAccess> higherResCanvas = dataCanvases[higherResLevel];
-			final CellGrid highResGrid = higherResCanvas.getCellGrid();
+			final RandomAccessibleInterval<UnsignedLongType> higherResCanvas = canvasSlice(higherResLevel);
+			final CellGrid highResGrid = source.getGrid(higherResLevel);
 			final int[] blockSize = new int[highResGrid.numDimensions()];
 			highResGrid.cellDimensions(blockSize);
 
@@ -1724,7 +1828,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public CellGrid getCellGrid(final int t, final int level) {
 
-		return ((AbstractCellImg<?, ?, ?, ?>)underlyingSource().getSource(t, level)).getCellGrid();
+		/* the source may be a sliced/embedded view, not a cell image; delegate to its stored 3D grid */
+		return underlyingSource().getGrid(level);
 	}
 
 	@Override

@@ -92,6 +92,8 @@ fun <T, F : RandomAccessibleInterval<T>> F.expandborder(vararg border: Long) = V
 
 fun <T> RandomAccessible<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!
 fun <T> RandomAccessibleInterval<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!
+fun <T> RandomAccessibleInterval<T>.permute(fromAxis: Int, toAxis: Int) = Views.permute(this, fromAxis, toAxis)!!
+fun <T> RandomAccessibleInterval<T>.moveAxis(fromAxis: Int, toAxis: Int) = Views.moveAxis(this, fromAxis, toAxis)!!
 fun <T> RandomAccessibleInterval<T>.zeroMin() = Views.zeroMin(this)!!
 fun <T> RandomAccessible<T>.translate(vararg translation: Long) = Views.translate(this, *translation)!!
 fun <T> RandomAccessibleInterval<T>.translate(vararg translation: Long) = Views.translate(this, *translation)!!

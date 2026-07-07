@@ -66,10 +66,14 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.SLICE_POSITIONS_KEY
+import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.ui.SlicePositionControls
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.stream.*
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
@@ -352,6 +356,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 contentDisplay = ContentDisplay.GRAPHIC_ONLY
                 alignment = Pos.CENTER_RIGHT
 		}
+		(backend as? SourceStateBackendN5<D, T>)?.let { n5Backend ->
+			SlicePositionControls.create(n5Backend.metadataState, dataSource)?.let { node.children.add(it) }
+		}
 		return node.apply { children.add(metaData) }
 	}
 
@@ -601,6 +608,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addSlicePositions(state.backend, context)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 			}
@@ -651,6 +659,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
 						backend.virtualCrop = virtualCrop
+						restoreSlicePositions(backend, context.get<LongArray?>(json, SLICE_POSITIONS_KEY))
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(
