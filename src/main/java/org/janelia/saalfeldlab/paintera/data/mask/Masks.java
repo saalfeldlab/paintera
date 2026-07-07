@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import bdv.cache.SharedQueue;
-import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
@@ -104,13 +103,10 @@ public class Masks {
 
 		final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
 		for (int level = 0; level < blockSizes.length; ++level) {
-			if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>) {
-				final int[] blockSize = new int[3];
-				((AbstractCellImg<?, ?, ?, ?>)source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
-				blockSizes[level] = blockSize;
-			} else {
-				blockSizes[level] = level == 0 ? new int[]{64, 64, 64} : blockSizes[level - 1];
-			}
+			/* a sliced source is a view; getGrid returns the underlying 3D block grid (see DataSource.getGrid) */
+			final int[] blockSize = new int[source.getGrid(level).numDimensions()];
+			source.getGrid(level).cellDimensions(blockSize);
+			blockSizes[level] = blockSize;
 		}
 
 		final I defaultValue = source.getDataType().createVariable();
@@ -187,13 +183,10 @@ public class Masks {
 
 		final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
 		for (int level = 0; level < blockSizes.length; ++level) {
-			if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>) {
-				final int[] blockSize = new int[3];
-				((AbstractCellImg<?, ?, ?, ?>)source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
-				blockSizes[level] = blockSize;
-			} else {
-				blockSizes[level] = level == 0 ? new int[]{64, 64, 64} : blockSizes[level - 1];
-			}
+			/* a sliced source is a view; getGrid returns the underlying 3D block grid (see DataSource.getGrid) */
+			final int[] blockSize = new int[source.getGrid(level).numDimensions()];
+			source.getGrid(level).cellDimensions(blockSize);
+			blockSizes[level] = blockSize;
 		}
 
 		final LabelMultisetType defaultValue = LabelMultisetType.singleEntryWithSingleOccurrence();

@@ -33,11 +33,15 @@ import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.SLICE_POSITIONS_KEY
+import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.ui.SlicePositionControls
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
@@ -148,6 +152,9 @@ open class ConnectomicsRawState<D, T>(
 		}
 		box.children.add(metaData)
 
+		(backend as? SourceStateBackendN5<D, T>)?.let { n5Backend ->
+			SlicePositionControls.create(n5Backend.metadataState, dataSource)?.let { box.children.add(it) }
+		}
 
 		return box
 	}
@@ -199,6 +206,7 @@ open class ConnectomicsRawState<D, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addSlicePositions(state.backend, context)
 			}
 			return map
 		}
@@ -238,6 +246,7 @@ open class ConnectomicsRawState<D, T>(
 			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
 			backend.updateTransform(resolution, offset)
 			backend.virtualCrop = virtualCrop
+			restoreSlicePositions(backend, context.get<LongArray?>(json, SLICE_POSITIONS_KEY))
 
 			return ConnectomicsRawState(
 				backend,
