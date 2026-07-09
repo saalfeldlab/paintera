@@ -553,7 +553,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
 
 		val globalToViewerTransform = provideGlobalToViewerTransform ?: targetTransform(depth, translate)
-		val cachedSliceInfo = samSliceCache[depth]?.takeIf {
+		val existingSliceInfo = samSliceCache[depth]
+		val cachedSliceInfo = existingSliceInfo?.takeIf {
 			it.globalToViewerTransform.hashable() == globalToViewerTransform.hashable()
 		}
 		if (cachedSliceInfo != null)
@@ -566,6 +567,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			val width = viewer.width
 			val height = viewer.height
 
+			/* center on the interpolant before creating the mask, so the transforms the mask derives
+			 * at construction agree with `globalToViewerTransform` after the centering translation */
+			val interpolantInViewer = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
+				if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+			}
+
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
 			val mask = source.createViewerMask(maskInfo, viewer, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
@@ -575,22 +582,17 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				.map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
 				.toList()
 
-			/* Lazy so it's not evaluated until after `alignTransformAndViewCenter` which potentially modifies `globalToViewerTransform`,
-			* which is used to create the `mask.initialGlobalToViewerTransform` which we copy for this RenderUnitState.
-			* phew. */
-			val renderState by lazy(LazyThreadSafetyMode.NONE) {
-				RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
-			}
-			val interpolationPrompt = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-				val interpolantInViewer = if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
+			val renderState = RenderUnitState(mask.initialGlobalToViewerTransform.copy(), mask.info.time, sources, width.toLong(), height.toLong())
+			val interpolationPrompt = interpolantInViewer?.let {
 				val promptStyle = samAutoInterpolantStyleProperty.get()
-				interpolantInViewer.getInterpolantPrompt(promptStyle, renderState = renderState)
+				it.getInterpolantPrompt(promptStyle, renderState = renderState)
 			} ?: let {
 				val (x, y) = renderState.viewerToRenderPoint(width / 2.0, height / 2.0)
 				SamPrompt().addPoint(x, y, SamPointLabel.FOREGROUND)
 			}
 
-			SamSliceInfo(renderState, mask, interpolationPrompt, null, false).also {
+			/* the view changed, but the slice at this depth did not; carry its state over */
+			SamSliceInfo(renderState, mask, interpolationPrompt, existingSliceInfo?.sliceInfo, existingSliceInfo?.locked ?: false).also {
                 SamEncoder.cache.load(renderState)
 				samSliceCache[depth] = it
 			}
