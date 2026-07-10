@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
 import bdv.cache.SharedQueue;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.viewer.Interpolation;
 import bdv.viewer.render.Prefetcher;
 import net.imglib2.*;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.img.cell.CellGrid;
-import bdv.img.cache.VolatileCachedCellImg;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
