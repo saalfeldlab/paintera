@@ -8,7 +8,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
@@ -125,7 +125,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	realTypeInterpolation() {
 
 		return i -> i.equals(Interpolation.NLINEAR)
-				? new NLinearInterpolatorFactory<>()
+				? new ClampingNLinearInterpolatorFactory<>()
 				: new NearestNeighborInterpolatorFactory<>();
 	}
 }
