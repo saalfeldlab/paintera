@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinat
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth.SmoothLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.close.CloseGaps
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodeLabel
 import org.janelia.saalfeldlab.paintera.paintera
@@ -106,6 +107,7 @@ private val actionMenuItems by LazyForeignValue(::paintera) {
 		DilateLabel.menuItem,
 		ErodeLabel.menuItem,
 		SmoothLabel.menuItem,
+		CloseGaps.menuItem,
 		ReplaceLabel.replaceMenu().menuItem,
 		ReplaceLabel.deleteMenu().menuItem,
 		GoToCoordinate.menuItem,
