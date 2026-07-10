@@ -616,7 +616,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						affectedBlocks,
 						mask,
 						canvas,
-					grid,
+						grid,
 						paintedIntervalOverCanvas,
 						acceptAsPainted,
 						paintPool);
@@ -624,8 +624,12 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				paintPool.shutdown();
 			}
 
+			/* affected blocks is the entire bounding box. We need to determine whch blocks actual contain painted pixels.
+			* This is just the unique of all `affectedBlocksByLabel` */
+			final TLongSet paintedBlocks = new TLongHashSet();
 			for (var label : labelToBlocks.entrySet()) {
 				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+				paintedBlocks.addAll(label.getValue());
 			}
 
 			final SourceMask currentMaskBeforePropagation = this.getCurrentMask();
@@ -634,7 +638,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			}
 
 			final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
-					affectedBlocks,
+					paintedBlocks,
 					maskInfo.level,
 					0);
 
@@ -645,7 +649,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				try {
 					propagateMask(
 							mask.getRai(),
-							affectedBlocks,
+							paintedBlocks,
 							maskInfo.level,
 							paintedIntervalOverCanvas,
 							acceptAsPainted,
@@ -749,15 +753,17 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					progressBinding.set(progress);
 				});
 
+				final TLongSet paintedBlocks = new TLongHashSet();
 				final Map<Long, TLongHashSet> blocksByLabelByLevel = this.affectedBlocksByLabel[maskInfo.level];
 				synchronized (blocksByLabelByLevel) {
 					for (var label : labelToBlocks.entrySet()) {
 						blocksByLabelByLevel.computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+						paintedBlocks.addAll(label.getValue());
 					}
 				}
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
-						directlyAffectedBlocks,
+						paintedBlocks,
 						maskInfo.level,
 						0);
 
@@ -767,7 +773,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				}
 
 				synchronized (paintedRegions) {
-					paintedRegions.add(new PaintedRegion(directlyAffectedBlocks, intervalOverCanvas));
+					paintedRegions.add(new PaintedRegion(paintedBlocks, intervalOverCanvas));
 				}
 			});
 			applies.add(applyFuture);
