@@ -390,8 +390,9 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 	}
 
 	private fun toggleInterpolation() {
-		if (globalInterpolationProperty.get() != null) {
-			globalInterpolationProperty.set(if (globalInterpolationProperty.get() == Interpolation.NLINEAR) Interpolation.NEARESTNEIGHBOR else Interpolation.NLINEAR)
+		val currentInterpolation = globalInterpolationProperty.get()
+		if (currentInterpolation != null) {
+			globalInterpolationProperty.set(currentInterpolation.next())
 			baseView.orthogonalViews().requestRepaint()
 		}
 	}

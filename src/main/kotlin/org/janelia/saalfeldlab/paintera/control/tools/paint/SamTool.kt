@@ -37,7 +37,7 @@ import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.*
 import net.imglib2.type.logic.NativeBoolType
@@ -373,7 +373,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val globalInterval = predictionToGlobal.estimateBounds(prediction3D).smallestContainingInterval
                         val predictionInGlobal = prediction3D
                             .extendBorder()
-                            .interpolate(NLinearInterpolatorFactory())
+                            .interpolate(ClampingNLinearInterpolatorFactory())
                             .affineReal(predictionToGlobal)
                             .raster()
                             .interval(globalInterval)

@@ -16,7 +16,7 @@ import net.imglib2.converter.logical.Logical
 import net.imglib2.converter.read.BiConvertedRealRandomAccessible
 import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Translation3D
@@ -897,7 +897,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			val scaledInterpolatedDistanceTransform = distanceTransformStack
 				.extendValue(extendValue)
-				.interpolate(NLinearInterpolatorFactory())
+				.interpolate(ClampingNLinearInterpolatorFactory())
 				.affineReal(distanceScale)
 
 			val interpolatedShapeRaiInSource = scaledInterpolatedDistanceTransform.convert(targetValue.createVariable()) { input, output: T ->

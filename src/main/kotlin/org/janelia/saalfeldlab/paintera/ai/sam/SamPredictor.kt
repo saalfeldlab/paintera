@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.ai.sam
 
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.realtransform.Scale2D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.real.FloatType
@@ -141,7 +141,7 @@ class SamPredictor(
                 val sourceInterval = Intervals.createMinSize(0, 0, sourceWidth.toLong(), sourceHeight.toLong())
                 val sourceRai = decodeRai
                     .extendBorder()
-                    .interpolate(NLinearInterpolatorFactory())
+                    .interpolate(ClampingNLinearInterpolatorFactory())
                     .affine(Scale2D(decodeToSourceScale, decodeToSourceScale))
                     .raster()
                     .interval(sourceInterval)

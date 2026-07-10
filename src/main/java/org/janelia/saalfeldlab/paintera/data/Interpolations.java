@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.data;
 import bdv.viewer.Interpolation;
 import net.imglib2.RandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.type.numeric.NumericType;
 
@@ -29,7 +29,7 @@ public class Interpolations {
 		public InterpolatorFactory<T, RandomAccessible<T>> apply(final Interpolation t) {
 
 			return t.equals(Interpolation.NLINEAR)
-					? new NLinearInterpolatorFactory<>()
+					? new ClampingNLinearInterpolatorFactory<>()
 					: new NearestNeighborInterpolatorFactory<>();
 		}
 
