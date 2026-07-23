@@ -4,7 +4,6 @@ import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
 import net.imglib2.cache.Invalidate
-import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.RealViews
 import net.imglib2.realtransform.Scale3D
@@ -19,7 +18,6 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
@@ -29,10 +27,12 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInt
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Predicate
+import kotlin.collections.toList
+import kotlin.math.abs
 import kotlin.math.absoluteValue
-import kotlin.math.roundToLong
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.sqrt
 
 class ViewerMask private constructor(
@@ -351,129 +351,17 @@ class ViewerMask private constructor(
 		acceptAsPainted: Predicate<Long>
 	): Set<Long> {
 
-		val extendedViewerImg = Views.extendBorder(viewerImg)
-		val viewerImgInSourceOverCanvas = viewerImgInSource.raster().interval(canvas)
-
-		val sourceToMaskTransform = currentMaskToSourceWithDepthTransform.inverse()
-		val sourceToMaskTransformAsArray = sourceToMaskTransform.rowPackedCopy
-
-		val sourceToMaskWithDepthTransform = currentMaskToSourceWithDepthTransform.inverse()
-		val sourceToMaskWithDepthTransformAsArray = sourceToMaskWithDepthTransform.rowPackedCopy
-
-		val maxDistInMask = (paintDepthFactor * depthScale) * .5
-		val minDistInMask = paintDepthFactor * .5
-
-		val zTransformAtCubeCorner: (DoubleArray, Int?) -> Double = { pos, idx ->
-			val x = pos[0] + (idx?.let { CUBE_CORNERS[it][0] } ?: 0.0)
-			val y = pos[1] + (idx?.let { CUBE_CORNERS[it][1] } ?: 0.0)
-			val z = pos[2] + (idx?.let { CUBE_CORNERS[it][2] } ?: 0.0)
-			sourceToMaskTransformAsArray.let { transform ->
-				transform[8] * x + transform[9] * y + transform[10] * z + transform[11]
-			}
-		}
-
-
-		val painted = AtomicBoolean(false)
-		val paintedLabelSet = hashSetOf<Long>()
-
-		fun trackPaintedLabel(painted: Long) {
-			synchronized(paintedLabelSet) {
-				paintedLabelSet += painted
-			}
-		}
-
-		val paintCanvas: (IntegerType<*>, Long) -> Unit = { position, id ->
-			position.setInteger(id)
-			painted.set(true)
-			trackPaintedLabel(id)
-		}
-
-		LoopBuilder.setImages(
-			BundleView(canvas).interval(canvas),
-			viewerImgInSourceOverCanvas
-		).multiThreaded().forEachChunk { chunk ->
-			val realMinMaskPoint = DoubleArray(3)
-			val realMaxMaskPoint = DoubleArray(3)
-
-			val minMaskPoint = LongArray(3)
-			val maxMaskPoint = LongArray(3)
-
-			val canvasPosition = DoubleArray(3)
-			val canvasMinPositionInMask = DoubleArray(3)
-			val canvasMaxPositionInMask = DoubleArray(3)
-			val cubeCornerDepths = Array<Double?>(CUBE_CORNERS.size) { null }
-
-
-			chunk.forEachPixel { canvasBundle, viewerValType ->
-				canvasBundle.localize(canvasPosition)
-				cubeCornerDepths.fill(null)
-
-				var withinMax = false
-				for (idx in cubeCornerDepths.indices) {
-
-					cubeCornerDepths[idx] = zTransformAtCubeCorner(canvasPosition, idx).also {
-						withinMax = it.absoluteValue <= maxDistInMask
-					}
-
-					if (withinMax)
-						break
-				}
-
-				if (!withinMax) {
-					return@forEachPixel
-				}
-
-				val paintVal = viewerValType.get()
-
-				if (acceptAsPainted.test(paintVal) && zTransformAtCubeCorner(canvasPosition, null).absoluteValue < minDistInMask)
-                    paintCanvas(canvasBundle.get(), paintVal)
-				else {
-					/* nearest neighbor interval over source */
-					for (idx in 0 until 3) {
-						realMinMaskPoint[idx] = canvasPosition[idx] + MIN_CORNER_OFFSET[idx]
-						realMaxMaskPoint[idx] = canvasPosition[idx] + MAX_CORNER_OFFSET[idx]
-					}
-
-					val realIntervalOverSource = FinalRealInterval(realMinMaskPoint, realMaxMaskPoint, false)
-
-					/* iterate over canvas in viewer */
-					val realIntervalOverMask = sourceToMaskWithDepthTransform.estimateBounds(realIntervalOverSource).smallestContainingInterval
-					if (0 !in realIntervalOverMask.min(2)..realIntervalOverMask.max(2)) {
-						return@forEachPixel
-					}
-
-					minMaskPoint[0] = realIntervalOverMask.min(0)
-					minMaskPoint[1] = realIntervalOverMask.min(1)
-					minMaskPoint[2] = 0
-
-					maxMaskPoint[0] = realIntervalOverMask.max(0)
-					maxMaskPoint[1] = realIntervalOverMask.max(1)
-					maxMaskPoint[2] = 0
-
-					val maskInterval = FinalInterval(minMaskPoint, maxMaskPoint)
-
-					val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
-					while (maskCursor.hasNext()) {
-						val maskId = maskCursor.next().get()
-						if (acceptAsPainted.test(maskId)) {
-							for (idx in 0 until 2) {
-								canvasMinPositionInMask[idx] = maskCursor.getDoublePosition(idx) + MIN_CORNER_OFFSET[idx]
-								canvasMaxPositionInMask[idx] = maskCursor.getDoublePosition(idx) + MAX_CORNER_OFFSET[idx]
-							}
-
-							val maskPixelInterval = FinalRealInterval(canvasMinPositionInMask, canvasMaxPositionInMask, false)
-							val canvasInterval = sourceToMaskWithDepthTransform.inverse().estimateBounds(maskPixelInterval)
-							if (!Intervals.isEmpty(Intervals.intersect(realIntervalOverSource, canvasInterval))) {
-								paintCanvas(canvasBundle.get(), maskId)
-								return@forEachPixel
-							}
-						}
-					}
-				}
-			}
-		}
+		val allPaintedLabels = applyMaskToCanvas(
+			canvas,
+			viewerImg,
+			viewerImgInSource,
+			currentMaskToSourceWithDepthTransform,
+			paintDepthFactor,
+			depthScale,
+			acceptAsPainted
+		)
 		paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
-		return paintedLabelSet
+		return allPaintedLabels
 	}
 
 	@JvmOverloads
@@ -531,7 +419,6 @@ class ViewerMask private constructor(
 			doubleArrayOf(-.5, +.5, +.5),
 			doubleArrayOf(+.5, -.5, -.5),
 		)
-
 
 		@JvmStatic
 		fun ViewerPanelFX.getGlobalViewerInterval(): RealInterval {
@@ -626,8 +513,6 @@ class ViewerMask private constructor(
 			val minZ = canvas.min(2)
 			val maxZ = canvas.max(2)
 
-
-
 			val allPaintedLabels = (minZ..maxZ).toList().parallelStream().map { z ->
 				val canvasRA = canvas.randomAccess()
 				val viewerRA = viewerImgInSourceOverCanvas.randomAccess()
@@ -678,12 +563,15 @@ class ViewerMask private constructor(
 								val realIntervalOverSource = FinalRealInterval(realMinMaskPoint, realMaxMaskPoint, false)
 								val realIntervalOverMask = sourceToMaskWithDepthTransform.estimateBounds(realIntervalOverSource).smallestContainingInterval
 								if (0 in realIntervalOverMask.min(2)..realIntervalOverMask.max(2)) {
+
 									minMaskPoint[0] = realIntervalOverMask.min(0)
 									minMaskPoint[1] = realIntervalOverMask.min(1)
 									minMaskPoint[2] = 0
+
 									maxMaskPoint[0] = realIntervalOverMask.max(0)
 									maxMaskPoint[1] = realIntervalOverMask.max(1)
 									maxMaskPoint[2] = 0
+
 									val maskInterval = FinalInterval(minMaskPoint, maxMaskPoint)
 									val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
 									while (maskCursor.hasNext()) {
@@ -713,8 +601,8 @@ class ViewerMask private constructor(
 				paintedLabelSet
 			}.collect(
 				{ hashSetOf<Long>() },
-				{ acc, slice -> acc.addAll(slice) },
-				{ acc, slice -> acc.retainAll(slice) }
+				{ acc, slice -> acc += slice },
+				{ acc, slice -> acc += slice }
 			)
 			return allPaintedLabels
 		}
