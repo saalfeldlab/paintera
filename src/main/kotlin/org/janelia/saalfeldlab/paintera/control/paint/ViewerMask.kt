@@ -576,5 +576,147 @@ class ViewerMask private constructor(
 				it.concatenate(from.initialGlobalToMaskTransform.inverse())
 			}
 		}
+
+		/**
+		 * The integer x-range (clamped to `[minX, maxX]`) on a row (whose mask-z is `xCoefficient * x + rowConstant`)
+		 * that can hold a within-slab voxel, i.e. where `|mask-z| <= zLimit`, widened by 1 on each side to absorb
+		 * rounding. Null when the whole row is out of the slab.
+		 */
+		private fun rowXRange(xCoefficient: Double, rowConstant: Double, zLimit: Double, minX: Long, maxX: Long): Pair<Long, Long>? {
+			if (xCoefficient == 0.0) return if (abs(rowConstant) <= zLimit) minX to maxX else null
+			val a = (-zLimit - rowConstant) / xCoefficient
+			val b = (zLimit - rowConstant) / xCoefficient
+			val xStart = maxOf(minX, floor(minOf(a, b)).toLong() - 1)
+			val xEnd = minOf(maxX, ceil(maxOf(a, b)).toLong() + 1)
+			return if (xStart > xEnd) null else xStart to xEnd
+		}
+
+		fun <C : IntegerType<C>> applyMaskToCanvas(
+			canvas: RandomAccessibleInterval<C>,
+			viewerImg: RandomAccessibleInterval<UnsignedLongType>,
+			viewerImgInSource: RealRandomAccessible<UnsignedLongType>,
+			currentMaskToSourceWithDepthTransform: AffineTransform3D,
+			paintDepthFactor: Double,
+			depthScale: Double,
+			acceptAsPainted: Predicate<Long>
+		): Set<Long> {
+
+			val extendedViewerImg = Views.extendBorder(viewerImg)
+			val viewerImgInSourceOverCanvas = viewerImgInSource.raster().interval(canvas)
+
+			val sourceToMaskWithDepthTransform = currentMaskToSourceWithDepthTransform.inverse()
+			val transform = sourceToMaskWithDepthTransform.rowPackedCopy
+			val maskToSourceWithDepth = sourceToMaskWithDepthTransform.inverse()
+
+			val zRowX = transform[8]
+			val zRowY = transform[9]
+			val zRowZ = transform[10]
+			val zRowTranslation = transform[11]
+
+			val maxDistInMask = (paintDepthFactor * depthScale) * .5
+			val minDistInMask = paintDepthFactor * .5
+
+			val halfCornerZSpread = 0.5 * (abs(zRowX) + abs(zRowY) + abs(zRowZ))
+			val zLimit = maxDistInMask + halfCornerZSpread
+
+			val minX = canvas.min(0)
+			val maxX = canvas.max(0)
+			val minY = canvas.min(1)
+			val maxY = canvas.max(1)
+			val minZ = canvas.min(2)
+			val maxZ = canvas.max(2)
+
+
+
+			val allPaintedLabels = (minZ..maxZ).toList().parallelStream().map { z ->
+				val canvasRA = canvas.randomAccess()
+				val viewerRA = viewerImgInSourceOverCanvas.randomAccess()
+				val realMinMaskPoint = DoubleArray(3)
+				val realMaxMaskPoint = DoubleArray(3)
+				val minMaskPoint = LongArray(3)
+				val maxMaskPoint = LongArray(3)
+				val canvasMinPositionInMask = DoubleArray(3)
+				val canvasMaxPositionInMask = DoubleArray(3)
+
+				val paintedLabelSet = hashSetOf<Long>()
+
+				for (y in minY..maxY) {
+					val rowConstant = zRowY * y + zRowZ * z + zRowTranslation
+					val (xStart, xEnd) = rowXRange(zRowX, rowConstant, zLimit, minX, maxX) ?: continue
+
+					canvasRA.setPosition(longArrayOf(xStart, y, z))
+					viewerRA.setPosition(longArrayOf(xStart, y, z))
+					var x = xStart
+					while (x <= xEnd) {
+						val p0 = x.toDouble()
+						val p1 = y.toDouble()
+						val p2 = z.toDouble()
+
+						var withinMax = false
+						for (idx in CUBE_CORNERS.indices) {
+							val corner = CUBE_CORNERS[idx]
+							val cornerZ = zRowX * (p0 + corner[0]) + zRowY * (p1 + corner[1]) + zRowZ * (p2 + corner[2]) + zRowTranslation
+							if (cornerZ.absoluteValue <= maxDistInMask) {
+								withinMax = true
+								break
+							}
+						}
+
+						if (withinMax) {
+							val paintVal = viewerRA.get().get()
+							val centerZ = zRowX * p0 + zRowY * p1 + zRowZ * p2 + zRowTranslation
+							if (acceptAsPainted.test(paintVal) && centerZ.absoluteValue < minDistInMask) {
+								canvasRA.get().setInteger(paintVal)
+								paintedLabelSet += paintVal
+							} else {
+								realMinMaskPoint[0] = p0 + MIN_CORNER_OFFSET[0]
+								realMinMaskPoint[1] = p1 + MIN_CORNER_OFFSET[1]
+								realMinMaskPoint[2] = p2 + MIN_CORNER_OFFSET[2]
+								realMaxMaskPoint[0] = p0 + MAX_CORNER_OFFSET[0]
+								realMaxMaskPoint[1] = p1 + MAX_CORNER_OFFSET[1]
+								realMaxMaskPoint[2] = p2 + MAX_CORNER_OFFSET[2]
+								val realIntervalOverSource = FinalRealInterval(realMinMaskPoint, realMaxMaskPoint, false)
+								val realIntervalOverMask = sourceToMaskWithDepthTransform.estimateBounds(realIntervalOverSource).smallestContainingInterval
+								if (0 in realIntervalOverMask.min(2)..realIntervalOverMask.max(2)) {
+									minMaskPoint[0] = realIntervalOverMask.min(0)
+									minMaskPoint[1] = realIntervalOverMask.min(1)
+									minMaskPoint[2] = 0
+									maxMaskPoint[0] = realIntervalOverMask.max(0)
+									maxMaskPoint[1] = realIntervalOverMask.max(1)
+									maxMaskPoint[2] = 0
+									val maskInterval = FinalInterval(minMaskPoint, maxMaskPoint)
+									val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
+									while (maskCursor.hasNext()) {
+										val maskId = maskCursor.next().get()
+										if (acceptAsPainted.test(maskId)) {
+											for (idx in 0 until 2) {
+												canvasMinPositionInMask[idx] = maskCursor.getDoublePosition(idx) + MIN_CORNER_OFFSET[idx]
+												canvasMaxPositionInMask[idx] = maskCursor.getDoublePosition(idx) + MAX_CORNER_OFFSET[idx]
+											}
+											val maskPixelInterval = FinalRealInterval(canvasMinPositionInMask, canvasMaxPositionInMask, false)
+											val canvasInterval = maskToSourceWithDepth.estimateBounds(maskPixelInterval)
+											if (!Intervals.isEmpty(Intervals.intersect(realIntervalOverSource, canvasInterval))) {
+												canvasRA.get().setInteger(maskId)
+												paintedLabelSet += maskId
+												break
+											}
+										}
+									}
+								}
+							}
+						}
+						canvasRA.fwd(0)
+						viewerRA.fwd(0)
+						x++
+					}
+				}
+				paintedLabelSet
+			}.collect(
+				{ hashSetOf<Long>() },
+				{ acc, slice -> acc.addAll(slice) },
+				{ acc, slice -> acc.retainAll(slice) }
+			)
+			return allPaintedLabels
+		}
 	}
 }
