@@ -117,7 +117,8 @@ open class PaintLabelMode : ViewLabelMode() {
 					}
 				}
 				when {
-					event == null && paintera.baseView.currentFocusHolder.value == null -> selectViewerBefore { switchModes() }
+					/* no event means the toolbar button was clicked; need to select the desired viewer */
+					event == null && requiresViewerSelection -> selectViewerBefore { switchModes() }
 					else -> switchModes()
 				}
 			}
