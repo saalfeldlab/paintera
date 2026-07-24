@@ -813,7 +813,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 					try {
 						final var blockSpecCopy = new BlockSpec(blockSpec);
 						blockSpecCopy.fromLinearIndex(blockId);
-						/* leave the block untouched if the canvas has no painted voxel in it */
+						/* leave the block untouched if the canvas has no painted voxel in it.
+						 * I'm not a fan of this being a separate block iteration, may be worth trying to optimize  */
 						if (!hasPaintedVoxel(Views.interval(canvas, blockSpecCopy.asInterval())))
 							continue;
 						final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas =
@@ -832,8 +833,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 						localBlockDiffs.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
 					} catch (Exception e) {
-						LOG.error("Error processing block {}", blockId, e);
-
+						LOG.error(e, () -> String.format("Error processing block %d", blockId));
 					}
 				}
 
@@ -897,7 +897,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 						N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes);
 						localBlockDiffs.put(blockId, createBlockDiffFromCanvasIntegerType(backgroundWithCanvas));
 					} catch (Exception e) {
-						LOG.error("Error processing block {}", blockId, e);
+						LOG.error(e, () -> String.format("Error processing block %d", blockId));
 					}
 				}
 				if (!localBlockDiffs.isEmpty()) {
