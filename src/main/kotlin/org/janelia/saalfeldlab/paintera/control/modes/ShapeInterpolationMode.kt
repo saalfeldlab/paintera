@@ -139,10 +139,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		enableAllViewers()
 	}
 
+	private var savedActiveFragmentAlpha: Int? = null
 	private fun ShapeInterpolationController<*>.modifyFragmentAlpha() {
 		/* set the converter fragment alpha to be the same as the segment. We do this so we can use the fragment alpha for the
 		* selected objects during shape interpolation flood fill. This needs to be un-done in the #deactivate */
 		converter.activeFragmentAlphaProperty().apply {
+			savedActiveFragmentAlpha = get()
 			activeSelectionAlpha = get().toDouble() / 255.0
 			set(converter.activeSegmentAlphaProperty().get())
 		}
@@ -150,7 +152,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	private fun ShapeInterpolationController<*>.resetFragmentAlpha() {
 		/* Add the activeFragmentAlpha back when we are done */
-		converter.activeFragmentAlphaProperty().set((activeSelectionAlpha * 255).toInt())
+		savedActiveFragmentAlpha?.let { converter.activeFragmentAlphaProperty().set(it) }
+		savedActiveFragmentAlpha = null
 	}
 
 	internal enum class SamAutoInterpolantStyle {

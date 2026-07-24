@@ -82,18 +82,26 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 			final LockedSegmentsState lockedSegments) {
 
 		this.selectedSegments = selectedSegments;
-		this.selectedSegments.addListener(_ -> clearCache());
+		this.selectedSegments.addListener(_ -> clearActiveCache());
 
 		this.lockedSegments = lockedSegments;
 		this.lockedSegments.addListener(_ -> clearCache());
 
 		this.colorFromSegmentId.addListener((_, _, newv) -> {
 			colorFromSegment = newv;
-			stateChanged();
+			/* the color basis (fragment vs segment id) changed, so every cached color is stale */
+			clearCache();
 		});
 	}
 
-	protected volatile NonBlockingHashMapLong<Integer> argbCache = new NonBlockingHashMapLong<>(false);
+	/* non-active segments have the same argb regardless of fragment, so cache per segment  */
+	protected volatile NonBlockingHashMapLong<Integer> inactiveSegmentCache = new NonBlockingHashMapLong<>(false);
+
+	/* the active segment distinguishes the active fragment from the rest, so cache its final argb per fragment */
+	protected volatile NonBlockingHashMapLong<Integer> activeFragmentCache = new NonBlockingHashMapLong<>(false);
+
+	/* base color per assigned id, before the fragment/segment alpha; shared by both final caches */
+	protected volatile NonBlockingHashMapLong<Integer> colorCache = new NonBlockingHashMapLong<>(false);
 
 	public boolean isActiveFragment(final long fragmentId) {
 
@@ -139,7 +147,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 		if (this.seed != seed) {
 			this.seed = seed;
-			stateChanged();
+			clearCache();
 		}
 	}
 
@@ -160,7 +168,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 		if (getAlpha() != alpha) {
 			this.alpha = (alpha & 0xff) << 24;
-			stateChanged();
+			clearCache();
 		}
 	}
 
@@ -174,7 +182,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 		if (getActiveSegmentAlpha() != alpha) {
 			this.activeSegmentAlpha = (alpha & 0xff) << 24;
-			stateChanged();
+			clearActiveCache();
 		}
 	}
 
@@ -182,7 +190,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 		if (getInvalidSegmentAlpha() != alpha) {
 			this.invalidSegmentAlpha = (alpha & 0xff) << 24;
-			stateChanged();
+			clearCache();
 		}
 	}
 
@@ -190,7 +198,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 		if (getActiveFragmentAlpha() != alpha) {
 			this.activeFragmentAlpha = (alpha & 0xff) << 24;
-			stateChanged();
+			clearActiveCache();
 		}
 	}
 
@@ -216,7 +224,19 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	public void clearCache() {
 
-		argbCache = new NonBlockingHashMapLong<>(explicitlySpecifiedColors.size(), false);
+		inactiveSegmentCache = new NonBlockingHashMapLong<>(explicitlySpecifiedColors.size(), false);
+		activeFragmentCache = new NonBlockingHashMapLong<>(explicitlySpecifiedColors.size(), false);
+		colorCache = new NonBlockingHashMapLong<>(explicitlySpecifiedColors.size(), false);
+		stateChanged();
+	}
+
+	/*
+	 * a selection change and the active-segment/active-fragment alphas only affect the active segment.
+	 * clear only the active cache
+	 */
+	private void clearActiveCache() {
+
+		activeFragmentCache = new NonBlockingHashMapLong<>(false);
 		stateChanged();
 	}
 
@@ -247,12 +267,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public void specifyColorExplicitly(final long segmentId, final int color, final boolean overrideAlpha) {
 
 		explicitlySpecifiedColors.put(segmentId, (Integer) color);
-		if (overrideAlpha) {
-			Integer alpha = color >>> 24;
-			this.overrideAlpha.put(segmentId, alpha);
-		}
-		argbCache.remove(segmentId);
-		stateChanged();
+		if (overrideAlpha)
+			this.overrideAlpha.put(segmentId, (Integer)(color >>> 24));
+		else
+			this.overrideAlpha.remove(segmentId);
+		clearCache();
 	}
 
 	public void specifyColorExplicitly(final long segmentId, final int color) {
@@ -266,8 +285,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		for (int i = 0; i < segmentIds.length; ++i) {
 			this.explicitlySpecifiedColors.put(segmentIds[i], (Integer)colors[i]);
 		}
-		argbCache.putAll(explicitlySpecifiedColors);
-		stateChanged();
+		clearCache();
 	}
 
 	public void removeExplicitColor(final long segmentId) {
@@ -279,8 +297,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 			if (overrideAlpha.containsKey(segmentId)) {
 				overrideAlpha.remove(segmentId);
 			}
-			argbCache.remove(segmentId);
-			stateChanged();
+			clearCache();
 		}
 	}
 
