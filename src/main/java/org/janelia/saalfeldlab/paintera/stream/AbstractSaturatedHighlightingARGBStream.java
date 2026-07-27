@@ -44,11 +44,28 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 		final var segmentId = getSegmentId(fragmentId);
 		final long assigned = colorFromSegmentId ? segmentId : fragmentId;
 
-		return argbCache.computeIfAbsent(assigned, id -> {
+		/* pick the cache by whether the segment for the given `fragmentId` is active. If it's active, we need to
+		 * get the color per fragment in the active segment, since we render each fragment slightly differently
+		 * within the active segment */
+		if (isActiveSegment(segmentId)) {
+			return activeFragmentCache.computeIfAbsent(fragmentId, _ ->
+					withFragmentSegmentAlpha(baseColor(assigned, colorFromSegmentId), assigned, fragmentId, segmentId)
+			);
+		}
+
+		/* for inactive segments, all fragments are rendered with the same (inactive fragment) alpha. */
+		return inactiveSegmentCache.computeIfAbsent(assigned, id ->
+				withFragmentSegmentAlpha(baseColor(id, colorFromSegmentId), id, fragmentId, segmentId));
+	}
+
+	private int baseColor(final long assigned, final boolean colorFromSegmentId) {
+
+		return colorCache.computeIfAbsent(assigned, id -> {
 
 			final Integer explicitArgb = explicitlySpecifiedColors.get(id);
             if (explicitArgb != null)
-				return withFragmentSegmentAlpha(explicitArgb, id, fragmentId, segmentId);
+				/* a custom color contributes only its rgb; alpha is derived from the active fragment/segment rules unless overrideAlpha */
+				return (explicitArgb & 0x00ffffff) | alpha;
 
             double x = getDoubleImpl(seed + assigned, colorFromSegmentId);
             x *= 6.0;
@@ -61,8 +78,7 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
             final int g = interpolate(gs, k, l, u, v);
             final int b = interpolate(bs, k, l, u, v);
 
-            final int argb = argb(r, g, b, alpha);
-            return withFragmentSegmentAlpha(argb, id, fragmentId, segmentId);
+			return argb(r, g, b, alpha);
 		});
 	}
 

@@ -44,6 +44,11 @@ class LabelBlockLookupGroup(private val parentGroup: String, private val groupNa
 	override fun getChildrenMetadata() = children
 
 	companion object {
-		private val labelBlockLookupAttributes = DatasetAttributes(longArrayOf(Long.MAX_VALUE), intArrayOf(3), DataType.INT8, GzipCompression())
+		private val labelBlockLookupAttributes = DatasetAttributes(
+			longArrayOf(Long.MAX_VALUE),
+			intArrayOf(10_000),
+			DataType.INT8,
+			GzipCompression()
+		)
 	}
 }

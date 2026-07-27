@@ -16,6 +16,8 @@ import javafx.scene.paint.Color
 import javafx.util.converter.NumberStringConverter
 import net.imglib2.type.label.Label.*
 import org.janelia.saalfeldlab.fx.Labels
+import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid
+import org.kordamp.ikonli.javafx.FontIcon
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -71,12 +73,18 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 			var row = 0
 			listOf(
-				newAlphaSlider("Alpha for inactive fragments.", alpha),
-				newAlphaSlider("Alpha for active fragments.", activeFragmentAlpha),
-				newAlphaSlider("Alpha for active segments.", activeSegmentAlpha)
-			).forEach { (slider, textfield) ->
+				Triple(alpha, AbstractHighlightingARGBStream.DEFAULT_ALPHA, "Alpha for inactive fragments."),
+				Triple(activeFragmentAlpha, AbstractHighlightingARGBStream.DEFAULT_ACTIVE_FRAGMENT_ALPHA, "Alpha for active fragments."),
+				Triple(activeSegmentAlpha, AbstractHighlightingARGBStream.DEFAULT_ACTIVE_SEGMENT_ALPHA, "Alpha for active segments.")
+			).forEach { (property, default, tooltip) ->
+				val (slider, textfield) = newAlphaSlider(tooltip, property)
+				val resetButton = Button("").apply {
+					addStyleClass(Style.RESET_ICON)
+					setOnAction { property.value = toDoubleBased(default ushr 24) }
+				}
 				gp.add(slider, 0, row)
 				gp.add(textfield, 1, row)
+				gp.add(resetButton, 2, row)
 				++row
 			}
 
@@ -125,13 +133,18 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			addButton.prefWidth = buttonWidth
 			val addColorPicker = ColorPicker()
 			addColorPicker.prefWidth = colorPickerWidth
+			val addOverrideAlpha = ToggleButton().apply {
+				graphic = FontIcon(FontAwesomeSolid.ADJUST)
+				prefWidth = buttonWidth
+				tooltip = Tooltip("Override default alpha with the custom color's explicit alpha")
+			}
 			val addIdField = TextField().also { it.promptText = "Fragment/Segment id" }
 			GridPane.setHgrow(addIdField, Priority.ALWAYS)
 			addButton.setOnAction { event ->
 				event.consume()
 				try {
 					val id = parseLong(addIdField.text)
-					converter.setColor(id, addColorPicker.value)
+					converter.setColor(id, addColorPicker.value, addOverrideAlpha.isSelected)
 					addIdField.text = ""
 				} catch (e: NumberFormatException) {
 					LOG.error("Not a valid long/integer format: {}", addIdField.text)
@@ -163,18 +176,28 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 						GridPane.setHgrow(tf, Priority.ALWAYS)
 						val colorPicker = ColorPicker(entry.value)
 						colorPicker.prefWidth = colorPickerWidth
-						colorPicker.valueProperty().addListener { _, _, newv -> converter.setColor(entry.key, newv) }
+						val overrideAlpha = ToggleButton().apply {
+							graphic = FontIcon(FontAwesomeSolid.ADJUST)
+							prefWidth = buttonWidth
+							tooltip = Tooltip("Use the custom color's alpha value explicitly")
+							isSelected = converter.getStream().overrideAlpha.containsKey(entry.key)
+						}
+						val setColor = { converter.setColor(entry.key, colorPicker.value, overrideAlpha.isSelected) }
+						colorPicker.valueProperty().subscribe { _, _ -> setColor() }
+						overrideAlpha.selectedProperty().subscribe { _, _ -> setColor() }
 						val removeButton = Button("X")
 						removeButton.prefWidth = buttonWidth
 						removeButton.setOnAction { converter.removeColor(entry.key) }
 						colorContents.add(tf, 0, gridRow)
 						colorContents.add(colorPicker, 1, gridRow)
-						colorContents.add(removeButton, 2, gridRow)
+						colorContents.add(overrideAlpha, 2, gridRow)
+						colorContents.add(removeButton, 3, gridRow)
 						++gridRow
 					}
 					colorContents.add(addIdField, 0, gridRow)
 					colorContents.add(addColorPicker, 1, gridRow)
-					colorContents.add(addButton, 2, gridRow)
+					colorContents.add(addOverrideAlpha, 2, gridRow)
+					colorContents.add(addButton, 3, gridRow)
 				}
 			}
 			colorsMap.addListener(colorsChanged)

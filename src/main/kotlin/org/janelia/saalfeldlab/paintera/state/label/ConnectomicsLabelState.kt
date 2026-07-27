@@ -557,6 +557,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val CONVERTER                       = "converter"
         const val CONVERTER_SEED                  = "seed"
 		const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
+		const val CONVERTER_ALPHA_OVERRIDE_IDS    = "userSpecifiedColorsAlphaOverride"
 		const val CONVERTER_ALPHA                 = "alpha"
 		const val CONVERTER_ACTIVE_FRAGMENT_ALPHA = "activeFragmentAlpha"
 		const val CONVERTER_ACTIVE_SEGMENT_ALPHA  = "activeSegmentAlpha"
@@ -592,6 +593,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						if (stream.overrideAlpha.get(Label.BACKGROUND) != null) m.addProperty(BACKGROUND_ID_VISIBLE, false)
 
 						userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
+						/* the background id is persisted via BACKGROUND_ID_VISIBLE, not here */
+						stream.overrideAlpha.keys.filter { it != Label.BACKGROUND }.takeIf { it.isNotEmpty() }?.let { ids ->
+							m.add(CONVERTER_ALPHA_OVERRIDE_IDS, JsonArray().apply { ids.forEach { add(it) } })
+						}
 
 					}
 					map.add(CONVERTER, m)
@@ -668,7 +673,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 							get<Long>(LAST_SELECTION) { selectedIds.activateAlso(it) }
 							get<JsonObject>(CONVERTER) { converter ->
 								converter.apply {
-									get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
+									val alphaOverrideIds = get<JsonArray>(CONVERTER_ALPHA_OVERRIDE_IDS)?.map { it.asLong }?.toSet().orEmpty()
+									get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c, id in alphaOverrideIds) } }
 									get<Long>(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
 									get<Int>(CONVERTER_ALPHA) { alpha -> state.converter.alphaProperty().value = alpha }
 									get<Int>(CONVERTER_ACTIVE_FRAGMENT_ALPHA) { alpha -> state.converter.activeFragmentAlphaProperty().value = alpha }

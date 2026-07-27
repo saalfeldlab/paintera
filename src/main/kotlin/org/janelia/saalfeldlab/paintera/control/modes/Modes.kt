@@ -178,7 +178,7 @@ interface ToolMode : SourceMode {
 					(it.userData as? Tool)?.let { tool ->
 						if (activeTool != tool) {
 							val requiresActiveViewer = (it.properties.getOrDefault(REQUIRES_ACTIVE_VIEWER, false) as? Boolean) == true
-							if (requiresActiveViewer && paintera.baseView.currentFocusHolder.get() == null) {
+							if (requiresActiveViewer && requiresViewerSelection) {
 								selectViewerBefore {
 									switchTool(tool)
 								}
@@ -219,6 +219,13 @@ interface ToolMode : SourceMode {
 		/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
 		bindTogglesForActiveTool()
 	}
+
+	/**
+	 * Whether the user should be asked which viewer to act in. Only relevant for triggers with no viewer context,
+	 * e.g. a toolbar button; the focused viewer is just whichever one the mouse was last over.
+	 */
+	val requiresViewerSelection: Boolean
+		get() = paintera.baseView.orthogonalViews().views().count { it.isVisible } > 1
 
 	/**
 	 * Prompt the user to select a viewer prior to executing [afterViewerIsSelected].
