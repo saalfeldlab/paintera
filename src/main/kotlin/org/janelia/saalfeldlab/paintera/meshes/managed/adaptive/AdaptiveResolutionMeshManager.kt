@@ -86,7 +86,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		rendererSettings.frameDelayMsecProperty.subscribe(meshViewUpdateQueueListener)
 	}
 
-	private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
+	fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
 		val state = removeMeshFor(key) { _, _ -> }
 		state
 			?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = s, stateSetup = { _, _ -> }) }

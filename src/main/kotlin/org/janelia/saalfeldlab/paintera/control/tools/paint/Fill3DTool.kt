@@ -121,7 +121,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 										fill.source.resetMasks()
 										fill.requestRepaint.accept(null)
 									}
-									statePaintContext?.refreshMeshes?.invoke()
+									statePaintContext?.refreshMeshes()
 									floodFillTask = null
 								}
 							}

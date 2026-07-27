@@ -54,8 +54,9 @@ data class WrappedGetMeshFromMeshCacheKey<K1 : MeshCacheKey, K2 : MeshCacheKey>(
 		getMeshFromCache.invalidate(key)
 	}
 
+	@Synchronized
 	override fun invalidateIf(parallelismThreshold: Long, condition: Predicate<ShapeKey<IntersectingSourceStateMeshCacheKey<K1, K2>>>?) {
-		TODO("Not yet implemented")
+		getMeshFromCache.invalidateIf(parallelismThreshold) { key -> key != null && condition?.test(key) == true }
 	}
 
 	@Synchronized

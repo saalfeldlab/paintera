@@ -132,6 +132,21 @@ abstract class MeshManager<Key>(
 		}
 	}
 
+	/** Clear the cached meshes for [keys].
+	 * Any key that is an active [AdaptiveResolutionMeshManager.meshKeys] is replaced. */
+	open fun refreshMeshes(keys: Set<Key>) {
+		if (keys.isEmpty())
+			return
+
+		@Suppress("UNCHECKED_CAST")
+		(getMeshFor as? Invalidate<ShapeKey<Key>?>)?.invalidateIf { it?.shapeId in keys }
+
+		manager.meshKeys
+			.filter { it in keys }
+			.forEach { manager.replaceMesh(it, false) }
+		manager.requestCancelAndUpdate()
+	}
+
 	open fun subscribeToMeshState(key: Key, valueListener: (MeshGenerator.State?) -> Unit): Subscription {
 		/* track the listener */
 		synchronized(this) {

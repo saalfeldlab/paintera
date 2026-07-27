@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
@@ -229,6 +230,19 @@ class MeshManagerWithAssignmentForSegments(
 		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
 		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
 		setMeshesToSelection()
+	}
+
+	/* meshes are keyed by segment, so map the fragments through the assignment first */
+	fun refreshMeshes(fragments: TLongSet) {
+		if (fragments.isEmpty)
+			return
+
+		val segments = mutableSetOf<Long>()
+		fragments.forEach { fragment ->
+			segments += selectedSegments.assignment.getSegment(fragment)
+			true
+		}
+		super.refreshMeshes(segments)
 	}
 
 	companion object {

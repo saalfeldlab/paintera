@@ -78,9 +78,11 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 				if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) fragmentSegmentAssignmentState.persist()
 				state.dataSource.let {
 					if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
+						/* the commit clears the canvas, so collect the painted labels while they are still there */
+						val modifiedLabels = it.modifiedLabels
 						it.persistCanvas(clearCanvas)
-						/* the commit changes the block lookup; rebuild the meshes from it */
-						(state as? ConnectomicsLabelState<*, *>)?.refreshMeshes()
+						/* refresh the meshes for modified labels*/
+						(state as? ConnectomicsLabelState<*, *>)?.refreshMeshes(modifiedLabels)
 					}
 				}
 			}

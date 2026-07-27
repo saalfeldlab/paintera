@@ -100,8 +100,8 @@ interface LabelActionState<S, D, T> : SourceStateActionState<S>
 
 	val assignment get() = sourceState.fragmentSegmentAssignment
 	val selectedIds get() = sourceState.selectedIds
-	val refreshMeshes get() = sourceState::refreshMeshes
 
+	fun refreshMeshes() = sourceState.refreshMeshes()
 	fun activeFragments(): LongArray = selectedIds.activeIdsCopyAsArray
 	fun activeSegments(fragments: LongArray): LongArray = activeFragments().fold(TLongHashSet()) { set, it ->
 		val segment = assignment.getSegment(it)

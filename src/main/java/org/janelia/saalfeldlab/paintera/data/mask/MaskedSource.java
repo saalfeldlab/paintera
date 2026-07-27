@@ -1252,6 +1252,20 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		return labels;
 	}
 
+	/**
+	 * Get every label modified since the last commit.
+	 * Cleared when the canvas is cleared
+	 *
+	 * @return modified labels since last commit.
+	 */
+	public TLongSet getModifiedLabels() {
+
+		final TLongSet labels = new TLongHashSet();
+		for (final ConcurrentHashMap<Long, TLongHashSet> blocksByLabel : this.affectedBlocksByLabel)
+			blocksByLabel.keySet().forEach(labels::add);
+		return labels;
+	}
+
 	public TLongSet getModifiedBlocks(final int level, final long id) {
 
 		LOG.debug("Getting modified blocks for level={} and id={}", level, id);

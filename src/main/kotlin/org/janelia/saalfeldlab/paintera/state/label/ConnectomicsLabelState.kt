@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.state.label
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
+import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.ObjectBinding
@@ -156,6 +157,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream)
 
 	internal fun refreshMeshes() = meshManager.refreshMeshes()
+
+	internal fun refreshMeshes(fragments: TLongSet) = meshManager.refreshMeshes(fragments)
 
 	// ARGB composite
 	private val _composite: ObjectProperty<Composite<ARGBType, ARGBType>> = SimpleObjectProperty(
