@@ -625,6 +625,7 @@ object N5Helpers {
 	@JvmStatic
 	@Throws(IOException::class, NotAPainteraDataset::class)
 	fun getLabelBlockLookup(metadataState: MetadataState): LabelBlockLookup {
+		metadataState.labelBlockLookup?.let { return it }
 		val group = metadataState.group
 		val reader = metadataState.reader
 		LOG.debug { "Getting label block lookup for ${metadataState.metadata.path}" }
@@ -641,7 +642,7 @@ object N5Helpers {
 			}
 			LOG.debug { "Got lookup type: ${lookup.javaClass}" }
 			(lookup as? IsRelativeToContainer)?.setRelativeTo(metadataState.writer!!, group)
-			lookup
+			lookup.also { metadataState.labelBlockLookup = it }
 		} else throw NotAPainteraDataset(reader, group)
 	}
 

@@ -79,6 +79,8 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 				state.dataSource.let {
 					if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
 						it.persistCanvas(clearCanvas)
+						/* the commit changes the block lookup; rebuild the meshes from it */
+						(state as? ConnectomicsLabelState<*, *>)?.refreshMeshes()
 					}
 				}
 			}

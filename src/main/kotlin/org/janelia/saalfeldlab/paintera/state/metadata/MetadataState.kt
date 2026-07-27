@@ -7,6 +7,7 @@ import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
@@ -50,6 +51,7 @@ interface MetadataState {
 	var timeAxis: Pair<Axis, Int>?
 	var virtualCrop: Interval?
 	var unit: String
+	var labelBlockLookup: LabelBlockLookup?
 	val reader: N5Reader
 
 	val writer: N5Writer?
@@ -109,6 +111,7 @@ open class SingleScaleMetadataState(
 	override var timeAxis: Pair<Axis, Int>? = metadata.timeAxis
 	override var virtualCrop: Interval? = null
 	override var unit: String = metadata.unit()
+	override var labelBlockLookup: LabelBlockLookup? = null
 	override val reader
 		get() = n5ContainerState.reader
 	override val writer: N5Writer?
