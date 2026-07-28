@@ -37,6 +37,9 @@ abstract class MeshManager<Key>(
 
 	val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
 
+	/** pausing interrupts active mesh generators, and blocks new generator from starting until unpaused. */
+	val meshesPausedProperty: BooleanProperty get() = manager.pausedProperty
+
 	protected val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
 		source,
 		getBlockListFor,

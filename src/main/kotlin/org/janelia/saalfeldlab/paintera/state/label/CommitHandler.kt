@@ -80,9 +80,17 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 					if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
 						/* the commit clears the canvas, so collect the painted labels while they are still there */
 						val modifiedLabels = it.modifiedLabels
-						it.persistCanvas(clearCanvas)
-						/* refresh the meshes for modified labels*/
-						(state as? ConnectomicsLabelState<*, *>)?.refreshMeshes(modifiedLabels)
+						/* mesh rendering can be expensive, and thread priority enforcement is inconsistent cross-platform.
+						* Pauses the mesh generation to focus on commiting. Both for performance, and also IO cross-talk, since
+						* the mesh generation may need to read the same blocks we are updating in commit. */
+						val labelState = state as? ConnectomicsLabelState<*, *>
+						labelState?.meshManager?.meshesPausedProperty?.set(true)
+						try {
+							it.persistCanvas(clearCanvas)
+						} finally {
+							labelState?.refreshMeshes(modifiedLabels)
+							labelState?.meshManager?.meshesPausedProperty?.set(false)
+						}
 					}
 				}
 			}

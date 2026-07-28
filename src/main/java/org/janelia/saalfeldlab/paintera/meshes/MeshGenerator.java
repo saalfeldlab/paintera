@@ -226,6 +226,9 @@ public class MeshGenerator<T> {
 		return this.state;
 	}
 
+    /**
+     * @return true if the last attempted mesh generation was interrupted.
+     */
 	public boolean isInterrupted() {
 
 		return isInterrupted.get();

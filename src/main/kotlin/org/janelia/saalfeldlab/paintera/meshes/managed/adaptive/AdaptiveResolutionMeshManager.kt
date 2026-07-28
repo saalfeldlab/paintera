@@ -2,7 +2,9 @@ package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 
 import javafx.application.Platform
 import javafx.beans.Observable
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
@@ -27,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import java.util.Collections
 import java.util.function.BooleanSupplier
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * @author Philipp Hanslovsky
@@ -51,8 +52,12 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	val meshesGroup = Group()
 	val rendererSettings = MeshManagerModel()
+	/* pausing interrupts any active mesh generation. unpausing replaces interrupted meshes */
+	val pausedProperty: BooleanProperty = SimpleBooleanProperty(false)
+	/** indicates that it is valid to generate meshes. */
 	private val meshesAndViewerEnabledBinding = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
-	private val isMeshesAndViewerEnabled by meshesAndViewerEnabledBinding.nonnullVal()
+	/** indicates that it is valid to generate meshes AND they are currently allowed to generate. */
+	private val meshGenerationEnabledBinding by meshesAndViewerEnabledBinding.and(pausedProperty.not()).nonnullVal()
 
 	private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
@@ -69,6 +74,19 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		get() = meshes.keys.toList()
 
 	init {
+		/* only incomplete meshes are interrupted on pause.
+		 * only interrupted meshes are replaced on unpause. */
+		pausedProperty.subscribe { _, paused ->
+			val generators = synchronized(meshes) { meshes.toMap() }
+			if (paused) {
+				/* interrupt generators that are not complete */
+				generators.values.filterNot { it.state.progress.isComplete }.forEach { it.interrupt() }
+			} else {
+				/* if unpaused, replace any meshes that were interrupted */
+				generators.filterValues { it.isInterrupted }.keys.forEach { replaceMesh(it, false) }
+				requestCancelAndUpdate()
+			}
+		}
 		viewFrustum.addListener { _ -> cancelAndUpdate() }
 		rendererSettings.blockSizeProperty.addListener { _: Observable? ->
 			synchronized(this) {
@@ -209,10 +227,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				)
 				meshGenerator.bindToThis()
 
-				// If the viewer or the manager are disabled, interrupt the generator right away because
-				// it should not add any meshes to the scene. Once viewer and manager are enabled again,
-				// interrupted generators will be replaced appropriately.
-				if (!isMeshesAndViewerEnabled)
+				// If mesh generation is disabled, interrupt the generator right away because
+				// it should not add any meshes to the scene.
+				// Once re-enabled, interrupted generators will be replaced appropriately.
+				if (!meshGenerationEnabledBinding)
 					meshGenerator.interrupt()
 
 				meshGenerator
@@ -240,7 +258,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private fun update() {
 		assert(Platform.isFxApplicationThread()) { "update() was called on thread ${Thread.currentThread().name} instead of JavaFX application thread." }
 		val rendererGrids = this.rendererGrids
-		if (rendererGrids == null || !isMeshesAndViewerEnabled) return
+		if (rendererGrids == null || !meshGenerationEnabledBinding) return
 		val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
 
 		val needToSubmit = sceneUpdateParametersProperty.get() == null
@@ -307,9 +325,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private fun MeshGenerator<ObjectKey>.bindToThis() {
 		this.state.showBlocksProperty().bind(rendererSettings.showBlockBoundariesProperty)
 		// Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
-		val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
-		meshesAndViewerEnabledBinding.addListener(listener)
-		meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
+		val meshAndViewerEnabledListener = ChangeListener<Boolean> { _, _, meshAndViewerEnabled ->
+			/* we intentionally trigger this even when paused, since we need to inform the
+			* scene that some meshes IDs need to be replaced, e.g. from camera movement.
+			* If paused, then `replaceMesh` will be immediately interrupted and
+			* replaced when unpaused.  */
+			if (meshAndViewerEnabled) replaceMesh(this.id, true) else this.interrupt()
+		}
+		meshesAndViewerEnabledBinding.addListener(meshAndViewerEnabledListener)
+		meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = meshAndViewerEnabledListener
 	}
 
 	@Synchronized
