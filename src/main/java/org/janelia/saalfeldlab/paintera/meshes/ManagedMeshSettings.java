@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -31,7 +30,7 @@ public class ManagedMeshSettings<K> {
 
 	private final MeshSettings globalSettings;
 
-	private final Map<K, MeshSettings> individualSettings = new HashMap<>();
+	private final Map<K, MeshSettings> individualSettings = new ConcurrentHashMap<>();
 
 	private final ConcurrentHashMap<K, SimpleBooleanProperty> managedPropertyMap = new ConcurrentHashMap<>();
 
@@ -60,13 +59,10 @@ public class ManagedMeshSettings<K> {
 	 */
 	public MeshSettings getMeshSettings(final K id, final boolean manageIndividually) {
 
-		managedPropertyMap.compute(id, (k,v) -> {
-			if (v != null)
-				return v;
+		/* create the settings first; a caller that finds the managed property must always find these too */
+		final MeshSettings settings = individualSettings.computeIfAbsent(id, k -> new MeshSettings(globalSettings.getNumScaleLevels()));
 
-			final MeshSettings settings = new MeshSettings(globalSettings.getNumScaleLevels());
-			individualSettings.put(id, settings);
-
+		managedPropertyMap.computeIfAbsent(id, k -> {
 			final SimpleBooleanProperty manageIndividuallyProp = new SimpleBooleanProperty(manageIndividually);
 			manageIndividuallyProp.subscribe(useIndividualSettings -> {
 				LOG.debug("Managing settings for mesh id {}? {}", id, useIndividualSettings);
@@ -79,7 +75,7 @@ public class ManagedMeshSettings<K> {
 			return manageIndividuallyProp;
 		});
 
-		return individualSettings.get(id);
+		return settings;
 	}
 
 	/**
