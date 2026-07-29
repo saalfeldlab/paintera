@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>44.0.0</version>
+		<version>45.1.0</version>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
@@ -80,16 +80,6 @@
 		<!-- SciJava Overrides -->
 		<logback.version>1.5.22</logback.version>
 
-		<!-- N5 and n5-dependent versions-->
-		<n5-universe.version>3.0.1</n5-universe.version>
-		<n5.version>4.0.1</n5.version>
-		<n5-aws-s3.version>5.0.0</n5-aws-s3.version>
-		<n5-blosc.version>2.0.0</n5-blosc.version>
-		<n5-google-cloud.version>6.0.0</n5-google-cloud.version>
-		<n5-hdf5.version>3.0.0</n5-hdf5.version>
-		<n5-imglib2.version>8.0.0</n5-imglib2.version>
-		<n5-zarr.version>2.0.1</n5-zarr.version>
-		<n5-zstandard.version>2.0.0</n5-zstandard.version>
 	</properties>
 
 	<dependencies>
