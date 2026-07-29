@@ -15,8 +15,10 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleGroup
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -304,5 +306,29 @@ class CreateLabelDatasetFormatTest {
 		assertTrue(metadataState.isLabelMultiset) { "should re-open as a label multiset" }
 		assertEquals(5, metadataState.datasetAttributes.numDimensions)
 		assertArrayEquals(arrayOf("x", "y", "z", "c", "t"), metadataState.axes.map { it.name }.toTypedArray())
+	}
+
+	/**
+	 * `unique-labels` and `label-to-block-mapping` write blocks shorter than the block size they declare, which only
+	 * N5 can read back. Creating the group anyway leaves a source that commits once and then fails, so it is refused.
+	 */
+	@ParameterizedTest
+	@FieldSource("org.janelia.saalfeldlab.paintera.testdata.TestData#uncreatableLabelDatasetCases")
+	fun `a paintera label dataset is refused outside N5`(testCase: TestCase, @TempDir tmp: Path) {
+		val writer = TestData.newWriter(testCase, tmp)
+		val group = "new-labels"
+
+		assertThrows(UnsupportedOperationException::class.java) {
+			N5Data.createPainteraLabelDataset(
+				writer, group,
+				TestData.defaultDimensions(testCase),
+				testCase.shape.blockSize.map { it.toInt() }.toIntArray(),
+				doubleArrayOf(1.0, 1.0, 1.0), doubleArrayOf(0.0, 0.0, 0.0),
+				arrayOf(doubleArrayOf(2.0, 2.0, 2.0)),
+				"pixel", null, labelMultisetType = false, overwrite = false
+			)
+		}
+
+		assertFalse(writer.exists(N5URI.normalizeGroupPath("$group/unique-labels"))) { "nothing should be left behind for $testCase" }
 	}
 }
