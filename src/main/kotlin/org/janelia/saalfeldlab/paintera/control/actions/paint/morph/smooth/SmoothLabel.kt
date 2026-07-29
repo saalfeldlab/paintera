@@ -149,7 +149,7 @@ object SmoothLabel : MenuAction("_Smooth...") {
 		}
 
 		/* preview toggle: show/hide an existing preview */
-		val previewSubscription = listOf(previewProperty).addListener {
+		val previewSubscription = previewProperty.subscribe { _, _ ->
 			if (previewMaskValid && previewMask != null)
 				updateChannel.trySend(
 					if (previewProperty.get())
