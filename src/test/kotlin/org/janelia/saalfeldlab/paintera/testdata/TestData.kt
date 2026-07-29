@@ -227,9 +227,13 @@ object TestData {
     @JvmField
     val writeableLabelSourceCases = readOnlyAsLabelSourceCases.filterNot { it.sharded }
 
-    /* creating a new paintera label dataset is 3D only (nD label-dataset creation is not supported) */
+    /* the paintera label format needs variable length blocks for unique-labels and label-to-block-mapping, so it is N5 only */
     @JvmField
-    val creatableLabelDatasetCases = allCases.filter { it.numDimensions == 3 && !it.sharded }
+    val creatableLabelDatasetCases = n5Cases.filter { it.numDimensions == 3 && !it.sharded }
+
+    /* every case the paintera label format must refuse to create */
+    @JvmField
+    val uncreatableLabelDatasetCases = (zarr2Cases + zarr3Cases + hdf5Cases).filter { it.numDimensions == 3 && !it.sharded }
 
     /* channel is only supported if explicitly 4D; label multisets are labels, never channel sources */
     @JvmField

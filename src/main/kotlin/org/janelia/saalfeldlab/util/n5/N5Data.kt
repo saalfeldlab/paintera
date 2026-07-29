@@ -25,6 +25,7 @@ import net.imglib2.type.label.VolatileLabelMultisetArray
 import net.imglib2.type.label.VolatileLabelMultisetType
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
@@ -270,6 +271,7 @@ object N5Data {
      * @param relativeScaleFactors per-level factors relative to the previous level, e.g. `[[2,2,1],[2,2,2]]` produces absolute `[1,1,1],[2,2,1],[4,4,2]`
      * @param maxNumEntries per-level cap on label-multiset entries, `<= 0` for unbounded; only used when [labelMultisetType]
      * @param overwrite overwrite instead of throwing when [group] already exists
+     * @throws UnsupportedOperationException if [writer] is not an N5 container
      */
     fun createPainteraLabelDataset(
         writer: N5Writer,
@@ -285,6 +287,11 @@ object N5Data {
         overwrite: Boolean = false,
         axes: Array<Axis>? = null
     ) {
+        /* `unique-labels` and `label-to-block-mapping` have variable length blocks.
+        * Currently, only N5 can support them.  */
+        if (writer !is N5KeyValueWriter)
+            throw UnsupportedOperationException("Paintera label datasets are only supported in N5 containers, not ${StorageFormat.guessStorageFromUri(writer.uri) ?: writer.javaClass.simpleName}")
+
         if (!overwrite) {
             val n5Uri = writer.uri
             if (writer.datasetExists(group))
