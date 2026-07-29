@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BooleanSupplier
 
 /**
@@ -57,7 +58,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	/** indicates that it is valid to generate meshes. */
 	private val meshesAndViewerEnabledBinding = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
 	/** indicates that it is valid to generate meshes AND they are currently allowed to generate. */
-	private val meshGenerationEnabledBinding by meshesAndViewerEnabledBinding.and(pausedProperty.not()).nonnullVal()
+	val meshGenerationEnabledProperty: ObservableBooleanValue = meshesAndViewerEnabledBinding.and(pausedProperty.not())
+	private val meshGenerationEnabledBinding by meshGenerationEnabledProperty.nonnullVal()
 
 	private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
 	private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
@@ -71,7 +73,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private val meshesAndViewerEnabledListenersInterruptGeneratorMap: MutableMap<MeshGenerator<ObjectKey>, ChangeListener<Boolean>> = mutableMapOf()
 
 	val meshKeys: Collection<ObjectKey>
-		get() = meshes.keys.toList()
+		get() = synchronized(meshes) { meshes.keys.toList() }
 
 	init {
 		/* only incomplete meshes are interrupted on pause.
@@ -114,6 +116,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
+		requestedKeys -= key
+		deferredKeys -= key
 		return meshes.remove(key)?.let { generator ->
 			generator.interrupt()
 			generator.unbindFromThis()
@@ -133,6 +137,9 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (ObjectKey, MeshGenerator.State) -> Unit) {
 
 		val keysAndGenerators = synchronized(this) {
+			val removedKeys = keys.toSet()
+			requestedKeys -= removedKeys
+			deferredKeys -= removedKeys
 			keys
 				.associateWith { meshes.remove(it) }
 				.mapNotNull { (key, generator) -> generator?.let { key to it } }
@@ -170,22 +177,31 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	private val createMeshQueue = Channel<CreateMeshGenerator<ObjectKey>>(capacity = Channel.UNLIMITED)
 
+	/** keys that wre requested but the job to create the mesh has not started yet.  */
+	private val requestedKeys = ConcurrentHashMap.newKeySet<ObjectKey>()
+
+	/** keys that were selected while mesh generation was disabled. track to retrigger on enable  */
+	private val deferredKeys = ConcurrentHashMap.newKeySet<ObjectKey>()
+
+	/** @return the list of [deferredKeys] and clear the [defferKeys] set. */
+	fun takeDeferredKeys(): Collection<ObjectKey> = deferredKeys.toList().also { deferredKeys -= it.toSet() }
+
 	@Suppress("unused")
 	private val createMeshRunner = meshManagerScope.launch {
 		while (isActive) {
-          val first = createMeshQueue.receive()
+			val first = createMeshQueue.receive()
 
-          val batch = buildList {
-              add(first)
-              generateSequence { createMeshQueue.tryReceive().getOrNull() }.forEach { add(it) }
-          }
+			val batch = buildList {
+				add(first)
+				generateSequence { createMeshQueue.tryReceive().getOrNull() }.forEach { add(it) }
+			}
 
-          val jobs = batch
-              .filter { (key, _, _) -> key !in meshes }
-              .map { (key, _, generator) -> async { key to generator() } }
+			val jobs = batch
+				.filter { (key, _, _) -> key in requestedKeys && key !in meshes }
+				.map { (key, _, generator) -> async { key to generator() } }
 
 			val keyMeshMap = jobs.awaitAll().toMap()
-          if (keyMeshMap.isNotEmpty()) {
+			if (keyMeshMap.isNotEmpty()) {
 				meshes.putAll(keyMeshMap)
 
 				InvokeOnJavaFXApplicationThread {
@@ -211,6 +227,12 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 		stateSetup: (ObjectKey, MeshGenerator.State) -> Unit,
 	) {
 		if (state == null) return
+		requestedKeys += key
+		/* store keys if generation is disabled; return early */
+		if (!meshGenerationEnabledBinding) {
+			deferredKeys += key
+			return
+		}
 		createMeshQueue.trySend(
 			CreateMeshGenerator(key, cancelAndUpdate) {
 				stateSetup(key, state)
@@ -285,7 +307,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 				currentSceneUpdateTask = scheduledSceneUpdateTask
 				scheduledSceneUpdateTask = null
 
-				for (meshGenerator in meshes.values) {
+				for (meshGenerator in synchronized(meshes) { meshes.values.toList() }) {
 					val blockTreeParametersKey = BlockTreeParametersKey(meshGenerator.state.settings)
 					blockTreeParametersKeysToMeshGenerators
 						.computeIfAbsent(blockTreeParametersKey) { mutableListOf() }

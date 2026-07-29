@@ -71,6 +71,11 @@ abstract class MeshManager<Key>(
 
 	init {
 		meshStates.addListener(meshStateChangeListener)
+		/* trigger the deferred keys when generation is enabled. */
+		manager.meshGenerationEnabledProperty.subscribe { _, enabled ->
+			if (enabled)
+				meshManagerScope.launch { manager.takeDeferredKeys().forEach { createMeshFor(it) } }
+		}
 	}
 
 	protected val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
