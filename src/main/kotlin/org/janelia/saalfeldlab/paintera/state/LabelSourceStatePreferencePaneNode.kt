@@ -405,6 +405,8 @@ class LabelSourceStatePreferencePaneNode(
 						assignments.events(),
 						title,
 						{ Labels.withTooltip("$it") },
+						{ action -> assignments.deleteAction(action) },
+						{ deleteAllAssignments(assignments) }
 					)
 
 					val tpGraphics = HBox(
@@ -422,6 +424,15 @@ class LabelSourceStatePreferencePaneNode(
 				} else
 					null
 			}
+
+		private fun deleteAllAssignments(assignments: FragmentSegmentAssignmentStateWithActionTracker) {
+			val confirm = PainteraAlerts.confirmation("_Delete", "_Cancel").apply {
+				headerText = "Delete all assignments for this source?"
+				contentText = "The merges and splits stored in the Paintera project will be removed. Assignments already committed to the data backend are not affected."
+			}
+			if (confirm.showAndWait().orElse(null) == ButtonType.OK)
+				assignments.deleteAllActions()
+		}
 
 	}
 

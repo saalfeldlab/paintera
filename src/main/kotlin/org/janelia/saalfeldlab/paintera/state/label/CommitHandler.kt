@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
@@ -14,8 +15,6 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
-import org.slf4j.LoggerFactory
-import java.lang.invoke.MethodHandles
 import java.util.function.BiFunction
 import kotlin.jvm.optionals.getOrNull
 
@@ -30,7 +29,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 
 	companion object {
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = KotlinLogging.logger {}
 
 		@JvmStatic
 		@JvmOverloads
@@ -75,7 +74,18 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 			}
 			val buttonType = dialog?.showAndWait()
 			if (buttonType?.filter { ButtonType.OK == it }?.isPresent == true && anythingToCommit) {
-				if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) fragmentSegmentAssignmentState.persist()
+				if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) {
+					/* the actions are kept if this fails, so the assignment is still stored in the Paintera project */
+					try {
+						fragmentSegmentAssignmentState.persist()
+					} catch (e: Exception) {
+						LOG.error(e) { "Unable to commit fragment-segment assignment for source $index: $name" }
+						PainteraAlerts.alert(Alert.AlertType.ERROR, true).also {
+							it.headerText = "Unable to commit fragment-segment assignment for source $index: $name"
+							it.contentText = "${e.message ?: e.cause?.message ?: e}\n\nThe assignment is unchanged, and is still stored in the Paintera project."
+						}.showAndWait()
+					}
+				}
 				state.dataSource.let {
 					if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
 						/* the commit clears the canvas, so collect the painted labels while they are still there */

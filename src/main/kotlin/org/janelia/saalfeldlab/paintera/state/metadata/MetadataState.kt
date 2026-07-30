@@ -346,12 +346,14 @@ class MetadataUtils {
 							N5FragmentSegmentAssignmentInitialLut(reader, initialLutMetadata.path)
 						else null
 					} ?: NO_INITIAL_LUT_AVAILABLE
-					val persist = runCatching {
-						N5FragmentSegmentAssignmentPersister(writer, "${painteraLabels.path}/${N5Helpers.PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET}")
-					}.getOrElse {
-						LOG.error(it) {}
-						FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Cannot Persist: $it")
-					}
+					val persist = writer?.let { n5Writer ->
+						runCatching {
+							N5FragmentSegmentAssignmentPersister(n5Writer, "${painteraLabels.path}/${N5Helpers.PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASET}")
+						}.getOrElse {
+							LOG.error(it) {}
+							FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Cannot Persist: $it")
+						}
+					} ?: FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Persisting assignments not supported for read-only $group")
 					lut to persist
 				} ?: let {
 					val reason = "Persisting assignments not supported for non Paintera group/dataset $group"
