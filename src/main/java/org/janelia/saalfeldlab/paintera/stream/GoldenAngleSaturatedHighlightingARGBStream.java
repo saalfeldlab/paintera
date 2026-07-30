@@ -35,11 +35,10 @@ public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturate
 		seed = 1;
 	}
 
-	final static protected double goldenRatio = 1.0 / (0.5 * Math.sqrt(5) + 0.5);
+	final static protected long goldenRatioFixedPoint = 0x9E3779B97F4A7C15L;
 
 	@Override final protected double getDoubleImpl(final long id, final boolean colorFromSegmentId) {
 
-		final double x = id * seed * goldenRatio;
-		return x - (long)Math.floor(x);
+		return ((id * seed * goldenRatioFixedPoint) >>> 11) * 0x1.0p-53;
 	}
 }
