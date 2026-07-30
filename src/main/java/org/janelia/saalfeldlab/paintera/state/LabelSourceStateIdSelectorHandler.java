@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.control.IdSelector;
@@ -123,12 +124,12 @@ public class LabelSourceStateIdSelectorHandler {
 						selectAllTask.cancel(new CancellationException("Cancelled by User"));
 					}
 					selectAllTask = Tasks.submit(() -> {
-						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+						setSceneCursor(Cursor.WAIT);
 						selector.selectAll();
 						return null;
 					}).onEnd((result, error) -> {
 						selectAllTask = null;
-						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+						setSceneCursor(Cursor.DEFAULT);
 					});
 				});
 			});
@@ -143,7 +144,7 @@ public class LabelSourceStateIdSelectorHandler {
 					}
 					final ViewerPanelFX viewer = getActiveViewer.get();
 					selectAllTask = Tasks.submit(() -> {
-						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+						setSceneCursor(Cursor.WAIT);
 						selector.selectAllInCurrentView(viewer);
 						return null;
 					}).onEnd((result, error) -> {
@@ -151,7 +152,7 @@ public class LabelSourceStateIdSelectorHandler {
 							LOG.error("Error selecting all labels in view", error);
 						}
 						selectAllTask = null;
-						Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+						setSceneCursor(Cursor.DEFAULT);
 					});
 				});
 			});
@@ -208,5 +209,13 @@ public class LabelSourceStateIdSelectorHandler {
 			selectedIds.activate(next);
 		}
 		return next;
+	}
+
+	/** wrapper to ensure scene cursor is set on the javafx thread*/
+	private static void setSceneCursor(final Cursor cursor) {
+
+		InvokeOnJavaFXApplicationThread.invoke(
+				() -> Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(cursor)
+		);
 	}
 }

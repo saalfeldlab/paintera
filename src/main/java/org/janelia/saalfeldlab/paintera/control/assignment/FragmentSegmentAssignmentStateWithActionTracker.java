@@ -51,7 +51,6 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 
 	private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled) {
 
-		removeDisabledActions();
 		applyImpl(action);
 		Pair<AssignmentAction, BooleanProperty> toggleableAction = new Pair<>(
 				action,
@@ -86,7 +85,30 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 	@Override
 	public boolean hasPersistableData() {
 
-		return !actions.isEmpty();
+		return actions.stream().anyMatch(p -> p.getValue().get());
+	}
+
+	/**
+	 * Delete a single action. Unlike undoing it, it is gone from the history.
+	 *
+	 * @param action to delete, as provided by {@link #events()}
+	 */
+	public void deleteAction(final Pair<AssignmentAction, BooleanProperty> action) {
+
+		if (actions.remove(action))
+			reapplyActionsAndNotify();
+	}
+
+	/**
+	 * Delete every action, returning the assignment to the state it was loaded in. Assignments already committed to
+	 * the data backend are unaffected.
+	 */
+	public void deleteAllActions() {
+
+		if (!actions.isEmpty()) {
+			actions.clear();
+			reapplyActionsAndNotify();
+		}
 	}
 
 	public ObservableList<Pair<AssignmentAction, BooleanProperty>> events() {

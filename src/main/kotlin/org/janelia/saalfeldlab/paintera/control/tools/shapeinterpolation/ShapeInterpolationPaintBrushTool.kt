@@ -58,7 +58,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 		}
 		//TODO Caleb: Don't like it, but otherwise the status text shows a temp label. Do better
 		super.deactivate()
-		setCurrentLabel(mode.controller.lastSelectedId)
+		setCurrentLabel(mode.controller.targetId)
 		setCurrentLabel(mode.controller.interpolationId)
 
 	}

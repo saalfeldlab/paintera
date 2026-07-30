@@ -37,6 +37,9 @@ abstract class MeshManager<Key>(
 
 	val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
 
+	/** pausing interrupts active mesh generators, and blocks new generator from starting until unpaused. */
+	val meshesPausedProperty: BooleanProperty get() = manager.pausedProperty
+
 	protected val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
 		source,
 		getBlockListFor,
@@ -68,6 +71,11 @@ abstract class MeshManager<Key>(
 
 	init {
 		meshStates.addListener(meshStateChangeListener)
+		/* trigger the deferred keys when generation is enabled. */
+		manager.meshGenerationEnabledProperty.subscribe { _, enabled ->
+			if (enabled)
+				meshManagerScope.launch { manager.takeDeferredKeys().forEach { createMeshFor(it) } }
+		}
 	}
 
 	protected val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
@@ -130,6 +138,21 @@ abstract class MeshManager<Key>(
 				createMeshFor(it)
 			}
 		}
+	}
+
+	/** Clear the cached meshes for [keys].
+	 * Any key that is an active [AdaptiveResolutionMeshManager.meshKeys] is replaced. */
+	open fun refreshMeshes(keys: Set<Key>) {
+		if (keys.isEmpty())
+			return
+
+		@Suppress("UNCHECKED_CAST")
+		(getMeshFor as? Invalidate<ShapeKey<Key>?>)?.invalidateIf { it?.shapeId in keys }
+
+		manager.meshKeys
+			.filter { it in keys }
+			.forEach { manager.replaceMesh(it, false) }
+		manager.requestCancelAndUpdate()
 	}
 
 	open fun subscribeToMeshState(key: Key, valueListener: (MeshGenerator.State?) -> Unit): Subscription {

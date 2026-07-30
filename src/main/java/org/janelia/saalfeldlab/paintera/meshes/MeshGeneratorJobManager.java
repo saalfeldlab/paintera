@@ -490,18 +490,16 @@ public class MeshGeneratorJobManager<T> {
 			try {
 				verticesAndNormals = getMeshes.getMeshFor(key);
 			} catch (final Exception e) {
-				LOG.debug("Was not able to retrieve mesh for key {}: {}", key, e);
+				LOG.debug("Was not able to retrieve mesh for key {}", key, e);
 				synchronized (this) {
 					if (isTaskCanceled.getAsBoolean()) {
 						// Task has been interrupted
 						assert workers.isShutdown() || !tasks.containsKey(key) || tasks.get(key).tag != tag :
 								"Task has been interrupted but it still exists in the tasks collection of size " + tasks.size() + ": " + key;
 					} else {
-						// Terminated because of an error
-						e.printStackTrace();
+						LOG.error("Error during mesh generation: {}", key, e);
 						if (tasks.containsKey(key) && tasks.get(key).tag == tag) {
 							tasks.remove(key);
-							System.out.println("Early termination of task " + key);
 						}
 					}
 				}

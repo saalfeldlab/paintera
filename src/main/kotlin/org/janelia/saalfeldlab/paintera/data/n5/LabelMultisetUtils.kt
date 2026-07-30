@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.VolatileHelpers
 import java.nio.ByteBuffer
+import java.nio.channels.ClosedByInterruptException
 import java.util.function.BiFunction
 
 private val LOG = KotlinLogging.logger { }
@@ -108,12 +109,14 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 
     override fun getData(vararg gridPosition: Long): ByteArray? {
         LOG.trace { "Reading block for position $gridPosition" }
-        val block = runCatching {
-            n5.readBlock(dataset, datasetAttributes, *gridPosition)
-        }.getOrElse { e ->
-            LOG.error { "Error reading block (${gridPosition.contentToString()}) for $dataset" }
-            LOG.trace(e) {}
-            null
+        /* `null` means no block exists. don't cache an exception as an empty block */
+        val block = try {
+			n5.readBlock(dataset, datasetAttributes, *gridPosition)
+        } catch (e: Exception) {
+            /* an interrupted read is a cancelled load, not an error */
+            if (e is InterruptedException || e is ClosedByInterruptException || Thread.currentThread().isInterrupted)
+                throw InterruptedException("Interrupted reading block (${gridPosition.contentToString()}) for $dataset").also { it.initCause(e) }
+            throw e
         }
 
         return block?.let {

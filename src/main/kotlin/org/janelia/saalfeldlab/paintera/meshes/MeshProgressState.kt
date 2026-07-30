@@ -32,6 +32,10 @@ abstract class MeshProgressState {
 			}
 		}
 
+	/** `true` only if all mesh tasks have completed. If tasks remain, or have not yet been planned, then `false` */
+	val isComplete: Boolean
+		get() = progressData.let { it.totalTasks >= 0 && it.completeTasks >= it.totalTasks }
+
 	fun reset() {
 		progressData = Progress(-1, 0)
 	}

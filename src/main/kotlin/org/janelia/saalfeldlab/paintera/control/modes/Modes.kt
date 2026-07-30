@@ -357,10 +357,12 @@ interface ToolMode : SourceMode {
 
 	fun disableUnfocusedViewers() {
 		val orthoViews = paintera.baseView.orthogonalViews()
-		activeViewerProperty.get()?.viewer() ?: return
+		val activeViewer = activeViewerProperty.get()?.viewer() ?: run {
+			LOG.warn { "No active viewer; not disabling the unfocused viewers" }
+			return
+		}
 		orthoViews.views()
-			.stream()
-			.filter { activeViewerProperty.get()?.viewer()!! != it }
+			.filter { it != activeViewer }
 			.forEach { orthoViews.disableView(it) }
 	}
 

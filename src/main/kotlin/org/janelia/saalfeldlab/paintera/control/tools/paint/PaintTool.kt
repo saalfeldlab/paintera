@@ -146,8 +146,8 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val selectedIds: SelectedIds
 	val paintSelection: () -> Long?
 	val brushProperties: BrushProperties
-	val refreshMeshes: () -> Unit
 
+	fun refreshMeshes()
 	fun getMaskForLabel(label: Long): Converter<D, BoolType>
 	fun getBlocksForLabel(level: Int, label: Long): Array<Interval>
 	fun nextId(activate: Boolean): Long
@@ -163,8 +163,8 @@ private data class ConnectomicsLabelStatePaintContext<D, T>(val state: Connectom
 	override val selectedIds = state.selectedIds
 	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
 	override val brushProperties: BrushProperties = state.brushProperties
-	override val refreshMeshes: () -> Unit = state::refreshMeshes
 
+	override fun refreshMeshes() = state.refreshMeshes()
 	override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
 	override fun getBlocksForLabel(level: Int, label: Long): Array<Interval> {
 		return state.labelBlockLookup.read(level, label)

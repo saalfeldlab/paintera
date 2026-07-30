@@ -100,7 +100,9 @@ public class ViewerState extends ObservableWithListenersList {
 
 	public boolean isVisible() {
 
-		return viewer.isVisible();
+		/* Sometimes we want to render even when not visible. Mainly to ensure the orthoslices
+		* are still visible when maximizing the 3D viewer pane*/
+		return viewer.shouldRender();
 	}
 
 	public synchronized int getBestMipMapLevel() {

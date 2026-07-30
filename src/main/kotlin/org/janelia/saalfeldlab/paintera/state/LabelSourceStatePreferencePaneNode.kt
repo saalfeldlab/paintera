@@ -11,6 +11,8 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
+import javafx.scene.input.Clipboard
+import javafx.scene.input.ClipboardContent
 import javafx.scene.control.ContentDisplay
 import javafx.scene.layout.*
 import javafx.stage.Window
@@ -25,6 +27,7 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -44,7 +47,9 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignment
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.text.DecimalFormat
+import java.util.concurrent.atomic.AtomicLong
 import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
 
 //TODO maybe rename this? Or make it subclass Pane/Node like the name indicates
@@ -91,18 +96,18 @@ class LabelSourceStatePreferencePaneNode(
 		private val selectedSegments: SelectedSegments,
 	) {
 
-		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
-			override fun toString(obj: SelectedSegments?): String {
-				return selectedSegments.segments.toArray().joinToString(",")
-			}
+		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<LongArray>() {
+			override fun toString(ids: LongArray?): String = ids?.joinToString(",") ?: ""
 
-			override fun fromString(string: String?): SelectedSegments {
+			override fun fromString(string: String?): LongArray {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
-				/* get fragments from segments and update */
-				string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
+				val segments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
 					?.map { it.toLong() }
-					?.flatMap { selectedSegments.assignment.getFragments(it).toArray().asIterable() }
-					?.toLongArray()?.let { fragments ->
+					?: emptyList()
+				/* get fragments from segments and update */
+				segments
+					.flatMap { selectedSegments.assignment.getFragments(it).toArray().asIterable() }
+					.toLongArray().let { fragments ->
 						if (fragments.isEmpty()) {
 							selectedSegments.selectedIds.activateAlso(selectedSegments.selectedIds.lastSelection)
 							return@let
@@ -112,41 +117,48 @@ class LabelSourceStatePreferencePaneNode(
 							selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
 						}
 					}
-				return selectedSegments
+				return segments.toLongArray()
 			}
 		}
 
-		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<SelectedSegments>() {
-			override fun toString(obj: SelectedSegments?): String {
-				val activeIds = selectedSegments.selectedIds.activeIds
-				val fragmentIds = TLongHashSet()
-				activeIds.forEach { id ->
-					val fragmentsForId = selectedSegments.assignment.getFragments(id)
-					if (fragmentsForId.contains(id)) {
-						// ID is both a segment and fragment ID; Fragment/Segment may or may not exist
-						fragmentIds.add(id)
+		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<LongArray>() {
 
+			companion object {
+				fun fragmentIds(selectedSegments: SelectedSegments): LongArray {
+					val fragmentIds = TLongHashSet()
+					selectedSegments.selectedIds.activeIds.forEach { id ->
+						val fragmentsForId = selectedSegments.assignment.getFragments(id)
+						if (fragmentsForId.contains(id)) {
+							// ID is both a segment and fragment ID; Fragment/Segment may or may not exist
+							fragmentIds.add(id)
+
+						}
+						true
 					}
-					true
+					return fragmentIds.toArray()
 				}
-				return fragmentIds.toArray().joinToString(",")
 			}
 
-			override fun fromString(string: String?): SelectedSegments {
+			override fun toString(ids: LongArray?): String = ids?.joinToString(",") ?: ""
+
+			override fun fromString(string: String?): LongArray {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
-				string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
+				val fragments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
 					?.map { it.toLong() }
-					?.toLongArray()?.let { fragments ->
-						if (fragments.isEmpty()) {
-							selectedSegments.selectedIds.activateAlso(selectedSegments.selectedIds.lastSelection)
-							return@let
-						}
-						selectedSegments.selectedIds.activate(*fragments)
-						if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
-							selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
-						}
+					?.toLongArray()
+					?: LongArray(0)
+
+				fragments.let {
+					if (it.isEmpty()) {
+						selectedSegments.selectedIds.activateAlso(selectedSegments.selectedIds.lastSelection)
+						return@let
 					}
-				return selectedSegments
+					selectedSegments.selectedIds.activate(*it)
+					if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
+						selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
+					}
+				}
+				return fragments
 			}
 		}
 
@@ -175,22 +187,37 @@ class LabelSourceStatePreferencePaneNode(
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 
-				val selectedSegmentsProperty = SimpleObjectProperty(selectedSegments)
+				/* the field values are the id arrays themselves, so the fields render and copy them without any
+				 * help from here; SelectedSegments is not usable as the value because it is mutated in place and
+				 * so never triggers a change invalidation */
+				val segmentIdsProperty = SimpleObjectProperty(selectedSegments.segments.toArray())
+				val fragmentIdsProperty = SimpleObjectProperty(SelectedFragmentsConverter.fragmentIds(selectedSegments))
+
 				val selectedSegmentsConverter = SelectedSegmentsConverter(selectedSegments)
-				val segmentsField = ObjectField<SelectedSegments, ObjectProperty<SelectedSegments>>(
-					selectedSegmentsProperty,
+				val segmentsField = ObjectField(
+					segmentIdsProperty,
 					selectedSegmentsConverter,
+					interceptCopyTextField { selectedSegmentsConverter.toString(segmentIdsProperty.value) },
 					ObjectField.SubmitOn.ENTER_PRESSED,
 					ObjectField.SubmitOn.FOCUS_LOST,
 				)
 
 				val selectedFragmentsConverter = SelectedFragmentsConverter(selectedSegments)
-				val fragmentsField = ObjectField<SelectedSegments, ObjectProperty<SelectedSegments>>(
-					selectedSegmentsProperty,
+				val fragmentsField = ObjectField(
+					fragmentIdsProperty,
 					selectedFragmentsConverter,
+					interceptCopyTextField { selectedFragmentsConverter.toString(fragmentIdsProperty.value) },
 					ObjectField.SubmitOn.ENTER_PRESSED,
-					ObjectField.SubmitOn.FOCUS_LOST
+					ObjectField.SubmitOn.FOCUS_LOST,
 				)
+
+				/* For large numbers of IDs (the test dataset I used had ~70k) selected all at once, just
+				 * rendering every id as a string in the text field far too slow.
+				 * This solution lets the rendered string be shortened in some way, while intercepting the
+				 * clipboard copy content, so all entries can still be copied.
+				 * Editing the field still behaves, but may be rendered after if the text is too long. */
+				segmentsField.displayConverter = { renderIds(it) }
+				fragmentsField.displayConverter = { renderIds(it) }
 
 				val lastSelectionField = NumberField.longField(
 					selectedSegments.selectedIds.lastSelection,
@@ -206,10 +233,23 @@ class LabelSourceStatePreferencePaneNode(
 						selectedSegments.selectedIds.activate(activeFragment)
 				}
 
+				/* generating a string from a very large selection can be slow, do it off the UI thread, and just provide it
+				* to the UI thread when done. However, we need to ensure earlier, slower requests are not applied if
+				* superseded by a new, faster request.  */
+				val selectionTextGeneration = AtomicLong()
 				selectedSegments.addListener { _ ->
-					segmentsField.textField.text = selectedSegmentsConverter.toString(selectedSegments)
-					fragmentsField.textField.text = selectedFragmentsConverter.toString(selectedSegments)
-					lastSelectionField.textField.text = selectedSegments.selectedIds.lastSelection.toString()
+					val generation = selectionTextGeneration.incrementAndGet()
+					val segmentIds = selectedSegments.segments.toArray()
+					val fragmentIds = SelectedFragmentsConverter.fragmentIds(selectedSegments)
+					val lastSelection = selectedSegments.selectedIds.lastSelection
+					InvokeOnJavaFXApplicationThread {
+						/* a large selection can be collected after a smaller, newer one; don't let it overwrite */
+						if (generation == selectionTextGeneration.get()) {
+							segmentIdsProperty.value = segmentIds
+							fragmentIdsProperty.value = fragmentIds
+							lastSelectionField.value = lastSelection
+						}
+					}
 				}
 
 				val activeFragmentsToolTip = Tooltip()
@@ -232,6 +272,10 @@ class LabelSourceStatePreferencePaneNode(
 				grid.add(fragmentsField.textField, 1, 1)
 				grid.add(segmentsField.textField, 1, 2)
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.ALWAYS }
+
+				grid.add(copyToClipboardButton("Copy all active fragment ids") { selectedFragmentsConverter.toString(fragmentIdsProperty.value) }, 2, 1)
+				grid.add(copyToClipboardButton("Copy all active segment ids") { selectedSegmentsConverter.toString(segmentIdsProperty.value) }, 2, 2)
+				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 
 				val lastSelectionHelp = Button().apply {
@@ -275,9 +319,9 @@ class LabelSourceStatePreferencePaneNode(
 						}.showAndWait()
 					}
 				}
-				grid.add(lastSelectionHelp, 2, 0)
-				grid.add(fragmentSelectionHelp, 2, 1)
-				grid.add(segmentSelectionHelp, 2, 2)
+				grid.add(lastSelectionHelp, 3, 0)
+				grid.add(fragmentSelectionHelp, 3, 1)
+				grid.add(segmentSelectionHelp, 3, 2)
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
@@ -359,9 +403,11 @@ class LabelSourceStatePreferencePaneNode(
 					}
 					val undoPane = UndoFromEvents.withUndoRedoButtons(
 						assignments.events(),
-						title
+						title,
+						{ Labels.withTooltip("$it") },
+						{ action -> assignments.deleteAction(action) },
+						{ deleteAllAssignments(assignments) }
 					)
-					{ Labels.withTooltip("$it") }
 
 					val tpGraphics = HBox(
 						Label("Assignments"),
@@ -378,6 +424,15 @@ class LabelSourceStatePreferencePaneNode(
 				} else
 					null
 			}
+
+		private fun deleteAllAssignments(assignments: FragmentSegmentAssignmentStateWithActionTracker) {
+			val confirm = PainteraAlerts.confirmation("_Delete", "_Cancel").apply {
+				headerText = "Delete all assignments for this source?"
+				contentText = "The merges and splits stored in the Paintera project will be removed. Assignments already committed to the data backend are not affected."
+			}
+			if (confirm.showAndWait().orElse(null) == ButtonType.OK)
+				assignments.deleteAllActions()
+		}
 
 	}
 
@@ -492,3 +547,29 @@ class LabelSourceStatePreferencePaneNode(
 			.isPresent
 	}
 }
+private const val MAX_DISPLAYED_IDS = 100
+
+/** the leading [MAX_DISPLAYED_IDS] of [ids], marked with how many were left out */
+private fun renderIds(ids: LongArray): String {
+	if (ids.size <= MAX_DISPLAYED_IDS)
+		return ids.joinToString(",")
+	return ids.take(MAX_DISPLAYED_IDS).joinToString(",") + ", … +${ids.size - MAX_DISPLAYED_IDS} more"
+}
+
+/** a field whose displayed text may be abridged; selecting all of it copies [replacementText] instead */
+private fun interceptCopyTextField(replacementText: () -> String) = object : TextField() {
+	override fun copy() {
+		val replacement = replacementText()
+		if (selectedText == text && text != replacement)
+			Clipboard.getSystemClipboard().setContent(ClipboardContent().apply { putString(replacement) })
+		else
+			super.copy()
+	}
+}
+
+/** copies [wholeText] rather than what the field shows, which may be shortened */
+private fun copyToClipboardButton(description: String, wholeText: () -> String) =
+	Buttons.withTooltip(null, description) {
+		val content = ClipboardContent().also { it.putString(wholeText()) }
+		Clipboard.getSystemClipboard().setContent(content)
+	}.apply { addStyleClass(Style.fontAwesome(FontAwesome.COPY)) }

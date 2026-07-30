@@ -29,6 +29,23 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	public interface Persister {
 
 		void persist(long[] keys, long[] values) throws UnableToPersist;
+
+		/**
+		 * @return {@code false} if {@link #persist} can never succeed.
+		 * e.g. because the source is not backed by a Paintera group.
+		 */
+		default boolean canPersist() {
+
+			return true;
+		}
+
+		/**
+		 * @return why this cannot persist, or {@code null} if it can
+		 */
+		default String getPersistError() {
+
+			return null;
+		}
 	}
 
 	public static class DoesNotPersist implements Persister {
@@ -50,6 +67,18 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		public void persist(final long[] keys, final long[] values) throws UnableToPersist {
 
 			throw new UnableToPersist(this.persistError);
+		}
+
+		@Override
+		public boolean canPersist() {
+
+			return false;
+		}
+
+		@Override
+		public String getPersistError() {
+
+			return this.persistError;
 		}
 
 	}
@@ -117,6 +146,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	public Supplier<TLongLongMap> getInitialLutSupplier() {
 
 		return this.initialLut;
+	}
+
+	@Override
+	public boolean hasPersistableData() {
+
+		return persister.canPersist() && super.hasPersistableData();
 	}
 
 	@Override

@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
-import javafx.collections.FXCollections
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -75,13 +75,10 @@ class MeshManagerWithAssignmentForSegments(
 
 	private class RelevantBindingsAndProperties(private val key: Long, private val stream: AbstractHighlightingARGBStream) {
 		val colorProperty = SimpleObjectProperty(calculateColor())
-		private val colorUpdater = stream.subscribe { colorProperty.value = calculateColor() }
 
 		private fun calculateColor(): Color = Colors.toColor(stream.argb(key) or 0xFF000000.toInt())
-		fun release() = colorUpdater.unsubscribe()
 	}
 
-	private val updateExecutors = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 	private var currentTask: Job? = null
 
 	// setMeshesCompleted is only visible to enclosing manager if
@@ -93,12 +90,12 @@ class MeshManagerWithAssignmentForSegments(
 	}
 
 	private val segmentFragmentBiMap = ConcurrentHashMap<Long, Fragments>()
-	private val relevantBindingsAndPropertiesMap = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, RelevantBindingsAndProperties>())
+	private val relevantBindingsAndPropertiesMap = ConcurrentHashMap<Long, RelevantBindingsAndProperties>()
 
 	@Synchronized
 	override fun releaseMeshState(key: Long, state: MeshGenerator.State) {
 		segmentFragmentBiMap.remove(key)
-		relevantBindingsAndPropertiesMap.remove(key)?.release()
+		relevantBindingsAndPropertiesMap.remove(key)
 		super.releaseMeshState(key, state)
 	}
 
@@ -208,20 +205,32 @@ class MeshManagerWithAssignmentForSegments(
 
 	@Synchronized
 	override fun removeMesh(key: Long) {
+		forgetSegment(key)
 		super.removeMesh(key)
 		meshUpdateObservable.meshUpdateCompleted()
 	}
 
 	@Synchronized
 	override fun removeMeshes(keys: Iterable<Long>) {
+		keys.forEach { forgetSegment(it) }
 		super.removeMeshes(keys)
 		meshUpdateObservable.meshUpdateCompleted()
 	}
 
 	@Synchronized
 	override fun removeAllMeshes() {
+		segmentFragmentBiMap.clear()
+		relevantBindingsAndPropertiesMap.clear()
 		super.removeAllMeshes()
 		meshUpdateObservable.meshUpdateCompleted()
+	}
+
+	/** Remove the key from the relevant maps. Useful for cleanup of deferred mesh keys, since
+	 * they do not need to clear the mesh state (they never were generated) but do need to have their
+	 * segment cache info cleared. */
+	private fun forgetSegment(key: Long) {
+		segmentFragmentBiMap.remove(key)
+		relevantBindingsAndPropertiesMap.remove(key)
 	}
 
 	override fun refreshMeshes() {
@@ -229,6 +238,19 @@ class MeshManagerWithAssignmentForSegments(
 		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
 		if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
 		setMeshesToSelection()
+	}
+
+	/* meshes are keyed by segment, so map the fragments through the assignment first */
+	fun refreshMeshes(fragments: TLongSet) {
+		if (fragments.isEmpty)
+			return
+
+		val segments = mutableSetOf<Long>()
+		fragments.forEach { fragment ->
+			segments += selectedSegments.assignment.getSegment(fragment)
+			true
+		}
+		super.refreshMeshes(segments)
 	}
 
 	companion object {

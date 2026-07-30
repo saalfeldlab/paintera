@@ -68,7 +68,7 @@
 		<javafx.version>25.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
-		<saalfx.version>3.0.0</saalfx.version>
+		<saalfx.version>3.1.0</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
@@ -205,10 +205,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-vistools</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>se.sawano.java</groupId>

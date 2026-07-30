@@ -241,8 +241,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override fun activate() {
 		mode?.apply {
-			actionBar.showGroup(actionBar.modeActionsGroup, false)
-			actionBar.showGroup(actionBar.modeToolsGroup, false)
+			InvokeOnJavaFXApplicationThread {
+				actionBar.showGroup(actionBar.modeActionsGroup, false)
+				actionBar.showGroup(actionBar.modeToolsGroup, false)
+			}
 		}
 		super.activate()
 		(mode as? PaintLabelMode)?.apply {
@@ -264,8 +266,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override fun deactivate() {
 		mode?.apply {
-			actionBar.showGroup(actionBar.modeActionsGroup, true)
-			actionBar.showGroup(actionBar.modeToolsGroup, true)
+			InvokeOnJavaFXApplicationThread {
+				actionBar.showGroup(actionBar.modeActionsGroup, true)
+				actionBar.showGroup(actionBar.modeToolsGroup, true)
+			}
 		}
 		cleanup()
 		(mode as? PaintLabelMode)?.enableAllViewers()
