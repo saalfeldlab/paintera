@@ -224,7 +224,6 @@ open class PaintLabelMode : ViewLabelMode() {
 						selectedIds,
 						idService,
 						converter(),
-						fragmentSegmentAssignment,
 					)
 				}
 			}?.let { ShapeInterpolationMode(it, this) }

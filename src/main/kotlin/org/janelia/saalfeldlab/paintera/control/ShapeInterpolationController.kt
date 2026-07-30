@@ -43,7 +43,6 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
@@ -73,14 +72,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	private val refreshMeshes: () -> Unit,
 	val selectedIds: SelectedIds,
 	val idService: IdService,
-	val converter: HighlightingStreamConverter<*>,
-	private val assignment: FragmentSegmentAssignment
+	val converter: HighlightingStreamConverter<*>
 ) {
 	enum class ControllerState {
 		Select, Interpolate, Preview, Off, Moving
 	}
 
-	internal var lastSelectedId: Long = 0
+	private var initialId: Long = Label.INVALID
+
+	internal var targetId: Long = Label.INVALID
 
 	internal var interpolationId: Long = Label.INVALID
 
@@ -229,9 +229,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		activeViewer = viewer
 
-		/* Store all the previous activated Ids*/
-		lastSelectedId = assignment.getSegment(selectedIds.lastSelection)
-		if (lastSelectedId == Label.INVALID) lastSelectedId = idService.next()
+        /* store the lastSelection to restore after */
+        initialId = selectedIds.lastSelection
+        /* use lastSelection as interpolation Id; if INVALID, get a new valid one*/
+        targetId = initialId
+            .takeUnless { it == Label.INVALID }
+            ?: idService.next()
+
 		selectNewInterpolationId()
 		initialGlobalToViewerTransform = globalToViewerTransform
 		activeViewer!!.addTransformListener(viewerTransformDepthUpdater)
@@ -263,15 +267,19 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 
 		/* Reset the selection state */
-		converter.removeColor(lastSelectedId)
 		converter.removeColor(interpolationId)
+		when {
+            /* activate `initialId` if valid, else if completed, activate the targetId */
+			initialId != Label.INVALID -> selectedIds.activateAlso(initialId)
+			completed -> selectedIds.activateAlso(targetId)
+		}
 		selectedIds.deactivate(interpolationId)
-		selectedIds.activateAlso(lastSelectedId)
 		controllerState = ControllerState.Off
 		slicesAndInterpolants.clear()
 		currentViewerMask = null
 		globalCompositeFillAndInterpolationImgs = null
-		lastSelectedId = Label.INVALID
+        initialId = Label.INVALID
+		targetId = Label.INVALID
 		interpolationId = Label.INVALID
 
 		activeViewer!!.removeTransformListener(viewerTransformDepthUpdater)
@@ -384,9 +392,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		LOG.trace { "Applying interpolated mask using bounding box of size ${Intervals.dimensionsAsLongArray(slicesUnionSourceInterval)}" }
 
-		val finalLastSelectedId = lastSelectedId
+		val finalTargetId = targetId
 		val finalInterpolationId = interpolationId
-		if (Label.regular(finalLastSelectedId)) {
+		if (Label.regular(finalTargetId)) {
 			val maskInfo = source.currentMask.info
 			source.resetMasks(false)
 			val interpolatedMaskImgsA = globalCompositeFillAndInterpolationImgs!!.first
@@ -394,7 +402,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				.convert(UnsignedLongType(Label.INVALID)) { input, output ->
 					val originalLabel = input.long
 					val label = if (originalLabel == finalInterpolationId) {
-						finalLastSelectedId
+						finalTargetId
 					} else input.get()
 					output.set(label)
 				}
@@ -405,7 +413,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 					out.isValid = isValid
 					if (isValid) {
 						val originalLabel = input.get().get()
-						val label = if (originalLabel == finalInterpolationId) finalLastSelectedId else input.get().get()
+						val label = if (originalLabel == finalInterpolationId) finalTargetId else input.get().get()
 						out.get().set(label)
 					}
 				}
@@ -427,12 +435,12 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private fun selectNewInterpolationId() {
 		/* Grab the color of the previously active ID. We will make our selection ID color slightly different to indicate selection. */
-		val packedLastARGB = converter.stream.argb(lastSelectedId)
+		val packedLastARGB = converter.stream.argb(targetId)
 		val originalColor = Colors.toColor(packedLastARGB)
 		val fillLabelColor = Color(originalColor.red, originalColor.green, originalColor.blue, activeSelectionAlpha)
 		interpolationId = idService.nextTemporary()
 		converter.setColor(interpolationId, fillLabelColor, true)
-		selectedIds.activateAlso(interpolationId, lastSelectedId)
+		selectedIds.activateAlso(interpolationId, targetId)
 	}
 
 	private fun doneApplyingMask() {
