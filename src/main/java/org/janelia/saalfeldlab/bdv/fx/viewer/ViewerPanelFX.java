@@ -100,7 +100,7 @@ public class ViewerPanelFX
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
-	private boolean focusable = true;
+	private volatile boolean focusable = true;
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,

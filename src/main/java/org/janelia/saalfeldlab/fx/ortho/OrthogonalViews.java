@@ -4,6 +4,7 @@ import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
 import javafx.event.Event;
@@ -316,15 +317,17 @@ public class OrthogonalViews<BR extends Node> {
 	public void disableView(final ViewerPanelFX viewer) {
 
 		viewer.setFocusable(false);
-		final var grayedOut = new ColorAdjust();
-		grayedOut.setBrightness(-0.3);
-		viewer.setEffect(grayedOut);
+		Platform.runLater(() -> {
+			final var grayedOut = new ColorAdjust();
+			grayedOut.setBrightness(-0.3);
+			viewer.setEffect(grayedOut);
+		});
 	}
 
 	public void enableView(final ViewerPanelFX viewer) {
 
 		viewer.setFocusable(true);
-		viewer.setEffect(null);
+		Platform.runLater(() -> viewer.setEffect(null));
 	}
 
 	/**
