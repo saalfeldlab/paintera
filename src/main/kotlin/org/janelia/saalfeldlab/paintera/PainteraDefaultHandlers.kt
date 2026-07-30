@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera
 import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
@@ -217,6 +218,12 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			baseView.viewer3D().setInitialTransformToInterval(sourceIntervalInWorldSpace(it.addedSubList[0]))
 		})
 
+		val viewer3D = baseView.viewer3D()
+		/* while the 3D viewer is maximized, keep the hidden viewers rendering, so their orthoslices stay visible */
+		orthogonalViews.views().forEach { viewer ->
+			viewer.renderWhileHiddenProperty().bind(viewer3D.visibleProperty().and(viewer.visibleProperty().not()))
+		}
+
 		orthogonalViews.pane().apply {
 			cells().forEach { cell ->
 				/* Toggle Maximizing the Viewers */
@@ -225,7 +232,11 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 						keysExclusive = true
 						verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
 						onAction {
-							toggleMaximize(cell)
+							/* maximize the 3D viewer */
+							val target = if (viewer3D.isHover) viewer3D else cell
+							toggleMaximize(target)
+							if (target === viewer3D && maximized)
+								Platform.runLater { viewer3D.requestFocus() }
 							baseView.orthogonalViews().requestRepaint()
 						}
 					}

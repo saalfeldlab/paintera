@@ -43,8 +43,11 @@ import bdv.viewer.TransformListener;
 import bdv.viewer.ViewerOptions.Values;
 import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
@@ -99,6 +102,10 @@ public class ViewerPanelFX
 	private final Values options;
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
+
+	private final BooleanProperty renderWhileHidden = new SimpleBooleanProperty(false);
+
+	private final BooleanBinding shouldRender = visibleProperty().or(renderWhileHidden);
 
 	private volatile boolean focusable = true;
 
@@ -195,8 +202,8 @@ public class ViewerPanelFX
 		widthProperty().subscribe(width -> renderUnit.setDimensions(width.longValue(), (long)getHeight()));
 		heightProperty().subscribe(height -> renderUnit.setDimensions((long)getWidth(), height.longValue()));
 
-		visibleProperty().subscribe(visible -> {
-			if (visible)
+		shouldRender.subscribe(render -> {
+			if (render)
 				renderUnit.setDimensions((long)getWidth(), (long)getHeight());
 			else
 				renderUnit.stopRendering();
@@ -221,6 +228,21 @@ public class ViewerPanelFX
 	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources) {
 
 		this.state.setSources(sources);
+	}
+
+	public BooleanProperty renderWhileHiddenProperty() {
+
+		return renderWhileHidden;
+	}
+
+	public BooleanBinding shouldRenderProperty() {
+
+		return shouldRender;
+	}
+
+	public boolean shouldRender() {
+
+		return shouldRender.get();
 	}
 
 	public boolean isFocusable() {

@@ -33,13 +33,13 @@ class OrthoSliceConfig(private val baseConfig: OrthoSliceConfigBase) {
 
 		val enable = baseConfig.isEnabledProperty
 
-		val isTopLeftVisible = topLeft.viewer().visibleProperty()
-		val isTopRightVisible = topRight.viewer().visibleProperty()
-		val isBottomLeftVisible = bottomLeft.viewer().visibleProperty()
+		val topLeftShouldRender = topLeft.viewer().shouldRenderProperty()
+		val topRightShouldRender = topRight.viewer().shouldRenderProperty()
+		val bottomLeftShouldRender = bottomLeft.viewer().shouldRenderProperty()
 
-		topLeftSlice.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(isTopLeftVisible))
-		topRightSlice.isVisibleProperty.bind(baseConfig.showTopRightProperty().and(enable).and(hasSources).and(isTopRightVisible))
-		bottomLeftSlice.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(isBottomLeftVisible))
+		topLeftSlice.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(topLeftShouldRender))
+		topRightSlice.isVisibleProperty.bind(baseConfig.showTopRightProperty().and(enable).and(hasSources).and(topRightShouldRender))
+		bottomLeftSlice.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(bottomLeftShouldRender))
 
 		listOf(topLeftSlice, topRightSlice, bottomLeftSlice).forEach { slice ->
 			slice.opacityProperty().bindBidirectional(baseConfig.opacityProperty())

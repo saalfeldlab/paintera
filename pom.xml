@@ -207,10 +207,6 @@
 			<artifactId>imglib2-label-multisets</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-vistools</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>se.sawano.java</groupId>
 			<artifactId>alphanumeric-comparator</artifactId>
 			<version>${alphanumeric-comparator.version}</version>
