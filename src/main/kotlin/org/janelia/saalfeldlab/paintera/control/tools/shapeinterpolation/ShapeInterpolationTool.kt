@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
@@ -68,16 +69,16 @@ internal class ShapeInterpolationTool(
 	override fun activate() {
 
 		super.activate()
-		//TODO Caleb: this should probably be in the `enter()` of the mode, and the `disabled translate` logic should also
-		mode.disableUnfocusedViewers()
-		/* This action set allows us to translate through the unfocused viewers */
-		paintera.baseView.orthogonalViews().viewerAndTransforms()
-			.filter { !it.viewer().isFocusable }
-			.forEach { disabledViewerAndTransform ->
-				val disabledTranslationActions = disabledViewerActionsMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerActions)
-				val disabledViewer = disabledViewerAndTransform.viewer()
-				disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
-			}
+		InvokeOnJavaFXApplicationThread {
+			/* This action set allows us to translate through the unfocused viewers */
+			paintera.baseView.orthogonalViews().viewerAndTransforms()
+				.filter { !it.viewer().isFocusable }
+				.forEach { disabledViewerAndTransform ->
+					val disabledTranslationActions = disabledViewerActionsMap.computeIfAbsent(disabledViewerAndTransform, disabledViewerActions)
+					val disabledViewer = disabledViewerAndTransform.viewer()
+					disabledTranslationActions.forEach { disabledViewer.installActionSet(it) }
+				}
+		}
 		/* We want to bind it to our activeViewer bindings instead of the default. */
 		NavigationTool.activate()
 	}

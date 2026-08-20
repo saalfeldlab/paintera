@@ -116,6 +116,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
 		val viewerAndTransforms = activeViewerProperty.get() ?: return reset("No Active Viewer")
+		/* disable non-active viewers */
+		disableViewersExcept(viewerAndTransforms.viewer())
         SamEncoder.cache.startNavigationBasedRequests(viewerAndTransforms)
 		controller.apply {
 			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
