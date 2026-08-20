@@ -13,6 +13,8 @@ data class SessionRenderUnitState(val sessionId: String, val state: RenderUnitSt
     }
 
     companion object {
-        fun RenderUnitState.withSessionId(sessionId: String) = SessionRenderUnitState(sessionId, this)
+        fun RenderUnitState.withSessionId(sessionId: String) = SessionRenderUnitState(sessionId, rootState())
+
+        tailrec fun RenderUnitState.rootState() : RenderUnitState  = (this as? SessionRenderUnitState)?.state?.rootState() ?: return this
     }
 }

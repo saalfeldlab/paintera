@@ -30,8 +30,8 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 	}
 
 	override fun get(key: K): V = runBlocking {
-		/* We clear here because the logic is that if we have to actually get the
-		* value from the loader, then it's likely that prior optimistic calls to [::load]
+		/** We clear here because the logic is that if we have to actually get the
+		* value from the loader, then it's likely that prior optimistic calls to [load]
 		* are probably no longer valid. clear them from the job queue.  */
 		request(key, clear = true).await()
 	}
@@ -45,7 +45,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 		}.invalidateOnException(key)
 	}
 
-	private fun Deferred<V>.invalidateOnException(key: K) : Deferred<V> {
+	protected fun Deferred<V>.invalidateOnException(key: K) : Deferred<V> {
 		invokeOnCompletion { cause ->
 			cause?.let { cache.invalidate(key) }
 		}
@@ -54,7 +54,7 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 
 	open fun load(key: K) : Job {
 		/*check invalidate an existing value if it has finished exceptionally */
-		cache.getIfPresent(key)?.invalidateOnException(key)
+		val ignore = cache.getIfPresent(key)?.invalidateOnException(key)
 		/* If it's already in the cache, return it */
 		cache.getIfPresent(key)?.let { return it }
 		/* otherwise, trigger a new non-blocking request */
