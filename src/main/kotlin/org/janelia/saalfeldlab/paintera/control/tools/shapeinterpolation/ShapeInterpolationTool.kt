@@ -216,12 +216,14 @@ internal class ShapeInterpolationTool(
 		val samSliceInfo = mode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
 
 		if (!newPrediction && refresh) {
-			controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, closest = true)?.run {
-				val promptStyle = mode.samAutoInterpolantStyleProperty.get()
-				val prompt = getInterpolantPrompt(promptStyle, renderState = samSliceInfo.renderState)
-				samSliceInfo.updatePrompt(prompt)
-			}
+            val interpolationImg = controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, fallbackToNearestSlice = true)
+            interpolationImg?.apply {
+                val promptStyle = mode.samAutoInterpolantStyleProperty.get()
+                val prompt = interpolantSlice.getInterpolantPrompt(promptStyle, renderState = samSliceInfo.renderState)
+                samSliceInfo.updatePrompt(prompt)
 
+                shutdown?.invoke()
+            }
 		}
 
 		val viewerMask = samSliceInfo.mask
@@ -247,23 +249,18 @@ internal class ShapeInterpolationTool(
 		}
 
 		samTool.lastPredictionProperty.addListener { _, _, prediction ->
-			prediction ?: let {
-				afterPrediction(null)
-				return@addListener
-			}
-			mode.addSelection(prediction.maskInterval, viewerMask, globalTransform) ?: let {
-				afterPrediction(null)
-				return@addListener
-			}
-
-            runCatching {
-			    afterPrediction(globalTransform)
-            }.exceptionOrNull()?.let { e ->
-                LOG.warn(e) { "Error processing SAM prediction" }
-            }
+			val addedSliceTransform = prediction
+				?.let { mode.addSelection(it.maskInterval, viewerMask, globalTransform) }
+				?.let { globalTransform }
 
 			samTool.cleanup()
 			samTool.activeViewerProperty.unbind()
+
+			runCatching {
+				afterPrediction(addedSliceTransform)
+			}.exceptionOrNull()?.let { e ->
+				LOG.warn(e) { "Error processing SAM prediction" }
+			}
 		}
 		samTool.requestPrediction(samSliceInfo.prompt)
 		return globalTransform

@@ -216,9 +216,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	internal fun sliceAt(depth: Double) = slicesAndInterpolants.getSliceAtDepth(depth)
 
-	internal fun adjacentSlices(depth: Double) = slicesAndInterpolants.run {
-		previousSlice(depth) to nextSlice(depth)
-	}
+	internal fun adjacentSlices(depth: Double) = slicesAndInterpolants.adjacentSlices(depth)
 
 	fun enterShapeInterpolation(viewer: ViewerPanelFX) {
 		if (isControllerActive) {
@@ -671,44 +669,82 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return newMask
 	}
 
+    /**
+     * View over the slices mask, in viewer space. `null` if the [SliceInfo.maskBoundingBox] is null.
+     *
+     * @return the interval view
+     */
+    private fun SliceInfo.maskInViewerSpace(): IntervalView<UnsignedLongType>? {
+
+        val maskInterval = maskBoundingBox ?: return null
+
+        val translation = mask.initialMaskToViewerTransform.translation.also { it[2] = 0.0 }
+            .map { it.toLong() }
+            .toLongArray()
+        return mask.viewerImg
+            .interval(maskInterval)
+            .translate(*translation)
+    }
+
+    /**  Wrapper class for an interpolant slice and an optional shutdown to cleanup. */
+    internal class InterpolationImage(val interpolantSlice: IntervalView<UnsignedLongType>, val shutdown: (() -> Unit)? = null)
+
 	/**
-	 * Get 2d interpolation img slice at [depth].
-	 *  If [closest] then grab the closest if no interpolation result at [depth]
+	 * Get an interpolation img slice at [depth] if possible.
 	 *
 	 * @param globalToViewerTransform to slice the interpolation img at
-	 * @param closest will grab the closest img if no interpolation img results at [depth]
-	 * @return 2D img in viewer space containing the interpolation img at [depth], or [closest].
-	 *  Null if the img at the slice is present, but intentionally empty.
+	 * @param fallbackToNearestSlice will grab the nearest img if [depth] is not between two slices and a nearest slice exists.
+	 * @return 2D img in viewer space containing the resulting interpolation img.
+	 *  null if the img at the slice is present, but intentionally empty.
 	 */
-	internal fun getInterpolationImg(globalToViewerTransform: AffineTransform3D, closest: Boolean = false): IntervalView<UnsignedLongType>? {
-
-		fun SliceInfo.maskInViewerSpace(): IntervalView<UnsignedLongType>? {
-
-			val maskInterval = maskBoundingBox ?: return null
-
-
-			val translation = mask.initialMaskToViewerTransform.translation.also { it[2] = 0.0 }
-			return Views.translate(mask.viewerImg.interval(maskInterval), *translation.map { it.toLong() }.toLongArray())
-		}
+	internal fun getInterpolationImg(globalToViewerTransform: AffineTransform3D, fallbackToNearestSlice: Boolean = false): InterpolationImage? {
 
 		val depth = depthAt(globalToViewerTransform)
-		sliceAt(depth).takeIf {
-			val maskTransform = it?.mask?.initialGlobalToViewerTransform?.hashable()
-			val currentTransform = globalToViewerTransform.hashable()
-			maskTransform == currentTransform
-		}?.let { return it.maskInViewerSpace() }
 
-		val imgSliceMask = source.createViewerMask(MaskInfo(0, currentBestMipMapLevel), activeViewer!!, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
-		copyInterpolationToMask(imgSliceMask, replaceExisting = false)?.let { it.maskInViewerSpace()?.let { img -> return img } }
+        /* If at a matching slice, return it */
+        val matchingSlice = sliceAt(depth).takeIf {
+            val maskTransform = it?.mask?.initialGlobalToViewerTransform?.hashable()
+            val currentTransform = globalToViewerTransform.hashable()
+            maskTransform == currentTransform
+        }
+        matchingSlice?.let {
+            /* don't pass in the shutdown; we didn't create this mask, so we don't own it. */
+            return it.maskInViewerSpace()?.let { interpolantSlice -> InterpolationImage(interpolantSlice) }
+        }
 
-		if (!closest)
-			return null
+        /* If an interpolant exists at depth, return a mask for it (if non-empty)*/
+        slicesAndInterpolants.getInterpolantAtDepth(depth)?.let {
+            /* If in between two slices, copy the interpolant to a new mask and return it. */
+            val viewerMask = source.createViewerMask(
+                MaskInfo(0, currentBestMipMapLevel),
+                activeViewer!!,
+                setMask = false,
+                initialGlobalToViewerTransform = globalToViewerTransform
+            )
+            val maskForInterpolant = copyInterpolationToMask(
+                viewerMask = viewerMask,
+                replaceExisting = false
+            )
+            /* for the slice match case above, we return even if it's null.
+            * For the interpolant case, we intentionally only base on the interpolant if the resulting mask in non-empty (i.e. non-null). */
+            maskForInterpolant?.maskInViewerSpace()?.let {
+                return InterpolationImage(it, viewerMask.shutdown::run)
+            }
 
-		return adjacentSlices(depth)
-			.toList()
-			.filterNotNull()
-			.minByOrNull { (depthAt(it.globalTransform) - depth).absoluteValue }
-			?.let { return it.maskInViewerSpace() }
+            /* the interpolant is empty at this depth; nothing will read the mask we created for it */
+            viewerMask.shutdown?.run()
+        }
+
+
+        return if (fallbackToNearestSlice)
+            adjacentSlices(depth)
+                .toList()
+                .filterNotNull()
+                .minByOrNull { (depthAt(it.globalTransform) - depth).absoluteValue }
+                ?.maskInViewerSpace()
+                ?.let { InterpolationImage(it) }
+        else
+            null
 	}
 
 	private fun copyInterpolationToMask(viewerMask: ViewerMask = currentViewerMask!!, replaceExisting: Boolean = true): SliceInfo? {
@@ -1117,6 +1153,32 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			return null
 		}
 
+        /**
+         * Get the nearest slices before and after [depth].
+         * If [depth] is outside of the existing shape interpolation, one or both slices may be null.
+         *
+         * @param depth to query for adjacent slices
+         * @return the slices immediately preceding and following [depth], if they exist
+         */
+        @Synchronized
+        fun adjacentSlices(depth: Double): Pair<SliceInfo?, SliceInfo?> {
+            var prevSlice : SliceInfo? = null
+            var nextSlice : SliceInfo? = null
+
+            for (sliceOrInterpolant in list) {
+                if (sliceOrInterpolant.isSlice) {
+                    if (sliceOrInterpolant.sliceDepth < depth) {
+                        prevSlice = sliceOrInterpolant.getSlice()
+                    } else if (sliceOrInterpolant.sliceDepth > depth) {
+                        nextSlice = sliceOrInterpolant.getSlice()
+                        break
+                    }
+                }
+            }
+
+            return prevSlice to nextSlice
+        }
+
 		val slices: List<SliceInfo>
 			@Synchronized
 			get() = mutableListOf<SliceInfo>().let {
@@ -1193,7 +1255,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val globalTransform: AffineTransform3D,
 		selectionInterval: Interval? = null
 	) {
-		val maskBoundingBox: Interval? by LazyForeignValue({ selectionIntervals.toList() }) {
+        /** bounding box of the slice mask. Recomputed when a selection is added, so it may grow or shrink.
+         * If the slice is modified such that there are no painted pixels in the mask, this will return null. */
+        val maskBoundingBox: Interval? by LazyForeignValue({ selectionIntervals.toList() }) {
 			computeBoundingBoxInInitialMask()
 		}
 		val globalBoundingBox: RealInterval?
