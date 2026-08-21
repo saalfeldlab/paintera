@@ -92,7 +92,11 @@ interface ToolMode : SourceMode {
 	var activeToolProperty: ObjectProperty<Tool?>
 	var activeTool: Tool?
 
-	val actionBar: ModeToolActionBar
+	/**
+	 * One bar per window showing this mode's viewers. A JavaFX node has a single parent, so a shared bar
+	 * would be moved out of the main window when a viewer is detached, rather than shown in both.
+	 */
+	val actionBars: MutableMap<ModeToolActionBar, Subscription>
 
 	/**
 	 * Subscriptions that should be unsubscribed from when [exit] is called.
@@ -116,6 +120,7 @@ interface ToolMode : SourceMode {
 
 	override fun exit() {
 		super.exit()
+		actionBars.keys.toList().forEach { disposeToolBar(it) }
 		subscriptions?.unsubscribe()
 		subscriptions = null
 		runBlocking {
@@ -166,15 +171,27 @@ interface ToolMode : SourceMode {
 		}
 	}
 
-	private fun showToolBars(show: Boolean = true) {
+	private fun showToolBars(show: Boolean = true) = actionBars.keys.forEach { actionBar ->
 		actionBar.isVisible = show
 		actionBar.isManaged = show
 	}
 
-	fun bindTogglesForActiveTool() {
+	/** Run [action] against each bar. */
+	fun forEachToolBar(action: (ModeToolActionBar) -> Unit) = actionBars.keys.toList().forEach(action)
+
+	/** Show or hide the mode tool bar groups */
+	fun showModeToolBarGroups(show: Boolean) = forEachToolBar { actionBar ->
+		actionBar.showGroup(actionBar.modeActionsGroup, show)
+		actionBar.showGroup(actionBar.modeToolsGroup, show)
+	}
+
+	/** Clear the tool selection on each tool bar, without switching tools. */
+	fun clearToolBarSelection() = forEachToolBar { it.modeToolsGroup.selectToggle(null) }
+
+	private fun bindTogglesForActiveTool(actionBar: ModeToolActionBar): Subscription {
 		var prevActiveToolSubscription = AtomicReference<Subscription?>(null)
-		actionBar.modeToolsGroup.apply {
-			subscriptions += selectedToggleProperty().subscribe { _, selected ->
+		return actionBar.modeToolsGroup.run {
+			val toggleSubscription = selectedToggleProperty().subscribe { _, selected ->
 				selected?.let {
 					(it.userData as? Tool)?.let { tool ->
 						if (activeTool != tool) {
@@ -194,7 +211,7 @@ interface ToolMode : SourceMode {
 			}
 
 			/* when the active tool changes, update the toggle to reflect the active tool */
-			subscriptions += activeToolProperty.subscribe { tool ->
+			val activeToolSubscription = activeToolProperty.subscribe { tool ->
 				tool?.let { newTool ->
 					toggles.firstOrNull { it.userData == newTool }?.let { toggleForTool -> selectToggle(toggleForTool) }
 					val toolActionSets = newTool.actionSets.toList()
@@ -203,24 +220,31 @@ interface ToolMode : SourceMode {
 							prev?.unsubscribe()
 							actionBar.addActionSets(toolActionSets, actionBar.toolActionsGroup)
 						}
-						subscriptions += prevActiveToolSubscription.get()
 						/* mode action buttons are built once, so their verify against the active tool needs to be manually revalidated */
 						actionBar.revalidate()
 					}
 				}
 			}
+			toggleSubscription.and(activeToolSubscription).and { prevActiveToolSubscription.get()?.unsubscribe() }
 		}
 	}
 
-	fun createToolBar(): ModeToolActionBar = actionBar.apply {
-		/* Add modeTools to toolbar */
-		subscriptions += addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
+	/**
+	 * Build a bar for a window that shows this mode. Each call returns a new bar; pair it with
+	 * [disposeToolBar] when the window hosting it goes away.
+	 */
+	fun createToolBar(): ModeToolActionBar = ModeToolActionBar().apply {
+		actionBars[this] =
+			/* Add modeTools to toolbar */
+			addToolBarItems(tools.filterIsInstance<ToolBarItem>().toList(), modeToolsGroup)
+				/* add modeActions toolbar*/
+				.and(addActionSets(activeViewerActions.toList(), modeActionsGroup))
+				/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
+				.and(bindTogglesForActiveTool(this))
+	}
 
-		/* add modeActions toolbar*/
-		subscriptions += addActionSets(activeViewerActions.toList(), modeActionsGroup)
-
-		/* When the selected tool toggle changes, switch to that tool (if we aren't already) or default if unselected only */
-		bindTogglesForActiveTool()
+	fun disposeToolBar(actionBar: ModeToolActionBar) {
+		actionBars.remove(actionBar)?.unsubscribe()
 	}
 
 	/**
@@ -463,7 +487,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 	final override var activeToolProperty: ObjectProperty<Tool?> = SimpleObjectProperty<Tool?>()
 	final override var activeTool by activeToolProperty.nullable()
 
-	override val actionBar: ModeToolActionBar = ModeToolActionBar()
+	override val actionBars: MutableMap<ModeToolActionBar, Subscription> = LinkedHashMap()
 	override var subscriptions: Subscription? = null
 
 	override val statusProperty: StringProperty = SimpleStringProperty()
