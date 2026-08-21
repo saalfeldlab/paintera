@@ -315,7 +315,6 @@ class ViewerMask private constructor(
 						composite.isValid = true
 					} else composite.isValid = false
 				}
-				composite.isValid = true
 			}.interval(newVolatileImg)
 
 			val wrappedCompositeMask = WrappedRandomAccessibleInterval(compositeMask)
