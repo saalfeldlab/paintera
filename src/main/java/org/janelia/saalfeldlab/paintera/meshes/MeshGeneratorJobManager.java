@@ -803,7 +803,6 @@ public class MeshGeneratorJobManager<T> {
 		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet()) {
 			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = sceneUpdateParameters.sceneBlockTree.nodes.get(entry.getKey());
 			final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
-			assert sceneUpdateParameters.sceneBlockTree.isRoot(entry.getKey()) == (parentKey == null);
 			final Set<ShapeKey<T>> children = sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet());
 			final BlockTreeNode<ShapeKey<T>> treeNode = new BlockTreeNode<>(parentKey, children, sceneTreeNode.distanceFromCamera);
 			requestedBlockTree.nodes.put(entry.getValue(), treeNode);

@@ -1036,7 +1036,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
                 val halfPixelOffset = Translation2D(.5, .5)
         val screenOriginMaskOffset = viewerMask.displayPointToMask(0, 0, currentDisplay)
-        val viewerTranslation = Translation2D(*screenOriginMaskOffset.positionAsDoubleArray())
+        val viewerTranslation = Translation2D(*screenOriginMaskOffset.positionAsDoubleArray().take(2).toDoubleArray())
         val predictionToViewerTransform = AffineTransform2D()
             .concatenate(viewerTranslation)
             .concatenate(predictionToViewerScale)
