@@ -55,7 +55,7 @@ class N5PainteraLabelMultiscaleGroup @JvmOverloads constructor(
          * @param dimensions the dimensions at s0
          * @param blockSize the block size, shared by all levels
          * @param resolution the per-axis resolution
-         * @param offset the per-axis offset
+         * @param translation the per-axis translation in physical units
          * @param relativeScaleFactors per-level scale factors relative to the previous level
          * @param unit the spatial unit
          * @param maxNumEntries per downsampled level (index 0 = s1) cap on multiset entries, `<= 0` for unbounded; ignored unless [labelMultisetType]
@@ -68,7 +68,7 @@ class N5PainteraLabelMultiscaleGroup @JvmOverloads constructor(
             dimensions: LongArray,
             blockSize: IntArray,
             resolution: DoubleArray,
-            offset: DoubleArray,
+            translation: DoubleArray,
             relativeScaleFactors: Array<DoubleArray>,
             unit: String,
             maxNumEntries: IntArray?,
@@ -106,15 +106,15 @@ class N5PainteraLabelMultiscaleGroup @JvmOverloads constructor(
                 /* the per-level transform; non-spatial axes keep their resolution/offset across levels */
                 for (dim in dimensions.indices) {
                     perLevelScales[level][dim] = resolution.getOrElse(dim) { 1.0 } * accumulatedFactors[dim]
-                    perLevelTranslations[level][dim] = offset.getOrElse(dim) { 0.0 }
+                    perLevelTranslations[level][dim] = translation.getOrElse(dim) { 0.0 }
                 }
 
                 val pixelResolution = perLevelScales[level].copyOf(3)
                 val transform = AffineTransform3D().apply {
                     set(
-                        pixelResolution[0], 0.0, 0.0, offset[0],
-                        0.0, pixelResolution[1], 0.0, offset[1],
-                        0.0, 0.0, pixelResolution[2], offset[2]
+                        pixelResolution[0], 0.0, 0.0, translation[0],
+                        0.0, pixelResolution[1], 0.0, translation[1],
+                        0.0, 0.0, pixelResolution[2], translation[2]
                     )
                 }
                 /* downsampling factors describe the 3D spatial pyramid; only spatial axes are downsampled */
@@ -130,7 +130,7 @@ class N5PainteraLabelMultiscaleGroup @JvmOverloads constructor(
                 }
                 uniqueLabelsChildren += N5SingleScaleMetadata(
                     "$uniqueLabelsPath/s$level",
-                    transform.copy(), downsamplingFactors.clone(), pixelResolution.clone(), offset.copyOf(3), unit,
+                    transform.copy(), downsamplingFactors.clone(), pixelResolution.clone(), translation.copyOf(3), unit,
                     DatasetAttributes(scaledDimensions.clone(), blockSize, DataType.UINT64, GzipCompression()),
                     false
                 )

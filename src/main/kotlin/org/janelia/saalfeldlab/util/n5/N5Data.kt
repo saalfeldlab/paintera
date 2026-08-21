@@ -307,7 +307,7 @@ object N5Data {
             dimensions = dimensions,
             blockSize = blockSize,
             resolution = resolution,
-            offset = offset,
+            translation = offset,
             relativeScaleFactors = relativeScaleFactors,
             unit = unit,
             maxNumEntries = maxNumEntries,

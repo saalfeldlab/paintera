@@ -31,7 +31,7 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Stage
 import javafx.util.Callback
-import org.janelia.saalfeldlab.fx.SaalFxStyle
+import javafx.util.Subscription
 import org.janelia.saalfeldlab.fx.extensions.set
 import org.janelia.saalfeldlab.fx.ui.DirectoryField
 import org.janelia.saalfeldlab.fx.ui.NamedNode.Companion.bufferNode
@@ -45,6 +45,8 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style.ADD_ICON
 import org.janelia.saalfeldlab.paintera.Style.REMOVE_ICON
 import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceModel
+import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceToggle
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts.initAppDialog
 import java.io.File
 
@@ -86,7 +88,15 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 	private val dimensionsField = SpatialField.longField(1, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).boundTo(model.dimensions)
 	private val blockSizeField = SpatialField.intField(1, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).boundTo(model.blockSize)
 	private val resolutionField = SpatialField.doubleField(1.0, { it > 0 }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).boundTo(model.resolution)
-	private val offsetField = SpatialField.doubleField(0.0, { true }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).boundTo(model.offset)
+
+	/* translation is always physical, but we can accept input and display it according to the TranslationSpaceModel */
+	private val translationSpace = TranslationSpaceModel()
+	private val translationField = SpatialField.doubleField(0.0, { true }, MAIN_FIELD_WIDTH, *SubmitOn.entries.toTypedArray()).apply {
+		translationSpace.bindAxis(x.valueProperty(), model.offset.xProperty, model.resolution.xProperty)
+		translationSpace.bindAxis(y.valueProperty(), model.offset.yProperty, model.resolution.yProperty)
+		translationSpace.bindAxis(z.valueProperty(), model.offset.zProperty, model.resolution.zProperty)
+	}
+	private val translationToggle = TranslationSpaceToggle(translationSpace)
 
 	private val labelMultisetCheckBox = CheckBox().apply { selectedProperty().bindBidirectional(model.labelMultisetProperty) }
 	private val labelMultisetBox = HBox(Label("Label Multiset Type  "), labelMultisetCheckBox).apply {
@@ -112,7 +122,7 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 	private val setFromButton = MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource)
 	private val setFromCurrentBox = HBox(bufferNode(), setFromButton).apply { HBox.setHgrow(children[0], Priority.ALWAYS) }
 
-	/* the axes laid out as columns (x, y, z, then channel/time); rows are dimension, block size, resolution, offset, unit */
+	/* the axes laid out as columns (x, y, z, then channel/time); rows are dimension, block size, resolution, translation, unit */
 	private val axisGrid = GridPane().apply {
 		hgap = 6.0
 		vgap = 4.0
@@ -128,7 +138,8 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 
 	private class AxisColumnNodes(
 		val header: Node, val dimension: Node, val blockSize: Node,
-		val resolution: Node, val offset: Node, val unit: Node, val remove: Node?
+		val resolution: Node, val translation: Node, val unit: Node, val remove: Node?,
+		val subscription: Subscription = Subscription.EMPTY
 	)
 
 	private val spatialColumns by lazy {
@@ -138,7 +149,7 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 				dimension = dimensionsField.x.textField,
 				blockSize = blockSizeField.x.textField,
 				resolution = resolutionField.x.textField,
-				offset = offsetField.x.textField,
+				translation = translationField.x.textField,
 				unit = unitField(model.xUnitProperty),
 				remove = null
 			),
@@ -147,7 +158,7 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 				dimension = dimensionsField.y.textField,
 				blockSize = blockSizeField.y.textField,
 				resolution = resolutionField.y.textField,
-				offset = offsetField.y.textField,
+				translation = translationField.y.textField,
 				unit = unitField(model.yUnitProperty),
 				remove = null
 			),
@@ -156,7 +167,7 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 				dimension = dimensionsField.z.textField,
 				blockSize = blockSizeField.z.textField,
 				resolution = resolutionField.z.textField,
-				offset = offsetField.z.textField,
+				translation = translationField.z.textField,
 				unit = unitField(model.zUnitProperty),
 				remove = null
 			)
@@ -180,36 +191,46 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 	}
 
 	private fun nodesFor(axisColumn: AdditionalAxis): AxisColumnNodes = additionalAxisNodes.getOrPut(axisColumn) {
+		val translation = doubleField(0.0) { true }
 		AxisColumnNodes(
 			header = typeCombo(axisColumn),
 			dimension = boundLongField(axisColumn.sizeProperty) { it > 0 },
 			blockSize = boundIntField(axisColumn.blockSizeProperty) { it > 0 },
 			resolution = boundDoubleField(axisColumn.resolutionProperty) { it > 0 },
-			offset = boundDoubleField(axisColumn.offsetProperty) { true },
+			translation = translation.textField,
 			unit = unitField(axisColumn.unitProperty),
-			remove = removeColumnButton(axisColumn)
+			remove = removeColumnButton(axisColumn),
+			subscription = translationSpace.bindAxis(translation.valueProperty(), axisColumn.offsetProperty, axisColumn.resolutionProperty)
 		)
 	}
 
 	/* rebuild the axis grid: x, y, z columns from the spatial fields, then a column per additional axis */
 	private fun rebuildAxisGrid() {
 		axisGrid.children.clear()
-		additionalAxisNodes.keys.retainAll(model.additionalAxes.toSet())
+		(additionalAxisNodes.keys - model.additionalAxes.toSet()).forEach {
+			additionalAxisNodes.remove(it)?.subscription?.unsubscribe()
+		}
 
 		axisGrid.columnConstraints.setAll(
-			/* col 0: row labels */
+			/* row labels */
 			ColumnConstraints().apply { minWidth = NAME_WIDTH; halignment = HPos.LEFT },
-			/* col 1: a spacer that grows to push the axis columns all the way right */
-			ColumnConstraints().apply { hgrow = Priority.ALWAYS }
+			/* spacer, at least the width of the translation space toggle */
+			ColumnConstraints().apply {
+				hgrow = Priority.ALWAYS
+				halignment = HPos.RIGHT
+				minWidthProperty().bind(translationToggle.widestLabelWidthProperty)
+			}
 		)
 		/* remaining axis columns: right aligned */
 		repeat(4 + model.additionalAxes.size) {
 			axisGrid.columnConstraints.add(ColumnConstraints().apply { halignment = HPos.RIGHT })
 		}
 
-		listOf(null, "Dimensions", "Block Size", "Resolution", "Offset", "Unit").forEachIndexed { row, text ->
+		listOf(null, "Dimensions", "Block Size", "Resolution", "Translation", "Unit").forEachIndexed { row, text ->
 			text?.let { axisGrid.add(Label(it), 0, row) }
 		}
+		/* the translation space toggle is in the spacer column, right aligned */
+		axisGrid.add(translationToggle, 1, 4)
 
 		val columns = spatialColumns + model.additionalAxes.map { nodesFor(it) }
 
@@ -218,7 +239,7 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 		columns.forEachIndexed { i, it -> axisGrid[2 + i, 1] = it.dimension }
 		columns.forEachIndexed { i, it -> axisGrid[2 + i, 2] = it.blockSize }
 		columns.forEachIndexed { i, it -> axisGrid[2 + i, 3] = it.resolution }
-		columns.forEachIndexed { i, it -> axisGrid[2 + i, 4] = it.offset }
+		columns.forEachIndexed { i, it -> axisGrid[2 + i, 4] = it.translation }
 		columns.forEachIndexed { i, it -> axisGrid[2 + i, 5] = it.unit }
 		columns.forEachIndexed { i, it -> it.remove?.let { remove -> axisGrid[2 + i, 6] = remove } }
 
@@ -245,11 +266,11 @@ class CreateDatasetUI(val model: CreateDatasetModel) : VBox() {
 			textField.prefWidth = MAIN_FIELD_WIDTH
 		}.textField
 
+	private fun doubleField(initialValue: Double, test: (Double) -> Boolean) =
+		NumberField.doubleField(initialValue, test, *SubmitOn.entries.toTypedArray()).apply { textField.prefWidth = MAIN_FIELD_WIDTH }
+
 	private fun boundDoubleField(property: DoubleProperty, test: (Double) -> Boolean) =
-		NumberField.doubleField(property.value, test, *SubmitOn.entries.toTypedArray()).apply {
-			valueProperty().bindBidirectional(property)
-			textField.prefWidth = MAIN_FIELD_WIDTH
-		}.textField
+		doubleField(property.value, test).apply { valueProperty().bindBidirectional(property) }.textField
 
 	private fun unitField(unitProperty: StringProperty) =
 		TextField().apply { prefWidth = MAIN_FIELD_WIDTH; textProperty().bindBidirectional(unitProperty) }
@@ -339,7 +360,7 @@ fun main() {
 	InvokeOnJavaFXApplicationThread {
 		val model = CreateDatasetModel.default()
 		val stage = Stage()
-		stage.scene = Scene(CreateDatasetUI(model)).also { SaalFxStyle.registerStylesheets(it) }
+		stage.scene = Scene(CreateDatasetUI(model)).also { Paintera.registerStylesheets(it) }
 		stage.title = "Create new Label dataset (preview)"
 		stage.show()
 	}

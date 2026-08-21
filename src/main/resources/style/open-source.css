@@ -8,11 +8,22 @@
     -fx-padding: 0 10 0 0;
 }
 
+/* 75px matches MAIN_FIELD_WIDTH, the cell width of the create dataset dialog */
 .number-cell {
     -fx-alignment: baseline-right;
-    -fx-pref-width: 4em;
+    -fx-pref-width: 75px;
 }
 
 .number-cell:readonly {
     -fx-background-color: transparent;
+}
+
+.unit-cell {
+    -fx-alignment: baseline-right;
+    -fx-pref-width: 75px;
+}
+
+.coordinate-space-toggle .thumb-area {
+    -fx-background-color: -fx-text-box-border, #0b99c9;
+    -fx-background-insets: 0, 1;
 }

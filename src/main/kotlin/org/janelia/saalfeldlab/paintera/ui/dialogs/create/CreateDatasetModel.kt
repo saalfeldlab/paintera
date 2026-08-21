@@ -167,11 +167,10 @@ internal class DefaultCreateDatasetModel(
 			Axis(Axis.SPACE, "z", zUnitProperty.value.ifBlank { null }, false)
 		)
 		var channels = 0
-		var times = 0
 		additionalAxes.forEach { axisColumn ->
 			val name = when (axisColumn.typeProperty.value) {
 				NonSpatialAxisType.CHANNEL -> "c" + (channels++.takeIf { it > 0 }?.toString() ?: "")
-				NonSpatialAxisType.TIME -> "t" + (times++.takeIf { it > 0 }?.toString() ?: "")
+				NonSpatialAxisType.TIME -> "t"
 			}
 			axes += Axis(axisColumn.typeProperty.value.axisType, name, axisColumn.unitProperty.value.ifBlank { null }, false)
 		}
