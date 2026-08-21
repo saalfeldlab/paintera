@@ -139,7 +139,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			}
 		}
 
-		baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
+        baseView.orthogonalViews().pane().cells().forEach { grabFocusOnMouseOver(it) }
 
 		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane)
 		globalActionHandlers + addExportDatasetAction(paneWithStatus.pane)
@@ -233,18 +233,22 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 						keysExclusive = true
 						verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
 						onAction {
-							/* maximize the 3D viewer */
-							val target = if (viewer3D.isHover) viewer3D else cell
-							toggleMaximize(target)
-							if (target === viewer3D && maximized)
-								Platform.runLater { viewer3D.requestFocus() }
-							baseView.orthogonalViews().requestRepaint()
+							toggleMaximize(cell)
+                            if (cell !== viewer3D)
+							    baseView.orthogonalViews().requestRepaint()
 						}
 					}
 					KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D) {
 						keysExclusive = true
 						verify("Can Only Maximize with 3D From the Main Window ") { cell.scene == paintera.baseView.node.scene }
-						onAction { toggleMaximize(cell, orthogonalViews.bottomRight) }
+						onAction {
+                            /* if cell is viewer3D, then just maximize the single cell */
+                            if (cell === viewer3D) {
+                                toggleMaximize(cell)
+                            } else {
+                                toggleMaximize(cell, orthogonalViews.bottomRight)
+                            }
+                        }
 					}
 				}
 				val detachCellActions = painteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
