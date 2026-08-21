@@ -42,6 +42,17 @@ class ModeToolActionBar : FlowPane() {
 		toggleGroups.clear()
 	}
 
+	/**
+	 * Buttons based on [Action][org.janelia.saalfeldlab.fx.actions.Action] are disabled if their verify fails.
+     * But For actions, unlike [Modes], this is not observable.
+     *
+     * This retriggers validations, to test if a button is invalid or not
+     * and enable/disable it appropriately.
+	 */
+	fun revalidate() = children.forEach { child ->
+		(child.properties[REVALIDATE_DISABLED] as? Runnable)?.run()
+	}
+
 	fun show(show: Boolean = true) {
 		isVisible = show
 		isManaged = show
@@ -86,23 +97,29 @@ class ModeToolActionBar : FlowPane() {
 
 	companion object {
 
+		private const val REVALIDATE_DISABLED = "REVALIDATE_DISABLED"
+
 		private fun finalizeToolBarItemControl(item : ToolBarItem, control: Labeled) {
 			control.id = item.name
 			//FIXME Caleb: this is either not necessary, or magic. Regardless, should fix it
 			//  why conditionally bind isDisabled only if a graphic?
 
 			val actionIsValid = { item.action?.isValid(null) ?: true }
+			val ignoresDisable = "ignore-disable" in control.styleClass
+			val refreshDisabled = Runnable {
+				val painteraDisabled = !ignoresDisable && paintera.baseView.isDisabledProperty.get()
+				control.disableProperty().set(painteraDisabled || !actionIsValid())
+			}
+			/* so revalidate() can re-check this control after its verify's dependencies change */
+			control.properties[REVALIDATE_DISABLED] = refreshDisabled
 
 			/* Listen on disabled when visible*/
-			if ("ignore-disable" !in control.styleClass) {
-				paintera.baseView.isDisabledProperty.`when`(control.visibleProperty()).subscribe { disabled ->
-					control.disableProperty().set(disabled || !actionIsValid())
+			if (!ignoresDisable) {
+				paintera.baseView.isDisabledProperty.`when`(control.visibleProperty()).subscribe { _: Boolean ->
+					refreshDisabled.run()
 				}
-			} else {
-				control.disableProperty().set(!actionIsValid())
 			}
-			/* set the initial state to */
-			control.disableProperty().set(!actionIsValid())
+			refreshDisabled.run()
 
 			(control as? Tool)?.isValidProperty?.`when`(control.visibleProperty())?.subscribe { isValid -> control.disableProperty().set(!isValid) }
 

@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ModeToolActionBar
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -203,6 +204,8 @@ interface ToolMode : SourceMode {
 							actionBar.addActionSets(toolActionSets, actionBar.toolActionsGroup)
 						}
 						subscriptions += prevActiveToolSubscription.get()
+						/* mode action buttons are built once, so their verify against the active tool needs to be manually revalidated */
+						actionBar.revalidate()
 					}
 				}
 			}
@@ -356,11 +359,15 @@ interface ToolMode : SourceMode {
 	}
 
 	fun disableUnfocusedViewers() {
-		val orthoViews = paintera.baseView.orthogonalViews()
 		val activeViewer = activeViewerProperty.get()?.viewer() ?: run {
 			LOG.warn { "No active viewer; not disabling the unfocused viewers" }
 			return
 		}
+		disableViewersExcept(activeViewer)
+	}
+
+	fun disableViewersExcept(activeViewer: ViewerPanelFX) {
+		val orthoViews = paintera.baseView.orthogonalViews()
 		orthoViews.views()
 			.filter { it != activeViewer }
 			.forEach { orthoViews.disableView(it) }
