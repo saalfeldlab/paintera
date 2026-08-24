@@ -6,6 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.fx.undo.EventHistory;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.undo.HasHistory;
 import org.slf4j.Logger;
@@ -17,13 +18,32 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public abstract class FragmentSegmentAssignmentStateWithActionTracker extends ObservableWithListenersList
-		implements FragmentSegmentAssignmentState, HasHistory<Pair<AssignmentAction, BooleanProperty>> {
+		implements FragmentSegmentAssignmentState, HasHistory<AssignmentAction> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	protected ObservableList<Pair<AssignmentAction, BooleanProperty>> actions = FXCollections.observableArrayList();
 
 	private ObservableList<Pair<AssignmentAction, BooleanProperty>> readOnlyActions = FXCollections.unmodifiableObservableList(actions);
+
+	private final EventHistory<AssignmentAction> history = new EventHistory<>(actions) {
+
+		@Override
+		public void delete(final int index) {
+
+			actions.remove(index);
+			reapplyActionsAndNotify();
+		}
+
+		@Override
+		public void deleteAll() {
+
+			if (!actions.isEmpty()) {
+				actions.clear();
+				reapplyActionsAndNotify();
+			}
+		}
+	};
 
 	public void persist() throws UnableToPersist {
 
@@ -88,27 +108,10 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 		return actions.stream().anyMatch(p -> p.getValue().get());
 	}
 
-	/**
-	 * Delete a single action. Unlike undoing it, it is gone from the history.
-	 *
-	 * @param action to delete, as provided by {@link #events()}
-	 */
-	public void deleteAction(final Pair<AssignmentAction, BooleanProperty> action) {
+	@Override
+	public EventHistory<AssignmentAction> getHistory() {
 
-		if (actions.remove(action))
-			reapplyActionsAndNotify();
-	}
-
-	/**
-	 * Delete every action, returning the assignment to the state it was loaded in. Assignments already committed to
-	 * the data backend are unaffected.
-	 */
-	public void deleteAllActions() {
-
-		if (!actions.isEmpty()) {
-			actions.clear();
-			reapplyActionsAndNotify();
-		}
+		return history;
 	}
 
 	public ObservableList<Pair<AssignmentAction, BooleanProperty>> events() {

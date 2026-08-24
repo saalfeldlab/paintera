@@ -61,7 +61,7 @@ class FragmentSegmentAssignmentActionHistoryTest {
 		val actions = merges(3)
 		assignment.apply(actions)
 
-		assignment.deleteAction(assignment.events()[1])
+		assignment.history.delete(assignment.events()[1].key)
 
 		assertEquals(listOf(actions[0], actions[2]), assignment.events().map { it.key })
 	}
@@ -73,7 +73,7 @@ class FragmentSegmentAssignmentActionHistoryTest {
 		assignment.apply(merge)
 		assertEquals(3L, assignment.getSegment(2L)) { "the merge should be applied" }
 
-		assignment.deleteAction(assignment.events()[0])
+        assignment.history.delete(assignment.events()[0].key)
 
 		assertEquals(2L, assignment.getSegment(2L)) { "the fragment should be back on its own segment" }
 	}
@@ -83,7 +83,7 @@ class FragmentSegmentAssignmentActionHistoryTest {
 		val assignment = assignment()
 		assignment.apply(merges(3))
 
-		assignment.deleteAllActions()
+        assignment.history.deleteAll()
 
 		assertTrue(assignment.events().isEmpty())
 		assertFalse(assignment.hasPersistableData())

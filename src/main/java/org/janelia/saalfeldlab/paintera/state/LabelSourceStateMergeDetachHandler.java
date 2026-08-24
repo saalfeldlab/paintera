@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.viewer.Interpolation;
-import javafx.event.Event;
-import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -15,19 +13,20 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
+import org.janelia.saalfeldlab.fx.undo.EventHistory;
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.undo.HasHistory;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -35,6 +34,7 @@ import java.util.function.LongPredicate;
 import java.util.function.Supplier;
 
 import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.verifyPermission;
 
 public class LabelSourceStateMergeDetachHandler {
 
@@ -50,13 +50,11 @@ public class LabelSourceStateMergeDetachHandler {
 
 	private final IdService idService;
 
-	private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
-
 	public LabelSourceStateMergeDetachHandler(
 			final DataSource<? extends IntegerType<?>, ?> source,
 			final SelectedIds selectedIds,
 			final FragmentSegmentAssignment assignment,
-			final IdService idService) {
+            final IdService idService) {
 
 		this.source = source;
 		this.selectedIds = selectedIds;
@@ -69,13 +67,13 @@ public class LabelSourceStateMergeDetachHandler {
 		final var mergeFragments = painteraActionSet("MergeFragments", LabelActionType.Merge, actionSet -> {
 			actionSet.addMouseAction(MouseEvent.MOUSE_CLICKED, action -> {
 				action.keysDown(KeyCode.SHIFT);
-				action.verify(event -> activeViewerSupplier.get() != null);
+				action.verify(_ -> activeViewerSupplier.get() != null);
 				action.verifyButtonTrigger(MouseButton.PRIMARY);
 				action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()).accept(mouseEvent));
 			});
 			actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
-				action.keyMatchesBinding(LabelSourceStateKeys.MERGE_ALL_SELECTED);
-				action.onAction(event -> mergeAllSelected());
+				action.keyMatchesBinding(LabelSourceStateKeys.FRAG_SEG_ASSIGNMENT_MERGE_SELECTED);
+				action.onAction(_ -> mergeAllSelected());
 			});
 		});
 		final var detachFragments = painteraActionSet("DetachFragment", LabelActionType.Split, actionSet -> {
@@ -83,12 +81,33 @@ public class LabelSourceStateMergeDetachHandler {
 				action.setName("DetachFragment");
 				action.keysDown(KeyCode.SHIFT);
 				action.verifyButtonTrigger(MouseButton.SECONDARY);
-				action.verify(event -> activeViewerSupplier.get() != null);
+				action.verify(_ -> activeViewerSupplier.get() != null);
 				action.onAction(mouseEvent -> new DetachFragment(activeViewerSupplier.get()).accept(mouseEvent));
 			});
 		});
 
-		return List.of(mergeFragments, detachFragments);
+        if (!(assignment instanceof HasHistory<?>)) {
+            return List.of(mergeFragments, detachFragments);
+        }
+
+        EventHistory<?> assignmentHistory = ((HasHistory<?>) assignment).getHistory();
+
+        /* undo/redo can revert either kind of action, so both permissions are required */
+		final var undoRedoAssignments = painteraActionSet("UndoRedoAssignments", actionSet -> {
+			verifyPermission(actionSet, LabelActionType.Split, LabelActionType.Merge);
+			actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
+				action.keyMatchesBinding(LabelSourceStateKeys.FRAG_SEG_ASSIGNMENT_UNDO);
+				action.verify("there is an assignment to undo", _ -> assignmentHistory.getCanUndo().get());
+				action.onAction(_ -> assignmentHistory.undo());
+			});
+			actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
+				action.keyMatchesBinding(LabelSourceStateKeys.FRAG_SEG_ASSIGNMENT_REDO);
+				action.verify("there is an assignment to redo", _ -> assignmentHistory.getCanRedo().get());
+				action.onAction(_ -> assignmentHistory.redo());
+			});
+		});
+
+		return List.of(mergeFragments, detachFragments, undoRedoAssignments);
 	}
 
 	private void mergeAllSelected() {
