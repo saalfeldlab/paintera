@@ -1,13 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import com.google.gson.annotations.Expose;
-import gnu.trove.impl.Constants;
-import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongLongMap;
-import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import io.github.oshai.kotlinlogging.KLogger;
@@ -18,8 +14,11 @@ import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+import org.jctools.maps.NonBlockingHashMapLong;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -101,20 +100,11 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
-	private final TLongLongMap fragmentToSegmentMap =  new TLongLongHashMap(
-					Constants.DEFAULT_CAPACITY,
-					Constants.DEFAULT_LOAD_FACTOR,
-					Label.TRANSPARENT,
-					Label.TRANSPARENT
-			);
+	private volatile NonBlockingHashMapLong<Long> fragmentToSegmentMap = new NonBlockingHashMapLong<>(false);
 
-	private final TLongObjectMap<TLongHashSet> segmentToFragmentsMap = new TSynchronizedLongObjectMap<>(
-			new TLongObjectHashMap<>(
-					Constants.DEFAULT_CAPACITY,
-					Constants.DEFAULT_LOAD_FACTOR,
-					Label.TRANSPARENT
-			)
-	);
+	private volatile NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap = new NonBlockingHashMapLong<>(false);
+
+	private final Object writeLock = new Object();
 
 	private final Persister persister;
 
@@ -166,7 +156,15 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			// TODO Should we reset the LUT first to make sure that all previous changes were loaded?
 			LOG.debug("Persisting assignment {}", this.fragmentToSegmentMap);
 			LOG.debug("Committing actions {}", this.actions);
-			this.persister.persist(this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values());
+            int numEntries = this.fragmentToSegmentMap.size();
+            final long[] keys = new long[numEntries];
+			final long[] values = new long[numEntries];
+            var i = 0;
+			for (final Map.Entry<Long, Long> entry : this.fragmentToSegmentMap.entrySet()) {
+				keys[i] = entry.getKey();
+				values[i++] = entry.getValue();
+			}
+			this.persister.persist(keys, values);
 			this.actions.clear();
 		} catch (final Exception e) {
 			throw e instanceof UnableToPersist ? (UnableToPersist)e : new UnableToPersist(e);
@@ -176,36 +174,48 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	public long getSegment(final long fragmentId) {
 
-		final long id;
-		final long segmentId = fragmentToSegmentMap.get(fragmentId);
-		if (segmentId == fragmentToSegmentMap.getNoEntryValue()) {
-			id = fragmentId;
-		} else {
-			id = segmentId;
-		}
-		LOG.trace(() -> "Returning %s for fragment %s: ".formatted(id, fragmentId));
+
+        Long segmentId = fragmentToSegmentMap.get(fragmentId);
+        final long id = segmentId == null ? fragmentId : segmentId;
+        LOG.trace(() -> "Returning %s for fragment %s: ".formatted(id, fragmentId));
 		return id;
 	}
 
 	@Override
-	public synchronized TLongHashSet getFragments(final long segmentId) {
+	public TLongHashSet getFragments(final long segmentId) {
 
-		synchronized (segmentToFragmentsMap) {
-			final TLongHashSet fragments = segmentToFragmentsMap.get(segmentId);
-			return fragments == null ? new TLongHashSet(new long[]{segmentId}) : new TLongHashSet(fragments);
-		}
+        final TLongHashSet fragments = segmentToFragmentsMap.get(segmentId);
+		return fragments == null ? new TLongHashSet(new long[]{segmentId}) : new TLongHashSet(fragments);
 	}
 
-	private void detachFragmentImpl(final Detach detach) {
+	/**
+	 *  Get a write-safe TLongHashSet of fragments for a segment.
+     *  If `applyInPlace` then the active reference from {@code segmentToFragmentsMap} is returned.
+     *  Otherwise, a copy is returned.
+	 */
+	private static TLongHashSet modifiableFragmentsSet(
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap,
+			final long segment,
+			final boolean applyInPlace) {
+
+		final TLongHashSet fragments = segmentToFragmentsMap.get(segment);
+        if (fragments == null)
+            return null;
+
+        return applyInPlace ? fragments : new TLongHashSet(fragments);
+    }
+
+	private static void detachFragmentImpl(
+			final NonBlockingHashMapLong<Long> fragmentToSegmentMap,
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap,
+			final Detach detach,
+			final boolean applyInPlace) {
 
 		LOG.debug("Detach {}", detach);
-		final long segmentFrom;
-		synchronized (fragmentToSegmentMap) {
-            segmentFrom = fragmentToSegmentMap.get(detach.fragmentId);
-            if (fragmentToSegmentMap.get(detach.fragmentFrom) != segmentFrom) {
-				LOG.debug("{} not in same segment -- return without detach", detach);
-				return;
-			}
+		final Long segmentFrom = fragmentToSegmentMap.get(detach.fragmentId);
+		if (!Objects.equals(fragmentToSegmentMap.get(detach.fragmentFrom), segmentFrom)) {
+			LOG.debug("{} not in same segment -- return without detach", detach);
+			return;
 		}
 
 		final long fragmentId = detach.fragmentId;
@@ -215,20 +225,26 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		LOG.debug("Removed {} from {}", fragmentId, fragmentToSegmentMap);
 
 		LOG.debug("Removing fragment={} from segment={}", fragmentId, segmentFrom);
-		final TLongHashSet fragments = segmentToFragmentsMap.get(segmentFrom);
+		final TLongHashSet fragments = segmentFrom == null ? null : modifiableFragmentsSet(segmentToFragmentsMap, segmentFrom, applyInPlace);
 		if (fragments != null) {
 			fragments.remove(fragmentId);
 			LOG.debug("Removed {} from {}", fragmentId, fragments);
 			if (fragments.isEmpty()) {
 				fragmentToSegmentMap.remove(fragmentFrom);
-				segmentToFragmentsMap.remove(segmentFrom);
+				segmentToFragmentsMap.remove((long)segmentFrom);
+			} else {
+				segmentToFragmentsMap.put((long)segmentFrom, fragments);
 			}
 		}
 		LOG.debug("Fragment-to-segment map after detach: {}", fragmentToSegmentMap);
 		LOG.debug("Segment-to-fragment map after detach: {}", segmentToFragmentsMap);
 	}
 
-	private void mergeFragmentsImpl(final Merge merge) {
+	private static void mergeFragmentsImpl(
+			final NonBlockingHashMapLong<Long> fragmentToSegmentMap,
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap,
+			final Merge merge,
+			final boolean applyInPlace) {
 
 		LOG.debug("Merging {}", merge);
 
@@ -243,11 +259,9 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		// return here
 		// Therefore, check if from is contained. Alternatively, compare
 		// getSegment( from ) == getSegment( to )
-		synchronized (fragmentToSegmentMap) {
-			if (fragmentToSegmentMap.containsKey(from) && fragmentToSegmentMap.get(from) == fragmentToSegmentMap.get(into)) {
-				LOG.debug("Fragments already in same segment -- not merging");
-				return;
-			}
+		if (fragmentToSegmentMap.containsKey(from) && Objects.equals(fragmentToSegmentMap.get(from), fragmentToSegmentMap.get(into))) {
+			LOG.debug("Fragments already in same segment -- not merging");
+			return;
 		}
 
 		final long segmentFrom = fragmentToSegmentMap.containsKey(from) ? fragmentToSegmentMap.get(from) : from;
@@ -256,7 +270,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		if (!fragmentToSegmentMap.containsKey(into)) {
 			LOG.debug("Adding segment {} to framgent {}", segmentInto, into);
-			fragmentToSegmentMap.put(into, segmentInto);
+			fragmentToSegmentMap.put(into, Long.valueOf(segmentInto));
 		}
 
 		if (!segmentToFragmentsMap.containsKey(segmentInto)) {
@@ -268,39 +282,67 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		LOG.debug("Framgents for from segment: {}", fragmentsFrom);
 
 		if (fragmentsFrom != null) {
-			final TLongHashSet fragmentsInto = segmentToFragmentsMap.get(segmentInto);
+			final TLongHashSet fragmentsInto = modifiableFragmentsSet(segmentToFragmentsMap, segmentInto, applyInPlace);
 			LOG.debug("Fragments into {}", fragmentsInto);
 			fragmentsInto.addAll(fragmentsFrom);
-			Arrays.stream(fragmentsFrom.toArray()).forEach(id -> fragmentToSegmentMap.put(id, segmentInto));
+			segmentToFragmentsMap.put(segmentInto, fragmentsInto);
+			Arrays.stream(fragmentsFrom.toArray()).forEach(id -> fragmentToSegmentMap.put(id, Long.valueOf(segmentInto)));
 		} else {
-			segmentToFragmentsMap.get(segmentInto).add(from);
-			fragmentToSegmentMap.put(from, segmentInto);
+			final TLongHashSet fragmentsInto = modifiableFragmentsSet(segmentToFragmentsMap, segmentInto, applyInPlace);
+			fragmentsInto.add(from);
+			segmentToFragmentsMap.put(segmentInto, fragmentsInto);
+			fragmentToSegmentMap.put(from, Long.valueOf(segmentInto));
 		}
 	}
 
 	private void resetLut() {
 
-		fragmentToSegmentMap.clear();
-		fragmentToSegmentMap.putAll(initialLut.get());
-		syncILut();
+		synchronized (writeLock) {
+			/* build both maps in before updating the fields, so they aren't read until all action are applied.  */
+			final NonBlockingHashMapLong<Long> fragmentToSegmentMap = new NonBlockingHashMapLong<>(false);
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap = new NonBlockingHashMapLong<>(false);
+			final TLongLongIterator fragSegIter = initialLut.get().iterator();
+			while (fragSegIter.hasNext()) {
+				fragSegIter.advance();
+				fragmentToSegmentMap.put(fragSegIter.key(), Long.valueOf(fragSegIter.value()));
+			}
+			syncILut(fragmentToSegmentMap, segmentToFragmentsMap);
 
-		this.actions.stream().filter(p -> p.getValue().get()).map(Pair::getKey).forEach(this::applyImpl);
+			this.actions.stream()
+                    .filter(p -> p.getValue().get())
+                    .map(Pair::getKey)
+					.forEach(action -> applyTo(fragmentToSegmentMap, segmentToFragmentsMap, action, true));
 
+			/* no reader looks at both maps, so they do not have to become visible together */
+			this.fragmentToSegmentMap = fragmentToSegmentMap;
+			this.segmentToFragmentsMap = segmentToFragmentsMap;
+		}
 	}
 
 	@Override
 	protected void applyImpl(final AssignmentAction action) {
 
+		synchronized (writeLock) {
+			applyTo(fragmentToSegmentMap, segmentToFragmentsMap, action, false);
+		}
+	}
+
+	private static void applyTo(
+			final NonBlockingHashMapLong<Long> fragmentToSegmentMap,
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap,
+			final AssignmentAction action,
+			final boolean applyInPlace) {
+
 		LOG.debug("Applying action {}", action);
 		switch (action.getType()) {
 		case MERGE: {
 			LOG.debug("Applying merge {}", action);
-			mergeFragmentsImpl((Merge)action);
+			mergeFragmentsImpl(fragmentToSegmentMap, segmentToFragmentsMap, (Merge)action, applyInPlace);
 			break;
 		}
 		case DETACH:
 			LOG.debug("Applying detach {}", action);
-			detachFragmentImpl((Detach)action);
+			detachFragmentImpl(fragmentToSegmentMap, segmentToFragmentsMap, (Detach)action, applyInPlace);
 			break;
 		}
 	}
@@ -311,14 +353,14 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		resetLut();
 	}
 
-	private synchronized void syncILut() {
+	private static void syncILut(
+			final NonBlockingHashMapLong<Long> fragmentToSegmentMap,
+			final NonBlockingHashMapLong<TLongHashSet> segmentToFragmentsMap) {
 
 		segmentToFragmentsMap.clear();
-		final TLongLongIterator lutIterator = fragmentToSegmentMap.iterator();
-		while (lutIterator.hasNext()) {
-			lutIterator.advance();
-			final long fragmentId = lutIterator.key();
-			final long segmentId = lutIterator.value();
+		for (final Map.Entry<Long, Long> lutEntry : fragmentToSegmentMap.entrySet()) {
+			final long fragmentId = lutEntry.getKey();
+			final long segmentId = lutEntry.getValue();
 			TLongHashSet fragments = segmentToFragmentsMap.get(segmentId);
 			if (fragments == null) {
 				fragments = new TLongHashSet();
@@ -336,8 +378,11 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	public void persist(final long[] keys, final long[] values) {
 
-		this.fragmentToSegmentMap.keys(keys);
-		this.fragmentToSegmentMap.values(values);
+		int i = 0;
+		for (final Map.Entry<Long, Long> entry : this.fragmentToSegmentMap.entrySet()) {
+			keys[i] = entry.getKey();
+			values[i++] = entry.getValue();
+		}
 	}
 
 	@Override
@@ -382,12 +427,14 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 
 		// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take care of it instead.
-		if (getSegment(intoFragmentId) == intoFragmentId) {
-			fragmentToSegmentMap.put(intoFragmentId, newSegmentId.getAsLong());
-		}
+		synchronized (writeLock) {
+			if (getSegment(intoFragmentId) == intoFragmentId) {
+				fragmentToSegmentMap.put(intoFragmentId, Long.valueOf(newSegmentId.getAsLong()));
+			}
 
-		final Merge merge = new Merge(fromFragmentId, intoFragmentId, fragmentToSegmentMap.get(intoFragmentId));
-		return Optional.of(merge);
+			final Merge merge = new Merge(fromFragmentId, intoFragmentId, fragmentToSegmentMap.get(intoFragmentId));
+			return Optional.of(merge);
+		}
 	}
 
 	@Override
