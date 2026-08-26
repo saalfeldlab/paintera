@@ -176,7 +176,7 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scale0, it)).toList() }
 
 		/* Read from canvas access (if in canvas) */
-		val cellGrid = getCellGrid(0, scale0)
+		val cellGrid = getCanvasGrid(scale0)
 		val cellIntervals = cellGrid.cellIntervals().randomAccess()
 		val cellPos = LongArray(cellGrid.numDimensions())
 		val blocksFromCanvas = labels.flatMap {

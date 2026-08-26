@@ -331,7 +331,7 @@ class MeshManagerWithAssignmentForSegments(
 			}
 
 			private fun affectedBlocksForLabel(source: MaskedSource<*, *>, level: Int, id: Long): Array<Interval> {
-				val grid = source.getCellGrid(0, level)
+				val grid = source.getCanvasGrid(level)
 				val imgDim = grid.imgDimensions
 				val blockSize = IntArray(imgDim.size) { grid.cellDimension(it) }
 				LOG.debug("Getting blocks at level={} for id={}", level, id)

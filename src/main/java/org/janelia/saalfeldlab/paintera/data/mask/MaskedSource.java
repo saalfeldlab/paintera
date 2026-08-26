@@ -414,6 +414,32 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		return sourceBlocks.toArray();
 	}
 
+	/**
+	 * Map a 3D block index to its nD block index in the canvas.
+	 */
+	private long xyzToSourceBlock(final long blockXYZ, final int level) {
+
+		if (!canvasIsSliced) return blockXYZ;
+		final TLongSet singleton = new TLongHashSet();
+		singleton.add(blockXYZ);
+		return xyzToSourceBlocks(singleton, level)[0];
+	}
+
+	/** convert the modified 3D XYZ blocks to nD before storing in the affectedBlocks list */
+	private void addAffectedBlocksForLabel(final int level, final long labelId, final TLongSet blocksXYZ) {
+
+		final long[] canvasBlocks = xyzToSourceBlocks(blocksXYZ, level);
+		synchronized (affectedBlocksByLabel) {
+			affectedBlocksByLabel[level].computeIfAbsent(labelId, key -> new TLongHashSet()).addAll(canvasBlocks);
+		}
+	}
+
+	/** The nD grid the canvas store is allocated over at {@code level}. */
+	public CellGrid getCanvasGrid(final int level) {
+
+		return dataCanvases[level].getCellGrid();
+	}
+
 	public ReadOnlyBooleanProperty isApplyingMaskProperty() {
 
 		return isApplyingMask;
@@ -628,7 +654,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			* This is just the unique of all `affectedBlocksByLabel` */
 			final TLongSet paintedBlocks = new TLongHashSet();
 			for (var label : labelToBlocks.entrySet()) {
-				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+				addAffectedBlocksForLabel(maskInfo.level, label.getKey(), label.getValue());
 				paintedBlocks.addAll(label.getValue());
 			}
 
@@ -754,12 +780,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				});
 
 				final TLongSet paintedBlocks = new TLongHashSet();
-				final Map<Long, TLongHashSet> blocksByLabelByLevel = this.affectedBlocksByLabel[maskInfo.level];
-				synchronized (blocksByLabelByLevel) {
-					for (var label : labelToBlocks.entrySet()) {
-						blocksByLabelByLevel.computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
-						paintedBlocks.addAll(label.getValue());
-					}
+				for (var label : labelToBlocks.entrySet()) {
+					addAffectedBlocksForLabel(maskInfo.level, label.getKey(), label.getValue());
+					paintedBlocks.addAll(label.getValue());
 				}
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
@@ -767,7 +790,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						maskInfo.level,
 						0);
 
-				LOG.debug("Added affected block: {}", blocksByLabelByLevel);
+				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
 				synchronized (affectedBlocks) {
 					affectedBlocks.addAll(xyzToSourceBlocks(paintedBlocksAtHighestResolution, 0));
 				}
@@ -1373,6 +1396,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		return labels;
 	}
 
+	/** Blocks modified by {@code id} since the last commit, as indices into {@link #getCanvasGrid(int)} at {@code level}. */
 	public TLongSet getModifiedBlocks(final int level, final long id) {
 
 		LOG.debug("Getting modified blocks for level={} and id={}", level, id);
@@ -1490,11 +1514,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				steps,
 				propagationExecutor);
 		for (Entry<Long, Set<Long>> entry : blocksModifiedByLabel.entrySet()) {
-			final Long labelId = entry.getKey();
-			final Set<Long> blocks = entry.getValue();
-			synchronized (affectedBlocksByLabel) {
-				affectedBlocksByLabel[targetDownsampleLevel].computeIfAbsent(labelId, k -> new TLongHashSet()).addAll(blocks);
-			}
+			final TLongSet blocks = new TLongHashSet();
+			blocks.addAll(entry.getValue());
+			addAffectedBlocksForLabel(targetDownsampleLevel, entry.getKey(), blocks);
 		}
 		LOG.debug("Downsampled level {}", targetDownsampleLevel);
 	}
@@ -1592,8 +1614,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 									labels.add(maskLabel);
 								}
 							});
-					for (Long modifiedLabel : labels) {
-						this.affectedBlocksByLabel[higherResLevel].computeIfAbsent(modifiedLabel, key -> new TLongHashSet()).add(blockId);
+					final long canvasBlockId = xyzToSourceBlock(blockId, higherResLevel);
+					synchronized (affectedBlocksByLabel) {
+						for (Long modifiedLabel : labels) {
+							this.affectedBlocksByLabel[higherResLevel].computeIfAbsent(modifiedLabel, key -> new TLongHashSet()).add(canvasBlockId);
+						}
 					}
 				}
 			}
@@ -2139,11 +2164,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public Interval getCanvasInterval(final int level, final long label) {
 
-		final CellGrid cellGrid = getCellGrid(0, level);
+		final CellGrid cellGrid = getCanvasGrid(level);
 		final RandomAccess<Interval> cellIntervals = cellGrid.cellIntervals().randomAccess();
 		final TLongSet modifiedBlocks = getModifiedBlocks(level, label);
 		final long[] cellPos = new long[cellGrid.numDimensions()];
-		final Interval[] unionInterval = new Interval[]{new FinalInterval(0, 0, 0)};
+		final Interval[] unionInterval = new Interval[]{new FinalInterval(new long[cellGrid.numDimensions()], new long[cellGrid.numDimensions()])};
 		modifiedBlocks.forEach(block -> {
 			cellGrid.getCellGridPositionFlat(block, cellPos);
 			unionInterval[0] = Intervals.union(unionInterval[0], cellIntervals.setPositionAndGet(cellPos));

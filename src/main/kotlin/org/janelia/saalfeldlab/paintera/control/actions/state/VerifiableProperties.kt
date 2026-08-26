@@ -214,7 +214,7 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 			},
 			CanvasOnly {
 				override fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval> {
-					val cellGrid = maskedSource.getCellGrid(timepoint, scaleLevel)
+					val cellGrid = maskedSource.getCanvasGrid(scaleLevel)
 					val cellIntervals = cellGrid.cellIntervals().randomAccess()
 					val cellPos = LongArray(cellGrid.numDimensions())
 					return labels.flatMapTo(mutableSetOf()) {
@@ -230,8 +230,6 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 					return SourceOnly.run { getBlocks(scaleLevel, labels) } + CanvasOnly.run { getBlocks(scaleLevel, labels) }
 				}
 			};
-
-			val timepoint = 0 /* aspirational */
 
 			abstract fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval>
 		}
@@ -252,7 +250,7 @@ interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : Mask
 	val brushProperties get() = sourceState.brushProperties
 
 	/**
-	 * PaintContextActionSTate from the current active  mode
+	 * PaintContextActionSTate from the current active mode
 	 */
 	open class FromCurrentMode<S : ConnectomicsLabelState<D, T>, D, T> :
 		PainteraActionState(),

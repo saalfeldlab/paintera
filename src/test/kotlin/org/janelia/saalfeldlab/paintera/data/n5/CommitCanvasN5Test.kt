@@ -51,6 +51,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.FieldSource
 import java.nio.file.Path
 import java.util.Random
@@ -93,7 +94,7 @@ class CommitCanvasN5Test {
 		it.numDimensions > 3 && it.scalePyramid == TestData.ScalePyramid.Single && it.metadata == TestData.Metadata.NONE
 	}
 
-	/* >3D multi-scale uint64 for the native nD commit path (per-slab spatial downsample) */
+	/* >3D multi-scale uint64 for the native nD commit path (per-slice spatial downsample) */
 	val ndMultiscaleCommitCases = TestData.n5Scalar.filter {
 		it.dataType == DataType.UINT64 && it.numDimensions > 3 && it.scalePyramid == TestData.ScalePyramid.Multi
 	}
@@ -228,7 +229,7 @@ class CommitCanvasN5Test {
 
 	/**
 	 * Commit an nD canvas (matching the dataset grid) all at once: the canvas holds painted and INVALID voxels across
-	 * every (channel, time) slab, and the whole annotation layer is persisted block-for-block - painted voxels
+	 * every (channel, time) slice, and the whole annotation layer is persisted block-for-block - painted voxels
 	 * overwrite, unpainted keep the background, even for blocks that span several non-spatial positions. This is the
 	 * commit half of the nD MaskedSource design (the canvas is nD rather than a 3D slice).
 	 */
@@ -245,7 +246,7 @@ class CommitCanvasN5Test {
 
 		val metadataState = createMetadataState(container, dataset)!!.also { it.isLabel = true }
 		val attributes = writer.getDatasetAttributes(dataset)
-		/* the canvas mirrors the full dataset grid and paints/INVALIDs across every slab (writable so it stays stable) */
+		/* the canvas mirrors the full dataset grid and paints/INVALIDs across every slice (writable so it stays stable) */
 		val canvas = newWritableTestCanvas(tmp, attributes.dimensions, attributes.blockSize)
 		val numBlocks = Intervals.numElements(*canvas.cellGrid.gridDimensions).toInt()
 		val blocks = LongArray(numBlocks) { it.toLong() }
@@ -279,7 +280,7 @@ class CommitCanvasN5Test {
 
 	/**
 	 * Native nD commit into a multi-scale source: s0 gets the whole-canvas merge, and every lower scale is the
-	 * per-slab spatial winner-takes-all downsample of the committed s0 (non-spatial axes untouched).
+	 * per-slice spatial winner-takes-all downsample of the committed s0 (non-spatial axes untouched).
 	 */
 	@ParameterizedTest
 	@FieldSource("ndMultiscaleCommitCases")
@@ -306,16 +307,15 @@ class CommitCanvasN5Test {
 		val committedS0 = expectedAfterNDCommit(groundTruth, canvas, s0Dimensions)
 		assertDatasetMatches(writer, s0, committedS0)
 
-		/* s1: each non-spatial slab spatially downsampled from the committed s0 */
+		/* s1: each non-spatial slice spatially downsampled from the committed s0 */
 		val s1Dimensions = writer.getDatasetAttributes(s1).dimensions
 		val expectedS1 = expectedNDDownsample(committedS0, s0Dimensions, s1Dimensions, intArrayOf(2, 2, 2))
 		assertDatasetMatches(writer, s1, expectedS1)
 	}
 
 	/**
-	 * Phase B retention: paint two timepoints of an nD masked source, scrub the slice position between them, and
-	 * confirm the canvas keeps both slabs' edits - the thing the in-place reslice used to discard. Drives applyMask
-	 * directly (no UI) and reads back the canvas at each slice.
+	 * paint two timepoints of an nD masked source, scrub the slice position between them, and
+	 * confirm the canvas keeps both slice's edits.
 	 */
 	@Test
 	fun testNDMaskedCanvasRetainsEditsAcrossTimepoints(@TempDir tmp: Path) {
@@ -339,8 +339,66 @@ class CommitCanvasN5Test {
 		assertEquals(111L, canvasValueAtTimepoint(masked, metadataState, timepoint = 1L)) { "timepoint 1 edit must be retained" }
 	}
 
-	private fun paintBoxAtTimepoint(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long, label: Long) {
-		metadataState.slicePositions = longArrayOf(0, 0, 0, timepoint)
+	/**
+	 * Per-label canvas block tracking must carry the slice, not just x/y/z, at any rank: the block recorded for a
+	 * paint at non-spatial position `p` is the canvas block *containing* `p`, i.e. grid position
+	 * `p[axis] / nonSpatialBlockSize` per axis. Whether neighbouring slices share a block is a property of the block
+	 * size, not something to enforce, so both layouts are exercised at 4D, 5D and 6D. Tracked in the 3D grid every
+	 * slice collapses to one index, and "which blocks hold this label" silently answers for the visible slice only.
+	 */
+	@ParameterizedTest(name = "{0}D, non-spatial block size {1}")
+	@CsvSource("4, 1", "4, 2", "5, 1", "5, 2", "6, 2")
+	fun testNDModifiedBlocksCarrySlicePositions(numDimensions: Int, nonSpatialBlockSize: Int, @TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("ndBlocks.n5").toString())
+		/* extent 4 per non-spatial axis, so even the shared-block layout spans more than one block */
+		val nonSpatialExtent = 4L
+		val numNonSpatial = numDimensions - 3
+		val dimensions = LongArray(numDimensions) { if (it < 3) 16L else nonSpatialExtent }
+		val blockSize = IntArray(numDimensions) { if (it < 3) 8 else nonSpatialBlockSize }
+		val dataset = "label"
+		writer.createDataset(dataset, dimensions, blockSize, org.janelia.saalfeldlab.n5.DataType.UINT64, GzipCompression())
+
+		val metadataState = createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, dataset, queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor)
+				as MaskedSource<UnsignedLongType, VolatileUnsignedLongType>
+
+		/* the origin, each non-spatial axis stepped to the far end alone, then all of them together */
+		val paintedSlices = buildList {
+			add(LongArray(numNonSpatial))
+			for (axis in 0 until numNonSpatial)
+				add(LongArray(numNonSpatial).also { it[axis] = nonSpatialExtent - 1 })
+			if (numNonSpatial > 1)
+				add(LongArray(numNonSpatial) { nonSpatialExtent - 1 })
+		}
+
+		/* the same label at the same xy, once per slice */
+		val label = 777L
+		for (slice in paintedSlices)
+			paintBoxAtSlice(masked, metadataState, LongArray(3) + slice, label)
+
+		val grid = masked.getCanvasGrid(0)
+		assertEquals(numDimensions, grid.numDimensions()) { "the canvas grid must stay nD" }
+
+		val positions = masked.getModifiedBlocks(0, label).toArray().map { block ->
+			LongArray(grid.numDimensions()).also { grid.getCellGridPositionFlat(block, it) }
+		}
+
+		/* every paint hit the same spatial block; only the non-spatial indices can differ */
+		positions.forEach {
+			assertArrayEquals(longArrayOf(0, 0, 0), it.copyOf(3)) { "the paint must stay in the same spatial block" }
+		}
+		val expected = paintedSlices.map { slice -> slice.map { it / nonSpatialBlockSize } }.toSet()
+		assertEquals(expected, positions.map { it.drop(3) }.toSet()) { "each paint must land in the block containing its slice" }
+		assertEquals(expected.size, positions.size) { "no block may be recorded twice" }
+	}
+
+	private fun paintBoxAtTimepoint(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long, label: Long) =
+		paintBoxAtSlice(masked, metadataState, longArrayOf(0, 0, 0, timepoint), label)
+
+	private fun paintBoxAtSlice(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, slicePositions: LongArray, label: Long) {
+		metadataState.slicePositions = slicePositions
 		val mask = masked.generateMask(MaskInfo(0, 0), MaskedSource.VALID_LABEL_CHECK)
 		val region = FinalInterval(longArrayOf(2, 2, 2), longArrayOf(5, 5, 5))
 		Views.interval(mask.rai, region).forEach { it.set(label) }
@@ -359,7 +417,7 @@ class CommitCanvasN5Test {
 
 	/**
 	 * Phase B multiscale propagation: painting a timepoint of a multi-scale nD source must propagate to the lower
-	 * canvas scales for that timepoint (so zoomed-out LODs show the edit before commit), without touching other slabs.
+	 * canvas scales for that timepoint (so zoomed-out LODs show the edit before commit), without touching other slices.
 	 */
 	@Test
 	fun testNDMaskedCanvasPropagatesToLowerScalesPerTimepoint(@TempDir tmp: Path) {
@@ -380,7 +438,7 @@ class CommitCanvasN5Test {
 
 		paintBoxAtTimepoint(masked, metadataState, timepoint = 1L, label = 111L)
 
-		/* the box painted at s0/t=1 propagated to s1/t=1, but no other (level, timepoint) slab was touched */
+		/* the box painted at s0/t=1 propagated to s1/t=1, but no other (level, timepoint) slice was touched */
 		assertTrue(paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 1L, level = 0) > 0) { "s0 t=1 should hold the painted box" }
 		assertTrue(paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 1L, level = 1) > 0) { "s1 t=1 should show the downsampled edit" }
 		assertEquals(0, paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 0L, level = 1)) { "s1 t=0 must stay empty" }
@@ -505,9 +563,9 @@ class CommitCanvasN5Test {
 		}
 
 		/**
-		 * The s1 volume a correct native nD downsample-on-commit should produce: every (channel, time, ...) slab of
+		 * The s1 volume a correct native nD downsample-on-commit should produce: every (channel, time, ...) slice of
 		 * [committedS0] independently winner-takes-all downsampled by [scaleFactor] (spatial axes 0,1,2). Non-spatial
-		 * axes are not downsampled, so each slab maps to the same slab one scale down.
+		 * axes are not downsampled, so each slice maps to the same slice one scale down.
 		 */
 		private fun expectedNDDownsample(
 			committedS0: RandomAccessibleInterval<UnsignedLongType>,
@@ -518,7 +576,7 @@ class CommitCanvasN5Test {
 			val expectedS1 = ArrayImgs.unsignedLongs(*s1Dimensions)
 			val nonSpatialAxes = (3 until s0Dimensions.size).toList()
 
-			fun downsampleSlab(axisIndex: Int, position: LongArray) {
+			fun downsampleSlice(axisIndex: Int, position: LongArray) {
 				if (axisIndex == nonSpatialAxes.size) {
 					var s0Slice: RandomAccessibleInterval<UnsignedLongType> = committedS0
 					var s1Slice: RandomAccessibleInterval<UnsignedLongType> = expectedS1
@@ -530,18 +588,18 @@ class CommitCanvasN5Test {
 					return
 				}
 				val axis = nonSpatialAxes[axisIndex]
-				for (slab in 0 until s0Dimensions[axis]) {
-					position[axis] = slab
-					downsampleSlab(axisIndex + 1, position)
+				for (slice in 0 until s0Dimensions[axis]) {
+					position[axis] = slice
+					downsampleSlice(axisIndex + 1, position)
 				}
 			}
-			downsampleSlab(0, LongArray(s0Dimensions.size))
+			downsampleSlice(0, LongArray(s0Dimensions.size))
 			return expectedS1
 		}
 
 		/**
 		 * A writable, disk-backed nD canvas (like the real masked-source canvas) filled with a stable random mix of
-		 * INVALID and painted labels across every slab. Unlike [newTestCanvas]'s read-only image, dirty cells persist
+		 * INVALID and painted labels across every slice. Unlike [newTestCanvas]'s read-only image, dirty cells persist
 		 * rather than reloading from the loader, so a larger nD volume stays stable across cache eviction.
 		 */
 		private fun newWritableTestCanvas(tmp: Path, dims: LongArray, blockSize: IntArray): DiskCachedCellImg<UnsignedLongType, *> {
