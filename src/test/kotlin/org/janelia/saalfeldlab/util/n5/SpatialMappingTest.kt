@@ -1,12 +1,15 @@
 package org.janelia.saalfeldlab.util.n5
 
+import net.imglib2.FinalInterval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.util.Intervals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * Verifies the two properties [SpatialMapping] relies on: a hyperSlice + permute composition reads back the right
@@ -38,7 +41,7 @@ class SpatialMappingTest {
 
 	private fun assertReorder(name: String, dims: LongArray, xyzAxes: IntArray, fixedPositions: LongArray) {
 		val ndImg = filled(dims)
-		val view = SpatialMapping(dims.size, xyzAxes, fixedPositions).to3D(ndImg)
+		val view = SpatialMapping(dims.size, xyzAxes, fixedPositions).toXyz(ndImg)
 		assertEquals(3, view.numDimensions(), "$name: view should be 3D")
 		val access = view.randomAccess()
 		for (x in 0L..2L) for (y in 0L..2L) for (z in 0L..2L) {
@@ -50,7 +53,7 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `to3D maps arbitrary axis layouts to xyz`() {
+	fun `toXyz maps arbitrary axis orders to the canonical slots`() {
 		assertReorder("XYZC", longArrayOf(5, 6, 7, 4), intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 2))
 		assertReorder("XYZCT", longArrayOf(5, 6, 7, 4, 3), intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 2))
 		assertReorder("XYCZT channel between", longArrayOf(5, 6, 4, 7, 3), intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
@@ -58,10 +61,10 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `to3D view writes through to the backing image`() {
+	fun `toXyz view writes through to the backing image`() {
 		/* in-memory ArrayImg */
 		val array = filled(longArrayOf(8, 8, 8, 4, 3))
-		val arrayView = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 2, 1)).to3D(array)
+		val arrayView = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 2, 1)).toXyz(array)
 		arrayView.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5)); it.get().set(999_999L) }
 		val arrayBacking = array.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5, 2, 1)) }.get().get()
 		assertEquals(999_999L, arrayBacking, "write through ArrayImg should reach the backing pixel")
@@ -73,7 +76,7 @@ class SpatialMappingTest {
 			val position = LongArray(5)
 			while (cursor.hasNext()) { cursor.fwd(); cursor.localize(position); cursor.get().set(encode(position)) }
 		}
-		val cellView = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 2, 1)).to3D(cellImg)
+		val cellView = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 2, 1)).toXyz(cellImg)
 		cellView.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5)); it.get().set(888_888L) }
 		val cellBacking = cellImg.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5, 2, 1)) }.get().get()
 		assertEquals(888_888L, cellBacking, "write through DiskCachedCellImg should reach the backing cell")
@@ -95,7 +98,7 @@ class SpatialMappingTest {
 			while (cursor.hasNext()) { cursor.fwd(); cursor.localize(position); cursor.get().set(encode(position)) }
 		}
 
-		val view = mapping.to3D(cellImg)
+		val view = mapping.toXyz(cellImg)
 		assertEquals(listOf(8L, 9L, 10L), (0 until 3).map { view.dimension(it) }, "view should present [X, Y, Z]")
 
 		/* paint at view (x=3, y=4, z=5) */
@@ -111,9 +114,9 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `to3D embeds a singleton z when there are only two spatial dims`() {
+	fun `toXyz embeds a singleton z when there are only two spatial dims`() {
 		/* pure 2D */
-		val view2d = SpatialMapping(2, intArrayOf(0, 1, -1), longArrayOf(0, 0)).to3D(filled(longArrayOf(5, 6)))
+		val view2d = SpatialMapping(2, intArrayOf(0, 1, -1), longArrayOf(0, 0)).toXyz(filled(longArrayOf(5, 6)))
 		assertEquals(listOf(5L, 6L, 1L), (0 until 3).map { view2d.dimension(it) })
 		val access2d = view2d.randomAccess()
 		for (x in 0L..2L) for (y in 0L..2L) {
@@ -122,7 +125,7 @@ class SpatialMappingTest {
 		}
 
 		/* nD with two spatial dims (x, y, c): fix the channel and embed z */
-		val viewXYC = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2)).to3D(filled(longArrayOf(5, 6, 4)))
+		val viewXYC = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2)).toXyz(filled(longArrayOf(5, 6, 4)))
 		assertEquals(listOf(5L, 6L, 1L), (0 until 3).map { viewXYC.dimension(it) })
 		val accessXYC = viewXYC.randomAccess()
 		for (x in 0L..2L) for (y in 0L..2L) {
@@ -132,9 +135,9 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `to3D inserts singletons at the canonical slot of the absent dimension`() {
+	fun `toXyz inserts singletons at the canonical slot of the absent dimension`() {
 		/* one spatial dim (x): pad y and z -> [x, 1, 1] */
-		val view1d = SpatialMapping(1, intArrayOf(0, -1, -1), longArrayOf(0)).to3D(filled(longArrayOf(7)))
+		val view1d = SpatialMapping(1, intArrayOf(0, -1, -1), longArrayOf(0)).toXyz(filled(longArrayOf(7)))
 		assertEquals(listOf(7L, 1L, 1L), (0 until 3).map { view1d.dimension(it) })
 		val access1d = view1d.randomAccess()
 		for (x in 0L..2L) {
@@ -143,7 +146,7 @@ class SpatialMappingTest {
 		}
 
 		/* non-prefix subset (x, z) with no y: the synthesized singleton must land in the y slot -> [x, 1, z] */
-		val viewXZ = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0)).to3D(filled(longArrayOf(5, 7)))
+		val viewXZ = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0)).toXyz(filled(longArrayOf(5, 7)))
 		assertEquals(listOf(5L, 1L, 7L), (0 until 3).map { viewXZ.dimension(it) })
 		val accessXZ = viewXZ.randomAccess()
 		for (x in 0L..2L) for (z in 0L..2L) {
@@ -156,7 +159,7 @@ class SpatialMappingTest {
 	fun `toSourceView round-trips a non-prefix spatial subset`() {
 		/* (x, z), no y: widening drops the y singleton and restores source axes 0 (x) and 1 (z) */
 		val mapping = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
-		val widened = mapping.toSourceView(mapping.to3D(filled(longArrayOf(5, 7))))
+		val widened = mapping.toSourceView(mapping.toXyz(filled(longArrayOf(5, 7))))
 		assertEquals(listOf(5L, 7L), (0 until 2).map { widened.dimension(it) })
 		val access = widened.randomAccess()
 		for (x in 0L..2L) for (z in 0L..2L) {
@@ -171,13 +174,13 @@ class SpatialMappingTest {
 	fun `toSourceView round-trips two-spatial sources`() {
 		/* pure 2D: widening drops the embedded z back to 2 dims */
 		val mapping2d = SpatialMapping(2, intArrayOf(0, 1, -1), longArrayOf(0, 0))
-		val widened2d = mapping2d.toSourceView(mapping2d.to3D(filled(longArrayOf(5, 6))))
+		val widened2d = mapping2d.toSourceView(mapping2d.toXyz(filled(longArrayOf(5, 6))))
 		assertEquals(listOf(5L, 6L), (0 until 2).map { widened2d.dimension(it) })
 		assertEquals(listOf(50, 60), mapping2d.toSourceBlockSize(intArrayOf(50, 60, 1)).toList())
 
 		/* x, y, c: widening drops z and restores the channel as a singleton at its fixed position */
 		val mappingXYC = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2))
-		val widenedXYC = mappingXYC.toSourceView(mappingXYC.to3D(filled(longArrayOf(5, 6, 4))))
+		val widenedXYC = mappingXYC.toSourceView(mappingXYC.toXyz(filled(longArrayOf(5, 6, 4))))
 		assertEquals(listOf(5L, 6L, 1L), (0 until 3).map { widenedXYC.dimension(it) })
 		val access = widenedXYC.randomAccess()
 		for (x in 0L..2L) for (y in 0L..2L) {
@@ -192,7 +195,7 @@ class SpatialMappingTest {
 		val dims = longArrayOf(5, 6, 4, 7, 3)
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
 		val ndImg = filled(dims)
-		val widened = mapping.toSourceView(mapping.to3D(ndImg))
+		val widened = mapping.toSourceView(mapping.toXyz(ndImg))
 		/* the widened view is nD with singletons at the non-spatial axes, fixed at their positions */
 		assertEquals(listOf(5L, 6L, 1L, 7L, 1L), (0 until 5).map { widened.dimension(it) })
 		val access = widened.randomAccess()
@@ -214,5 +217,53 @@ class SpatialMappingTest {
 		val sourceInterval = mapping.toSourceInterval(net.imglib2.FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6)))
 		assertEquals(listOf(1L, 2L, 2L, 3L, 1L), (0 until 5).map { sourceInterval.min(it) })
 		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), (0 until 5).map { sourceInterval.max(it) })
+	}
+
+	@Test
+	fun `toXyzInterval drops the non-spatial axes`() {
+		/* XYCZT: spatial on 0, 1, 3; the channel (2) and time (4) extents must not reach the 3D interval */
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
+		val xyz = mapping.toXyzInterval(FinalInterval(longArrayOf(1, 2, 2, 3, 1), longArrayOf(4, 5, 2, 6, 1)))
+		assertEquals(listOf(1L, 2L, 3L), (0 until 3).map { xyz.min(it) })
+		assertEquals(listOf(4L, 5L, 6L), (0 until 3).map { xyz.max(it) })
+	}
+
+	@Test
+	fun `toXyzInterval and toSourceInterval round-trip at the slice positions`() {
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
+		/* an interval already degenerate at the slice positions is what toSourceInterval produces, so it survives both ways */
+		val source = FinalInterval(longArrayOf(1, 2, 2, 3, 1), longArrayOf(4, 5, 2, 6, 1))
+		val roundTripped = mapping.toSourceInterval(mapping.toXyzInterval(source))
+		assertTrue(Intervals.equals(source, roundTripped), "expected ${Intervals.toString(source)}, got ${Intervals.toString(roundTripped)}")
+
+		val xyz = FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6))
+		assertTrue(Intervals.equals(xyz, mapping.toXyzInterval(mapping.toSourceInterval(xyz))), "3D interval should survive the round trip")
+	}
+
+	@Test
+	fun `toXyzInterval gives an absent dimension a singleton`() {
+		/* x, y, c with no z: the z slot is synthesized, so it must be [0, 0] and not the channel extent */
+		val mapping = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2))
+		val xyz = mapping.toXyzInterval(FinalInterval(longArrayOf(1, 2, 2), longArrayOf(4, 5, 2)))
+		assertEquals(listOf(1L, 2L, 0L), (0 until 3).map { xyz.min(it) })
+		assertEquals(listOf(4L, 5L, 0L), (0 until 3).map { xyz.max(it) })
+	}
+
+	@Test
+	fun `a mapping is a snapshot of the arrays it was built from`() {
+		val positions = longArrayOf(0, 0, 0, 2, 1)
+		val axes = intArrayOf(0, 1, 2)
+		val mapping = SpatialMapping(5, axes, positions)
+
+		positions[3] = 3
+		positions[4] = 0
+		axes[2] = 0
+
+		assertEquals(listOf(0L, 0L, 0L, 2L, 1L), mapping.slicePositions.toList(), "slice positions must not follow the caller's array")
+		assertEquals(listOf(0, 1, 2), mapping.xyzSourceAxes.toList(), "xyz axes must not follow the caller's array")
+
+		val view = mapping.toXyz(filled(longArrayOf(4, 4, 4, 4, 4)))
+		val access = view.randomAccess().also { it.setPosition(longArrayOf(1, 2, 3)) }
+		assertEquals(encode(longArrayOf(1, 2, 3, 2, 1)), access.get().get(), "the view must still read the original slice")
 	}
 }

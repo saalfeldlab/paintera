@@ -80,7 +80,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	@Override public RandomAccessibleInterval<T> getSource(int t, int level) {
 
 		final SpatialMapping mapping = sliceMapping();
-		final RandomAccessibleInterval<T> source = mapping.isIdentity() ? super.getSource(t, level) : mapping.to3D(super.getSource(t, level));
+		final RandomAccessibleInterval<T> source = mapping.isIdentity() ? super.getSource(t, level) : mapping.toXyz(super.getSource(t, level));
 		final Interval virtualCrop = getVirtualCrop(t, level);
 		return virtualCrop == null ? source : Views.interval(source, virtualCrop);
 	}
@@ -88,7 +88,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	@Override public RandomAccessibleInterval<D> getDataSource(int t, int level) {
 
 		final SpatialMapping mapping = sliceMapping();
-		final RandomAccessibleInterval<D> source = mapping.isIdentity() ? super.getDataSource(t, level) : mapping.to3D(super.getDataSource(t, level));
+		final RandomAccessibleInterval<D> source = mapping.isIdentity() ? super.getDataSource(t, level) : mapping.toXyz(super.getDataSource(t, level));
 		final Interval virtualCrop = getVirtualCrop(t, level);
 		return virtualCrop == null ? source : Views.interval(source, virtualCrop);
 	}
@@ -200,7 +200,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		/* slice the nD cells image to 3D at this slice's cell positions, so touching a 3D cell loads the right nD block */
 		final SpatialMapping cellMapping = new SpatialMapping(ndGrid.numDimensions(), SpatialMapping.xyzSourceAxes(metadataState.getAxes()), cellSlice);
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final RandomAccess<?> cellsRandomAccess = cellMapping.to3D((RandomAccessibleInterval)cellImg.getCells()).randomAccess();
+		final RandomAccess<?> cellsRandomAccess = cellMapping.toXyz((RandomAccessibleInterval)cellImg.getCells()).randomAccess();
 		Prefetcher.fetchCells(sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation, cellsRandomAccess);
 	}
 

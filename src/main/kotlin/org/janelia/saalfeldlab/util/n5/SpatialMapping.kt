@@ -11,15 +11,15 @@ import org.janelia.saalfeldlab.util.moveAxis
 import java.util.Locale
 
 /**
- * Maps an nD source onto a canonical 3D (x, y, z) view, and back. Paintera is inherently 3D, so a source with more
- * than three dimensions is sliced (every non-spatial axis slice at a constant position) and one with fewer than three
- * spatial dimensions is embedded (a singleton axis added at the missing canonical slot) until exactly x, y, z remain.
+ * Maps an nD source onto a canonical 3D (x, y, z) view, and back. Rendering and Annotating in Paintera is inherently 3D,
+ * so a source with more than three dimensions should be sliced (every non-spatial axis slice at a constant position)
+ * and one with fewer than three spatial dimensions must be embedded (a singleton axis added at the missing canonical slot)
  *
  * Spatial axes are addressed by canonical slot: [xyzSourceAxes]`[0]`, `[1]`, `[2]` give the source axis that supplies
  * x, y, z respectively, or `-1` when that dimension is absent and must be synthesized. So `[0, -1, 2]` means x comes
  * from source axis 0, z from source axis 2, and y is an inserted singleton - the result is still canonical `[x, y, z]`.
  *
- * The read direction ([to3D]) is pure view composition - `hyperSlice` to slice non-spatial axes, `moveAxis` to order the
+ * The read direction ([toXyz]) is pure view composition - `hyperSlice` to slice non-spatial axes, `moveAxis` to order the
  * spatial axes, `addDimension` to insert a missing one. No copy; the view writes through to the backing image and stays
  * lazy. The write direction ([toSourceView] / [toSourcePosition] / ...) reverses that, so a 3D edit can be committed
  * back into the right slab of the nD dataset.
@@ -30,9 +30,12 @@ import java.util.Locale
  */
 class SpatialMapping(
     val numDimensions: Int,
-    val xyzSourceAxes: IntArray,
-    val slicePositions: LongArray
+    xyzSourceAxes: IntArray,
+    slicePositions: LongArray
 ) {
+    val xyzSourceAxes = xyzSourceAxes.copyOf()
+    val slicePositions = slicePositions.copyOf()
+
     init {
         require(xyzSourceAxes.size == 3) { "xyzSourceAxes should have 3 dimensions, got ${xyzSourceAxes.size}" }
         require(slicePositions.size == numDimensions) { "slicePositions must cover all $numDimensions dimensions, got ${slicePositions.size}" }
@@ -48,12 +51,12 @@ class SpatialMapping(
      */
     private val actualSourceAxes = xyzSourceAxes.filter { it >= 0 }.toHashSet()
 
-    /** True when [to3D] is the identity (already canonical 3D, x/y/z = 0/1/2); the source is not reduced/permuted/embedded. */
+    /** True when [toXyz] is the identity (already canonical 3D, x/y/z = 0/1/2); the source is not reduced/permuted/embedded. */
     val isIdentity: Boolean
         get() = numDimensions == 3 && xyzSourceAxes.contentEquals(intArrayOf(0, 1, 2))
 
     /** Derive the canonical 3D (x, y, z) view of [source]: slice non-spatial axes, order the spatial axes, add missing singleton dimensions. */
-    fun <T> to3D(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
+    fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
         if (isIdentity)
             return source
 
@@ -109,6 +112,28 @@ class SpatialMapping(
         return FinalInterval(min, max)
     }
 
+    /**
+     * Project an nD source interval onto the canonical 3D (x, y, z) interval: drop the non-spatial axes, order the
+     * spatial ones, and give an absent spatial dimension the singleton `[0, 0]`.
+     *
+     * The inverse of [toSourceInterval] for any interval whose non-spatial axes sit at [slicePositions].
+     */
+    fun toXyzInterval(sourceInterval: Interval): Interval {
+
+        require(sourceInterval.numDimensions() == numDimensions) { "sourceInterval must have $numDimensions dimensions, got ${sourceInterval.numDimensions()}" }
+
+        val min = LongArray(3)
+        val max = LongArray(3)
+        for (slot in 0..2) {
+            val axis = xyzSourceAxes[slot]
+            if (axis < 0)
+                continue
+            min[slot] = sourceInterval.min(axis)
+            max[slot] = sourceInterval.max(axis)
+        }
+        return FinalInterval(min, max)
+    }
+
     /** Project an nD shape array (block size, dimensions, ...) to an [x,y,z] shape array using the
      * this [SpatialMapping]. drops non-spatial dimensions, reorders to [x,y,z], adds single-position dimension if < 3 spatial dims */
     fun spatialProjection(shape: IntArray): IntArray = IntArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1 }
@@ -117,7 +142,7 @@ class SpatialMapping(
     /**
      * Map a canonical 3D (x, y, z) view back to the full nD source view: drop the embedded singletons for absent
      * dimensions, send the present spatial axes to their source positions, and make every non-spatial axis a singleton
-     * at its slice position. The inverse of [to3D]; used to write a committed 3D block back into the nD dataset.
+     * at its slice position. The inverse of [toXyz]
      */
     fun <T> toSourceView(slice3D: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
         if (isIdentity) return slice3D
@@ -157,7 +182,7 @@ class SpatialMapping(
 
         private val identityXyzAxes = intArrayOf(0, 1, 2)
 
-        /** The identity mapping: [to3D] returns the source unchanged (already-canonical 3D, or channels kept nD). */
+        /** The identity mapping: [toXyz] returns the source unchanged (already-canonical 3D, or channels kept nD). */
         @JvmStatic
         fun identity() = SpatialMapping(3, identityXyzAxes.copyOf(), LongArray(3))
 

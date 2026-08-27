@@ -8,7 +8,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 /**
  * A single scale level of a source with an associated source-to-global transform.
  * <p>
- * When the backing dataset is not already 3D, {@code data}/{@code vdata} are in-place, writable {@code SpatialMapping.to3D}
+ * When the backing dataset is not already 3D, {@code data}/{@code vdata} are in-place, writable {@code SpatialMapping.toXyz}
  * views. Higher dimensions are sliced at a fixed position, missing spatial dimensions embedded as singletons.
  *
  * @param data            XYZ 3D image

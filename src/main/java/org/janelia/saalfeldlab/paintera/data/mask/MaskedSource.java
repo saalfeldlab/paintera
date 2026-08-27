@@ -373,14 +373,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private RandomAccessibleInterval<UnsignedLongType> canvasSlice(final int level) {
 
         if (canvasIsSliced)
-			return canvasMapping().to3D(dataCanvases[level]);
+			return canvasMapping().toXyz(dataCanvases[level]);
         return dataCanvases[level];
     }
 
 	private RandomAccessibleInterval<VolatileUnsignedLongType> canvasSliceVolatile(final int level) {
 
         if (canvasIsSliced)
-			return canvasMapping().to3D(canvases[level].getRai());
+			return canvasMapping().toXyz(canvases[level].getRai());
 
         return canvases[level].getRai();
     }

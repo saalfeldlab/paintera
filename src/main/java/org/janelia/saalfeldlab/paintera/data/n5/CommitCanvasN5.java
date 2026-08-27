@@ -463,7 +463,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		/* read the existing 3D spatial slice to diff against; write the new block back into the nD slice */
 		final RandomAccessibleInterval<I> openedTarget = N5Utils.open(n5, dataset);
-		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(mapping.to3D(openedTarget), blockInterval);
+		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(mapping.toXyz(openedTarget), blockInterval);
 		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
 
 		N5Utils.saveBlock(mapping.toSourceView(Views.translate(output, Intervals.minAsLongArray(blockInterval))), n5, dataset, attributes);
@@ -942,7 +942,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		/* the levels may be nD; downsample on the 3D spatial slice and map block I/O back to nD */
 		final RandomAccessibleInterval<LabelMultisetType> openedSource = LabelMultisetUtilsKt.openLabelMultiset(n5, sourceDataset.dataset);
-		final RandomAccessibleInterval<LabelMultisetType> sourceData = mapping.to3D(openedSource);
+		final RandomAccessibleInterval<LabelMultisetType> sourceData = mapping.toXyz(openedSource);
 		final long[] sourceSpatialDimensions = mapping.spatialProjection(sourceDataset.dimensions);
 		final int[] sourceSpatialBlockSize = mapping.spatialProjection(sourceDataset.blockSize);
 
@@ -1047,7 +1047,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		/* the levels may be nD; downsample on the 3D spatial slice and map block I/O back to nD */
 		final RandomAccessibleInterval<I> openedPrevious = N5Utils.open(n5, previousDataset.dataset);
-		final RandomAccessibleInterval<I> previousData = mapping.to3D(openedPrevious);
+		final RandomAccessibleInterval<I> previousData = mapping.toXyz(openedPrevious);
 		final long[] previousSpatialDimensions = mapping.spatialProjection(previousDataset.dimensions);
 		final int[] previousSpatialBlockSize = mapping.spatialProjection(previousDataset.blockSize);
 

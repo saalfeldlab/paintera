@@ -16,7 +16,7 @@ import java.nio.file.Path
 
 /**
  * De-risks the load-bearing assumption of the nD MaskedSource refactor: the painted canvas can be a single nD scalar
- * `DiskCachedCellImg<UnsignedLongType>`, and painting a copy-free 3D `SpatialMapping.to3D` slice of it (at fixed
+ * `DiskCachedCellImg<UnsignedLongType>`, and painting a copy-free 3D `SpatialMapping.toXyz` slice of it (at fixed
  * non-spatial positions) must:
  *   1. write through to exactly that nD slab,
  *   2. leave every other slab at the INVALID background,
@@ -46,7 +46,7 @@ class NDCanvasWriteThroughTest {
 
 	/* the 3D (x, y, z) slice of [canvas] at the given non-spatial position - the view ViewerMask would paint into */
 	private fun slabAt(canvas: DiskCachedCellImg<UnsignedLongType, *>, channel: Long, time: Long): RandomAccessibleInterval<UnsignedLongType> =
-		SpatialMapping(ndDimensions.size, xyzSourceAxes, longArrayOf(0, 0, 0, channel, time)).to3D(canvas)
+		SpatialMapping(ndDimensions.size, xyzSourceAxes, longArrayOf(0, 0, 0, channel, time)).toXyz(canvas)
 
 	@Test
 	fun `painting a 3D slice writes only that slab and leaves the others INVALID`(@TempDir tmp: Path) {
@@ -55,7 +55,7 @@ class NDCanvasWriteThroughTest {
 		/* paint the (channel=1, time=2) slab: every voxel of its 3D view gets a label */
 		val painted = 4242L
 		val slab = slabAt(canvas, channel = 1, time = 2)
-		assertEquals(3, slab.numDimensions()) { "the to3D view must be 3D" }
+		assertEquals(3, slab.numDimensions()) { "the toXyz view must be 3D" }
 		Views.flatIterable(slab).forEach { it.set(painted) }
 
 		/* the painted slab reads back the label end-to-end */
