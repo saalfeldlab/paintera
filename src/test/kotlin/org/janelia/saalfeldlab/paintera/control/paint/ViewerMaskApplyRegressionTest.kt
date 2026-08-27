@@ -49,7 +49,7 @@ class ViewerMaskApplyRegressionTest {
     private val accept = Predicate<Long> { it != Label.INVALID }
 
     private val alternativePaintedApply: List<Pair<String, PaintedApply<*>>> = listOf(
-        "legacy" to legacyApply,
+        "loop-builder" to loopBuilderApply,
     )
 
     @Test
@@ -227,17 +227,6 @@ class ViewerMaskApplyRegressionTest {
 private val MIN_CORNER_OFFSET = doubleArrayOf(-.5, -.5, -.5)
 private val MAX_CORNER_OFFSET = doubleArrayOf(+.5, +.5, +.5)
 
-private val CUBE_CORNERS = arrayOf(
-    MIN_CORNER_OFFSET,
-    MAX_CORNER_OFFSET,
-    doubleArrayOf(-.5, -.5, +.5),
-    doubleArrayOf(+.5, +.5, -.5),
-    doubleArrayOf(-.5, +.5, -.5),
-    doubleArrayOf(+.5, -.5, +.5),
-    doubleArrayOf(-.5, +.5, +.5),
-    doubleArrayOf(+.5, -.5, -.5),
-)
-
 private val referenceApply: PaintedApply<UnsignedLongType> =
     PaintedApply { canvas, viewerImg, viewerImgInSource, maskToSourceWithDepth, paintDepthFactor, depthScale, acceptAsPainted ->
         ViewerMask.applyMaskToCanvas(canvas, viewerImg, viewerImgInSource, maskToSourceWithDepth, paintDepthFactor, depthScale, acceptAsPainted)
@@ -245,9 +234,10 @@ private val referenceApply: PaintedApply<UnsignedLongType> =
 
 
 /**
- * The previous reference [ViewerMask.applyMaskToCanvas] for historical regression testing.
+ * The straightforward [LoopBuilder] kernel the optimized [ViewerMask.applyMaskToCanvas] replaced, kept as an
+ * independent implementation to cross-check the row-range loop against. Its slab gate tracks the production one.
  */
-private val legacyApply: PaintedApply<UnsignedLongType> =
+private val loopBuilderApply: PaintedApply<UnsignedLongType> =
     PaintedApply { canvas, viewerImg, viewerImgInSource, maskToSourceWithDepth, paintDepthFactor, depthScale, acceptAsPainted ->
 
         val extendedViewerImg = Views.extendBorder(viewerImg)
@@ -258,15 +248,12 @@ private val legacyApply: PaintedApply<UnsignedLongType> =
 
         val sourceToMaskWithDepthTransform = maskToSourceWithDepth.inverse()
 
-        val maxDistInMask = (paintDepthFactor * depthScale) * .5
         val minDistInMask = paintDepthFactor * .5
+        val zLimit = minDistInMask + 0.5 * (8..10).sumOf { sourceToMaskTransformAsArray[it].absoluteValue }
 
-        val zTransformAtCubeCorner: (DoubleArray, Int?) -> Double = { pos, idx ->
-            val x = pos[0] + (idx?.let { CUBE_CORNERS[it][0] } ?: 0.0)
-            val y = pos[1] + (idx?.let { CUBE_CORNERS[it][1] } ?: 0.0)
-            val z = pos[2] + (idx?.let { CUBE_CORNERS[it][2] } ?: 0.0)
+        val zTransformAtCenter: (DoubleArray) -> Double = { pos ->
             sourceToMaskTransformAsArray.let { transform ->
-                transform[8] * x + transform[9] * y + transform[10] * z + transform[11]
+                transform[8] * pos[0] + transform[9] * pos[1] + transform[10] * pos[2] + transform[11]
             }
         }
 
@@ -291,28 +278,18 @@ private val legacyApply: PaintedApply<UnsignedLongType> =
             val canvasPosition = DoubleArray(3)
             val canvasMinPositionInMask = DoubleArray(3)
             val canvasMaxPositionInMask = DoubleArray(3)
-            val cubeCornerDepths = Array<Double?>(CUBE_CORNERS.size) { null }
 
             chunk.forEachPixel { canvasBundle, viewerValType ->
                 canvasBundle.localize(canvasPosition)
-                cubeCornerDepths.fill(null)
 
-                var withinMax = false
-                for (idx in cubeCornerDepths.indices) {
-                    cubeCornerDepths[idx] = zTransformAtCubeCorner(canvasPosition, idx).also {
-                        withinMax = it.absoluteValue <= maxDistInMask
-                    }
-                    if (withinMax)
-                        break
-                }
-
-                if (!withinMax) {
+                val centerZ = zTransformAtCenter(canvasPosition)
+                if (centerZ.absoluteValue > zLimit) {
                     return@forEachPixel
                 }
 
                 val paintVal = viewerValType.get()
 
-                if (acceptAsPainted.test(paintVal) && zTransformAtCubeCorner(canvasPosition, null).absoluteValue < minDistInMask)
+                if (acceptAsPainted.test(paintVal) && centerZ.absoluteValue < minDistInMask)
                     paintCanvas(canvasBundle.get(), paintVal)
                 else {
                     for (idx in 0 until 3) {
