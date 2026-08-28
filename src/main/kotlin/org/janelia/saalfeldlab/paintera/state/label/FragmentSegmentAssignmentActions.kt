@@ -23,17 +23,11 @@ data class FragmentSegmentAssignmentActions(val events: List<Pair<AssignmentActi
 
 	@Plugin(type = PainteraSerialization.PainteraAdapter::class)
 	class Adapter : PainteraSerialization.PainteraAdapter<FragmentSegmentAssignmentActions> {
-		override fun serialize(
-			src: FragmentSegmentAssignmentActions,
-			typeOfSrc: Type,
-			context: JsonSerializationContext
-		) = JsonObject().also { it.add(ACTIONS, src.events.toJson(context)) }
+		override fun serialize( src: FragmentSegmentAssignmentActions, typeOfSrc: Type, context: JsonSerializationContext ) = JsonObject().apply {
+            add(ACTIONS, src.events.toJson(context))
+        }
 
-		override fun deserialize(
-			json: JsonElement,
-			typeOfT: Type,
-			context: JsonDeserializationContext
-		) = json
+		override fun deserialize( json: JsonElement, typeOfT: Type, context: JsonDeserializationContext ) = json
 			.toEventsWithEnabledStatus(context)
 			?.let { FragmentSegmentAssignmentActions(it) }
 			?: FragmentSegmentAssignmentActions()
@@ -50,27 +44,29 @@ data class FragmentSegmentAssignmentActions(val events: List<Pair<AssignmentActi
 			private fun List<Pair<AssignmentAction, Boolean>>.toJson(context: JsonSerializationContext) = context
 				.serialize(map { it.toJson(context) }.toTypedArray())
 
-			private fun Pair<AssignmentAction, Boolean>.toJson(context: JsonSerializationContext) = JsonObject()
-				.also { it.add(TYPE, context.serialize(key.type)) }
-				.also { it.add(DATA, context.serialize(key)) }
-				.also { m -> value.not().takeIf { it }?.let { m.addProperty(IS_DISABLED, it) } }
+			private fun Pair<AssignmentAction, Boolean>.toJson(context: JsonSerializationContext) = JsonObject().apply {
+				add(TYPE, context.serialize(key.type))
+				add(DATA, context.serialize(key))
+				/* enabled is the default, so only serialize the property when disabled */
+				if (!value)
+					addProperty(IS_DISABLED, true)
+            }
 
 			private fun JsonElement.toEventsWithEnabledStatus(context: JsonDeserializationContext) = with(GsonExtensions) {
 				getJsonArray(ACTIONS)?.mapNotNull { it.toEventWithEnabledStatus(context) }
 			}
 
-			private fun JsonElement.toEventWithEnabledStatus(context: JsonDeserializationContext) = this
-				.takeIf { isJsonObject }
-				?.let { it.asJsonObject }
-				?.let { it.toEventWithEnabledStatus(context) }
+			private fun JsonElement.toEventWithEnabledStatus(context: JsonDeserializationContext) = takeIf { isJsonObject }?.asJsonObject?.toEventWithEnabledStatus(context)
 
-			private fun JsonObject.toEventWithEnabledStatus(context: JsonDeserializationContext) = this
-				.takeIf { it.has(TYPE) && it.has(DATA) }
-				?.let {
-					val type = context.deserialize<AssignmentAction.Type>(it[TYPE], AssignmentAction.Type::class.java)
-					val action = context.deserialize<AssignmentAction>(it[DATA], type.classForType)
-					with(GsonExtensions) { Pair(action, it.getBooleanProperty(IS_DISABLED)?.not() ?: true) }
-				}
+			private fun JsonObject.toEventWithEnabledStatus(context: JsonDeserializationContext): Pair<AssignmentAction, Boolean>? {
+                return takeIf { it.has(TYPE) && it.has(DATA) }?.let {
+                        val type = context.deserialize<AssignmentAction.Type>(it[TYPE], AssignmentAction.Type::class.java)
+                        val action = context.deserialize<AssignmentAction>(it[DATA], type.classForType)
+                        with(GsonExtensions) {
+                            Pair(action, it.getBooleanProperty(IS_DISABLED)?.not() ?: true)
+                        }
+                    }
+            }
 		}
 
 	}

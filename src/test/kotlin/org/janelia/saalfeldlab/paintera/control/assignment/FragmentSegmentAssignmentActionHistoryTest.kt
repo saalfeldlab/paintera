@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.assignment
 
+import com.google.gson.GsonBuilder
 import javafx.util.Pair
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
@@ -27,6 +28,31 @@ class FragmentSegmentAssignmentActionHistoryTest {
 
 		assertEquals(actions.size, restored.events().size) { "every action should be restored" }
 		assertEquals(actions, restored.events().map { it.key }) { "restored actions should keep their order" }
+	}
+
+	@Test
+	fun `restoring undone actions does not apply them to the lut`() {
+		val actions = merges(3)
+		val restored = assignment()
+
+		restored.applyWithEnabledFlag(actions.map { Pair(it, false) })
+
+		actions.map { it as Merge }.forEach { merge ->
+			assertEquals(merge.fromFragmentId, restored.getSegment(merge.fromFragmentId)) { "a disabled merge must not be applied" }
+			assertEquals(merge.intoFragmentId, restored.getSegment(merge.intoFragmentId)) { "a disabled merge must not be applied" }
+		}
+	}
+
+	@Test
+	fun `restoring a mix applies only the enabled actions`() {
+		val actions = merges(3).map { it as Merge }
+		val restored = assignment()
+
+		restored.applyWithEnabledFlag(listOf(Pair(actions[0], false), Pair(actions[1], true), Pair(actions[2], false)))
+
+		assertEquals(actions[1].segmentId, restored.getSegment(actions[1].fromFragmentId)) { "the enabled merge should be applied" }
+		assertEquals(actions[0].fromFragmentId, restored.getSegment(actions[0].fromFragmentId)) { "the disabled merges should not be" }
+		assertEquals(actions[2].fromFragmentId, restored.getSegment(actions[2].fromFragmentId)) { "the disabled merges should not be" }
 	}
 
 	@Test
@@ -99,6 +125,28 @@ class FragmentSegmentAssignmentActionHistoryTest {
 
 		assertTrue(FragmentSegmentAssignmentActions(assignment).events.isEmpty()) { "the backend holds them now, the project must not" }
 		assertEquals(101L, assignment.getSegment(2L)) { "the committed assignment is still applied" }
+	}
+
+	@Test
+	fun `disabled actions survive a round trip through the adapter`() {
+		val gson = GsonBuilder()
+			.registerTypeAdapter(FragmentSegmentAssignmentActions::class.java, FragmentSegmentAssignmentActions.Adapter())
+			.create()
+		val actions = merges(3)
+		val stored = FragmentSegmentAssignmentActions(Pair(actions[0], false), Pair(actions[1], true), Pair(actions[2], false))
+
+		val json = gson.toJsonTree(stored)
+		val serializedActions = json.asJsonObject.getAsJsonArray("actions")
+
+		assertEquals(3, serializedActions.size()) { "disabled actions are serialized too" }
+		assertTrue(serializedActions[0].asJsonObject["isDisabled"].asBoolean) { "a disabled action is flagged" }
+		assertFalse(serializedActions[1].asJsonObject.has("isDisabled")) { "enabled is the default, so the flag is omitted" }
+
+		val restored = gson.fromJson(json, FragmentSegmentAssignmentActions::class.java)
+
+		assertEquals(listOf(false, true, false), restored.events.map { it.value }) { "the enabled flags are restored" }
+		/* Merge has no equals, so compare the ids it prints */
+		assertEquals(actions.map { it.toString() }, restored.events.map { it.key.toString() }) { "the actions are restored in order" }
 	}
 
 	@Test

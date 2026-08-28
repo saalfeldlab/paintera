@@ -36,12 +36,10 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 		}
 
 		@Override
-		public void deleteAll() {
+		public void deleteAll(final Collection<? extends Pair<AssignmentAction, BooleanProperty>> entries) {
 
-			if (!actions.isEmpty()) {
-				actions.clear();
+			if (actions.removeAll(entries))
 				reapplyActionsAndNotify();
-			}
 		}
 	};
 
@@ -71,11 +69,11 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 
 	private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled) {
 
-		applyImpl(action);
-		Pair<AssignmentAction, BooleanProperty> toggleableAction = new Pair<>(
-				action,
-				new SimpleBooleanProperty(isEnabled));
-		toggleableAction.getValue().addListener(obs -> reapplyActionsAndNotify());
+		/* track the disabled actions, but don't apply them. */
+        if (isEnabled)
+			applyImpl(action);
+		var toggleableAction = new Pair<>( action, (BooleanProperty)new SimpleBooleanProperty(isEnabled));
+		toggleableAction.getValue().addListener(_ -> reapplyActionsAndNotify());
 		this.actions.add(toggleableAction);
 	}
 
