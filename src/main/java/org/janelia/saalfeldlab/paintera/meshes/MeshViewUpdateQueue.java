@@ -32,15 +32,18 @@ public class MeshViewUpdateQueue<T> {
 
 	private class MeshViewQueueEntry {
 
+		private final MeshGeneratorJobManager<T> manager;
 		private final Pair<MeshView, Node> meshAndBlockToAdd;
 		private final Pair<Group, Group> meshAndBlockGroup;
 		private final Runnable onCompleted;
 
 		private MeshViewQueueEntry(
+				final MeshGeneratorJobManager<T> manager,
 				final Pair<MeshView, Node> meshAndBlockToAdd,
 				final Pair<Group, Group> meshAndBlockGroup,
 				final Runnable onCompleted) {
 
+			this.manager = manager;
 			this.meshAndBlockToAdd = meshAndBlockToAdd;
 			this.meshAndBlockGroup = meshAndBlockGroup;
 			this.onCompleted = onCompleted;
@@ -57,19 +60,26 @@ public class MeshViewUpdateQueue<T> {
 	 * Places a request to add a mesh onto the scene into the queue.
 	 * The request will be executed at some point later on FX application thread, and {@code onCompleted} will be called after that.
 	 *
+	 * @param manager that owns this specific mesh request.
 	 * @param key
 	 * @param meshAndBlockToAdd
 	 * @param meshAndBlockGroup
 	 * @param onCompleted
 	 */
 	public synchronized void addToQueue(
+			final MeshGeneratorJobManager<T> manager,
 			final ShapeKey<T> key,
 			final Pair<MeshView, Node> meshAndBlockToAdd,
 			final Pair<Group, Group> meshAndBlockGroup,
 			final Runnable onCompleted,
 			final MeshWorkerPriority priority) {
 
-		final MeshViewQueueEntry entry = new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
+		if (manager.isInterrupted()) {
+			LOG.debug("Manager of block {} has been interrupted, not adding it to the queue", key);
+			return;
+		}
+
+		final MeshViewQueueEntry entry = new MeshViewQueueEntry(manager, meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
 		keysToEntries.put(key, entry);
 
 		priorityQueue.addOrUpdate(priority, key);
@@ -90,11 +100,37 @@ public class MeshViewUpdateQueue<T> {
 		return priorityQueue.remove(key);
 	}
 
+	/**
+	 * Removes all jobs in the queue from the given {@code manager}.
+	 */
+	public synchronized void removeAllFor(final MeshGeneratorJobManager<T> manager) {
+
+		final List<ShapeKey<T>> ownedKeys = keysToEntries.entrySet().stream()
+				.filter(entry -> entry.getValue().manager == manager)
+				.map(Map.Entry::getKey)
+				.toList();
+
+		LOG.debug("Removing {} queued blocks of an interrupted manager", ownedKeys.size());
+		for (final ShapeKey<T> key : ownedKeys) {
+			keysToEntries.remove(key);
+			priorityQueue.remove(key);
+		}
+	}
+
 	public synchronized void updatePriority(final ShapeKey<T> key, final MeshWorkerPriority priority) {
 
 		if (!contains(key))
 			throw new NoSuchElementException();
 		priorityQueue.addOrUpdate(priority, key);
+	}
+
+	/**
+	 * The manager that queued the job for the given {@code key}, or null if it is not queued.
+	 */
+	public synchronized MeshGeneratorJobManager<T> getManagerFor(final ShapeKey<T> key) {
+
+		final MeshViewQueueEntry entry = keysToEntries.get(key);
+		return entry == null ? null : entry.manager;
 	}
 
 	public synchronized boolean contains(final ShapeKey<T> key) {

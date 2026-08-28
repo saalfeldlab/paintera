@@ -324,10 +324,17 @@ public class MeshGeneratorJobManager<T> {
 		}
 	}
 
+	boolean isInterrupted() {
+
+		return isInterrupted.get();
+	}
+
 	public void interrupt() {
 
 		if (isInterrupted.getAndSet(true))
 			return;
+
+		meshViewUpdateQueue.removeAllFor(this);
 
 		managers.submit(withErrorPrinting(() ->
 		{
@@ -393,11 +400,14 @@ public class MeshGeneratorJobManager<T> {
 			for (final Entry<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> entry : blockTree.nodes.entrySet()) {
 				final ShapeKey<T> key = entry.getKey();
 				final StatefulBlockTreeNode<ShapeKey<T>> treeNode = entry.getValue();
-				if (treeNode.state == BlockTreeNodeState.RENDERED && meshViewUpdateQueue.contains(key)) {
+				/* the queue is shared by all managers.
+				 * we can only update priority on keys owned by this generator */
+				final boolean queuedByThisManager = meshViewUpdateQueue.getManagerFor(key) == this;
+				if (treeNode.state == BlockTreeNodeState.RENDERED && queuedByThisManager) {
 					final MeshWorkerPriority newPriority = new MeshWorkerPriority(treeNode.distanceFromCamera, key.scaleIndex());
 					meshViewUpdateQueue.updatePriority(key, newPriority);
 				} else {
-					assert !meshViewUpdateQueue.contains(key) :
+					assert !queuedByThisManager :
 							"Block that is in the " + treeNode.state + " state is not supposed to be in the FX queue: " + key;
 				}
 			}
@@ -585,6 +595,7 @@ public class MeshGeneratorJobManager<T> {
 				final MeshWorkerPriority priority = tasks.get(key).priority;
 
 				meshViewUpdateQueue.addToQueue(
+						this,
 						key,
 						change.getValueAdded(),
 						meshesAndBlocksGroups,

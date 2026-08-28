@@ -143,16 +143,16 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			keys
 				.associateWith { meshes.remove(it) }
 				.mapNotNull { (key, generator) -> generator?.let { key to it } }
+				.onEach { (_, generator) -> generator.interrupt() }
 		}
 
 		val removedRoots = Collections.synchronizedSet(mutableSetOf<Node>())
 
 		currentMeshJob = meshManagerScope.launch {
 			supervisorScope {
-				keysAndGenerators.map { (key, generator) ->
+				keysAndGenerators.forEach { (key, generator) ->
 					launch {
 						generator.run {
-							interrupt()
 							unbindFromThis()
 							root.visibleProperty().unbind()
 							releaseState(key, state)
