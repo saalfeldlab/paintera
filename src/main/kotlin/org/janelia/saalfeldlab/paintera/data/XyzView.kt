@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.data
 
-import javafx.beans.property.ObjectProperty
-import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.property.ReadOnlyObjectProperty
+import javafx.beans.property.ReadOnlyObjectWrapper
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.util.Intervals
-import net.imglib2.view.Views
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.util.n5.SpatialMapping
 
@@ -35,7 +34,7 @@ class XyzView(
 	/** The source axes supplying none of x, y, z: the slice axes (channel, time, ...), in source order. */
 	val nonSpatialAxes: List<Int> = (0 until numDimensions).filterNot { it in this.xyzSourceAxes }
 
-	val regionProperty: ObjectProperty<Interval> = object : SimpleObjectProperty<Interval>(fullInterval) {
+	private val mutableActiveInterval = object : ReadOnlyObjectWrapper<Interval>(fullInterval) {
 		override fun set(newValue: Interval?) {
 			val clamped = coerceInFullExtent(newValue ?: fullInterval)
 			if (Intervals.equals(get(), clamped))
@@ -44,16 +43,25 @@ class XyzView(
 		}
 	}
 
+	/** Observable [activeInterval]. Only [sliceAt] and [reset] change it. */
+	val activeIntervalProperty: ReadOnlyObjectProperty<Interval> = mutableActiveInterval.readOnlyProperty
+
 	/**
-	 * Active interval over the [fullInterval] of a source. May be smaller or equal to [fullInterval].
-	 * larger intervals are clamped. dimensionality must match [numDimensions]. If [fullInterval] is greater
-	 * than 3D, the min positions of [activeInterval] will be used to slice the non-spatial dimensions.
+	 * [fullInterval] with each axis this view drops collapsed to the position it is sliced at.
 	 */
-	var activeInterval: Interval
-		get() = regionProperty.get()
-		set(value) {
-			regionProperty.set(value)
-		}
+	private val activeInterval: Interval
+		get() = mutableActiveInterval.get()
+
+	/** The position [axis] is sliced at. */
+	fun slicePosition(axis: Int): Long {
+		require(axis in 0 until numDimensions) { "axis $axis out of bounds for $numDimensions dimensions" }
+
+		return activeInterval.min(axis)
+	}
+
+	/** For any sliced axis `i`, the result of  slicePositions()[i] is the position in that axis that the
+	 * view is sliced at. For any axis that is not slice, the value of the resulting array is meaningless.  */
+	fun slicePositions(): LongArray = activeInterval.minAsLongArray()
 
 	/** The mapping over [interval], whose min slices the non-spatial axes. Defaults to [activeInterval]. */
 	@JvmOverloads
@@ -72,19 +80,6 @@ class XyzView(
 		return FinalInterval(min, max)
 	}
 
-	/** [activeInterval] in XYZ space. Setting it crops [activeInterval], leaving the sliced axes where they are. */
-	var xyzInterval: Interval
-		get() = spatialMapping().toXyzInterval(activeInterval)
-		set(value) {
-			activeInterval = spatialMapping().toSourceInterval(value)
-		}
-
-	/** True when [xyzInterval] is a subset of the source's spatial extent. */
-	val isCropped: Boolean
-		get() = spatialMapping().run {
-			return !Intervals.equals(toXyzInterval(activeInterval), toXyzInterval(fullInterval))
-		}
-
 	/** Collapse [axis] at [position]. */
 	fun sliceAt(axis: Int, position: Long) {
 		require(axis in 0 until numDimensions) { "axis $axis out of bounds for $numDimensions dimensions" }
@@ -93,24 +88,22 @@ class XyzView(
 		val max = activeInterval.maxAsLongArray()
 		min[axis] = position
 		max[axis] = position
-		activeInterval = FinalInterval(min, max)
+		mutableActiveInterval.set(FinalInterval(min, max))
 	}
 
-	/** Restore the full dataset extent: uncropped and unsliced. */
+	/** Restore the full dataset extent: unsliced. */
 	fun reset() {
-		activeInterval = fullInterval
+		mutableActiveInterval.set(fullInterval)
 	}
+
+	/** True when this view reduces the source's dimensionality; a crop alone does not make it sliced. */
+	val isSliced: Boolean
+		get() = !spatialMapping().isIdentity
 
 	/**
-	 * A Canonical XYZ view of [source] over [interval]. default `interval` is [activeInterval].
-	 *
-	 * [interval] is in [source]'s own coordinates, and its min slices the non-spatial axes; for a scale level below 0
-	 * the caller rescales with the level transforms it holds.
+	 * A Canonical XYZ view of [source]. Axes may be reordered or sliced according to [spatialMapping] to transform to the canonical XYZ view.
 	 */
-	fun <T> toXyz(source: RandomAccessibleInterval<T>, interval: Interval = this.activeInterval): RandomAccessibleInterval<T> {
-		val restricted = if (Intervals.equals(source, interval)) source else Views.interval(source, interval)
-		return spatialMapping(interval).toXyz(restricted)
-	}
+	fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> = spatialMapping().toXyz(source)
 
 	private fun coerceInFullExtent(interval: Interval): Interval {
 		require(interval.numDimensions() == numDimensions) { "interval must have $numDimensions dimensions, got ${interval.numDimensions()}" }

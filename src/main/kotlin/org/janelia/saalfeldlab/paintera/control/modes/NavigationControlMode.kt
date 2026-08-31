@@ -281,17 +281,16 @@ object NavigationTool : ViewerTool() {
 			}
 		}
 
-	/** The metadata of the currently selected nD source, if any; drives the held-key scroll-through-dimension actions. */
 	private fun activeMetadataState(): MetadataState? {
 		val state = paintera.baseView.sourceInfo().currentState().get() ?: return null
 		return ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
 	}
 
-	/** Move the view one source-voxel along the active source's canonical [slot] (0=x, 1=y, 2=z); follows the source grid even if its transform is rotated. */
-	private fun translateAlongSourceAxis(slot: Int, voxelStep: Double) {
+	/** Move the view one source-voxel along the active source's canonical [axis]. */
+	private fun translateAlongSourceAxis(axis: Int, voxelStep: Double) {
 		val metadataState = activeMetadataState() ?: return
 		val sourceToWorld = metadataState.transform
-		val worldShift = doubleArrayOf(sourceToWorld[0, slot] * voxelStep, sourceToWorld[1, slot] * voxelStep, sourceToWorld[2, slot] * voxelStep)
+		val worldShift = doubleArrayOf(sourceToWorld[0, axis] * voxelStep, sourceToWorld[1, axis] * voxelStep, sourceToWorld[2, axis] * voxelStep)
 		synchronized(globalTransformManager) {
 			val global = AffineTransform3D()
 			globalTransformManager.getTransform(global)
@@ -300,18 +299,12 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	/** Step the active source's non-spatial axis whose name starts with [axisLetter] ("c"/"t") by [step] slices, clamped, and repaint. */
+	/** Step the active source's non-spatial axis. */
 	private fun scrollNonSpatialSlice(axisLetter: Char, step: Long) {
 		val metadataState = activeMetadataState() ?: return
-		val axisIndex = metadataState.axes.indexOfFirst { it.name?.lowercase()?.firstOrNull() == axisLetter }
-		if (axisIndex < 0) return
-		val extent = metadataState.datasetAttributes.dimensions[axisIndex]
-		val positions = metadataState.slicePositions
-		val newPosition = (positions[axisIndex] + step).coerceIn(0L, extent - 1L)
-		if (newPosition != positions[axisIndex]) {
-			positions[axisIndex] = newPosition
-			paintera.baseView.orthogonalViews().requestRepaint()
-		}
+		val xyzView = metadataState.xyzView
+		val axisIndex = xyzView.nonSpatialAxes.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisLetter } ?: return
+		xyzView.sliceAt(axisIndex, xyzView.slicePosition(axisIndex) + step)
 	}
 
 	/** Hold X/Y/Z/C/T and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */

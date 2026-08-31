@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
+import org.janelia.saalfeldlab.util.n5.SpatialMapping
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -58,16 +59,12 @@ class SlicedDataSourceTest {
 		private fun openRaw(
 			writer: N5Writer,
 			dataset: String,
-			xyzAxes: IntArray = DEFAULT_XYZ_AXES,
-			forceSlice3D: Boolean? = null
+			numDimensions: Int,
+			xyzAxes: IntArray = DEFAULT_XYZ_AXES
 		): ImagesWithTransform<*, *> = runBlocking {
 			val queue = SharedQueue(1, 1)
-			if (forceSlice3D != null) {
-				val transform = MetadataUtils.transformFromResolutionOffset(DEFAULT_RES, DEFAULT_OFFSET)
-				N5Data.openRaw<Nothing, Nothing>(writer, dataset, transform, xyzAxes, queue, 0, forceSlice3D) as ImagesWithTransform<*, *>
-			} else {
-				N5Data.openRaw<Nothing, Nothing>(writer, dataset, DEFAULT_RES, DEFAULT_OFFSET, xyzAxes, queue, 0) as ImagesWithTransform<*, *>
-			}
+			val mapping = SpatialMapping.sliceAtZero(numDimensions, xyzAxes)
+			N5Data.openRaw<Nothing, Nothing>(writer, dataset, DEFAULT_RES, DEFAULT_OFFSET, mapping, queue, 0) as ImagesWithTransform<*, *>
 		}
 
 		private fun verifyDims(
@@ -90,7 +87,7 @@ class SlicedDataSourceTest {
 		val dims = longArrayOf(10, 20, 30)
 		createDataset(n5, "test3d", dims)
 
-		val result = openRaw(n5, "test3d")
+		val result = openRaw(n5, "test3d", numDimensions = 3)
 
 		assertNotNull(result)
 		assertEquals(3, result.data.numDimensions())
@@ -103,33 +100,23 @@ class SlicedDataSourceTest {
 		val dims = longArrayOf(10, 20, 30, 3, 2)
 		createDataset(n5, "test5d", dims, intArrayOf(5, 5, 5, 1, 1))
 
-		val result = openRaw(n5, "test5d")
+		val result = openRaw(n5, "test5d", numDimensions = 5)
 
 		verifyDims(result, 3, 10, 20, 30)
 	}
 
 	@Test
-	fun `test 4D not sliced by default`(@TempDir tmp: Path) {
+	fun `test 4D is sliced, and the data stays nD`(@TempDir tmp: Path) {
+		/* the carried grid is the presented 3D one, while the backing image keeps every dimension */
 		val n5 = writer(tmp)
 		val dims = longArrayOf(10, 20, 30, 3)
 		createDataset(n5, "test4d", dims, intArrayOf(5, 5, 5, 1))
 
-		val result = openRaw(n5, "test4d", forceSlice3D = false)
+		val result = openRaw(n5, "test4d", numDimensions = 4)
 
-		assertNotNull(result)
+		verifyDims(result, 3, 10, 20, 30)
 		assertEquals(4, result.data.numDimensions())
 		assertContentEquals(dims, result.data.dimensionsAsLongArray())
-	}
-
-	@Test
-	fun `test 4D force sliced to 3D`(@TempDir tmp: Path) {
-		val n5 = writer(tmp)
-		val dims = longArrayOf(10, 20, 30, 3)
-		createDataset(n5, "test4d", dims, intArrayOf(5, 5, 5, 1))
-
-		val result = openRaw(n5, "test4d", forceSlice3D = true)
-
-		verifyDims(result, 3, 10, 20, 30)
 	}
 
 	@Test
@@ -139,7 +126,7 @@ class SlicedDataSourceTest {
 		createDataset(n5, "test5d_reordered", dims, intArrayOf(1, 5, 1, 5, 5))
 
 		val xyzAxes = intArrayOf(1, 3, 4)
-		val result = openRaw(n5, "test5d_reordered", xyzAxes)
+		val result = openRaw(n5, "test5d_reordered", numDimensions = 5, xyzAxes = xyzAxes)
 
 		verifyDims(result, 3, 10, 20, 30)
 	}
@@ -183,7 +170,7 @@ class SlicedDataSourceTest {
 		val dims = longArrayOf(10, 20, 30, 3, 2, 4)
 		createDataset(n5, "test6d", dims, intArrayOf(5, 5, 5, 1, 1, 1))
 
-		val result = openRaw(n5, "test6d")
+		val result = openRaw(n5, "test6d", numDimensions = 6)
 
 		verifyDims(result, 3, 10, 20, 30)
 	}
@@ -194,7 +181,7 @@ class SlicedDataSourceTest {
 		val dims = longArrayOf(10, 20, 30)
 		createDataset(n5, "test3d", dims)
 
-		val result = openRaw(n5, "test3d")
+		val result = openRaw(n5, "test3d", numDimensions = 3)
 
 		assertNotNull(result)
 		assertEquals(3, result.data.numDimensions())

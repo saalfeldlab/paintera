@@ -2,8 +2,11 @@ package org.janelia.saalfeldlab.paintera.serialization
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+
+private val LOG = KotlinLogging.logger { }
 
 /** Gson key for a source's fixed non-spatial (channel/time/...) slice positions. */
 const val SLICE_POSITIONS_KEY = "slicePositions"
@@ -19,9 +22,14 @@ fun JsonObject.addSlicePositions(backend: SourceStateBackend<*, *>, context: Jso
 		?.let { add(SLICE_POSITIONS_KEY, context.serialize(it)) }
 }
 
-/** Restore [saved] slice positions into the backend's live position array, so the source projects at the saved slice on load. */
 fun restoreSlicePositions(backend: SourceStateBackend<*, *>, saved: LongArray?) {
 	if (saved == null) return
-	val positions = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.slicePositions ?: return
-	saved.copyInto(positions, destinationOffset = 0, startIndex = 0, endIndex = minOf(saved.size, positions.size))
+	val xyzView = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView ?: return
+	if (saved.size != xyzView.numDimensions) {
+		LOG.error { "Ignoring saved slice positions ${saved.toList()}. Expected ${saved.size} dimensions, but found ${xyzView.numDimensions}" }
+		return
+	}
+	/* only the dropped axes carry a slice */
+	for (axis in xyzView.nonSpatialAxes)
+		xyzView.sliceAt(axis, saved[axis])
 }

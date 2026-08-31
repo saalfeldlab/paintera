@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
+import org.janelia.saalfeldlab.paintera.data.XyzView
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
@@ -49,8 +50,14 @@ interface MetadataState {
 	var resolution: DoubleArray
 	var translation: DoubleArray
 	var axes: Array<Axis>
+	val xyzView: XyzView
+
+	/** The position every source axis is sliced at; a mapping ignores the entries for spatial axes. */
+	val slicePositions: LongArray
+		get() = xyzView.slicePositions()
+
 	var virtualCrop: Interval?
-	var slicePositions: LongArray
+
 	var unit: String
 	var labelBlockLookup: LabelBlockLookup?
 	val reader: N5Reader
@@ -89,7 +96,7 @@ interface MetadataState {
 			target.unit = source.unit
 			target.group = source.group
 			target.axes = source.axes.copyOf()
-			target.slicePositions = source.slicePositions.copyOf()
+			source.xyzView.nonSpatialAxes.forEach { target.xyzView.sliceAt(it, source.xyzView.slicePosition(it)) }
 		}
 	}
 }
@@ -109,7 +116,8 @@ open class SingleScaleMetadataState(
 	override var translation = metadata.offset
 	override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
 	override var virtualCrop: Interval? = null
-	override var slicePositions: LongArray = LongArray(datasetAttributes.numDimensions)
+	/* built on first use: [axes] is a var, and callers may replace it before the source is opened */
+	override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
 	override var unit: String = metadata.unit()
 	override var labelBlockLookup: LabelBlockLookup? = null
 	override val reader
@@ -160,6 +168,12 @@ open class MultiScaleMetadataState(
 
 	val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
 	final override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
+	//TODO: xyzView should not live in the MetadataState when migration is done.
+	override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
+	//TODO: slicePositions should dissapear fully after migration to xyzView
+	override val slicePositions: LongArray
+		get() = xyzView.slicePositions()
+
 	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
 	final override var isLabelMultiset: Boolean = isLabelMultiset(n5ContainerState.reader, N5URI.normalizeGroupPath(metadata[0].path)!!, metadata[0])
 	override var isLabel: Boolean = when {
@@ -226,12 +240,8 @@ class PainteraDataMultiscaleMetadataState(
 			field = value
 		}
 
-	/* getData reads dataMetadataState, so forward the slice positions there too */
-	override var slicePositions: LongArray = LongArray(datasetAttributes.numDimensions)
-		set(value) {
-			dataMetadataState.slicePositions = value
-			field = value
-		}
+	override val xyzView: XyzView
+		get() = dataMetadataState.xyzView
 
 	override fun updateTransform(newTransform: AffineTransform3D) {
 		dataMetadataState.updateTransform(newTransform)

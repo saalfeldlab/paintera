@@ -24,7 +24,6 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
-import org.janelia.saalfeldlab.util.n5.SpatialMapping
 
 private const val NOT_APPLICABLE = "N/A"
 
@@ -162,11 +161,10 @@ internal class StatusBar() : HBox() {
 		val metadataState = ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
 			?: return CoordinateDisplayListener.realPointToString(point)
 		val axes = metadataState.axes
-		val xyzSourceAxes = SpatialMapping.xyzSourceAxes(axes)
-		val slicePositions = metadataState.slicePositions
-		return (0 until metadataState.datasetAttributes.numDimensions).joinToString(prefix = "(", postfix = ")") { axis ->
-			val slot = xyzSourceAxes.indexOfFirst { it == axis }
-			val value = if (slot >= 0) Math.round(point.getDoublePosition(slot)) else slicePositions[axis]
+		val xyzView = metadataState.xyzView
+		return (0 until xyzView.numDimensions).joinToString(prefix = "(", postfix = ")") { axis ->
+			val slot = xyzView.xyzSourceAxes.indexOfFirst { it == axis }
+			val value = if (slot >= 0) Math.round(point.getDoublePosition(slot)) else xyzView.slicePosition(axis)
 			val name = (axes.getOrNull(axis)?.name?.ifBlank { null } ?: "axis $axis").uppercase()
 			"$value:$name"
 		}

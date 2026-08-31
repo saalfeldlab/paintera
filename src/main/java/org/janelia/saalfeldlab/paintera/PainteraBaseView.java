@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera;
 
 import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -12,13 +13,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
+import javafx.collections.*;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
+import javafx.util.Subscription;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
@@ -39,11 +37,10 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty;
 import org.janelia.saalfeldlab.paintera.control.modes.AppControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
+import org.janelia.saalfeldlab.paintera.data.XyzView;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
@@ -56,9 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -195,6 +190,15 @@ public class PainteraBaseView {
 
 		this.mostRecentFocusHolder = currentFocusHolder.when(Bindings.isNotNull(currentFocusHolder)).orElse(views.getTopLeft());
 
+		this.sourceInfo.trackSources().addListener((ListChangeListener<Source<?>>)change -> {
+			while (change.next())
+				change.getRemoved().forEach(removed -> {
+					final Subscription subscription = sliceRepaintSubscriptions.remove(removed);
+					if (subscription != null)
+						subscription.unsubscribe();
+				});
+		});
+
 		activeModeProperty.addListener((obs, oldv, newv) -> {
 			if (oldv != newv) {
 				if (oldv != null)
@@ -323,6 +327,19 @@ public class PainteraBaseView {
 	 * @param <D>   Data type of {@code state}
 	 * @param <T>   Viewer type of {@code state}
 	 */
+	/** Repaint subscription per source whose presented region can change; removed with the source. */
+	private final Map<Source<?>, Subscription> sliceRepaintSubscriptions = new HashMap<>();
+
+	/** The [XyzView] of an N5-backed state, or null when the state has no such backend. */
+	private static XyzView xyzViewOf(final SourceState<?, ?> state) {
+
+		if (!(state instanceof SourceStateWithBackend<?, ?> stateWithBackend))
+			return null;
+		if (!(stateWithBackend.getBackend() instanceof SourceStateBackendN5<?, ?> n5Backend))
+			return null;
+		return n5Backend.getMetadataState().getXyzView();
+	}
+
 	public <D, T> void addState(final SourceState<D, T> state) {
 
 		addGenericState(state);
@@ -348,6 +365,13 @@ public class PainteraBaseView {
 		sourceInfo.addState(state);
 
 		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
+
+		/* the sliders, C/T scroll and Go To all write the source's presented region; repaint once, here, instead */
+		final XyzView xyzView = xyzViewOf(state);
+		if (xyzView != null)
+			sliceRepaintSubscriptions.put(
+					state.getDataSource(),
+					xyzView.getActiveIntervalProperty().subscribe((_, _) -> orthogonalViews().requestRepaint()));
 
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>)state.getDataSource());

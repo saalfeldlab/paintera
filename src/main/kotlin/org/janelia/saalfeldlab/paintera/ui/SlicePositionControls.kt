@@ -8,12 +8,10 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.util.n5.SpatialMapping
 
 /**
  * Ad-hoc UI: one slider (with an editable field) per non-spatial axis of a sliced source, so the fixed slice position
@@ -28,28 +26,18 @@ object SlicePositionControls {
 
 	fun create(metadataState: MetadataState, dataSource: DataSource<*, *>): Node? {
 		val axes = metadataState.axes
-		val numDimensions = metadataState.datasetAttributes.numDimensions
-		val xyzSourceAxes = SpatialMapping.xyzSourceAxes(axes)
-		val allThreeSpatial = xyzSourceAxes.none { it < 0 }
-		val canonical3D = numDimensions == 3 && xyzSourceAxes.contentEquals(intArrayOf(0, 1, 2))
-		val channels4D = allThreeSpatial && numDimensions == 4 && !metadataState.isLabel
-		if (canonical3D || channels4D) return null
-
-		val spatialAxes = xyzSourceAxes.filter { it >= 0 }.toSet()
-		val nonSpatialAxes = (0 until numDimensions).filterNot { it in spatialAxes }
-		if (nonSpatialAxes.isEmpty()) return null
+		val xyzView = metadataState.xyzView
+		if (xyzView.nonSpatialAxes.isEmpty()) return null
 
 		val n5Source = (dataSource as? MaskedSource<*, *>)?.underlyingSource() as? N5DataSource<*, *>
 			?: dataSource as? N5DataSource<*, *>
 			?: return null
 
-		val dimensions = metadataState.datasetAttributes.dimensions
-		val rows = nonSpatialAxes.map { axis ->
+		val rows = xyzView.nonSpatialAxes.map { axis ->
 			val axisName = axes.getOrNull(axis)?.name?.ifBlank { null } ?: "axis $axis"
-			sliderRow(axisName, dimensions[axis], metadataState.slicePositions[axis]) { position ->
-				/* the source projects to 3D live at these positions, so just re-view the same (still-cached) backing */
-				metadataState.slicePositions[axis] = position
-				Paintera.getPaintera().baseView.orthogonalViews().requestRepaint()
+			sliderRow(axisName, xyzView.fullInterval.dimension(axis), xyzView.slicePosition(axis)) { position ->
+				/* the source projects to 3D live at the view's slice; PainteraBaseView repaints on the region change */
+				xyzView.sliceAt(axis, position)
 			}
 		}
 		return VBox(5.0, *rows.toTypedArray())

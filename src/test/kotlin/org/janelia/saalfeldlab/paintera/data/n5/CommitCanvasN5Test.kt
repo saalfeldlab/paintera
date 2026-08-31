@@ -398,7 +398,7 @@ class CommitCanvasN5Test {
 		paintBoxAtSlice(masked, metadataState, longArrayOf(0, 0, 0, timepoint), label)
 
 	private fun paintBoxAtSlice(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, slicePositions: LongArray, label: Long) {
-		metadataState.slicePositions = slicePositions
+		metadataState.sliceAt(slicePositions)
 		val mask = masked.generateMask(MaskInfo(0, 0), MaskedSource.VALID_LABEL_CHECK)
 		val region = FinalInterval(longArrayOf(2, 2, 2), longArrayOf(5, 5, 5))
 		Views.interval(mask.rai, region).forEach { it.set(label) }
@@ -411,7 +411,7 @@ class CommitCanvasN5Test {
 	}
 
 	private fun canvasValueAtTimepoint(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long): Long {
-		metadataState.slicePositions = longArrayOf(0, 0, 0, timepoint)
+		metadataState.sliceAt(longArrayOf(0, 0, 0, timepoint))
 		return masked.getReadOnlyDataCanvas(0, 0).randomAccess().setPositionAndGet(3L, 3L, 3L).get()
 	}
 
@@ -446,7 +446,7 @@ class CommitCanvasN5Test {
 	}
 
 	private fun paintedCountAtTimepointAndLevel(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long, level: Int): Int {
-		metadataState.slicePositions = longArrayOf(0, 0, 0, timepoint)
+		metadataState.sliceAt(longArrayOf(0, 0, 0, timepoint))
 		var count = 0
 		Views.flatIterable(masked.getReadOnlyDataCanvas(0, level)).forEach { if (it.get() != Label.INVALID) count++ }
 		return count
@@ -868,3 +868,6 @@ class CommitCanvasN5Test {
 		}
 	}
 }
+
+/* park the view on every non-spatial axis at once, the way the old slicePositions array was assigned */
+private fun MetadataState.sliceAt(positions: LongArray) = xyzView.nonSpatialAxes.forEach { xyzView.sliceAt(it, positions[it]) }

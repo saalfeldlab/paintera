@@ -6,6 +6,7 @@ import net.imglib2.img.array.ArrayImgs
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
+import net.imglib2.view.Views
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -72,53 +73,14 @@ class XyzViewTest {
 	}
 
 	@Test
-	fun `cropping through the region leaves the slices alone`() {
-		/* the only way to crop is to assign the whole nD region, so the sliced axes have to survive the round trip */
+	fun `toXyz slices, and a caller-applied crop still writes through`() {
 		val xyzView = interleaved()
 		xyzView.sliceAt(2, 1)
 		xyzView.sliceAt(4, 3)
-
-		xyzView.xyzInterval = (FinalInterval(longArrayOf(2, 0, 0), longArrayOf(5, 8, 9)))
-
-		assertEquals(listOf(1L, 3L), listOf(xyzView.activeInterval.min(2), xyzView.activeInterval.min(4)), "channel 1 and time 3 must survive")
-		assertEquals(listOf(1L, 3L), listOf(xyzView.spatialMapping().slicePositions[2], xyzView.spatialMapping().slicePositions[4]))
-		assertEquals(listOf(2L, 0L, 0L), (0 until 3).map { xyzView.xyzInterval.min(it) })
-		assertEquals(listOf(5L, 8L, 9L), (0 until 3).map { xyzView.xyzInterval.max(it) })
-	}
-
-	@Test
-	fun `slicing is not cropping`() {
-		val xyzView = interleaved()
-		xyzView.sliceAt(2, 1)
-		xyzView.sliceAt(4, 3)
-
-		assertFalse(xyzView.isCropped, "collapsing an axis the mapping drops does not narrow the 3D view")
-		assertEquals(listOf(0L, 0L, 0L), (0 until 3).map { xyzView.xyzInterval.min(it) })
-		assertEquals(listOf(7L, 8L, 9L), (0 until 3).map { xyzView.xyzInterval.max(it) }, "the interval is the full spatial extent")
-	}
-
-	@Test
-	fun `cropping a kept axis projects to the 3D interval`() {
-		val xyzView = interleaved()
-		xyzView.sliceAt(4, 2)
-		xyzView.xyzInterval = (FinalInterval(longArrayOf(2, 0, 1), longArrayOf(5, 8, 6)))
-
-		val interval = xyzView.xyzInterval
-		assertEquals(3, interval.numDimensions())
-		assertEquals(listOf(2L, 0L, 1L), (0 until 3).map { interval.min(it) }, "x from axis 0, z from axis 3")
-		assertEquals(listOf(5L, 8L, 6L), (0 until 3).map { interval.max(it) })
-		assertTrue(xyzView.isCropped)
-	}
-
-	@Test
-	fun `toXyz slices then crops, and still writes through`() {
-		val xyzView = interleaved()
-		xyzView.sliceAt(2, 1)
-		xyzView.sliceAt(4, 3)
-		xyzView.xyzInterval = (FinalInterval(longArrayOf(2, 0, 0), longArrayOf(5, 8, 9)))
 
 		val backing = filled(interleavedDimensions)
-		val view = xyzView.toXyz(backing)
+		/* cropping is the caller's, and both operands are XYZ */
+		val view = Views.interval(xyzView.toXyz(backing), FinalInterval(longArrayOf(2, 0, 0), longArrayOf(5, 8, 9)))
 
 		assertEquals(3, view.numDimensions())
 		assertEquals(listOf(2L, 0L, 0L), (0 until 3).map { view.min(it) }, "the crop keeps its source offset")
@@ -142,16 +104,15 @@ class XyzViewTest {
 	}
 
 	@Test
-	fun `toXyz takes a caller-supplied interval for a lower level`() {
-		/* the view never rescales; a lower level is the caller's own interval, in that level's coordinates */
+	fun `toXyz works on a source at a lower scale level`() {
+		/* only the dropped axes are addressed by position, so the same view maps a half-scale backing unchanged */
 		val xyzView = interleaved()
 		xyzView.sliceAt(2, 1)
 		xyzView.sliceAt(4, 3)
-		xyzView.xyzInterval = (FinalInterval(longArrayOf(4, 0, 0), longArrayOf(7, 8, 9)))
 
 		val halfScaleDimensions = longArrayOf(4, 5, 3, 5, 4)
 		val backing = filled(halfScaleDimensions)
-		val view = xyzView.toXyz(backing, FinalInterval(longArrayOf(2, 0, 1, 0, 3), longArrayOf(3, 4, 1, 4, 3)))
+		val view = Views.interval(xyzView.toXyz(backing), FinalInterval(longArrayOf(2, 0, 0), longArrayOf(3, 4, 4)))
 
 		assertEquals(listOf(2L, 0L, 0L), (0 until 3).map { view.min(it) })
 		assertEquals(listOf(3L, 4L, 4L), (0 until 3).map { view.max(it) })
@@ -176,10 +137,9 @@ class XyzViewTest {
 		val grid = CellGrid(interleavedDimensions, intArrayOf(4, 4, 1, 4, 1))
 		xyzView.sliceAt(2, 2)
 		xyzView.sliceAt(4, 3)
-		xyzView.xyzInterval = FinalInterval(longArrayOf(5, 0, 6), longArrayOf(7, 8, 9))
 
 		val blocks = xyzView.blockInterval(grid)
-		assertEquals(listOf(1L, 0L, 2L, 1L, 3L), blocks.minAsLongArray().toList(), "x 5/4=1, z 6/4=1; unit-size axes are unchanged")
+		assertEquals(listOf(0L, 0L, 2L, 0L, 3L), blocks.minAsLongArray().toList(), "the sliced axes carry their block; spatial spans the grid")
 		assertEquals(listOf(1L, 2L, 2L, 2L, 3L), blocks.maxAsLongArray().toList(), "x 7/4=1, y 8/4=2, z 9/4=2")
 	}
 
@@ -203,7 +163,7 @@ class XyzViewTest {
 		xyzView.sliceAt(4, 3)
 
 		val cells = filled(grid.gridDimensions)
-		val cellsXyz = xyzView.toXyz(cells, xyzView.blockInterval(grid))
+		val cellsXyz = xyzView.spatialMapping(xyzView.blockInterval(grid)).toXyz(cells)
 
 		assertEquals(3, cellsXyz.numDimensions())
 		val access = cellsXyz.randomAccess().also { it.setPosition(longArrayOf(1, 2, 1)) }
@@ -218,16 +178,16 @@ class XyzViewTest {
 	}
 
 	@Test
-	fun `the interval handed to toXyz carries its own slice`() {
-		/* slicing and cropping are one interval, so the min of whatever you pass is the slice; the view does not move */
+	fun `a mapping taken over an interval carries that interval's slice`() {
+		/* slicing and cropping are one interval, so the min of whatever you map over is the slice; the view does not move */
 		val xyzView = interleaved()
 		val backing = filled(interleavedDimensions)
 
-		val view = xyzView.toXyz(backing, FinalInterval(longArrayOf(0, 0, 1, 0, 3), longArrayOf(7, 8, 1, 9, 3)))
+		val view = xyzView.spatialMapping(FinalInterval(longArrayOf(0, 0, 1, 0, 3), longArrayOf(7, 8, 1, 9, 3))).toXyz(backing)
 
 		val access = view.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5)) }
 		assertEquals(encode(longArrayOf(3, 4, 1, 5, 3)), access.get().get(), "channel 1 and time 3 come from the interval")
-		assertEquals(listOf(0L, 0L), listOf(xyzView.activeInterval.min(2), xyzView.activeInterval.min(4)), "the view itself is still parked at 0")
+		assertEquals(listOf(0L, 0L), listOf(xyzView.slicePosition(2), xyzView.slicePosition(4)), "the view itself is still parked at 0")
 	}
 
 	@Test
@@ -237,9 +197,10 @@ class XyzViewTest {
 		val backing = filled(longArrayOf(8, 9, 10))
 		assertSame(backing, canonical.toXyz(backing), "an uncropped canonical source must not gain an interval wrapper")
 
-		canonical.xyzInterval = (FinalInterval(longArrayOf(0, 2, 0), longArrayOf(7, 5, 9)))
-		assertNotSame(backing, canonical.toXyz(backing), "a crop has to wrap")
-		assertEquals(listOf(2L, 5L), listOf(canonical.toXyz(backing).min(1), canonical.toXyz(backing).max(1)))
+		val crop = FinalInterval(longArrayOf(0, 2, 0), longArrayOf(7, 5, 9))
+		val cropped = Views.interval(canonical.toXyz(backing), crop)
+		assertNotSame(backing, cropped, "a crop has to wrap")
+		assertEquals(listOf(2L, 5L), listOf(cropped.min(1), cropped.max(1)))
 	}
 
 	@Test
@@ -275,14 +236,8 @@ class XyzViewTest {
 		/* x, y, c with no z: the synthesized z slot must stay the singleton [0, 0] whatever the channel is cropped to */
 		val xyzView = XyzView(intArrayOf(0, 1, -1), longArrayOf(8, 9, 3))
 		xyzView.sliceAt(2, 2)
-		assertFalse(xyzView.isCropped, "slicing the channel is not a crop")
 
-		xyzView.xyzInterval = (FinalInterval(longArrayOf(0, 3, 0), longArrayOf(7, 5, 0)))
-		val interval = xyzView.xyzInterval
-		assertEquals(listOf(0L, 3L, 0L), (0 until 3).map { interval.min(it) })
-		assertEquals(listOf(7L, 5L, 0L), (0 until 3).map { interval.max(it) })
-
-		val view = xyzView.toXyz(filled(longArrayOf(8, 9, 3)))
+		val view = Views.interval(xyzView.toXyz(filled(longArrayOf(8, 9, 3))), FinalInterval(longArrayOf(0, 3, 0), longArrayOf(7, 5, 0)))
 		assertEquals(listOf(8L, 3L, 1L), (0 until 3).map { view.dimension(it) })
 		val access = view.randomAccess().also { it.setPosition(longArrayOf(2, 4, 0)) }
 		assertEquals(encode(longArrayOf(2, 4, 2)), access.get().get())
@@ -293,8 +248,8 @@ class XyzViewTest {
 	@Test
 	fun `starts at the full extent`() {
 		val xyzView = XyzView(intArrayOf(0, 1, 2), longArrayOf(8, 9, 10))
-		assertEquals(listOf(0L, 0L, 0L), xyzView.activeInterval.minAsLongArray().toList())
-		assertEquals(listOf(7L, 8L, 9L), xyzView.activeInterval.maxAsLongArray().toList())
+		assertEquals(listOf(0L, 0L, 0L), xyzView.slicePositions().toList())
+		assertEquals(listOf(7L, 8L, 9L), (0 until xyzView.numDimensions).map { xyzView.fullInterval.max(it) })
 		assertEquals(3, xyzView.numDimensions)
 	}
 
@@ -304,9 +259,9 @@ class XyzViewTest {
 		xyzView.sliceAt(2, 1)
 		xyzView.sliceAt(4, 3)
 
-		assertEquals(listOf(1L, 3L), listOf(xyzView.activeInterval.min(2), xyzView.activeInterval.min(4)))
-		assertEquals(listOf(1L, 3L), listOf(xyzView.activeInterval.max(2), xyzView.activeInterval.max(4)))
-		assertEquals(listOf(1L, 1L), listOf(xyzView.activeInterval.dimension(2), xyzView.activeInterval.dimension(4)))
+		assertEquals(listOf(1L, 3L), listOf(xyzView.slicePosition(2), xyzView.slicePosition(4)))
+		assertEquals(listOf(1L, 3L), listOf(xyzView.slicePosition(2), xyzView.slicePosition(4)))
+		assertEquals(listOf(1L, 1L), listOf(1L, 1L))
 	}
 
 	@Test
@@ -314,8 +269,8 @@ class XyzViewTest {
 		val xyzView = interleaved()
 		xyzView.sliceAt(4, 2)
 
-		assertEquals(listOf(0L, 0L, 0L, 0L), (0..3).map { xyzView.activeInterval.min(it) })
-		assertEquals(listOf(7L, 8L, 2L, 9L), (0..3).map { xyzView.activeInterval.max(it) })
+		assertEquals(2L, xyzView.slicePosition(4))
+		assertEquals(listOf(0L, 0L, 0L, 0L), (0..3).map { xyzView.slicePosition(it) }, "every other axis is still at its start")
 	}
 
 	@Test
@@ -323,45 +278,23 @@ class XyzViewTest {
 		val xyzView = interleaved()
 
 		xyzView.sliceAt(4, 99)
-		assertEquals(3L, xyzView.activeInterval.min(4), "past the end clamps to the last position")
+		assertEquals(3L, xyzView.slicePosition(4), "past the end clamps to the last position")
 
 		xyzView.sliceAt(4, -5)
-		assertEquals(0L, xyzView.activeInterval.min(4), "before the start clamps to the first position")
-	}
-
-	@Test
-	fun `an inverted axis collapses to its min`() {
-		val xyzView = interleaved()
-		xyzView.activeInterval = FinalInterval(longArrayOf(0, 6, 0, 0, 0), longArrayOf(7, 2, 2, 9, 3))
-		assertEquals(6L, xyzView.activeInterval.min(1))
-		assertEquals(6L, xyzView.activeInterval.max(1))
-	}
-
-	@Test
-	fun `assigning the region directly is clamped too`() {
-		val xyzView = interleaved()
-		xyzView.activeInterval = FinalInterval(longArrayOf(-4, 0, 0, 0, 0), longArrayOf(100, 8, 2, 9, 3))
-		assertEquals(0L, xyzView.activeInterval.min(0))
-		assertEquals(7L, xyzView.activeInterval.max(0))
-
-		xyzView.regionProperty.value = FinalInterval(longArrayOf(0, 0, 0, 0, 0), longArrayOf(100, 8, 2, 9, 3))
-		assertEquals(7L, xyzView.activeInterval.max(0), "setting through the property must be clamped the same way")
+		assertEquals(0L, xyzView.slicePosition(4), "before the start clamps to the first position")
 	}
 
 	@Test
 	fun `the property fires on a real change and stays quiet otherwise`() {
 		val xyzView = interleaved()
 		var notifications = 0
-		xyzView.regionProperty.subscribe { _, _ -> notifications++ }
+		xyzView.activeIntervalProperty.subscribe { _, _ -> notifications++ }
 
 		xyzView.sliceAt(4, 2)
 		assertEquals(1, notifications)
 
 		xyzView.sliceAt(4, 2)
 		assertEquals(1, notifications, "setting the same slice again must not notify")
-
-		xyzView.activeInterval = FinalInterval(xyzView.activeInterval.minAsLongArray(), xyzView.activeInterval.maxAsLongArray())
-		assertEquals(1, notifications, "an equal interval that is a different instance must not notify")
 
 		xyzView.sliceAt(4, 99)
 		assertEquals(2, notifications, "clamping to a new position is still a change")
@@ -374,11 +307,10 @@ class XyzViewTest {
 	fun `reset restores the full extent`() {
 		val xyzView = interleaved()
 		xyzView.sliceAt(2, 1)
-		xyzView.xyzInterval = FinalInterval(longArrayOf(2, 0, 0), longArrayOf(5, 8, 9))
-		assertFalse(Intervals.equals(xyzView.fullInterval, xyzView.activeInterval))
+		assertFalse(xyzView.nonSpatialAxes.all { xyzView.slicePosition(it) == xyzView.fullInterval.min(it) })
 
 		xyzView.reset()
-		assertTrue(Intervals.equals(xyzView.fullInterval, xyzView.activeInterval))
+		assertTrue(xyzView.nonSpatialAxes.all { xyzView.slicePosition(it) == xyzView.fullInterval.min(it) })
 	}
 
 	@Test
@@ -386,6 +318,5 @@ class XyzViewTest {
 		val xyzView = interleaved()
 		assertThrows(IllegalArgumentException::class.java) { xyzView.sliceAt(5, 0) }
 		assertThrows(IllegalArgumentException::class.java) { xyzView.sliceAt(-1, 0) }
-		assertThrows(IllegalArgumentException::class.java) { xyzView.activeInterval = FinalInterval(longArrayOf(0, 0, 0), longArrayOf(1, 1, 1)) }
 	}
 }
