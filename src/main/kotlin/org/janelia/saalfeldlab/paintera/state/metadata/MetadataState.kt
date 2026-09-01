@@ -186,6 +186,31 @@ open class MultiScaleMetadataState(
 	override val dataset: String = N5URI.normalizeGroupPath(metadata.path)
 	val scaleTransforms: Array<AffineTransform3D> = metadata.spatialTransforms3d()
 
+	/**
+	 * Per-level downsampling factors relative to s0, one entry per source axis. Non-spatial axes are included, so a
+	 * pyramid that downsamples time reports it; [scaleTransforms] is 3D and cannot.
+	 */
+	val scaleFactors: Array<DoubleArray> by lazy {
+		val levelScales = metadata.childrenMetadata.map { levelScale(it) }
+		val highestResScale = levelScales[0]
+		Array(levelScales.size) { level -> DoubleArray(highestResScale.size) { levelScales[level][it] / highestResScale[it] } }
+	}
+
+	/* the nD scale where the container stores one, otherwise the 3D transform diagonal at the spatial axes and 1 elsewhere */
+	private fun levelScale(levelMetadata: N5SpatialDatasetMetadata): DoubleArray {
+		val numDimensions = levelMetadata.attributes.numDimensions
+		(levelMetadata as? NgffSingleScaleAxesMetadata)?.scale?.takeIf { it.size == numDimensions }?.let {
+			return it
+		}
+		val transform = levelMetadata.spatialTransform3d()
+		return DoubleArray(numDimensions) { 1.0 }.also { scale ->
+			xyzView.xyzSourceAxes.forEachIndexed { slot, axis ->
+				if (axis >= 0)
+					scale[axis] = transform.get(slot, slot)
+			}
+		}
+	}
+
 	override fun copy(): MultiScaleMetadataState {
 		return MultiScaleMetadataState(n5ContainerState, metadata).also {
 			MetadataState.setBy(this, it)

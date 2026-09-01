@@ -20,8 +20,6 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.*;
 import net.imglib2.type.numeric.IntegerType;
@@ -44,9 +42,7 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.PainteraDataMultiscaleMetadataState;
-import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.util.n5.SpatialMapping;
 
 import java.io.IOException;
 import java.util.*;
@@ -242,18 +238,9 @@ public class CommitCanvasN5 implements PersistCanvas {
 
             /* lower scales: downsample the just-committed level into each lower level, spatially, per non-spatial slice */
             if (metadataState instanceof MultiScaleMetadataState multiscaleMetadataState) {
-                final AffineTransform3D[] scaleTransforms = multiscaleMetadataState.getScaleTransforms();
                 final String[] scalePaths = multiscaleMetadataState.getMetadata().getPaths();
-                final int[] xyzSourceAxes = SpatialMapping.xyzSourceAxes(metadataState.getAxes());
-
+                final double[][] scaleFactors = multiscaleMetadataState.getScaleFactors();
                 final long[] modifiedBlocks = blockDiffs.keys();
-                /* only revisit the slices (timepoints/channels) the commit actually touched; null => fall back to all */
-                final List<long[]> affectedSlices = affectedBlockPositions(modifiedBlocks, highestResolutionDataset.grid, highestResolutionDataset.blockSize, xyzSourceAxes);
-                final List<long[]> slices = affectedSlices != null ? affectedSlices : fixedNonSpatialBlocks(highestResolutionDataset.dimensions, xyzSourceAxes);
-
-                final List<long[]> committedSpatialBlocksPerSlice = new ArrayList<>();
-                for (final long[] slicePositions : slices)
-                    committedSpatialBlocksPerSlice.add(spatialBlocksInSlice(modifiedBlocks, highestResolutionDataset, xyzSourceAxes, slicePositions));
 
                 for (int targetLevel = 1; targetLevel < scalePaths.length; ++targetLevel) {
                     final TLongObjectHashMap<BlockDiff> blockDiffsAt = new TLongObjectHashMap<>();
@@ -263,61 +250,41 @@ public class CommitCanvasN5 implements PersistCanvas {
                     final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[sourceLevel]));
                     final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[targetLevel]));
 
-                    final double[] relativeDownsamplingFactors = relativeScale(scaleTransforms[sourceLevel], scaleTransforms[targetLevel]);
-                    final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
-                    final int[] relativeFactors = ArrayMath.asInt3(relativeDownsamplingFactors, true);
+                    final int[] relativeFactors = downsampleFactors(scaleFactors[targetLevel], scaleFactors[sourceLevel], sourceDataset, targetDataset);
                     final int targetMaxNumEntries = N5Helpers.getIntegerAttribute(getN5(), targetDataset.dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, -1);
 
-                    final AffineTransform3D highestResToTarget = scaleTransforms[targetLevel].copy().concatenate(scaleTransforms[0].inverse());
-                    final double[] highestResToTargetFactors = {highestResToTarget.get(0, 0), highestResToTarget.get(1, 1), highestResToTarget.get(2, 2)};
+                    /* the scale factors are already relative to s0 */
+                    final double[] highestResToTargetFactors = scaleFactors[targetLevel];
 
-                    for (int sliceIndex = 0; sliceIndex < slices.size(); ++sliceIndex) {
-                        /* nothing committed in this slice */
-                        if (committedSpatialBlocksPerSlice.get(sliceIndex).length == 0)
-                            continue;
-                        final long[] slicePositions = slices.get(sliceIndex);
-                        final SpatialMapping mapping = new SpatialMapping(targetDataset.dimensions.length, xyzSourceAxes, slicePositions);
-                        final CellGrid highestResSpatialGrid = new CellGrid(
-                                mapping.spatialProjection(highestResolutionDataset.dimensions),
-                                mapping.spatialProjection(highestResolutionDataset.blockSize));
-                        final CellGrid targetSpatialGrid = new CellGrid(
-                                mapping.spatialProjection(targetDataset.dimensions),
-                                mapping.spatialProjection(targetDataset.blockSize));
-                        final BlockSpec targetBlockSpec = new BlockSpec(targetSpatialGrid);
-                        /* only downsample the target blocks affected by the committed s0 blocks  */
-                        final long[] affectedTargetBlocks = relevantTargetBlocks(
-                                committedSpatialBlocksPerSlice.get(sliceIndex),
-                                highestResSpatialGrid,
-                                targetSpatialGrid,
-                                highestResToTargetFactors);
+                    final BlockSpec targetBlockSpec = new BlockSpec(targetDataset.grid);
+                    /* only downsample the target blocks affected by the committed s0 blocks */
+                    final long[] affectedTargetBlocks = relevantTargetBlocks(
+                            modifiedBlocks,
+                            highestResolutionDataset.grid,
+                            targetDataset.grid,
+                            highestResToTargetFactors);
 
-                        if (isLabelMultiset())
-                            downsampleAndWriteBlocksLabelMultisetType(
-                                    affectedTargetBlocks,
-                                    getN5(),
-                                    sourceDataset,
-                                    targetDataset,
-                                    targetBlockSpec,
-                                    targetToPrevious,
-                                    relativeFactors,
-                                    targetMaxNumEntries,
-                                    targetLevel,
-                                    mapping,
-                                    blockDiffsAt,
-                                    Optional.empty());
-                        else
-                            downsampleAndWriteBlocksIntegerType(
-                                    affectedTargetBlocks,
-                                    getN5(),
-                                    sourceDataset,
-                                    targetDataset,
-                                    targetBlockSpec,
-                                    targetToPrevious,
-                                    relativeFactors,
-                                    targetLevel,
-                                    mapping,
-                                    blockDiffsAt);
-                    }
+                    if (isLabelMultiset())
+                        downsampleAndWriteBlocksLabelMultisetType(
+                                affectedTargetBlocks,
+                                getN5(),
+                                sourceDataset,
+                                targetDataset,
+                                targetBlockSpec,
+                                relativeFactors,
+                                targetMaxNumEntries,
+                                targetLevel,
+                                blockDiffsAt,
+                                Optional.empty());
+                    else
+                        downsampleAndWriteBlocksIntegerType(
+                                affectedTargetBlocks,
+                                getN5(),
+                                sourceDataset,
+                                targetDataset,
+                                targetBlockSpec,
+                                relativeFactors,
+                                blockDiffsAt);
                 }
             }
 
@@ -451,8 +418,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final RandomAccessibleInterval<I> data,
 			final int[] relativeFactors,
 			final int[] size,
-			final Interval blockInterval,
-			final SpatialMapping mapping
+			final Interval blockInterval
 	) {
 
 		final I i = data.getType().createVariable();
@@ -461,13 +427,50 @@ public class CommitCanvasN5 implements PersistCanvas {
 		final RandomAccessibleInterval<I> output = new ArrayImgFactory<>(i).create(size);
 		WinnerTakesAll.downsample(Views.extendMirrorDouble(input), output, relativeFactors);
 
-		/* read the existing 3D spatial slice to diff against; write the new block back into the nD slice */
-		final RandomAccessibleInterval<I> openedTarget = N5Utils.open(n5, dataset);
-		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(mapping.toXyz(openedTarget), blockInterval);
+		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(N5Utils.<I>open(n5, dataset), blockInterval);
 		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
 
-		N5Utils.saveBlock(mapping.toSourceView(Views.translate(output, Intervals.minAsLongArray(blockInterval))), n5, dataset, attributes);
+		N5Utils.saveBlock(Views.translate(output, Intervals.minAsLongArray(blockInterval)), n5, dataset, attributes);
 		return blockDiff;
+	}
+
+	/** The source region a target block downsamples from: its interval scaled by [relativeFactors], clamped to the source. */
+	private static Interval scaledSourceInterval(final BlockSpec targetBlock, final int[] relativeFactors, final long[] sourceDimensions) {
+
+		final long[] min = new long[relativeFactors.length];
+		final long[] max = new long[relativeFactors.length];
+		for (int d = 0; d < relativeFactors.length; ++d) {
+			min[d] = targetBlock.min[d] * relativeFactors[d];
+			max[d] = Math.min((targetBlock.max[d] + 1) * relativeFactors[d], sourceDimensions[d]) - 1;
+		}
+		return new FinalInterval(min, max);
+	}
+
+	/**
+	 * The per-axis factor taking [sourceDataset] to [targetDataset], from the two levels' scales relative to s0.
+	 *
+	 * The metadata is the only thing that knows which axes were downsampled - a pyramid may downsample time as
+	 * readily as z - but its scales are declarative, so each factor is checked against the dimensions actually on
+	 * disk. Downsampling by a factor the data does not have writes every block to the wrong place.
+	 */
+	private static int[] downsampleFactors(
+			final double[] targetScaleFactors,
+			final double[] sourceScaleFactors,
+			final DatasetSpec sourceDataset,
+			final DatasetSpec targetDataset) throws UnableToPersistCanvas {
+
+		final int numDimensions = sourceDataset.dimensions.length;
+		final double[] relative = relativeScale(sourceScaleFactors, targetScaleFactors);
+		final int[] factors = new int[numDimensions];
+		for (int d = 0; d < numDimensions; ++d) {
+			factors[d] = (int)relative[d];
+			if (factors[d] < 1 || relative[d] != factors[d]
+					|| (long)Math.ceil(sourceDataset.dimensions[d] / (double)factors[d]) != targetDataset.dimensions[d])
+				throw new UnableToPersistCanvas(
+						"Scale metadata claims axis %d downsamples by %s from %s to %s, which does not produce its %d voxels from %d"
+								.formatted(d, relative[d], sourceDataset.dataset, targetDataset.dataset, targetDataset.dimensions[d], sourceDataset.dimensions[d]));
+		}
+		return factors;
 	}
 
 	private static BlockDiff createBlockDiffFromCanvas(final Iterable<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas) {
@@ -658,92 +661,26 @@ public class CommitCanvasN5 implements PersistCanvas {
 		return t;
 	}
 
-	/**
-	 * The distinct non-spatial slice positions actually touched by [blocks] (the painted level-0 nD blocks), so the
-	 * downsample only revisits painted timepoints/channels instead of every slice. Returns null when a non-spatial
-	 * block spans more than one position (cell != voxel), signalling the caller to fall back to every slice.
-	 */
-	private static List<long[]> affectedBlockPositions(final long[] blocks, final CellGrid s0Grid, final int[] s0BlockSize, final int[] xyzSourceAxes) {
-
-		final boolean[] spatial = new boolean[s0Grid.numDimensions()];
-
-        for (final int axis : xyzSourceAxes)
-			if (axis >= 0)
-                spatial[axis] = true;
-		for (int axis = 0; axis < spatial.length; ++axis)
-			if (!spatial[axis] && s0BlockSize[axis] != 1)
-                return null;
-
-		final long[] cellPosition = new long[s0Grid.numDimensions()];
-		final Set<List<Long>> seen = new HashSet<>();
-		final List<long[]> slices = new ArrayList<>();
-		for (final long block : blocks) {
-			s0Grid.getCellGridPositionFlat(block, cellPosition);
-			final long[] slicePositions = new long[s0Grid.numDimensions()];
-			for (int axis = 0; axis < slicePositions.length; ++axis)
-				slicePositions[axis] = spatial[axis] ? 0 : cellPosition[axis];
-			final List<Long> key = new ArrayList<>();
-			for (final long position : slicePositions)
-				key.add(position);
-			if (seen.add(key))
-				slices.add(slicePositions);
-		}
-		return slices;
-	}
-
-	/** The highest-resolution spatial blocks among [blocks] that lie in the slice at [slicePositions]. */
-	private static long[] spatialBlocksInSlice(
-			final long[] blocks,
-			final DatasetSpec highestResolutionDataset,
-			final int[] xyzSourceAxes,
-			final long[] slicePositions) {
-
-		final CellGrid grid = highestResolutionDataset.grid;
-		final int[] blockSize = highestResolutionDataset.blockSize;
-		final boolean[] spatial = new boolean[grid.numDimensions()];
-		for (final int axis : xyzSourceAxes)
-			if (axis >= 0)
-				spatial[axis] = true;
-
-		final long[] spatialGridDimensions = new long[3];
-		for (int slot = 0; slot < 3; ++slot)
-			spatialGridDimensions[slot] = xyzSourceAxes[slot] >= 0 ? grid.gridDimension(xyzSourceAxes[slot]) : 1;
-
-		final long[] cellPosition = new long[grid.numDimensions()];
-		final long[] spatialPosition = new long[3];
-		final TLongHashSet spatialBlocks = new TLongHashSet();
-		for (final long block : blocks) {
-			grid.getCellGridPositionFlat(block, cellPosition);
-			boolean inSlice = true;
-			for (int axis = 0; axis < cellPosition.length && inSlice; ++axis)
-				if (!spatial[axis])
-					inSlice = cellPosition[axis] == slicePositions[axis] / blockSize[axis];
-			if (!inSlice)
-				continue;
-			for (int slot = 0; slot < 3; ++slot)
-				spatialPosition[slot] = xyzSourceAxes[slot] >= 0 ? cellPosition[xyzSourceAxes[slot]] : 0;
-			spatialBlocks.add(IntervalIndexer.positionToIndex(spatialPosition, spatialGridDimensions));
-		}
-		return spatialBlocks.toArray();
-	}
 
 	/* the target blocks whose voxels downsample from the given source blocks; the scaled bounds are voxel-precise,
 	 * unlike Grids.getRelevantBlocksInTargetGrid whose ceil'd real interval bleeds into the adjacent block layer */
 	private static long[] relevantTargetBlocks(
-			final long[] sourceSpatialBlocks,
+			final long[] sourceBlocks,
 			final CellGrid sourceGrid,
 			final CellGrid targetGrid,
 			final double[] sourceToTargetFactors) {
 
-		final long[] sourceBlockPosition = new long[3];
-		final long[] targetMinBlock = new long[3];
-		final long[] targetMaxBlock = new long[3];
-		final int[] ones = {1, 1, 1};
+		final int numDimensions = sourceGrid.numDimensions();
+		final long[] sourceBlockPosition = new long[numDimensions];
+		final long[] targetMinBlock = new long[numDimensions];
+		final long[] targetMaxBlock = new long[numDimensions];
+		final int[] ones = new int[numDimensions];
+		Arrays.fill(ones, 1);
 		final long[] targetGridDimensions = targetGrid.getGridDimensions();
 		final TLongHashSet targetBlocks = new TLongHashSet();
-		for (final long block : sourceSpatialBlocks) {
+		for (final long block : sourceBlocks) {
 			sourceGrid.getCellGridPositionFlat(block, sourceBlockPosition);
-			for (int d = 0; d < 3; ++d) {
+			for (int d = 0; d < numDimensions; ++d) {
 				final long sourceMin = sourceBlockPosition[d] * sourceGrid.cellDimension(d);
 				final long sourceMax = Math.min(sourceMin + sourceGrid.cellDimension(d), sourceGrid.imgDimension(d)) - 1;
 				final long targetMin = (long)Math.floor(sourceMin / sourceToTargetFactors[d]);
@@ -755,37 +692,6 @@ public class CommitCanvasN5 implements PersistCanvas {
 					offset -> targetBlocks.add(IntervalIndexer.positionToIndex(offset, targetGridDimensions)));
 		}
 		return targetBlocks.toArray();
-	}
-
-	/** Every combination of fixed non-spatial block positions.
-     *  - spatial axes left at 0
-     *  - one entry per non-spatial axis position
-     *  - single all-zero entry for a 3D source. */
-	private static List<long[]> fixedNonSpatialBlocks(final long[] dimensions, final int[] xyzSourceAxes) {
-
-		final boolean[] spatial = new boolean[dimensions.length];
-		for (final int axis : xyzSourceAxes)
-			if (axis >= 0) spatial[axis] = true;
-		final List<Integer> nonSpatialAxes = new ArrayList<>();
-		for (int d = 0; d < dimensions.length; ++d)
-			if (!spatial[d]) nonSpatialAxes.add(d);
-
-		final List<long[]> positions = new ArrayList<>();
-		enumerateNonSpatialAxisPositions(nonSpatialAxes, 0, dimensions, new long[dimensions.length], positions);
-		return positions;
-	}
-
-	private static void enumerateNonSpatialAxisPositions(final List<Integer> nonSpatialAxes, final int index, final long[] dimensions, final long[] current, final List<long[]> out) {
-
-		if (index == nonSpatialAxes.size()) {
-			out.add(current.clone());
-			return;
-		}
-		final int axis = nonSpatialAxes.get(index);
-		for (long position = 0; position < dimensions[axis]; ++position) {
-			current[axis] = position;
-			enumerateNonSpatialAxisPositions(nonSpatialAxes, index + 1, dimensions, current, out);
-		}
 	}
 
 	private static void writeBlocksLabelMultisetType(
@@ -927,11 +833,9 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final DatasetSpec sourceDataset,
 			final DatasetSpec targetDataset,
 			final BlockSpec targetBlockSpec,
-			final Scale3D targetToPrevious,
 			final int[] relativeFactors,
 			final int targetMaxNumEntries,
 			final int level,
-			final SpatialMapping mapping,
 			final TLongObjectHashMap<BlockDiff> blockDiffsAt,
 			Optional<ReadOnlyDoubleWrapper> progressOpt) throws IOException {
 
@@ -940,11 +844,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		n5.setAttribute(sourceDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 		n5.setAttribute(targetDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 
-		/* the levels may be nD; downsample on the 3D spatial slice and map block I/O back to nD */
-		final RandomAccessibleInterval<LabelMultisetType> openedSource = LabelMultisetUtilsKt.openLabelMultiset(n5, sourceDataset.dataset);
-		final RandomAccessibleInterval<LabelMultisetType> sourceData = mapping.toXyz(openedSource);
-		final long[] sourceSpatialDimensions = mapping.spatialProjection(sourceDataset.dimensions);
-		final int[] sourceSpatialBlockSize = mapping.spatialProjection(sourceDataset.blockSize);
+		final RandomAccessibleInterval<LabelMultisetType> sourceData = LabelMultisetUtilsKt.openLabelMultiset(n5, sourceDataset.dataset);
 
 		final double increment;
 		if (progressOpt.isPresent()) {
@@ -962,37 +862,20 @@ public class CommitCanvasN5 implements PersistCanvas {
 				var future = threadPool.submit(() -> {
 					final var blockSpecCopy = new BlockSpec(targetBlockSpec);
 					blockSpecCopy.fromLinearIndex(targetBlock);
-					final double[] realSourceMin = ArrayMath.asDoubleArray3(blockSpecCopy.min);
-					final double[] realSourceMax = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpecCopy.max, 1));
-					targetToPrevious.apply(realSourceMin, realSourceMin);
-					targetToPrevious.apply(realSourceMax, realSourceMax);
-
-					LOG.debug(() -> "level=%d: realSourceMin=%s realSourceMax=%s".formatted(level, realSourceMin, realSourceMax));
-
-					final long[] sourceMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(realSourceMin, realSourceMin)), sourceSpatialDimensions);
-					final long[] sourceMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(realSourceMax, realSourceMax)), sourceSpatialDimensions);
+					final Interval sourceInterval = scaledSourceInterval(blockSpecCopy, relativeFactors, sourceDataset.dimensions);
 					final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpecCopy.min, blockSpecCopy.max));
 
-					final long[] previousRelevantIntervalMin = sourceMin.clone();
-					final long[] previousRelevantIntervalMax = ArrayMath.add3(sourceMax, -1);
+					LOG.debug(() -> "level=%d: source interval %s for target block %s".formatted(level, sourceInterval, Arrays.toString(blockSpecCopy.pos)));
 
-					ArrayMath.divide3(sourceMin, sourceSpatialBlockSize, sourceMin);
-					ArrayMath.divide3(sourceMax, sourceSpatialBlockSize, sourceMax);
-					ArrayMath.add3(sourceMax, -1, sourceMax);
-					ArrayMath.minOf3(sourceMax, sourceMin, sourceMax);
-
-					/* the spatial block position addresses the nD dataset at the fixed non-spatial slice */
-					final long[] targetSourcePos = mapping.toSourcePosition(blockSpecCopy.pos[0], blockSpecCopy.pos[1], blockSpecCopy.pos[2]);
-					LOG.trace(() -> "Reading existing access at position %s and size %s. (%s %s)".formatted(targetSourcePos, size, blockSpecCopy.min, blockSpecCopy.max));
 					VolatileLabelMultisetArray oldAccess = null;
 					try {
-						final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, targetSourcePos);
+						final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpecCopy.pos);
 						oldAccess = block != null && block.getData() instanceof byte[]
 								? LabelUtils.fromBytes((byte[]) block.getData(), (int) Intervals.numElements(size))
 								: null;
 					} catch (N5Exception.N5IOException e) {
 						LOG.debug(e, () -> "");
-						LOG.warn(() -> String.format("Could not read block %s of dataset %s during downsample. Regenerating block.", Arrays.toString(targetSourcePos), targetDataset.dataset));
+						LOG.warn(() -> String.format("Could not read block %s of dataset %s during downsample. Regenerating block.", Arrays.toString(blockSpecCopy.pos), targetDataset.dataset));
 					}
 
 					final VolatileLabelMultisetArray newAccess;
@@ -1001,11 +884,11 @@ public class CommitCanvasN5 implements PersistCanvas {
 								n5,
 								targetDataset.dataset,
 								targetDataset.attributes,
-								Views.interval(sourceData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+								Views.interval(sourceData, sourceInterval),
 								relativeFactors,
 								targetMaxNumEntries,
-								mapping.toSourceBlockSize(size),
-								targetSourcePos);
+								size,
+								blockSpecCopy.pos);
 					} catch (IOException e) {
 						throw new RuntimeException(e);
 					}
@@ -1038,18 +921,12 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final DatasetSpec previousDataset,
 			final DatasetSpec targetDataset,
 			final BlockSpec blockSpec,
-			final Scale3D targetToPrevious,
 			final int[] relativeFactors,
-			final int level,
-			final SpatialMapping mapping,
 			final TLongObjectHashMap<BlockDiff> blockDiffsAt
 	) throws IOException {
 
-		/* the levels may be nD; downsample on the 3D spatial slice and map block I/O back to nD */
-		final RandomAccessibleInterval<I> openedPrevious = N5Utils.open(n5, previousDataset.dataset);
-		final RandomAccessibleInterval<I> previousData = mapping.toXyz(openedPrevious);
-		final long[] previousSpatialDimensions = mapping.spatialProjection(previousDataset.dimensions);
-		final int[] previousSpatialBlockSize = mapping.spatialProjection(previousDataset.blockSize);
+		/* the downsampler is nD, so the levels stay nD end to end; the axes that are not downsampled have factor 1 */
+		final RandomAccessibleInterval<I> previousData = N5Utils.open(n5, previousDataset.dataset);
 
 		final ThreadFactory build = new ThreadFactoryBuilder().setNameFormat("downsample-and-write-blocks-integer-%d").build();
 		final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), build);
@@ -1059,33 +936,18 @@ public class CommitCanvasN5 implements PersistCanvas {
 			futures.add(threadPool.submit(() -> {
 				final BlockSpec blockSpecCopy = new BlockSpec(blockSpec);
 				blockSpecCopy.fromLinearIndex(targetBlock);
-				final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpecCopy.min);
-				final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpecCopy.max, 1));
-				targetToPrevious.apply(blockMinDouble, blockMinDouble);
-				targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
-
-				final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousSpatialDimensions);
-				final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousSpatialDimensions);
+				final Interval sourceInterval = scaledSourceInterval(blockSpecCopy, relativeFactors, previousDataset.dimensions);
 				final Interval targetInterval = new FinalInterval(blockSpecCopy.min, blockSpecCopy.max);
 				final int[] size = Intervals.dimensionsAsIntArray(targetInterval);
-
-				final long[] previousRelevantIntervalMin = blockMin.clone();
-				final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
-
-				ArrayMath.divide3(blockMin, previousSpatialBlockSize, blockMin);
-				ArrayMath.divide3(blockMax, previousSpatialBlockSize, blockMax);
-				ArrayMath.add3(blockMax, -1, blockMax);
-				ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
 				final BlockDiff blockDiff = downsampleIntegerTypeAndSerialize(
 						n5,
 						targetDataset.dataset,
 						targetDataset.attributes,
-						Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+						Views.interval(previousData, sourceInterval),
 						relativeFactors,
 						size,
-						targetInterval,
-						mapping);
+						targetInterval);
 				synchronized (blockDiffsAt) {
 					blockDiffsAt.put(targetBlock, blockDiff);
 				}

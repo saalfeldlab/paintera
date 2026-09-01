@@ -66,7 +66,9 @@ import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantVa
 import org.janelia.saalfeldlab.net.imglib2.util.AccessedBlocksRandomAccessible;
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import org.janelia.saalfeldlab.net.imglib2.view.RealRandomAccessibleTriple;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.XyzView;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
@@ -95,6 +97,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -181,11 +184,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private final int[][] canvasBlockSizes;
 
-	private final MetadataState canvasMetadataState;
-
-	private final int[] canvasXyzSourceAxes;
-
-	private final int canvasNumDimensions;
+	/** The view the canvas store is presented through, or null when the source carries no N5 metadata. */
+	private final XyzView canvasXyzView;
 
 	private final boolean canvasIsSliced;
 
@@ -261,24 +261,28 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				.toArray(long[][]::new);
 		this.blockSizes = blockSizes;
 
-		/* derive the canvas grid from the source's metadata; if the source is 3D already, this is the same */
-		this.canvasMetadataState = (source instanceof N5DataSource<?, ?> n5DataSource) ? n5DataSource.getMetadataState() : null;
-		if (canvasMetadataState != null) {
-			this.canvasNumDimensions = canvasMetadataState.getDatasetAttributes().getNumDimensions();
-			this.canvasXyzSourceAxes = SpatialMapping.Companion.xyzSourceAxes(canvasMetadataState.getAxes());
-		} else {
-			this.canvasNumDimensions = NUM_DIMENSIONS;
-			this.canvasXyzSourceAxes = new int[]{0, 1, 2};
-		}
-		this.canvasIsSliced = !(canvasNumDimensions == NUM_DIMENSIONS && canvasXyzSourceAxes[0] == 0 && canvasXyzSourceAxes[1] == 1 && canvasXyzSourceAxes[2] == 2);
+		/* the canvas is stored nD, like the source, so an edit at one timepoint/channel does not disturb another;
+		 * a source with no N5 metadata is already 3D, so it gets the identity view rather than a null one */
+		final MetadataState canvasMetadataState = (source instanceof N5DataSource<?, ?> n5DataSource) ? n5DataSource.getMetadataState() : null;
+		this.canvasXyzView = canvasMetadataState != null
+				? canvasMetadataState.getXyzView()
+				: new XyzView(new int[]{0, 1, 2}, dimensions[0]);
+		this.canvasIsSliced = canvasXyzView.isSliced();
 		if (canvasIsSliced) {
-			final long[] datasetDimensions = canvasMetadataState.getDatasetAttributes().getDimensions();
-			final int[] datasetBlockSize = canvasMetadataState.getDatasetAttributes().getBlockSize();
+			final DatasetAttributes attributes = canvasMetadataState.getDatasetAttributes();
 			this.canvasDimensions = new long[dimensions.length][];
 			this.canvasBlockSizes = new int[blockSizes.length][];
 			for (int level = 0; level < dimensions.length; ++level) {
-				this.canvasDimensions[level] = mapSpatialToSource(dimensions[level], canvasXyzSourceAxes, datasetDimensions, canvasNumDimensions);
-				this.canvasBlockSizes[level] = mapSpatialToSource(blockSizes[level], canvasXyzSourceAxes, datasetBlockSize, canvasNumDimensions);
+				/* spatial extents follow the presented 3D source at this level; every other axis spans the dataset */
+				this.canvasDimensions[level] = attributes.getDimensions().clone();
+				this.canvasBlockSizes[level] = attributes.getBlockSize().clone();
+				for (int slot = 0; slot < NUM_DIMENSIONS; ++slot) {
+					final int axis = canvasXyzView.getXyzSourceAxes()[slot];
+					if (axis < 0)
+						continue;
+					this.canvasDimensions[level][axis] = dimensions[level][slot];
+					this.canvasBlockSizes[level][axis] = blockSizes[level][slot];
+				}
 			}
 		} else {
 			this.canvasDimensions = this.dimensions;
@@ -321,108 +325,50 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setMasksConstant();
 	}
 
-	/**
-	 * Place the xyz values at their source axis positions and the slice values at every other axis position.
-	 *
-	 * @param xyzValues     the x, y, z values
-	 * @param xyzSourceAxes source axis supplying each of x, y, z; `-1` for an absent dimension
-	 * @param sliceValues   values to keep at the non-spatial axes
-	 * @param numDimensions 
-	 */
-	private static long[] mapSpatialToSource(final long[] xyzValues, final int[] xyzSourceAxes, final long[] sliceValues, final int numDimensions) {
-
-		final long[] nd = new long[numDimensions];
-		for (int axis = 0; axis < numDimensions; ++axis) {
-			final int spatialIdx = xyzIdxIfSpatial(axis, xyzSourceAxes);
-			nd[axis] = spatialIdx >= 0 ? xyzValues[spatialIdx] : sliceValues[axis];
-		}
-		return nd;
-	}
-
-	private static int[] mapSpatialToSource(final int[] xyzValues, final int[] xyzSourceAxes, final int[] sliceValues, final int numDimensions) {
-
-		final int[] nd = new int[numDimensions];
-		for (int axis = 0; axis < numDimensions; ++axis) {
-			final int spatialIdx = xyzIdxIfSpatial(axis, xyzSourceAxes);
-			nd[axis] = spatialIdx >= 0 ? xyzValues[spatialIdx] : sliceValues[axis];
-		}
-		return nd;
-	}
-
-	/**
-	 * given an `axis` in the source, return the x,y,z index if it's spatial. otherwise -1.
-	 *
-	 * @param axis          source axis to test if spatial
-	 * @param xyzSourceAxes source axes supplying each of x, y, z
-	 */
-	private static int xyzIdxIfSpatial(final int axis, final int[] xyzSourceAxes) {
-
-		for (int idx = 0; idx < xyzSourceAxes.length; ++idx)
-			if (xyzSourceAxes[idx] == axis)
-				return idx;
-		return -1;
-	}
-
-	/** The mapping that reduces the nD canvas store to a canonical 3D (x, y, z) view at the current slice positions. */
-	private SpatialMapping canvasMapping() {
-
-		return new SpatialMapping(canvasNumDimensions, canvasXyzSourceAxes, canvasMetadataState.getSlicePositions());
-	}
-
 	/** The current 3D (x, y, z) slice of the nD data canvas. no-op for a 3D source */
 	private RandomAccessibleInterval<UnsignedLongType> canvasSlice(final int level) {
 
-        if (canvasIsSliced)
-			return canvasMapping().toXyz(dataCanvases[level]);
-        return dataCanvases[level];
-    }
+		return canvasXyzView.toXyz(dataCanvases[level]);
+	}
 
 	private RandomAccessibleInterval<VolatileUnsignedLongType> canvasSliceVolatile(final int level) {
 
-        if (canvasIsSliced)
-			return canvasMapping().toXyz(canvases[level].getRai());
-
-        return canvases[level].getRai();
-    }
-
-	/**
-	 * Map 3D block indices (over the stored 3D grid at {@code level}) to nD block indices in the canvas store at the current slice.
-	 */
-	private long[] xyzToSourceBlocks(final TLongSet blocksXYZ, final int level) {
-
-		if (!canvasIsSliced) return blocksXYZ.toArray();
-		final CellGrid sourceGrid = dataCanvases[level].getCellGrid();
-		final long[] sourceGridDimensions = sourceGrid.getGridDimensions();
-		final int[] sourceBlockSize = new int[sourceGrid.numDimensions()];
-		sourceGrid.cellDimensions(sourceBlockSize);
-		final long[] sourcePos = new long[sourceGrid.numDimensions()];
-
-		final long[] slicePositions = canvasMetadataState.getSlicePositions();
-
-		final CellGrid xyzGrid = source.getGrid(level);
-		final long[] xyzPos = new long[xyzGrid.numDimensions()];
-		final TLongHashSet sourceBlocks = new TLongHashSet();
-
-		for (final long xyzBlock : blocksXYZ.toArray()) {
-			xyzGrid.getCellGridPositionFlat(xyzBlock, xyzPos);
-			for (int axis = 0; axis < sourcePos.length; ++axis) {
-				final int spatialIdx = xyzIdxIfSpatial(axis, canvasXyzSourceAxes);
-				sourcePos[axis] = spatialIdx >= 0 ? xyzPos[spatialIdx] : slicePositions[axis] / sourceBlockSize[axis];
-			}
-			sourceBlocks.add(IntervalIndexer.positionToIndex(sourcePos, sourceGridDimensions));
-		}
-		return sourceBlocks.toArray();
+		return canvasXyzView.toXyz(canvases[level].getRai());
 	}
 
 	/**
-	 * Map a 3D block index to its nD block index in the canvas.
+	 * Maps a 3D block index (over the stored 3D grid at {@code level}) to its nD block index in the canvas store at
+	 * the current slice.
 	 */
+	private LongUnaryOperator blockToCanvasBlock(final int level) {
+
+		final CellGrid canvasGrid = dataCanvases[level].getCellGrid();
+		final long[] canvasGridDimensions = canvasGrid.getGridDimensions();
+		/* the mapping over the canvas grid's block coordinates, so the sliced axes land on the right nD block */
+		final SpatialMapping blockMapping = canvasXyzView.spatialMapping(canvasXyzView.blockInterval(canvasGrid));
+
+		final CellGrid xyzGrid = source.getGrid(level);
+		final long[] xyzPos = new long[xyzGrid.numDimensions()];
+		return xyzBlock -> {
+			xyzGrid.getCellGridPositionFlat(xyzBlock, xyzPos);
+			final long[] canvasPos = blockMapping.toSourcePosition(xyzPos[0], xyzPos[1], xyzPos[2]);
+			return IntervalIndexer.positionToIndex(canvasPos, canvasGridDimensions);
+		};
+	}
+
+	private long[] xyzToSourceBlocks(final TLongSet blocksXYZ, final int level) {
+
+		if (!canvasIsSliced) return blocksXYZ.toArray();
+		final LongUnaryOperator toCanvasBlock = blockToCanvasBlock(level);
+		final TLongHashSet canvasBlocks = new TLongHashSet();
+		for (final long xyzBlock : blocksXYZ.toArray())
+			canvasBlocks.add(toCanvasBlock.applyAsLong(xyzBlock));
+		return canvasBlocks.toArray();
+	}
+
 	private long xyzToSourceBlock(final long blockXYZ, final int level) {
 
-		if (!canvasIsSliced) return blockXYZ;
-		final TLongSet singleton = new TLongHashSet();
-		singleton.add(blockXYZ);
-		return xyzToSourceBlocks(singleton, level)[0];
+		return canvasIsSliced ? blockToCanvasBlock(level).applyAsLong(blockXYZ) : blockXYZ;
 	}
 
 	/** convert the modified 3D XYZ blocks to nD before storing in the affectedBlocks list */

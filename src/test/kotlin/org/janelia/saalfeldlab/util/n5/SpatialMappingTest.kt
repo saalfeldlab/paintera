@@ -9,6 +9,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 
 /**
@@ -217,6 +218,32 @@ class SpatialMappingTest {
 		val sourceInterval = mapping.toSourceInterval(net.imglib2.FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6)))
 		assertEquals(listOf(1L, 2L, 2L, 3L, 1L), (0 until 5).map { sourceInterval.min(it) })
 		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), (0 until 5).map { sourceInterval.max(it) })
+	}
+
+	@Test
+	fun `toXyzPosition and toSourcePosition round-trip at the slice positions`() {
+		/* XYCZT: spatial on 0, 1, 3 */
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
+		assertEquals(listOf(4L, 5L, 6L), mapping.toXyzPosition(longArrayOf(4, 5, 2, 6, 1)).toList())
+		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), mapping.toSourcePosition(4, 5, 6).toList())
+
+		/* an absent dimension projects to 0, unlike a shape, where it is the singleton extent 1 */
+		val embedded = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
+		assertEquals(listOf(3L, 0L, 7L), embedded.toXyzPosition(longArrayOf(3, 7)).toList())
+		assertEquals(listOf(50L, 1L, 70L), embedded.spatialProjection(longArrayOf(50, 70)).toList())
+	}
+
+	@Test
+	fun `the shape projections reject a shape of the wrong length`() {
+		/* a shape of the wrong length reads the wrong axes and still returns a plausible-looking grid */
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
+		assertThrows(IllegalArgumentException::class.java) { mapping.spatialProjection(intArrayOf(8, 9, 10)) }
+		assertThrows(IllegalArgumentException::class.java) { mapping.spatialProjection(longArrayOf(8, 9, 10)) }
+		assertThrows(IllegalArgumentException::class.java) { mapping.toSourceBlockSize(intArrayOf(8, 9, 10, 1, 1)) }
+
+		/* an absent spatial dimension still projects to a singleton, which is its real extent */
+		val embedded = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
+		assertEquals(listOf(50, 1, 70), embedded.spatialProjection(intArrayOf(50, 70)).toList())
 	}
 
 	@Test

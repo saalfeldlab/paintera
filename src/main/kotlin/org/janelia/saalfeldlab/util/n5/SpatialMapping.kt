@@ -98,6 +98,13 @@ class SpatialMapping(
         return position
     }
 
+    /** Project an nD source position onto the canonical 3D (x, y, z) position; an absent dimension is 0. */
+    fun toXyzPosition(sourcePosition: LongArray): LongArray {
+        requireSourceShape(sourcePosition.size)
+
+        return LongArray(3) { if (xyzSourceAxes[it] >= 0) sourcePosition[xyzSourceAxes[it]] else 0L }
+    }
+
     /** Map a canonical 3D interval back to the full nD source interval at the slice positions. */
     fun toSourceInterval(xyzInterval: Interval): Interval {
 
@@ -136,8 +143,20 @@ class SpatialMapping(
 
     /** Project an nD shape array (block size, dimensions, ...) to an [x,y,z] shape array using the
      * this [SpatialMapping]. drops non-spatial dimensions, reorders to [x,y,z], adds single-position dimension if < 3 spatial dims */
-    fun spatialProjection(shape: IntArray): IntArray = IntArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1 }
-    fun spatialProjection(shape: LongArray): LongArray = LongArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1L }
+    fun spatialProjection(shape: IntArray): IntArray {
+        requireSourceShape(shape.size)
+
+        return IntArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1 }
+    }
+
+    fun spatialProjection(shape: LongArray): LongArray {
+        requireSourceShape(shape.size)
+
+        return LongArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1L }
+    }
+
+    private fun requireSourceShape(size: Int) =
+        require(size == numDimensions) { "shape must cover all $numDimensions source dimensions, got $size" }
 
     /**
      * Map a canonical 3D (x, y, z) view back to the full nD source view: drop the embedded singletons for absent
@@ -173,6 +192,8 @@ class SpatialMapping(
 
     /** Widen a 3D block size to the nD source block size, putting 1 at every non-spatial (and embedded) axis. */
     fun toSourceBlockSize(blockSize3D: IntArray): IntArray {
+        require(blockSize3D.size == 3) { "blockSize3D must have 3 dimensions, got ${blockSize3D.size}" }
+
         val blockSize = IntArray(numDimensions) { 1 }
         for (slot in 0..2) if (xyzSourceAxes[slot] >= 0) blockSize[xyzSourceAxes[slot]] = blockSize3D[slot]
         return blockSize

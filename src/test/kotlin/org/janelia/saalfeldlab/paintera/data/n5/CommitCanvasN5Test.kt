@@ -43,6 +43,8 @@ import org.janelia.saalfeldlab.paintera.testdata.TestData.DataType
 import org.janelia.saalfeldlab.paintera.testdata.TestData.TestCase
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.util.n5.N5Data
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -392,6 +394,106 @@ class CommitCanvasN5Test {
 		val expected = paintedSlices.map { slice -> slice.map { it / nonSpatialBlockSize } }.toSet()
 		assertEquals(expected, positions.map { it.drop(3) }.toSet()) { "each paint must land in the block containing its slice" }
 		assertEquals(expected.size, positions.size) { "no block may be recorded twice" }
+	}
+
+	/**
+	 * A commit must write the downsampled block the paint belongs to, at any non-spatial block size. The block
+	 * position of a slice is `p / nonSpatialBlockSize`; using the voxel position `p` instead only coincides when the
+	 * block size is 1, which is what every other nD fixture uses.
+	 */
+	@ParameterizedTest(name = "non-spatial block size {0}")
+	@CsvSource("1", "2")
+	fun testCommitWritesTheBlockContainingThePaintedSlice(nonSpatialBlockSize: Int, @TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("ndCommit.n5").toString())
+		val timepoints = 4L
+		val dimensions = longArrayOf(16, 16, 16, timepoints)
+		val blockSize = intArrayOf(8, 8, 8, nonSpatialBlockSize)
+		val group = "labels"
+		for ((level, scale) in listOf(1L, 2L).withIndex()) {
+			val scaled = longArrayOf(16 / scale, 16 / scale, 16 / scale, timepoints)
+			writer.createDataset("$group/s$level", scaled, blockSize, org.janelia.saalfeldlab.n5.DataType.UINT64, GzipCompression())
+			writer.setAttribute("$group/s$level", "downsamplingFactors", doubleArrayOf(scale.toDouble(), scale.toDouble(), scale.toDouble(), 1.0))
+		}
+		writer.setAttribute(group, "multiScale", true)
+
+		val metadataState = createMetadataState(N5ContainerState(writer), group)!!.also { it.isLabel = true }
+
+		/* the canvas mirrors the s0 grid; paint the last timepoint, whose block index (t / blockSize) differs from its
+		 * voxel index whenever blockSize > 1, and leave every other voxel INVALID */
+		val paintedTimepoint = timepoints - 1
+		val canvas = newWritableTestCanvas(tmp, dimensions, blockSize)
+		Views.flatIterable(canvas).forEach { it.set(Label.INVALID) }
+		Views.interval(
+				Views.hyperSlice(canvas, 3, paintedTimepoint),
+				FinalInterval(longArrayOf(0, 0, 0), longArrayOf(7, 7, 7))
+		).forEach { it.set(111L) }
+
+		val paintedBlock = canvas.cellGrid.let { grid ->
+			IntervalIndexer.positionToIndex(longArrayOf(0, 0, 0, paintedTimepoint / nonSpatialBlockSize), grid.gridDimensions)
+		}
+		CommitCanvasN5(metadataState).persistCanvas(canvas, longArrayOf(paintedBlock))
+
+		/* s1 must hold the downsampled paint at the painted timepoint, and nowhere else */
+		val s1 = N5Utils.open<UnsignedLongType>(writer, "$group/s1")
+		for (timepoint in 0 until timepoints) {
+			val slice = Views.hyperSlice(s1, 3, timepoint)
+			var painted = 0
+			Views.flatIterable(slice).forEach { if (it.get() == 111L) painted++ }
+			if (timepoint == paintedTimepoint)
+				assertTrue(painted > 0) { "s1 t=$timepoint must hold the downsampled paint" }
+			else
+				assertEquals(0, painted) { "s1 t=$timepoint must stay empty" }
+		}
+	}
+
+	/**
+	 * A pyramid may downsample a non-spatial axis as readily as z. The downsample factors must come from the scale
+	 * metadata rather than from an assumption that only x, y, z shrink between levels.
+	 */
+	@Test
+	fun testCommitHonoursANonSpatialDownsampleFactor(@TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("timeDownsampled.n5").toString())
+		val timepoints = 4L
+		val dimensions = longArrayOf(16, 16, 16, timepoints)
+		val blockSize = intArrayOf(8, 8, 8, 1)
+		val group = "labels"
+		val timeAxis = Axis("time", "t", "s")
+		/* s1 halves time as well, so s0 t=3 belongs to s1 t=1 */
+		N5Data.createPainteraLabelDataset(
+			writer, group, dimensions, blockSize,
+			doubleArrayOf(1.0, 1.0, 1.0, 1.0), doubleArrayOf(0.0, 0.0, 0.0, 0.0),
+			arrayOf(doubleArrayOf(2.0, 2.0, 2.0, 2.0)),
+			labelMultisetType = false,
+			axes = arrayOf(Axis("space", "x", "pixel"), Axis("space", "y", "pixel"), Axis("space", "z", "pixel"), timeAxis)
+		)
+
+		val metadataState = createMetadataState(N5ContainerState(writer), group)!!.also { it.isLabel = true }
+
+		val paintedTimepoint = timepoints - 1
+		val canvas = newWritableTestCanvas(tmp, dimensions, blockSize)
+		Views.flatIterable(canvas).forEach { it.set(Label.INVALID) }
+		Views.interval(
+			Views.hyperSlice(canvas, 3, paintedTimepoint),
+			FinalInterval(longArrayOf(0, 0, 0), longArrayOf(7, 7, 7))
+		).forEach { it.set(111L) }
+
+		val paintedBlock = canvas.cellGrid.let { grid ->
+			IntervalIndexer.positionToIndex(longArrayOf(0, 0, 0, paintedTimepoint), grid.gridDimensions)
+		}
+		CommitCanvasN5(metadataState).persistCanvas(canvas, longArrayOf(paintedBlock))
+
+		val s1 = N5Utils.open<UnsignedLongType>(writer, "$group/data/s1")
+		assertEquals(2L, s1.dimension(3)) { "s1 must have half the timepoints" }
+		/* assuming a factor of 1 over time would write this to s1 t=3, which does not exist */
+		val downsampledTimepoint = paintedTimepoint / 2
+		for (timepoint in 0 until s1.dimension(3)) {
+			var painted = 0
+			Views.flatIterable(Views.hyperSlice(s1, 3, timepoint)).forEach { if (it.get() == 111L) painted++ }
+			if (timepoint == downsampledTimepoint)
+				assertTrue(painted > 0) { "s1 t=$timepoint must hold the downsampled paint" }
+			else
+				assertEquals(0, painted) { "s1 t=$timepoint must stay empty" }
+		}
 	}
 
 	private fun paintBoxAtTimepoint(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long, label: Long) =
