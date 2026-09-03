@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ai.sam
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -50,13 +48,7 @@ sealed class SamLinkEncodeRequester<R : EncoderResult> : SamEncodeRequester<R> {
         }
         currentSessions.replace(requestId, encodeJob)?.cancel()
 
-        try {
-            return encodeJob.await()
-        } catch (e: StatusRuntimeException) {
-            if (e.status.code == Status.Code.DEADLINE_EXCEEDED)
-                throw InterruptedException("${e.status}")
-            throw e
-        }
+        return encodeJob.await()
     }
 
     override fun cancelPendingRequests(vararg ids: String) {

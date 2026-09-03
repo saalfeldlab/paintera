@@ -28,6 +28,7 @@ import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.fx.ui.ModeToolActionBar
 import org.janelia.saalfeldlab.bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
 import org.janelia.saalfeldlab.bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
@@ -138,7 +139,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			}
 		}
 
-		baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
+        baseView.orthogonalViews().pane().cells().forEach { grabFocusOnMouseOver(it) }
 
 		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane)
 		globalActionHandlers + addExportDatasetAction(paneWithStatus.pane)
@@ -232,18 +233,22 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 						keysExclusive = true
 						verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
 						onAction {
-							/* maximize the 3D viewer */
-							val target = if (viewer3D.isHover) viewer3D else cell
-							toggleMaximize(target)
-							if (target === viewer3D && maximized)
-								Platform.runLater { viewer3D.requestFocus() }
-							baseView.orthogonalViews().requestRepaint()
+							toggleMaximize(cell)
+                            if (cell !== viewer3D)
+							    baseView.orthogonalViews().requestRepaint()
 						}
 					}
 					KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D) {
 						keysExclusive = true
 						verify("Can Only Maximize with 3D From the Main Window ") { cell.scene == paintera.baseView.node.scene }
-						onAction { toggleMaximize(cell, orthogonalViews.bottomRight) }
+						onAction {
+                            /* if cell is viewer3D, then just maximize the single cell */
+                            if (cell === viewer3D) {
+                                toggleMaximize(cell)
+                            } else {
+                                toggleMaximize(cell, orthogonalViews.bottomRight)
+                            }
+                        }
 					}
 				}
 				val detachCellActions = painteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
@@ -343,10 +348,20 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 	private fun DynamicCellPane.detachCell(cell: Node) {
 		val closeNotifier = SimpleBooleanProperty(false)
 
+		var detachedToolBar: Pair<ToolMode, ModeToolActionBar>? = null
+
+		fun disposeDetachedToolBar() {
+			detachedToolBar?.let { (mode, toolBar) -> mode.disposeToolBar(toolBar) }
+			detachedToolBar = null
+		}
+
 		val uiCallback = { stackPane: StackPane, borderPane: BorderPane ->
 
-			val setupToolbar: (StackPane, Node) -> Unit = { pane, toolbar ->
-				val group = Group(toolbar)
+			val setupToolbar: (StackPane, ToolMode) -> Unit = { pane, mode ->
+				disposeDetachedToolBar()
+				val toolBar = mode.createToolBar()
+				detachedToolBar = mode to toolBar
+				val group = Group(toolBar)
 				group.visibleProperty().bind(paintera.properties.toolBarConfig.isVisibleProperty)
 				group.managedProperty().bind(group.visibleProperty())
 				pane.children.removeIf { it.id == "toolbar" }
@@ -356,17 +371,18 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 			}
 
 			val toolBarListener = ChangeListener<ControlMode> { _, _, new ->
-				(new as? ToolMode)?.createToolBar()?.let { toolbar -> setupToolbar(stackPane, toolbar) }
-
+				(new as? ToolMode)?.let { mode -> setupToolbar(stackPane, mode) }
 			}
 
-			paintera.baseView.activeModeProperty.let { modeProp ->
-				modeProp.addListener(toolBarListener)
-				(modeProp.value as? ToolMode)?.let { mode -> setupToolbar(stackPane, mode.createToolBar()) }
-			}
+			if (cell is ViewerPanelFX) {
+				paintera.baseView.activeModeProperty.let { modeProp ->
+					modeProp.addListener(toolBarListener)
+					(modeProp.value as? ToolMode)?.let { mode -> setupToolbar(stackPane, mode) }
+				}
 
-			closeNotifier.addListener { _, _, closed ->
-				if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
+				closeNotifier.addListener { _, _, closed ->
+					if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
+				}
 			}
 
 			borderPane.bottom =
@@ -376,6 +392,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		val onClose = { stage: Stage ->
 			closeNotifier.set(true)
+			disposeDetachedToolBar()
 			paintera.keyTracker.removeFrom(stage)
 			stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
 		}

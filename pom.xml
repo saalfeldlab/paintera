@@ -68,7 +68,7 @@
 		<javafx.version>25.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
-		<saalfx.version>3.1.0</saalfx.version>
+		<saalfx.version>3.2.1</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
@@ -495,7 +495,18 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.lz4</groupId>
+                    <artifactId>lz4-java</artifactId>
+                </exclusion>
+            </exclusions>
 		</dependency>
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>1.11.2</version>
+        </dependency>
 	</dependencies>
 
 	<developers>
@@ -600,6 +611,10 @@
 			<id>jzy3d</id>
 			<url>https://maven.jzy3d.org/releases</url>
 		</repository>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/saalfeldlab/*</url>
+		</repository>
 	</repositories>
 
 	<build>
@@ -643,25 +658,7 @@
 					</excludes>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<annotationProcessorPath>
-							<groupId>org.scijava</groupId>
-							<artifactId>scijava-common</artifactId>
-							<version>${scijava-common.version}</version>
-						</annotationProcessorPath>
-					</annotationProcessorPaths>
-					<annotationProcessors>
-						<annotationProcessor>org.scijava.annotations.AnnotationProcessor</annotationProcessor>
-					</annotationProcessors>
-					<source>${scijava.jvm.version}</source>
-					<target>${scijava.jvm.version}</target>
-				</configuration>
-			</plugin>
-			<plugin>
+            <plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
 				<executions>
@@ -900,10 +897,63 @@
 							</sourceDirs>
 						</configuration>
 					</execution>
-				</executions>
+                    <execution>
+                        <id>kapt</id>
+                        <goals>
+                            <goal>kapt</goal>
+                        </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <sourceDir>src/main/kotlin</sourceDir>
+                                <sourceDir>src/main/java</sourceDir>
+                            </sourceDirs>
+                            <annotationProcessorPaths>
+                                <annotationProcessorPath>
+                                    <groupId>org.scijava</groupId>
+                                    <artifactId>scijava-common</artifactId>
+                                    <version>${scijava-common.version}</version>
+                                </annotationProcessorPath>
+                                <annotationProcessorPath>
+                                    <groupId>org.scijava</groupId>
+                                    <artifactId>parsington</artifactId>
+                                    <version>3.1.0</version>
+                                </annotationProcessorPath>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
+                </executions>
 			</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <annotationProcessorPath>
+                            <groupId>org.scijava</groupId>
+                            <artifactId>scijava-common</artifactId>
+                            <version>${scijava-common.version}</version>
+                        </annotationProcessorPath>
+                    </annotationProcessorPaths>
+                    <annotationProcessors>
+                        <annotationProcessor>org.scijava.annotations.AnnotationProcessor</annotationProcessor>
+                    </annotationProcessors>
+                    <source>${scijava.jvm.version}</source>
+                    <target>${scijava.jvm.version}</target>
+                    <proc>none</proc>
+                </configuration>
+            </plugin>
 
-		</plugins>
+        </plugins>
 	</build>
 	<profiles>
 		<profile>

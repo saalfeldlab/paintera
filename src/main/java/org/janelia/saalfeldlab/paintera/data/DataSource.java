@@ -10,6 +10,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.util.fx.Transforms;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -49,8 +50,9 @@ public interface DataSource<D, T> extends Source<T>, Invalidate<Long> {
 	 * @param t           Extract relative scale at this time points
 	 * @param level       source level
 	 * @param targetLevel target level
-	 * @return ratio of diagonals of transforms at levels {@code targetLevel} and {@code level} for {@code source} at time {@code t}:
-	 * scale[targetLevel] / scale[level]
+	 * @return per-axis scale at level {@code targetLevel} relative to {@code level} for {@code source} at time
+	 * {@code t}: scale[targetLevel] / scale[level]. Ratios within a small tolerance of an integer are snapped to it,
+	 * so callers may cast to {@code int}.
 	 */
 	static double[] getRelativeScales(
 			final Source<?> source,
@@ -58,10 +60,13 @@ public interface DataSource<D, T> extends Source<T>, Invalidate<Long> {
 			final int level,
 			final int targetLevel) {
 
-		final double[] scale = getScale(source, t, level);
-		final double[] targetScale = getScale(source, t, targetLevel);
-		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
-		return targetScale;
+		final AffineTransform3D transform = new AffineTransform3D();
+		source.getSourceTransform(t, level, transform);
+
+		final AffineTransform3D targetTransform = new AffineTransform3D();
+		source.getSourceTransform(t, targetLevel, targetTransform);
+
+		return Transforms.relativeScale(transform, targetTransform);
 	}
 
 	/**

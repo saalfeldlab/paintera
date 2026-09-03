@@ -60,8 +60,9 @@ public class OrthogonalViewsValueDisplayListener {
 	public void removeHandlers(ViewerPanelFX viewer) {
 
 		listeners.computeIfPresent(viewer, (key, vdl) -> {
-			viewer.getDisplay().removeEventHandler(MouseEvent.MOUSE_MOVED, vdl);
+			viewer.getDisplay().removeEventFilter(MouseEvent.MOUSE_MOVED, vdl);
 			viewer.removeTransformListener(vdl);
+            vdl.dispose();
 			return null;
 		});
 		submitValue.accept("");

@@ -116,6 +116,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		activeViewerProperty.unbind()
 		/* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
 		val viewerAndTransforms = activeViewerProperty.get() ?: return reset("No Active Viewer")
+		/* disable non-active viewers */
+		disableViewersExcept(viewerAndTransforms.viewer())
         SamEncoder.cache.startNavigationBasedRequests(viewerAndTransforms)
 		controller.apply {
 			if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
@@ -555,27 +557,37 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
 
-		val globalToViewerTransform = provideGlobalToViewerTransform ?: targetTransform(depth, translate)
-		val existingSliceInfo = samSliceCache[depth]
-		val cachedSliceInfo = existingSliceInfo?.takeIf {
-			it.globalToViewerTransform.hashable() == globalToViewerTransform.hashable()
+		val globalToViewerTransform = (provideGlobalToViewerTransform ?: targetTransform(depth, translate)).copy()
+		val viewerAndTransforms = activeViewerProperty.value!!
+		val viewer = viewerAndTransforms.viewer()!!
+		val width = viewer.width
+		val height = viewer.height
+
+        /* If no transform is provided, and `translate` is true, then we translate the target transform
+         * to center on the interpolant at that depth. This needs to be done prior to checking the cached
+         * transform, since a change to the adjacent slices may modify the center of the interpolant
+         * at the target depth. */
+		val centerOnInterpolant = translate && provideGlobalToViewerTransform == null
+        val interpolantImg = controller.getInterpolationImg(globalToViewerTransform, fallbackToNearestSlice = true)
+        val interpolantInViewer = when {
+            interpolantImg == null -> null
+            centerOnInterpolant -> alignTransformAndViewCenter(interpolantImg.interpolantSlice, globalToViewerTransform, width, height)
+            else -> interpolantImg.interpolantSlice
+        }
+
+		val cachedSliceInfo = samSliceCache[depth]?.also { cached ->
+            val transformsMatch = cached.globalToViewerTransform.hashable() == globalToViewerTransform.hashable()
+            if (transformsMatch) {
+                LOG.debug { "Returning cached slice info for depth $depth" }
+                interpolantImg?.shutdown?.invoke()
+                return cached
+            }
 		}
-		if (cachedSliceInfo != null)
-			return cachedSliceInfo
+
+        LOG.debug { "Creating new slice info for depth $depth" }
 
 
 		val newSliceInfo = with(controller) {
-			val viewerAndTransforms = this@ShapeInterpolationMode.activeViewerProperty.value!!
-			val viewer = viewerAndTransforms.viewer()!!
-			val width = viewer.width
-			val height = viewer.height
-
-			/* center on the interpolant before creating the mask, so the transforms the mask derives
-			 * at construction agree with `globalToViewerTransform` after the centering translation */
-			val interpolantInViewer = controller.getInterpolationImg(globalToViewerTransform, closest = true)?.let {
-				if (translate) alignTransformAndViewCenter(it, globalToViewerTransform, width, height) else it
-			}
-
 			val maskInfo = MaskInfo(0, currentBestMipMapLevel)
 			val mask = source.createViewerMask(maskInfo, viewer, setMask = false, initialGlobalToViewerTransform = globalToViewerTransform)
 
@@ -595,11 +607,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			}
 
 			/* the view changed, but the slice at this depth did not; carry its state over */
-			SamSliceInfo(renderState, mask, interpolationPrompt, existingSliceInfo?.sliceInfo, existingSliceInfo?.locked ?: false).also {
+			SamSliceInfo(renderState, mask, interpolationPrompt, cachedSliceInfo?.sliceInfo, cachedSliceInfo?.locked ?: false).also {
                 SamEncoder.cache.load(renderState)
 				samSliceCache[depth] = it
 			}
 		}
+        interpolantImg?.shutdown?.invoke()
 		return newSliceInfo
 	}
 

@@ -29,11 +29,9 @@ import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import net.imglib2.Cursor
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.RealCursor
 import net.imglib2.RealPoint
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
@@ -241,14 +239,11 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override fun activate() {
 		mode?.apply {
-			InvokeOnJavaFXApplicationThread {
-				actionBar.showGroup(actionBar.modeActionsGroup, false)
-				actionBar.showGroup(actionBar.modeToolsGroup, false)
-			}
+			InvokeOnJavaFXApplicationThread { showModeToolBarGroups(false) }
 		}
 		super.activate()
 		(mode as? PaintLabelMode)?.apply {
-			disableUnfocusedViewers()
+			InvokeOnJavaFXApplicationThread { disableUnfocusedViewers() }
 		}
 		primaryClickLabel = null
 		initializeSam()
@@ -266,10 +261,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override fun deactivate() {
 		mode?.apply {
-			InvokeOnJavaFXApplicationThread {
-				actionBar.showGroup(actionBar.modeActionsGroup, true)
-				actionBar.showGroup(actionBar.modeToolsGroup, true)
-			}
+			InvokeOnJavaFXApplicationThread { showModeToolBarGroups(true) }
 		}
 		cleanup()
 		(mode as? PaintLabelMode)?.enableAllViewers()
@@ -1044,7 +1036,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 val predictionToViewerScale = Scale2D(setViewer!!.width / width, setViewer!!.height / height)
                 val halfPixelOffset = Translation2D(.5, .5)
         val screenOriginMaskOffset = viewerMask.displayPointToMask(0, 0, currentDisplay)
-        val viewerTranslation = Translation2D(*screenOriginMaskOffset.positionAsDoubleArray())
+        val viewerTranslation = Translation2D(*screenOriginMaskOffset.positionAsDoubleArray().take(2).toDoubleArray())
         val predictionToViewerTransform = AffineTransform2D()
             .concatenate(viewerTranslation)
             .concatenate(predictionToViewerScale)

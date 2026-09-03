@@ -1,9 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.undo;
 
-import javafx.collections.ObservableList;
+import org.janelia.saalfeldlab.fx.undo.EventHistory;
 
+/**
+ * Can provide an EventHistory that support undo/redo/delete operations.
+ */
 public interface HasHistory<T> {
 
-	ObservableList<T> events();
+	EventHistory<T> getHistory();
 
 }

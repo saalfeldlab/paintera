@@ -26,7 +26,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.SimilarityTransformInterpolator
-import org.janelia.saalfeldlab.util.fx.Transforms
+import org.janelia.saalfeldlab.util.fx.Transforms.toAffineTransform3D
+import org.janelia.saalfeldlab.util.fx.Transforms.toTransformFX
 import java.io.File
 import java.io.IOException
 import javax.imageio.ImageIO
@@ -82,9 +83,9 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		children += scene
 		this.root.children.addAll(cameraGroup, sceneGroup)
 		this.root.visibleProperty().bind(meshesEnabled)
-		val cameraAffineTransform = Transforms.fromTransformFX(cameraTransform)
+		val cameraAffineTransform = cameraTransform.toAffineTransform3D()
 		handler.addAffineListener { sceneTransform: Affine? ->
-			val sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse()
+			val sceneToWorldTransform = sceneTransform!!.toAffineTransform3D().inverse()
 			eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform))
 		}
 		val sizeChangedListener = InvalidationListener { obs: Observable? ->
@@ -157,11 +158,11 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		getAffine(currentState)
 		val progressProperty: DoubleProperty = SimpleDoubleProperty(0.0)
 		val interpolator = SimilarityTransformInterpolator(
-			Transforms.fromTransformFX(currentState),
-			Transforms.fromTransformFX(affine)
+            currentState.toAffineTransform3D(),
+            affine!!.toAffineTransform3D()
 		)
 		progressProperty.addListener { _: ObservableValue<out Number>?, _: Number, new: Number ->
-			val interpolatedTransform = Transforms.toTransformFX(interpolator[new.toDouble()])
+			val interpolatedTransform = interpolator[new.toDouble()].toTransformFX()
 			setAffine(interpolatedTransform)
 		}
 		val kv = KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH)

@@ -7,6 +7,8 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.util.Subscription
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
@@ -31,6 +33,9 @@ where V : EncoderResult {
             if (value == null) field?.stop()
             field = value?.apply { start() }
         }
+
+    private val encodeSlots = Semaphore(MAX_CONCURRENT_ENCODES)
+    private val eagerSlots = Semaphore(MAX_CONCURRENT_EAGER_ENCODES)
 
     suspend fun healthCheck() = embeddingRequester.healthCheck()
 
@@ -63,7 +68,7 @@ where V : EncoderResult {
         val state = (renderUnitState as? SessionRenderUnitState)?.state?.withSessionId(id) ?: renderUnitState
 
         val sessionState = state.withSessionId(id)
-        return super.load(sessionState)
+        return load(sessionState)
     }
 
     override fun load(key: RenderUnitState): Job {
@@ -72,7 +77,15 @@ where V : EncoderResult {
                 val id = runBlocking { embeddingRequester.requestSessionId() }
                 key.withSessionId(id)
             }
-        return super.load(sessionState)
+        /* invalidate if exceptional */
+        cache.getIfPresent(sessionState)?.invokeOnCompletion { cause -> cause?.let { invalidate(sessionState) } }
+        /* reuse if present */
+        cache.getIfPresent(sessionState)?.let { return it }
+        /* trigger the load */
+        return loaderQueueScope.async {
+            if (!isActive) invalidate(sessionState)
+            else eagerSlots.withPermit { request(sessionState).await() }
+        }
     }
 
     override fun close() {
@@ -82,11 +95,12 @@ where V : EncoderResult {
         embeddingRequester.close()
     }
 
+
     override suspend fun loader(key: RenderUnitState): V {
         var lastError: Throwable? = null
         repeat(MAX_RETRIES) { attempt ->
             try {
-                return embeddingRequester.getImageEmbedding(key)
+                return encodeSlots.withPermit { embeddingRequester.getImageEmbedding(key) }
             } catch (error: Throwable) {
                 if (error is CancellationException)
                     throw error
@@ -112,7 +126,10 @@ where V : EncoderResult {
     }
 
     companion object {
-        private const val MAX_RETRIES = 3
+        /* based on the current lane count on the triton client, which is 4 */
+        private const val MAX_CONCURRENT_ENCODES = 8
+        private const val MAX_CONCURRENT_EAGER_ENCODES = 4
+        private const val MAX_RETRIES = 2
         private val LOG = KotlinLogging.logger {}
     }
 }

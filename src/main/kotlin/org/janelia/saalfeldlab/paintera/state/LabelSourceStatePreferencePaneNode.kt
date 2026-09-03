@@ -26,7 +26,9 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
-import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
+import org.janelia.saalfeldlab.fx.undo.EventDisplay
+import org.janelia.saalfeldlab.fx.undo.EventHistory
+import org.janelia.saalfeldlab.fx.undo.UndoFromEventsNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Style
@@ -65,6 +67,7 @@ class LabelSourceStatePreferencePaneNode(
 	private val selectedSegments = stream.selectedSegments
 	private val selectedIds = selectedSegments.selectedIds
 	private val assignment = selectedSegments.assignment
+    private val assignmentHistory = (assignment as? FragmentSegmentAssignmentStateWithActionTracker)?.history
 
 	val node: Node
 		get() {
@@ -80,7 +83,7 @@ class LabelSourceStatePreferencePaneNode(
 				HighlightingStreamConverterConfigNode(converter).node,
 				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
 				LabelSourceStateMeshPaneNode(source, meshManager, meshInfos).node,
-				AssignmentsNode(assignment).node,
+				assignmentHistory?.let { AssignmentsNode(it) },
 				when (source) {
 					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties, meshManager::refreshMeshes).node }
 					else -> null
@@ -383,60 +386,26 @@ class LabelSourceStatePreferencePaneNode(
 		}
 	}
 
-	private class AssignmentsNode(private val assignments: FragmentSegmentAssignmentState) {
+	private class AssignmentsNode(assignmentHistory: EventHistory<AssignmentAction>) : TitledPane() {
 
-		val node: Node?
-			get() {
-				return if (assignments is FragmentSegmentAssignmentStateWithActionTracker) {
-					val title = { action: AssignmentAction ->
-						when (action.type) {
-							AssignmentAction.Type.MERGE -> {
-								(action as Merge).let { "M: ${it.fromFragmentId} ${it.intoFragmentId} (${it.segmentId})" }
-							}
-
-							AssignmentAction.Type.DETACH -> {
-								(action as Detach).let { "D: ${it.fragmentId} ${it.fragmentFrom}" }
-							}
-
-							else -> "UNSUPPORTED ACTION"
-						}
-					}
-					val undoPane = UndoFromEvents.withUndoRedoButtons(
-						assignments.events(),
-						title,
-						{ Labels.withTooltip("$it") },
-						{ action -> assignments.deleteAction(action) },
-						{ deleteAllAssignments(assignments) }
-					)
-
-					val tpGraphics = HBox(
-						Label("Assignments"),
-						NamedNode.bufferNode()
-					).also { it.alignment = Pos.CENTER }
-
-					TitledPane(null, undoPane).apply {
-						isExpanded = false
-						graphic = tpGraphics
-						contentDisplay = ContentDisplay.GRAPHIC_ONLY
-						alignment = Pos.CENTER_RIGHT
-						tooltip = null /* TODO */
-					}
-				} else
-					null
+		init {
+			text = null
+			content = object : UndoFromEventsNode<AssignmentAction>(assignmentHistory, ASSIGNMENT_DISPLAY) {
+                override fun confirmDeleteAll() = askDeleteAssignmentsAlert()
+            }
+			graphic = HBox().apply {
+				alignment = Pos.CENTER
+				children += Label("Assignments")
+				children += NamedNode.bufferNode()
 			}
-
-		private fun deleteAllAssignments(assignments: FragmentSegmentAssignmentStateWithActionTracker) {
-			val confirm = PainteraAlerts.confirmation("_Delete", "_Cancel").apply {
-				headerText = "Delete all assignments for this source?"
-				contentText = "The merges and splits stored in the Paintera project will be removed. Assignments already committed to the data backend are not affected."
-			}
-			if (confirm.showAndWait().orElse(null) == ButtonType.OK)
-				assignments.deleteAllActions()
+			isExpanded = false
+			contentDisplay = ContentDisplay.GRAPHIC_ONLY
+			alignment = Pos.CENTER_RIGHT
+			tooltip = null /* TODO */
 		}
+    }
 
-	}
-
-	private class MaskedSourceNode(
+    private class MaskedSourceNode(
 		private val source: DataSource<*, *>,
 		private val brushProperties: BrushProperties,
 		private val refreshMeshes: () -> Unit,
@@ -523,6 +492,17 @@ class LabelSourceStatePreferencePaneNode(
 
 	companion object {
 		private val LOG = KotlinLogging.logger { }
+
+        private val ASSIGNMENT_DISPLAY = EventDisplay.defaultDisplay<AssignmentAction>(
+            title = { action ->
+                when (action) {
+                    is Merge -> "M: ${action.fromFragmentId} ${action.intoFragmentId} (${action.segmentId})"
+                    is Detach -> "D: ${action.fragmentId} ${action.fragmentFrom}"
+                    else -> "UNSUPPORTED ACTION"
+                }
+            }
+        )
+
 		fun askForgetCanvasAlert(source: MaskedSource<*, *>, owner: Window? = null) {
 			if (askForgetCanvasAlert()) {
 				try {
@@ -545,6 +525,15 @@ class LabelSourceStatePreferencePaneNode(
 			.showAndWait()
 			.filter { ButtonType.OK == it }
 			.isPresent
+
+        private fun askDeleteAssignmentsAlert() = PainteraAlerts.confirmation("_Delete", "_Cancel").apply {
+            headerText = "Delete all uncommitted assignments for this source?"
+            contentText = "The assignments stored in the Paintera project will be removed. Assignments already committed are not affected."
+        }
+			.showAndWait()
+			.filter { ButtonType.OK == it }
+			.isPresent
+
 	}
 }
 private const val MAX_DISPLAYED_IDS = 100

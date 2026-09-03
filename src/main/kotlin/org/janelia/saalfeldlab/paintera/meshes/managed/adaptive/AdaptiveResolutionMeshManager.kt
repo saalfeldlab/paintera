@@ -113,7 +113,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { _, _ -> })
 	}
 
-	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
+	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
 
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
 		requestedKeys -= key
@@ -143,16 +143,16 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			keys
 				.associateWith { meshes.remove(it) }
 				.mapNotNull { (key, generator) -> generator?.let { key to it } }
+				.onEach { (_, generator) -> generator.interrupt() }
 		}
 
 		val removedRoots = Collections.synchronizedSet(mutableSetOf<Node>())
 
 		currentMeshJob = meshManagerScope.launch {
 			supervisorScope {
-				keysAndGenerators.map { (key, generator) ->
+				keysAndGenerators.forEach { (key, generator) ->
 					launch {
 						generator.run {
-							interrupt()
 							unbindFromThis()
 							root.visibleProperty().unbind()
 							releaseState(key, state)

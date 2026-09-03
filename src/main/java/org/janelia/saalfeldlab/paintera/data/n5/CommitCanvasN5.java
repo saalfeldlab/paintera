@@ -52,6 +52,7 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 import static net.imglib2.type.label.LabelMultisetTypeDownscaler.*;
+import static org.janelia.saalfeldlab.util.fx.Transforms.relativeScale;
 import static org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid;
 
 public class CommitCanvasN5 implements PersistCanvas {
@@ -249,22 +250,11 @@ public class CommitCanvasN5 implements PersistCanvas {
 					final DatasetSpec sourceDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[sourceLevel]));
 					final DatasetSpec targetDataset = DatasetSpec.of(getN5(), N5URI.normalizeGroupPath(scalePaths[targetLevel]));
 
-					AffineTransform3D previousTransform = scaleTransforms[sourceLevel];
-					AffineTransform3D targetTransform = scaleTransforms[targetLevel];
-					AffineTransform3D previousToTarget = targetTransform.copy().concatenate(previousTransform.inverse());
-					final double[] relativeDownsamplingFactors = new double[]{
-							previousToTarget.get(0, 0),
-							previousToTarget.get(1, 1),
-							previousToTarget.get(2, 2)
-					};
+					final AffineTransform3D previousTransform = scaleTransforms[sourceLevel];
+					final AffineTransform3D targetTransform = scaleTransforms[targetLevel];
 
-					AffineTransform3D s0ToTarget = targetTransform.copy().concatenate(scaleTransforms[0].inverse());
-
-					final double[] targetDownsamplingFactors = new double[]{
-							s0ToTarget.get(0, 0),
-							s0ToTarget.get(1, 1),
-							s0ToTarget.get(2, 2)
-					};
+					final double[] relativeDownsamplingFactors = relativeScale(previousTransform, targetTransform);
+					final double[] targetDownsamplingFactors = relativeScale(scaleTransforms[0], targetTransform);
 
 					final long[] affectedLowResBlocks = getRelevantBlocksInTargetGrid(
 							blocks,

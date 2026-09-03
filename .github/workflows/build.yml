@@ -13,6 +13,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - uses: actions/checkout@v6
@@ -34,6 +37,13 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+      - name: Pre-fetch dependencies
+        run: mvn -B -ntp dependency:resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up CI environment
         run: .github/setup.sh
       - name: Execute the build
