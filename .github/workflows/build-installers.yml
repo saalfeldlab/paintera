@@ -10,6 +10,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: read
     strategy:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-15, macos-15-intel]
@@ -46,9 +49,14 @@ jobs:
           distribution: 'zulu'
           java-package: jdk+fx
           cache: 'maven'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
       - name: "Build with Maven"
         if: runner.os != 'MacOS'
         run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Setup MacOS Signing"
         if: runner.os == 'MacOS'
         env:
@@ -73,6 +81,8 @@ jobs:
       - name: "Build with Maven"
         if: runner.os == 'MacOS'
         run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Verify Signature"
         if: runner.os == 'MacOS'
         run: |

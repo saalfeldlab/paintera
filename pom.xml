@@ -68,7 +68,7 @@
 		<javafx.version>25.0.1</javafx.version>
 
 		<!-- Saalfx Versions -->
-		<saalfx.version>3.2.0</saalfx.version>
+		<saalfx.version>3.2.1</saalfx.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
@@ -599,6 +599,10 @@
 		<repository>
 			<id>jzy3d</id>
 			<url>https://maven.jzy3d.org/releases</url>
+		</repository>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/saalfeldlab/*</url>
 		</repository>
 	</repositories>
 
