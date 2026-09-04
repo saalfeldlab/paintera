@@ -48,7 +48,6 @@ import net.imglib2.type.volatiles.VolatileFloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
-import net.imglib2.view.RandomAccessibleIntervalCursor
 import org.apache.commons.io.output.NullPrintStream
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
@@ -1003,8 +1002,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
                         val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
                         val boxInterval = FinalInterval(minPos, maxPos)
-						thresholdPrediction.extendBorder().randomAccess(boxInterval)
-						val thresholdCursor = RandomAccessibleIntervalCursor(thresholdPrediction.extendBorder(), boxInterval)
+                        val thresholdCursor = thresholdPrediction.interval(boxInterval).cursor()
                         val componentsCursor = connectedComponents.interval(boxInterval).cursor()
                         while (thresholdCursor.hasNext()) {
                             val meetsThreshold = thresholdCursor.next()

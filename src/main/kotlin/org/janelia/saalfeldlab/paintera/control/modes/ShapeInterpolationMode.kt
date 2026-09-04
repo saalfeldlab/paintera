@@ -68,6 +68,7 @@ import org.kordamp.ikonli.Ikon
 import org.kordamp.ikonli.fontawesome6.FontAwesomeRegular
 import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid
 import java.util.concurrent.CancellationException
+import kotlin.math.ceil
 
 private val LOG = KotlinLogging.logger { }
 
@@ -759,8 +760,11 @@ internal fun RenderUnitState.viewerToRenderPoint(screenX: Double, screenY: Doubl
 		width.toDouble(),
 		height.toDouble()
 	)
-	val x = (screenX * screenScaleFactor).toFloat().coerceIn(0f, width.toFloat())
-	val y = (screenY * screenScaleFactor).toFloat().coerceIn(0f, height.toFloat())
+	/* clamp to the rendered image, not the viewer */
+	val renderWidth = ceil(width * screenScaleFactor).toFloat()
+	val renderHeight = ceil(height * screenScaleFactor).toFloat()
+	val x = (screenX * screenScaleFactor).toFloat().coerceIn(0f, renderWidth - 1)
+	val y = (screenY * screenScaleFactor).toFloat().coerceIn(0f, renderHeight - 1)
 	return x to y
 }
 
