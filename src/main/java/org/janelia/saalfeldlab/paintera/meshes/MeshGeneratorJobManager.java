@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 /**
@@ -240,6 +241,9 @@ public class MeshGeneratorJobManager<T> {
 
 	private final GetMeshFor<T> getMeshes;
 
+	/** Lifts a 3D renderer block back to the slice it is being rendered at; identity for a 3D source. */
+	private final UnaryOperator<Interval> toSourceInterval;
+
 	private final ExecutorService managers;
 
 	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
@@ -275,6 +279,7 @@ public class MeshGeneratorJobManager<T> {
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final GetBlockListFor<T> getBlockLists,
 			final GetMeshFor<T> getMeshes,
+			final UnaryOperator<Interval> toSourceInterval,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
@@ -286,6 +291,7 @@ public class MeshGeneratorJobManager<T> {
 		this.meshViewUpdateQueue = meshViewUpdateQueue;
 		this.getBlockLists = getBlockLists;
 		this.getMeshes = getMeshes;
+		this.toSourceInterval = toSourceInterval;
 		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
@@ -1033,6 +1039,7 @@ public class MeshGeneratorJobManager<T> {
 				sceneUpdateParameters.smoothingIterations,
 				sceneUpdateParameters.minLabelRatio,
 				sceneUpdateParameters.overlap,
+				new FinalInterval(toSourceInterval.apply(blockInterval)),
 				new FinalInterval(blockInterval)
 		);
 	}

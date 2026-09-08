@@ -18,6 +18,7 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Shape3D;
 import javafx.util.Subscription;
+import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
@@ -35,6 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
+import java.util.function.UnaryOperator;
 
 /**
  * @author Philipp Hanslovsky
@@ -142,6 +144,7 @@ public class MeshGenerator<T> {
 			final T segmentId,
 			final GetBlockListFor<T> getBlockLists,
 			final GetMeshFor<T> getMeshes,
+			final UnaryOperator<Interval> toSourceInterval,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
@@ -164,6 +167,7 @@ public class MeshGenerator<T> {
 				meshViewUpdateQueue,
 				getBlockLists,
 				getMeshes,
+				toSourceInterval,
 				unshiftedWorldTransforms,
 				managers,
 				workers,

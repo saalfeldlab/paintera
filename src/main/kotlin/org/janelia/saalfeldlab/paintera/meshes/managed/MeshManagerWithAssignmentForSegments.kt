@@ -41,6 +41,20 @@ private typealias Segments = TLongHashSet
 private typealias Fragments = TLongHashSet
 
 /**
+ * The renderer is 3D, so a block list must be too. An nD block belongs to the scene only if it covers the slice the
+ * source is currently showing; one from another timepoint or channel is dropped rather than projected onto this one.
+ *
+ * Blocks reach here at mixed dimensionality: the label-block-lookup file format stores exactly three dimensions, while
+ * blocks derived from the canvas carry the source's own.
+ */
+private fun Array<Interval>.toRenderedBlocks(source: DataSource<*, *>): Array<Interval> {
+	val mapping = (source as? MaskedSource<*, *>)?.canvasXyzView?.spatialMapping() ?: return this
+	if (mapping.numDimensions == 3)
+		return this
+	return mapNotNull { block -> if (block.numDimensions() == 3) block else mapping.toXyzIntervalOrNull(block) }.toTypedArray()
+}
+
+/**
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
@@ -60,7 +74,7 @@ class MeshManagerWithAssignmentForSegments(
 		val intervals = mutableSetOf<HashWrapper<Interval>>()
 		val fragments = selectedSegments.assignment.getFragments(segment)
 		fragments.forEach { id ->
-			labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
+			labelBlockLookup.read(level, id).toRenderedBlocks(source).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
 			true
 		}
 		intervals.map { it.data }.toTypedArray()
@@ -233,6 +247,9 @@ class MeshManagerWithAssignmentForSegments(
 		relevantBindingsAndPropertiesMap.remove(key)
 	}
 
+	/** Rebuild the scene from the current block lists, reusing every mesh whose key still matches. */
+	fun updateScene() = manager.requestCancelAndUpdate()
+
 	override fun refreshMeshes() {
 		super.removeAllMeshes()
 		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
@@ -366,7 +383,7 @@ class MeshManagerWithAssignmentForSegments(
 		val intervals = mutableSetOf<HashWrapper<Interval>>()
 		val fragments = key.fragments
 		fragments.forEach { id ->
-			labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
+			labelBlockLookup.read(level, id).toRenderedBlocks(source).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
 			true
 		}
 		intervals.map { it.data }.toTypedArray()
@@ -383,6 +400,7 @@ class MeshManagerWithAssignmentForSegments(
 					key.smoothingIterations(),
 					key.minLabelRatio(),
 					key.overlap(),
+					key.sourceInterval,
 					key.interval
 				)
 			)

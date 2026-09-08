@@ -325,6 +325,12 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setMasksConstant();
 	}
 
+	/** 3D XYZ canonical view of the canvas.  */
+	public XyzView getCanvasXyzView() {
+
+		return canvasXyzView;
+	}
+
 	/** The current 3D (x, y, z) slice of the nD data canvas. no-op for a 3D source */
 	private RandomAccessibleInterval<UnsignedLongType> canvasSlice(final int level) {
 

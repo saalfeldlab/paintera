@@ -19,6 +19,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
+import javafx.util.Subscription
 import javafx.scene.shape.Rectangle
 import net.imglib2.Interval
 import net.imglib2.RealInterval
@@ -125,6 +126,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	internal var skipCommit = false
 
+	private var sliceMeshRefresh: Subscription? = null
 
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
@@ -276,12 +278,18 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsec)
 		meshManager.refreshMeshes()
 
+		sliceMeshRefresh = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
+			?.takeIf { it.nonSpatialAxes.isNotEmpty() }
+			?.activeIntervalProperty
+			?.subscribe { _, _ -> meshManager.updateScene() }
 
 		// TODO make resolution/offset configurable
 	}
 
 	override fun onRemoval(sourceInfo: SourceInfo) {
 		LOG.info("Removed ConnectomicsLabelState {}", name)
+		sliceMeshRefresh?.unsubscribe()
+		sliceMeshRefresh = null
 		meshManager.removeAllMeshes()
 		CommitHandler.showCommitDialog(
 			this,

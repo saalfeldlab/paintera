@@ -13,9 +13,12 @@ import net.imglib2.converter.Converters
 import net.imglib2.type.label.Label
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
+import net.imglib2.util.IntervalIndexer
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock
@@ -31,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.testdata.TestData
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -48,6 +52,12 @@ import kotlin.streams.asSequence
  */
 class MaskedSourceCommitBlocksTest {
 
+	companion object {
+		@JvmStatic
+		@BeforeAll
+		fun registerLookupAdapter() = TestData.registerLabelBlockLookupAdapter()
+	}
+
 	private val queue = SharedQueue(1)
 	private val executor = Executors.newFixedThreadPool(4)
 
@@ -63,6 +73,55 @@ class MaskedSourceCommitBlocksTest {
 	 * received paint may end up in the commit set, and only those may be written at s0. The lower scale gets the
 	 * spatial projection of the painted blocks, not the whole level.
 	 */
+	/**
+	 * Committing a >3D label source twice used to throw. The first commit wrote nD intervals to the
+	 * label-block-lookup, the format truncated them to 3D, and the second commit read them back against the nD
+	 * unique-labels grid. A single commit passed because an unseen id reads back as an empty array.
+	 */
+	@Test
+	fun commitNDLabelSourceTwice(@TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("nd.n5").toString())
+		val group = "labels"
+		val ndDimensions = longArrayOf(64, 64, 64, 2, 3)
+		val ndBlockSize = intArrayOf(32, 32, 32, 1, 1)
+		N5Data.createPainteraLabelDataset(
+			writer, group, ndDimensions, ndBlockSize,
+			DoubleArray(5) { 1.0 }, DoubleArray(5) { 0.0 },
+			arrayOf(doubleArrayOf(2.0, 2.0, 2.0, 1.0, 1.0)),
+			labelMultisetType = false,
+			axes = arrayOf(
+				Axis("space", "x", "pixel"), Axis("space", "y", "pixel"), Axis("space", "z", "pixel"),
+				Axis("channel", "c", ""), Axis("time", "t", "s")
+			)
+		)
+
+		val metadataState = createMetadataState(N5ContainerState(writer), group)!!.also { it.isLabel = true }
+		val commitCanvas = CommitCanvasN5(metadataState)
+		val canvas = DiskCachedCellImgFactory(
+			UnsignedLongType(),
+			DiskCachedCellImgOptions.options().cellDimensions(*ndBlockSize)
+		).create(ndDimensions, CellLoader { img: SingleCellArrayImg<UnsignedLongType, *> -> img.forEach { it.set(Label.INVALID) } })
+
+		/* paint one nD block at (c=1, t=2), then commit it twice so the second commit reads back the first one's lookup */
+		val paintedBlock = IntervalIndexer.positionToIndex(longArrayOf(0, 0, 0, 1, 2), canvas.cellGrid.gridDimensions)
+		Views.interval(canvas, FinalInterval(longArrayOf(0, 0, 0, 1, 2), longArrayOf(31, 31, 31, 1, 2)))
+			.forEach { it.set(paintedLabel) }
+
+		repeat(2) {
+			val blockDiffs = commitCanvas.persistCanvas(canvas, longArrayOf(paintedBlock))
+			commitCanvas.updateLabelBlockLookup(blockDiffs)
+		}
+
+		/* the lookup must hold the nD block, not just its spatial part */
+		val blocks = N5Helpers.getLabelBlockLookup(metadataState).read(LabelBlockLookupKey(0, paintedLabel))
+		assertTrue(blocks.isNotEmpty()) { "the lookup must know which blocks hold label $paintedLabel" }
+		blocks.forEach { block ->
+			assertEquals(5, block.numDimensions()) { "lookup intervals must match the dataset dimensionality" }
+			assertEquals(1L, block.min(3)) { "the channel the paint went to must survive the round trip" }
+			assertEquals(2L, block.min(4)) { "the timepoint the paint went to must survive the round trip" }
+		}
+	}
+
 	@Test
 	fun commitOnlyPaintedBlocks(@TempDir tmp: Path) {
 		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("repro.n5").toString())

@@ -425,6 +425,7 @@ fun <T> MeshManager<T>.exportMeshWithProgressPopup(result: MeshExportResult<T>) 
 		meshExporter.exportMesh(
 			getBlocks,
 			getMesh,
+			toSourceInterval,
 			ids.map { getSettings(it) }.toTypedArray(),
 			ids,
 			result.scale,
