@@ -458,7 +458,7 @@ object N5Helpers {
 			val lookup = labelBlockLookupJson ?: let {
 				val lblGroup = "label-to-block-mapping"
 				val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
-				val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern)
+				val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern, metadataState.datasetAttributes.numDimensions)
 				val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
 				val labelBlockLookupGroup = LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup)
 				labelBlockLookupGroup.writeMetadata(labelBlockLookupGroup, metadataState.writer!!, labelBlockLookupGroup.path)
