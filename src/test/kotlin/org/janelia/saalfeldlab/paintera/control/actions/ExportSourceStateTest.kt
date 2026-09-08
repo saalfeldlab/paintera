@@ -3,9 +3,12 @@ package org.janelia.saalfeldlab.paintera.control.actions
 import bdv.cache.SharedQueue
 import kotlinx.coroutines.runBlocking
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.img.array.ArrayImgs
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
+import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
@@ -29,10 +32,13 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.FieldSource
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.Executors
+import kotlin.io.path.absolutePathString
 
 
 class ExportSourceStateTest {
@@ -56,6 +62,12 @@ class ExportSourceStateTest {
 
 		@JvmField
 		val zarrExportCases = exportFormatCases.filter { it.format != StorageFormat.N5 }
+
+		/* the source of a >3D dataset renders a 3D slice of it; the export must match the backing dataset instead */
+		@JvmField
+		val slicedExportCases = TestData.writeableLabelSourceCases
+			.filter { it.numDimensions == 5 && it.dataType == TestData.DataType.UINT64 }
+			.distinctBy { it.format to it.metadata }
 
 		lateinit var tmpN5: N5Writer
 		lateinit var tmpZarr2: N5Writer
@@ -164,6 +176,71 @@ class ExportSourceStateTest {
 		listOf(0, 2).forEach { scaleLevel ->
 			regressionTestAtScaleLevel(scaleLevel, target.exportLocation, target.writer, target.storageFormat)
 		}
+	}
+
+	@ParameterizedTest
+	@FieldSource("slicedExportCases")
+	fun `export of a sliced source matches the backing dataset`(testCase: TestCase, @TempDir tmp: Path) {
+		val writer = TestData.newWriter(testCase, tmp)
+		val dimensions = TestData.defaultDimensions(testCase)
+		val dataset = TestData.createRaw(writer, testCase, "labels", dimensions) { scaleDataset, scaleDimensions, scaleIndex ->
+			if (scaleIndex == 0)
+				fillWithLabels(writer, scaleDataset, scaleDimensions)
+		}
+
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		val queue = SharedQueue(1)
+		val executor = Executors.newSingleThreadExecutor()
+		val backend = N5BackendLabel.createFrom<UnsignedLongType, VolatileUnsignedLongType>(metadataState, executor)
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, "labels", queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor) as MaskedSource
+
+		val exportLocation = tmp.resolve("export.n5").absolutePathString()
+		val exportState = ExportSourceState().apply {
+			backendProperty.set(backend)
+			sourceProperty.set(masked)
+			scaleLevelProperty.set(0)
+			dataTypeProperty.set(DataType.UINT64)
+			segmentFragmentMappingProperty.set(false)
+			exportLocationProperty.set(exportLocation)
+			datasetProperty.set("exported")
+		}
+
+		var exportFailure: Throwable? = null
+		runBlocking {
+			val job = exportState.exportSource()!!
+			/* join() does not rethrow, and an unwritten export reads back as zeros, which would pass the comparison */
+			job.invokeOnCompletion { cause -> exportFailure = cause }
+			job.join()
+		}
+		assertNull(exportFailure) { "export failed for $testCase: $exportFailure" }
+
+		val exportWriter = Paintera.n5Factory.newWriter(exportLocation)
+		val exported = N5Utils.open<UnsignedLongType>(exportWriter, "exported/s0")
+		val expected = N5Utils.open<UnsignedLongType>(writer, "$dataset/s0".takeIf { writer.datasetExists("$dataset/s0") } ?: dataset)
+
+		assertArrayEquals(dimensions, exported.dimensionsAsLongArray()) { "export should keep every dimension for $testCase" }
+		val exportedCursor = exported.view().cursor()
+		for (expectedValue in expected.view().cursor().asSequence()) {
+			assertEquals(expectedValue.integerLong, exportedCursor.next().integerLong) { "exported value for $testCase" }
+		}
+
+		val exportedMetadata = MetadataUtils.createMetadataState(N5ContainerState(exportWriter), "exported")
+		assertNotNull(exportedMetadata) { "exported metadata should re-open for $testCase" }
+		assertEquals(dimensions.size, exportedMetadata!!.datasetAttributes.numDimensions) { "exported metadata dimensions for $testCase" }
+		exportWriter.remove("")
+	}
+
+	/** Fill [dataset] with a repeating pattern of label ids, so the export has something to match. */
+	private fun fillWithLabels(writer: N5Writer, dataset: String, dimensions: LongArray) {
+		val labels = ArrayImgs.unsignedLongs(*dimensions)
+		labels.view().flatIterable().cursor().let { cursor ->
+			var index = 0L
+			while (cursor.hasNext())
+				cursor.next().set(index++ % 7)
+		}
+		N5Utils.saveBlock(labels, writer, dataset, writer.getDatasetAttributes(dataset))
 	}
 
 	@ParameterizedTest

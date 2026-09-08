@@ -650,7 +650,7 @@ object N5Helpers {
 
 
 		val existsIOScope = CoroutineScope(Dispatchers.IO)
-		val withBlockScope = CoroutineScope(coroutineContext)
+		val withBlockScope = CoroutineScope(currentCoroutineContext())
 
 		val blockJobs = Channel<Job>(Channel.UNLIMITED)
 		val existsJobs = Channel<Job>(Channel.UNLIMITED)
@@ -712,7 +712,7 @@ object N5Helpers {
 		val gridIterator = IntervalIterator(blockGrid.gridDimensions)
 		val cellDims = LongArray(gridIterator.numDimensions()) { blockGrid.cellDimensions[it].toLong() }
 
-		val withBlockScope = CoroutineScope(coroutineContext)
+		val withBlockScope = CoroutineScope(currentCoroutineContext())
 
 		val jobs = mutableListOf<Job>()
 		while (gridIterator.hasNext()) {

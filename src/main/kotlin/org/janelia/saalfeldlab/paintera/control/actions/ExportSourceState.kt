@@ -7,13 +7,19 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.javafx.awaitPulse
+import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.img.cell.CellGrid
+import net.imglib2.loops.LoopBuilder
+import net.imglib2.util.Intervals
+import net.imglib2.view.Views
 import net.imglib2.type.NativeType
 import net.imglib2.type.Type
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.AbstractIntegerType
+import net.imglib2.type.numeric.integer.UnsignedLongType
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode
@@ -25,12 +31,15 @@ import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.n5.openLabelMultiset
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
@@ -79,37 +88,48 @@ class ExportSourceState {
 	val storageFormatProperty = SimpleObjectProperty<StorageFormat?>(null)
     val compressionProperty = SimpleObjectProperty<Compression?>(null)
 
-	private val exportableSourceRAI: RandomAccessibleInterval<out NativeType<*>>?
-		get() {
-			val source = getSource() ?: return null
-			val backend = getBackend() ?: return null
+	val hasUncommittedCanvas: Boolean
+		get() = (getSource() as? MaskedSource<*, *>)?.affectedBlocks?.isNotEmpty() == true
 
-			val fragmentMapper = backend.fragmentSegmentAssignment
+	/**
+	 * The committed data at [dataset] with the export data type.
+	 *
+	 * @param mapFragmentToSegment if [true] export segment IDs
+	 */
+	private fun exportableSourceRAI(
+		reader: N5Reader,
+		dataset: String,
+		isLabelMultiset: Boolean,
+		mapFragmentToSegment: Boolean
+	): RandomAccessibleInterval<out NativeType<*>>? {
 
-			val scaleLevel = scaleLevelProperty.value
-			val mapFragmentToSegment = segmentFragmentMappingProperty.value
-			val dataType = dataTypeProperty.value
+		val backend = getBackend() ?: return null
+		val fragmentMapper = backend.fragmentSegmentAssignment
+		val dataType = dataTypeProperty.value
 
-			val dataSource = (source.getDataSource(0, scaleLevel) as? RandomAccessibleInterval<IntegerType<*>>)!!
-			val typeVal = N5Utils.type(dataType)!! as AbstractIntegerType<out AbstractIntegerType<*>>
-			val invalidVal = typeVal.copy().also { it.setInteger(Label.INVALID) }
+		val committedSource = when {
+			isLabelMultiset -> openLabelMultiset(reader, dataset)
+			else -> N5Utils.open<Nothing>(reader, dataset) // type is dictated by the dataset attributes
+		} as RandomAccessibleInterval<IntegerType<*>>
 
-			val mappedIntSource = if (mapFragmentToSegment)
-				dataSource.convertRAI(typeVal) { src, target ->
-					target.setInteger(fragmentMapper.getSegment(src.integerLong))
-					if (target == invalidVal)
-						target.setInteger(Label.BACKGROUND)
-				}
-			else
-				dataSource.convertRAI(typeVal) { src, target ->
-					val srcVal = src.integerLong
-					target.setInteger(srcVal)
-					if (target == invalidVal)
-						target.setInteger(Label.BACKGROUND)
-				}
+		val typeVal = N5Utils.type(dataType)!! as AbstractIntegerType<out AbstractIntegerType<*>>
+		val invalidVal = typeVal.copy().also { it.setInteger(Label.INVALID) }
 
-			return mappedIntSource as RandomAccessibleInterval<out NativeType<*>>
+		val getFragmentId : IntegerType<*>.() -> Long = { integerLong }
+		val getSegmentId : IntegerType<*>.() -> Long = { fragmentMapper.getSegment(integerLong) }
+
+		val exportId: IntegerType<*>.() -> Long =
+			if (mapFragmentToSegment) getSegmentId
+			else getFragmentId
+
+		val exportSource = committedSource.convertRAI(typeVal) { src, target ->
+			target.setInteger(src.exportId())
+			if (target == invalidVal)
+				target.setInteger(Label.BACKGROUND)
 		}
+
+		return exportSource as RandomAccessibleInterval<out NativeType<*>>
+	}
 
 	fun getSource(): DataSource<out RealType<*>?, out Type<*>?>? {
 		return sourceProperty.value
@@ -138,10 +158,13 @@ class ExportSourceState {
 		val dataType = dataTypeProperty.value
 
 
-		val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState
-		val metadata = (metadataState as? MultiScaleMetadataState)?.metadata?.childrenMetadata[scaleLevel] ?: metadataState?.metadata as? N5SpatialDatasetMetadata
+		/* export from the source data */
+		val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState ?: return null
+		val metadata = (metadataState as? MultiScaleMetadataState)?.metadata?.childrenMetadata[scaleLevel] ?: metadataState.metadata as? N5SpatialDatasetMetadata
 		val translation = when {
 			metadataState is MultiScaleMetadataState && metadataState.highestResMetadata != metadata -> metadataState.downscaleTranslation(scaleLevel)
+			metadata is NgffSingleScaleAxesMetadata -> metadata.translation
+			metadata is N5SpatialDatasetMetadata -> metadata.offset
 			else -> backend.translation
 		}
 
@@ -172,15 +195,20 @@ class ExportSourceState {
 
 		val writer = getWriterOrAlert(storageFormat, exportContainer, exportLocation, dataset, scaleLevel) ?: return null
 
-		val n5 = (backend as? SourceStateBackendN5<*, *>)?.container as? GsonKeyValueN5Reader
+		/* only a key-value container can be asked which blocks exist; otherwise every block is written */
+		val n5 = metadataState.reader as? GsonKeyValueN5Reader
 
-		val exportRAI = exportableSourceRAI!!
-		val cellGrid: CellGrid = source.getGrid(scaleLevel)
+		val exportRAI = exportableSourceRAI(
+			metadataState.reader,
+			sourceMetadata.path,
+			metadataState.isLabelMultiset,
+			this@ExportSourceState.segmentFragmentMappingProperty.value
+		) ?: return null
 		val sourceAttributes: DatasetAttributes = sourceMetadata.attributes
 
 		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.chunkSize, dataType, compression)
 
-		val iterationGrid = if (n5 != null) CellGrid(sourceAttributes.dimensions, sourceAttributes.blockSize) else cellGrid
+		val iterationGrid = CellGrid(sourceAttributes.dimensions, sourceAttributes.blockSize)
 		val totalBlocks = iterationGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
 		val labelProp = SimpleStringProperty("Blocks Processed:\t0 / $totalBlocks").apply {
@@ -212,16 +240,17 @@ class ExportSourceState {
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", maxIdProperty.value)
 			val scaleLevelDataset = "$dataset/s$scaleLevel"
+			val writeBlock = { cellInterval: Interval ->
+				exportBlock<UnsignedLongType>(exportRAI, cellInterval, writer, scaleLevelDataset, createdAttributes)
+			}
 
 			n5?.let {
 				forEachBlockExists(it, sourceMetadata.path, { incrementProcessed() }) { cellInterval ->
-					val cellRai = exportRAI.interval(cellInterval)
-					N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, createdAttributes)
+					writeBlock(cellInterval)
 					incrementWritten()
 				}
-			} ?: forEachBlock(cellGrid) { cellInterval ->
-				val cellRai = exportRAI.interval(cellInterval)
-				N5Utils.saveBlock(cellRai, writer, scaleLevelDataset, createdAttributes)
+			} ?: forEachBlock(iterationGrid) { cellInterval ->
+				writeBlock(cellInterval)
 				incrementProcessed()
 				incrementWritten()
 			}
@@ -291,6 +320,29 @@ class ExportSourceState {
 		return exportJob
 	}
 
+	/**
+	 * Write the [blockInterval] of [source] to [dataset].
+	 *
+	 * Block writing wants to resolve to primitive blocks, which is not supported for
+	 * label multiset types. To avoid this, copy the block before saving it.
+	 */
+	@Suppress("UNCHECKED_CAST")
+	private fun <T : NativeType<T>> exportBlock(
+		source: RandomAccessibleInterval<out NativeType<*>>,
+		blockInterval: Interval,
+		writer: N5Writer,
+		dataset: String,
+		attributes: DatasetAttributes
+	) {
+		val typedSource = source as RandomAccessibleInterval<T>
+		val block = Intervals.intersect(blockInterval, typedSource)
+
+		val blockCopy = ArrayImgFactory(typedSource.type.createVariable()).create(*block.dimensionsAsLongArray())
+		LoopBuilder.setImages(typedSource.interval(block), blockCopy).forEachPixel { exported, target -> target.set(exported) }
+
+		N5Utils.saveBlock(Views.translate(blockCopy, *block.minAsLongArray()), writer, dataset, attributes)
+	}
+
 	private fun getWriterOrAlert(
 		storageFormat: StorageFormat?,
 		exportContainer: String,
@@ -325,9 +377,29 @@ internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = dow
 
 internal fun downscaleTranslation(s0Resolution: DoubleArray, s0Offset: DoubleArray, sNResolution: DoubleArray): DoubleArray {
 
-	return DoubleArray(3) { idx ->
+	return DoubleArray(s0Offset.size) { idx ->
 		s0Offset[idx] + (sNResolution[idx] - s0Resolution[idx]) / 2.0
 	}
+}
+
+/** [fill] wherever the source left an axis undefined; a >3D dataset without spatial metadata reads back as `NaN` there, which is not valid JSON. */
+private fun DoubleArray.definedOr(fill: Double) = DoubleArray(size) { if (this[it].isFinite()) this[it] else fill }
+
+private fun fallbackAxes(unit: String, numDimensions: Int): Array<Axis> {
+	val axes = mutableListOf<Axis>().apply {
+		for (idx in 0 until numDimensions) {
+			val axis = when(idx) {
+				0 -> Axis(Axis.SPACE, "x", unit, false)
+				1 -> Axis(Axis.SPACE, "y", unit, false)
+				2 -> Axis(Axis.SPACE, "z", unit, false)
+				3 -> Axis(Axis.CHANNEL, "c", null, true)
+				4 -> Axis(Axis.TIME, "t", null, true)
+				else -> Axis(Axis.CHANNEL, "c$idx", null, true)
+			}
+			add(axis)
+		}
+	}
+	return axes.toTypedArray()
 }
 
 internal fun exportOmeNGFFMetadata(
@@ -342,20 +414,18 @@ internal fun exportOmeNGFFMetadata(
 	writer.createGroup(dataset)
 	val createdAttributes = writer.createDataset(scaleLevelDataset, datasetAttributes)
 
+	val axes = (sourceMetadata as? AxisMetadata)?.axes ?: fallbackAxes(sourceMetadata.unit(), datasetAttributes.numDimensions)
+
 	/* zarr2 containers get OME-Zarr 0.4 metadata; everything else get 0.5 */
 	val ngffVersion = if (writer is ZarrKeyValueWriter) "0.4" else "0.5"
 	val exportMetadata = OmeNgffMetadata.buildForWriting(
 		datasetAttributes.numDimensions,
 		dataset,
 		ngffVersion,
-		arrayOf(
-			Axis(Axis.SPACE, "x", sourceMetadata.unit(), false),
-			Axis(Axis.SPACE, "y", sourceMetadata.unit(), false),
-			Axis(Axis.SPACE, "z", sourceMetadata.unit(), false)
-		),
+		axes,
 		arrayOf("s$scaleLevel"),
-		arrayOf(sourceMetadata.resolution),
-		arrayOf(translation)
+		arrayOf(sourceMetadata.resolution.definedOr(1.0)),
+		arrayOf(translation.definedOr(0.0))
 	)
 
 	OmeNgffMetadataParser(writer).writeMetadata(

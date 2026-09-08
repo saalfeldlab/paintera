@@ -38,11 +38,11 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.label.CommitHandler
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import kotlin.jvm.optionals.getOrNull
@@ -61,12 +61,32 @@ object ExportSourceDialog {
 
 		val state = ExportSourceState()
 		when (newDialog(state).showAndWait().getOrNull()) {
-			ButtonType.OK -> state.exportSource(true)
+			ButtonType.OK -> if (commitCanvasOrCancel(state))
+				state.exportSource(true)
 		}
 	}
 
+	/** Prompt to commit first, or otherwise cancel */
+	private fun commitCanvasOrCancel(state: ExportSourceState): Boolean {
+		if (!state.hasUncommittedCanvas)
+			return true
+
+		val sourceState = state.sourceStateProperty.value ?: return true
+		val committed = CommitHandler.showCommitDialog(
+			sourceState,
+			paintera.baseView.sourceInfo().indexOf(sourceState.dataSource),
+			false,
+			{ index, name -> "The export writes committed data only.\nCommit source $index: $name before exporting?" },
+			true,
+			"_Cancel Export",
+			"Commi_t and Export",
+			fragmentSegmentAssignmentState = sourceState.fragmentSegmentAssignment
+		)
+		return committed == ButtonType.OK
+	}
+
 	/**
-	 * Picks the smallest data type that can hold all values less than or equal to maxId value.
+	 * Pick the smallest data type that can hold all values less than or equal to maxId value.
 	 *
 	 * @param maxId the maximum ID value
 	 * @return the smallest data type that can contain up to maxId
@@ -77,11 +97,12 @@ object ExportSourceDialog {
 
 		val smallestType = acceptableDataTypes
 			.asSequence()
-			.map { it to N5Utils.type(it) }
-			.filterIsInstance<Pair<DataType, RealType<*>>>()
-			.filter { maxId < it.second.maxValue }
-			.map { it.first }
-			.firstOrNull() ?: DataType.UINT64
+			.firstNotNullOfOrNull { dataType ->
+				dataType.takeIf {
+					val type = N5Utils.type(it)
+					type is RealType<*> && type.maxValue > maxId
+				}
+			} ?: DataType.UINT64
 
 		return smallestType
 	}
