@@ -69,6 +69,7 @@
 
 		<!-- Saalfx Versions -->
 		<saalfx.version>3.2.1</saalfx.version>
+		<n5-zarr.version>2.0.2</n5-zarr.version>
 
 		<!-- Misc Versions -->
 		<janino.version>3.0.7</janino.version>
@@ -79,6 +80,7 @@
 
 		<!-- SciJava Overrides -->
 		<logback.version>1.5.22</logback.version>
+		<label-utilities-n5.version>0.4.0</label-utilities-n5.version>
 
 	</properties>
 
@@ -261,7 +263,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-n5</artifactId>
-			<version>0.3.2</version>
+			<version>${label-utilities-n5.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.controlsfx</groupId>
