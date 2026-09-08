@@ -1,35 +1,63 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 
 private val LOG = KotlinLogging.logger { }
 
-/** Gson key for a source's fixed non-spatial (channel/time/...) slice positions. */
+/** Gson key for a source's non-spatial slice positions. */
 const val SLICE_POSITIONS_KEY = "slicePositions"
 
 /**
- * Persist the backend's non-spatial slice positions, if the source is an nD source parked at a non-default
- * timepoint/channel. Spatial position and orientation come from the global viewer transform, so only this per-source
- * slice is stored. No-op for a plain 3D source (all-zero positions).
+ * Write [backend]'s non-spatial slice positions under [SLICE_POSITIONS_KEY] by axis name.
+ *
+ * Axes at position 0 are omitted, so a 3D source adds nothing.
+ *
+ * @param backend the source to read the positions from; ignored unless it is a [SourceStateBackendN5]
  */
-fun JsonObject.addSlicePositions(backend: SourceStateBackend<*, *>, context: JsonSerializationContext) {
-	(backend as? SourceStateBackendN5<*, *>)?.metadataState?.slicePositions
-		?.takeIf { positions -> positions.any { it != 0L } }
-		?.let { add(SLICE_POSITIONS_KEY, context.serialize(it)) }
+fun JsonObject.addSlicePositions(backend: SourceStateBackend<*, *>) {
+	val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState ?: return
+	val xyzView = metadataState.xyzView
+	val positionByAxis = JsonObject()
+	for (axis in xyzView.nonSpatialAxes) {
+		val position = xyzView.slicePosition(axis)
+		if (position != 0L)
+			positionByAxis.addProperty(metadataState.axes[axis].name, position)
+	}
+	if (!positionByAxis.isEmpty)
+		add(SLICE_POSITIONS_KEY, positionByAxis)
 }
 
-fun restoreSlicePositions(backend: SourceStateBackend<*, *>, saved: LongArray?) {
-	if (saved == null) return
-	val xyzView = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView ?: return
-	if (saved.size != xyzView.numDimensions) {
-		LOG.error { "Ignoring saved slice positions ${saved.toList()}. Expected ${saved.size} dimensions, but found ${xyzView.numDimensions}" }
+/**
+ * Slice [backend] at the positions under [SLICE_POSITIONS_KEY], as written by [addSlicePositions].
+ *
+ * A legacy project stores an array holding a position for every source axis in source order rather than an object
+ * keyed by axis name. That form is read but never written; it is only correct while the axis order is unchanged.
+ *
+ * @param backend the source to slice; ignored unless it is a [SourceStateBackendN5]
+ * @param json
+ */
+fun restoreSlicePositions(backend: SourceStateBackend<*, *>, json: JsonElement) {
+	val saved = (json as? JsonObject)?.get(SLICE_POSITIONS_KEY) ?: return
+	val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState ?: return
+	val xyzView = metadataState.xyzView
+
+	if (saved.isJsonObject) {
+		val positionByAxis = saved.asJsonObject
+		for (axis in xyzView.nonSpatialAxes)
+			positionByAxis[metadataState.axes[axis].name]?.let { xyzView.sliceAt(axis, it.asLong) }
+		return
+	}
+
+	val positions = saved.asJsonArray
+	if (positions.size() != xyzView.numDimensions) {
+		LOG.error { "Ignoring saved slice positions $positions. Expected ${xyzView.numDimensions} dimensions, but found ${positions.size()}" }
 		return
 	}
 	/* only the dropped axes carry a slice */
 	for (axis in xyzView.nonSpatialAxes)
-		xyzView.sliceAt(axis, saved[axis])
+		xyzView.sliceAt(axis, positions[axis].asLong)
 }

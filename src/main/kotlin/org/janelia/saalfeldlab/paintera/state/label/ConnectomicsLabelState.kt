@@ -67,7 +67,6 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SLICE_POSITIONS_KEY
 import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
@@ -616,7 +615,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
-				map.addSlicePositions(state.backend, context)
+				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 			}
@@ -667,7 +666,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
 						backend.virtualCrop = virtualCrop
-						restoreSlicePositions(backend, context.get<LongArray?>(json, SLICE_POSITIONS_KEY))
+						restoreSlicePositions(backend, json)
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(

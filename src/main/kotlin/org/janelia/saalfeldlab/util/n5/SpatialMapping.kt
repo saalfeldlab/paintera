@@ -141,6 +141,23 @@ class SpatialMapping(
         return FinalInterval(min, max)
     }
 
+    /**
+     * convert an nD [sourceInterval] to a 3D canonical XYZ interval based on current [slicePositions]
+     *
+     * @param sourceInterval an interval over all [numDimensions] source dimensions
+     * @return the canonical 3D interval, or null when [sourceInterval] lies outside the sliced positions
+     */
+    fun toXyzIntervalOrNull(sourceInterval: Interval): Interval? {
+
+        for (axis in 0 until numDimensions) {
+            if (axis in actualSourceAxes)
+                continue
+            if (slicePositions[axis] < sourceInterval.min(axis) || slicePositions[axis] > sourceInterval.max(axis))
+                return null
+        }
+        return toXyzInterval(sourceInterval)
+    }
+
     /** Project an nD shape array (block size, dimensions, ...) to an [x,y,z] shape array using the
      * this [SpatialMapping]. drops non-spatial dimensions, reorders to [x,y,z], adds single-position dimension if < 3 spatial dims */
     fun spatialProjection(shape: IntArray): IntArray {

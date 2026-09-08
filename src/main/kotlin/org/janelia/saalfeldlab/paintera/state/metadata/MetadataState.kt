@@ -52,10 +52,6 @@ interface MetadataState {
 	var axes: Array<Axis>
 	val xyzView: XyzView
 
-	/** The position every source axis is sliced at; a mapping ignores the entries for spatial axes. */
-	val slicePositions: LongArray
-		get() = xyzView.slicePositions()
-
 	var virtualCrop: Interval?
 
 	var unit: String
@@ -170,9 +166,6 @@ open class MultiScaleMetadataState(
 	final override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
 	//TODO: xyzView should not live in the MetadataState when migration is done.
 	override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
-	//TODO: slicePositions should dissapear fully after migration to xyzView
-	override val slicePositions: LongArray
-		get() = xyzView.slicePositions()
 
 	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
 	final override var isLabelMultiset: Boolean = isLabelMultiset(n5ContainerState.reader, N5URI.normalizeGroupPath(metadata[0].path)!!, metadata[0])

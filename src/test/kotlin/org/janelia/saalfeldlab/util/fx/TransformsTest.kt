@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.util.fx
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.util.fx.Transforms.relativeScale
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class TransformsTest {
@@ -40,6 +41,30 @@ class TransformsTest {
 			relativeScale(transformOf(1.0, 1.0, 1.0), transformOf(nearlyTwo, nearlyTwo, nearlyTwo)),
 			0.0
 		)
+	}
+
+	@Test
+	fun testRelativeScaleOverScaleFactors() {
+
+		assertArrayEquals(
+			doubleArrayOf(2.0, 2.0, 1.0, 1.0),
+			relativeScale(doubleArrayOf(1.0, 1.0, 1.0, 1.0), doubleArrayOf(2.0, 2.0, 1.0, 1.0)),
+			0.0
+		)
+
+		assertArrayEquals(
+			doubleArrayOf(1.0, 1.0, 1.0, 2.0),
+			relativeScale(doubleArrayOf(4.0, 4.0, 40.0, 1.0), doubleArrayOf(4.0, 4.0, 40.0, 2.0)),
+			0.0
+		)
+	}
+
+	@Test
+	fun testMismatchedDimensionalityIsRejected() {
+
+		assertThrows(IllegalArgumentException::class.java) {
+			relativeScale(doubleArrayOf(1.0, 1.0, 1.0), doubleArrayOf(2.0, 2.0, 1.0, 1.0))
+		}
 	}
 
 	private fun transformOf(x: Double, y: Double, z: Double, tx: Double = 0.0, ty: Double = 0.0, tz: Double = 0.0) =

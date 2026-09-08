@@ -293,4 +293,35 @@ class SpatialMappingTest {
 		val access = view.randomAccess().also { it.setPosition(longArrayOf(1, 2, 3)) }
 		assertEquals(encode(longArrayOf(1, 2, 3, 2, 1)), access.get().get(), "the view must still read the original slice")
 	}
+
+	@Test
+	fun `toXyzIntervalOrNull keeps a block that covers the slice`() {
+		/* xyzct sliced at c=1, t=3; the block spans t 2..3, so it covers the slice */
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
+		val block = FinalInterval(longArrayOf(0, 0, 0, 1, 2), longArrayOf(31, 31, 31, 1, 3))
+		val xyz = mapping.toXyzIntervalOrNull(block)
+		assertTrue(xyz != null, "a block spanning the sliced position must be kept")
+		assertEquals(listOf(0L, 0L, 0L), (0 until 3).map { xyz!!.min(it) })
+		assertEquals(listOf(31L, 31L, 31L), (0 until 3).map { xyz!!.max(it) })
+	}
+
+	@Test
+	fun `toXyzIntervalOrNull drops a block from another slice`() {
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
+		/* same spatial block, but only timepoints 0..1 */
+		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 0, 0, 1, 0), longArrayOf(31, 31, 31, 1, 1))))
+		/* right timepoint, wrong channel */
+		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 0, 0, 0, 3), longArrayOf(31, 31, 31, 0, 3))))
+	}
+
+	@Test
+	fun `toXyzIntervalOrNull reads the non-spatial axes by role, not by index`() {
+		/* cxyzt: the channel is axis 0, so a positional check would test x against the channel slice */
+		val mapping = SpatialMapping(5, intArrayOf(1, 2, 3), longArrayOf(2, 0, 0, 0, 1))
+		val covering = FinalInterval(longArrayOf(2, 10, 20, 30, 1), longArrayOf(2, 41, 51, 61, 1))
+		val xyz = mapping.toXyzIntervalOrNull(covering)
+		assertEquals(listOf(10L, 20L, 30L), (0 until 3).map { xyz!!.min(it) })
+		assertEquals(listOf(41L, 51L, 61L), (0 until 3).map { xyz!!.max(it) })
+		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 10, 20, 30, 1), longArrayOf(0, 41, 51, 61, 1))))
+	}
 }
