@@ -342,16 +342,22 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		return canvasXyzView.toXyz(canvases[level].getRai());
 	}
 
+	/** The 3D (x, y, z) slice of the nD data canvas the current mask paints into, not the live one */
+	private RandomAccessibleInterval<UnsignedLongType> canvasSliceAtCurrentMask(final int level) {
+
+		return getCurrentMask().getSpatialMapping().toXyz(dataCanvases[level]);
+	}
+
 	/**
 	 * Maps a 3D block index (over the stored 3D grid at {@code level}) to its nD block index in the canvas store at
-	 * the current slice.
+	 * the slice the current mask paints into.
 	 */
-	private LongUnaryOperator blockToCanvasBlock(final int level) {
+	private LongUnaryOperator xyzToSourceBlock(final int level) {
 
 		final CellGrid canvasGrid = dataCanvases[level].getCellGrid();
 		final long[] canvasGridDimensions = canvasGrid.getGridDimensions();
 		/* the mapping over the canvas grid's block coordinates, so the sliced axes land on the right nD block */
-		final SpatialMapping blockMapping = canvasXyzView.spatialMapping(canvasXyzView.blockInterval(canvasGrid));
+		final SpatialMapping blockMapping = getCurrentMask().getSpatialMapping().toBlockMapping(canvasGrid);
 
 		final CellGrid xyzGrid = source.getGrid(level);
 		final long[] xyzPos = new long[xyzGrid.numDimensions()];
@@ -365,16 +371,16 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private long[] xyzToSourceBlocks(final TLongSet blocksXYZ, final int level) {
 
 		if (!canvasIsSliced) return blocksXYZ.toArray();
-		final LongUnaryOperator toCanvasBlock = blockToCanvasBlock(level);
-		final TLongHashSet canvasBlocks = new TLongHashSet();
+		final LongUnaryOperator toSourceBlock = xyzToSourceBlock(level);
+		final TLongHashSet sourceBlocks = new TLongHashSet();
 		for (final long xyzBlock : blocksXYZ.toArray())
-			canvasBlocks.add(toCanvasBlock.applyAsLong(xyzBlock));
-		return canvasBlocks.toArray();
+			sourceBlocks.add(toSourceBlock.applyAsLong(xyzBlock));
+		return sourceBlocks.toArray();
 	}
 
 	private long xyzToSourceBlock(final long blockXYZ, final int level) {
 
-		return canvasIsSliced ? blockToCanvasBlock(level).applyAsLong(blockXYZ) : blockXYZ;
+		return canvasIsSliced ? xyzToSourceBlock(level).applyAsLong(blockXYZ) : blockXYZ;
 	}
 
 	/** convert the modified 3D XYZ blocks to nD before storing in the affectedBlocks list */
@@ -440,6 +446,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private void setCurrentMask(SourceMask mask) {
 
+
+		/* set the masks spatial mapping to the current xyz SpatialMapping. The mask is 3D, so
+		* this slice cannot move while the mask is active*/
+		if (mask != null)
+			mask.setSpatialMapping(canvasXyzView.spatialMapping());
 		this.currentMaskProperty.set(mask);
 	}
 
@@ -575,7 +586,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			LOG.debug("Applying mask: {}", mask);
 			final MaskInfo maskInfo = mask.getInfo();
-			final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSlice(maskInfo.level);
+			final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSliceAtCurrentMask(maskInfo.level);
 			final CellGrid grid = source.getGrid(maskInfo.level);
 
 			final int[] blockSize = new int[grid.numDimensions()];
@@ -610,18 +621,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				paintedBlocks.addAll(label.getValue());
 			}
 
-			final SourceMask currentMaskBeforePropagation = this.getCurrentMask();
-			synchronized (this) {
-				setCurrentMask(null);
-			}
-
 			final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
 					paintedBlocks,
 					maskInfo.level,
 					0);
 
 			LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
-			this.affectedBlocks.addAll(xyzToSourceBlocks(paintedBlocksAtHighestResolution, 0));
+			long[] sourceBlocks = xyzToSourceBlocks(paintedBlocksAtHighestResolution, 0);
+			this.affectedBlocks.addAll(sourceBlocks);
 
 			propagationExecutor.submit(() -> {
 				try {
@@ -633,20 +640,20 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							acceptAsPainted,
 							propagationExecutor);
 				} finally {
-					setMasksConstant();
+					/* the mask stays current through propagation; the slice it paints into is read from it */
 					synchronized (this) {
+						setCurrentMask(null);
+						setMasksConstant();
 						LOG.debug("Done applying mask!");
 						this.isApplyingMask.set(false);
 					}
 					// free resources
-					if (currentMaskBeforePropagation != null) {
-						if (currentMaskBeforePropagation.getShutdown() != null)
-							currentMaskBeforePropagation.getShutdown().run();
-						if (currentMaskBeforePropagation.getInvalidate() != null)
-							currentMaskBeforePropagation.getInvalidate().invalidateAll();
-						if (currentMaskBeforePropagation.getInvalidateVolatile() != null)
-							currentMaskBeforePropagation.getInvalidateVolatile().invalidateAll();
-					}
+					if (mask.getShutdown() != null)
+						mask.getShutdown().run();
+					if (mask.getInvalidate() != null)
+						mask.getInvalidate().invalidateAll();
+					if (mask.getInvalidateVolatile() != null)
+						mask.getInvalidateVolatile().invalidateAll();
 
 					this.isBusy.set(false);
 				}
@@ -697,8 +704,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final List<PaintedRegion> paintedRegions = new ArrayList<>(intervals.size());
 
 		final MaskInfo maskInfo = mask.getInfo();
-		/* paint into the current 3D slice of the (possibly nD) canvas; the stored 3D grid is used for the block math */
-		final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSlice(maskInfo.level);
+		/* paint into the 3D slice of the (possibly nD) canvas the mask was made at; the stored 3D grid is used for the block math */
+		final RandomAccessibleInterval<UnsignedLongType> canvas = canvasSliceAtCurrentMask(maskInfo.level);
 		final CellGrid grid = source.getGrid(maskInfo.level);
 		final RandomAccessibleInterval<UnsignedLongType> maskRai = mask.getRai();
 
@@ -905,6 +912,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		synchronized (this) {
 			if (this.isPersisting())
 				throw new CannotClearCanvas("Currently persisting canvas -- try again later.");
+			/* propagation reads the current mask, and writes into the canvases being cleared */
+			if (isCreatingMask() || isApplyingMask.get())
+				throw new CannotClearCanvas("Currently applying mask -- try again later.");
 			setCurrentMask(null);
 		}
 		clearCanvases();
@@ -1435,10 +1445,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final ExecutorService propagationExecutor) {
 
 		final int sourceLevel = targetDownsampleLevel - 1;
-		/* propagate within the current 3D slice of each (possibly nD) canvas level; the carried 3D grids drive the
+		/* propagate within the painted 3D slice of each (possibly nD) canvas level; the carried 3D grids drive the
 		 * block math and the slice views write through to the right nD slab */
-		final RandomAccessibleInterval<UnsignedLongType> atSourceLevel = canvasSlice(sourceLevel);
-		final RandomAccessibleInterval<UnsignedLongType> lowerResCanvas = canvasSlice(targetDownsampleLevel);
+		final RandomAccessibleInterval<UnsignedLongType> atSourceLevel = canvasSliceAtCurrentMask(sourceLevel);
+		final RandomAccessibleInterval<UnsignedLongType> lowerResCanvas = canvasSliceAtCurrentMask(targetDownsampleLevel);
 		final double[] paintedToLowerScales = DataSource.getRelativeScales(this, 0, sourceLevel, targetDownsampleLevel);
 		final Interval intervalAtLowerRes = scaleIntervalToLevel(intervalAtPaintedScale, initialPaintLevel, targetDownsampleLevel);
 
@@ -1488,7 +1498,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval intervalAtHigherRes = scaleIntervalToLevel(intervalAtPaintedScale, initialPaintLevel, higherResLevel);
 
 			// upsample
-			final RandomAccessibleInterval<UnsignedLongType> higherResCanvas = canvasSlice(higherResLevel);
+			final RandomAccessibleInterval<UnsignedLongType> higherResCanvas = canvasSliceAtCurrentMask(higherResLevel);
 			final CellGrid highResGrid = source.getGrid(higherResLevel);
 			final int[] blockSize = new int[highResGrid.numDimensions()];
 			highResGrid.cellDimensions(blockSize);
