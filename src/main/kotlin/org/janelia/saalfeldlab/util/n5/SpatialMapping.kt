@@ -4,6 +4,7 @@ package org.janelia.saalfeldlab.util.n5
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.img.cell.CellGrid
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.util.addDimension
 import org.janelia.saalfeldlab.util.hyperSlice
@@ -156,6 +157,32 @@ class SpatialMapping(
                 return null
         }
         return toXyzInterval(sourceInterval)
+    }
+
+    /**
+     * convert nD source [blocks] to 3D canonical XYZ intervals based on current [slicePositions]
+     *
+     * @param blocks intervals over all [numDimensions] source dimensions; a 3D interval is already canonical and kept as is
+     * @return the canonical 3D intervals, without the blocks that lie outside the sliced positions
+     */
+    fun toXyzBlocks(blocks: Iterable<Interval>): List<Interval> = blocks.mapNotNull { block ->
+        when {
+            isIdentity -> block
+            block.numDimensions() != numDimensions -> block
+            else -> toXyzIntervalOrNull(block)
+        }
+    }
+
+    /**
+     * convert this mapping from voxel to block coordinates over [grid]
+     *
+     * @param grid a cell grid over all [numDimensions] source dimensions
+     * @return the mapping whose slice positions are the [grid] blocks containing [slicePositions]
+     */
+    fun toBlockMapping(grid: CellGrid): SpatialMapping {
+        require(grid.numDimensions() == numDimensions) { "grid must have $numDimensions dimensions, got ${grid.numDimensions()}" }
+
+        return SpatialMapping(numDimensions, xyzSourceAxes, LongArray(numDimensions) { slicePositions[it] / grid.cellDimension(it) })
     }
 
     /** Project an nD shape array (block size, dimensions, ...) to an [x,y,z] shape array using the

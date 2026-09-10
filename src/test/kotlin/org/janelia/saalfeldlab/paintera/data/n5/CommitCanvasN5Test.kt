@@ -34,6 +34,8 @@ import net.imglib2.FinalInterval
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
+import org.janelia.saalfeldlab.paintera.data.xyzViewOrNull
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
@@ -57,7 +59,12 @@ import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.FieldSource
 import java.nio.file.Path
 import java.util.Random
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.stream.IntStream
 import java.util.stream.Stream
 import kotlin.io.path.absolutePathString
@@ -545,6 +552,173 @@ class CommitCanvasN5Test {
 		assertTrue(paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 1L, level = 1) > 0) { "s1 t=1 should show the downsampled edit" }
 		assertEquals(0, paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 0L, level = 1)) { "s1 t=0 must stay empty" }
 		assertEquals(0, paintedCountAtTimepointAndLevel(masked, metadataState, timepoint = 0L, level = 0)) { "s0 t=0 must stay empty" }
+	}
+
+	/**
+	 * The label actions run over the 3D slice the source presents, so a block list must be 3D and hold only the
+	 * blocks at that slice. The lookup and the canvas grid are both nD.
+	 */
+	@Test
+	fun testNDBlockListsProjectToTheCurrentSlice(@TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("ndBlockLists.n5").toString())
+		val dimensions = longArrayOf(16, 16, 16, 4)
+		val blockSize = intArrayOf(8, 8, 8, 1)
+		val dataset = "label"
+		writer.createDataset(dataset, dimensions, blockSize, org.janelia.saalfeldlab.n5.DataType.UINT64, GzipCompression())
+
+		val metadataState = createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, dataset, queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor)
+				as MaskedSource<UnsignedLongType, VolatileUnsignedLongType>
+
+		val label = 42L
+		paintBoxAtTimepoint(masked, metadataState, timepoint = 0L, label = label)
+		paintBoxAtTimepoint(masked, metadataState, timepoint = 3L, label = label)
+
+		/* the canvas half of a block list, as the actions decode it */
+		val grid = masked.getCanvasGrid(0)
+		val cellIntervals = grid.cellIntervals().randomAccess()
+		val cellPos = LongArray(grid.numDimensions())
+		val canvasBlocks = masked.getModifiedBlocks(0, label).toArray().map { block ->
+			grid.getCellGridPositionFlat(block, cellPos)
+			FinalInterval(cellIntervals.setPositionAndGet(*cellPos))
+		}
+		assertEquals(2, canvasBlocks.size) { "one nD block per painted timepoint" }
+		canvasBlocks.forEach { assertEquals(4, it.numDimensions()) { "the canvas grid is nD" } }
+
+		metadataState.sliceAt(longArrayOf(0, 0, 0, 3))
+		val atT3 = canvasBlocks.toXyzBlocks(masked)
+		assertEquals(1, atT3.size) { "only the block painted at t=3 belongs to the t=3 slice" }
+		assertEquals(3, atT3.single().numDimensions()) { "the block must be 3D for the 3D source" }
+		assertTrue(Intervals.contains(masked.getDataSource(0, 0), atT3.single())) { "the block must lie in the presented source" }
+
+		metadataState.sliceAt(longArrayOf(0, 0, 0, 1))
+		assertTrue(canvasBlocks.toXyzBlocks(masked).isEmpty()) { "nothing was painted at t=1" }
+	}
+
+	/**
+	 * A read-only nD label source is a plain [N5DataSource], not a [MaskedSource]; its lookup blocks must still be
+	 * projected to the slice it presents, or they reach the 3D renderer grid unprojected.
+	 */
+	@Test
+	fun testReadOnlyNDSourceProjectsLookupBlocks(@TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("readOnlyNd.n5").toString())
+		val dimensions = longArrayOf(16, 16, 16, 4)
+		val blockSize = intArrayOf(8, 8, 8, 1)
+		val dataset = "label"
+		writer.createDataset(dataset, dimensions, blockSize, org.janelia.saalfeldlab.n5.DataType.UINT64, GzipCompression())
+
+		val metadataState = createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, dataset, queue, 0)
+		assertTrue(dataSource.xyzViewOrNull != null) { "an nD source must expose the view it presents through" }
+
+		/* two lookup blocks, as an nD lookup stores them: the same spatial block at t=1 and at t=3 */
+		val atT1 = FinalInterval(longArrayOf(0, 0, 0, 1), longArrayOf(7, 7, 7, 1))
+		val atT3 = FinalInterval(longArrayOf(8, 0, 0, 3), longArrayOf(15, 7, 7, 3))
+
+		metadataState.sliceAt(longArrayOf(0, 0, 0, 3))
+		val projected = listOf(atT1, atT3).toXyzBlocks(dataSource)
+		assertEquals(1, projected.size) { "only the block at t=3 belongs to the t=3 slice" }
+		assertEquals(3, projected.single().numDimensions())
+		assertEquals(8L, projected.single().min(0))
+	}
+
+	/**
+	 * Slicing must not lose paint: each slice keeps its own slab of the nD canvas, and one commit writes every
+	 * painted slab and no other.
+	 */
+	@Test
+	fun testNDCommitWritesEveryPaintedSlice(@TempDir tmp: Path) {
+		val writer = Paintera.n5Factory.newWriter(StorageFormat.N5, tmp.resolve("ndSlices.n5").toString())
+		val dimensions = longArrayOf(16, 16, 16, 4)
+		val blockSize = intArrayOf(8, 8, 8, 1)
+		val dataset = "label"
+		writer.createDataset(dataset, dimensions, blockSize, org.janelia.saalfeldlab.n5.DataType.UINT64, GzipCompression())
+
+		val metadataState = createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, dataset, queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor)
+				as MaskedSource<UnsignedLongType, VolatileUnsignedLongType>
+
+		val labelAtT0 = 10L
+		val labelAtT3 = 30L
+		paintBoxAtTimepoint(masked, metadataState, timepoint = 0L, label = labelAtT0)
+		paintBoxAtTimepoint(masked, metadataState, timepoint = 3L, label = labelAtT3)
+
+		/* both slabs are still on the canvas after slicing back and forth */
+		assertEquals(labelAtT0, canvasValueAtTimepoint(masked, metadataState, 0L))
+		assertEquals(labelAtT3, canvasValueAtTimepoint(masked, metadataState, 3L))
+		assertEquals(Label.INVALID, canvasValueAtTimepoint(masked, metadataState, 1L))
+
+		val canvasField = MaskedSource::class.java.getDeclaredField("dataCanvases").apply { isAccessible = true }
+		@Suppress("UNCHECKED_CAST")
+		val canvas = (canvasField.get(masked) as Array<Any?>)[0] as CachedCellImg<UnsignedLongType, *>
+		CommitCanvasN5(metadataState).persistCanvas(canvas, masked.affectedBlocks)
+
+		val committed: RandomAccessibleInterval<UnsignedLongType> = N5Utils.open(writer, dataset)
+		val access = committed.randomAccess()
+		assertEquals(labelAtT0, access.setPositionAndGet(3L, 3L, 3L, 0L).get()) { "the paint at t=0 must be committed" }
+		assertEquals(labelAtT3, access.setPositionAndGet(3L, 3L, 3L, 3L).get()) { "the paint at t=3 must be committed" }
+		assertEquals(0L, access.setPositionAndGet(3L, 3L, 3L, 1L).get()) { "an unpainted timepoint must stay empty" }
+		assertEquals(0L, access.setPositionAndGet(3L, 3L, 3L, 2L).get()) { "an unpainted timepoint must stay empty" }
+	}
+
+	/**
+	 * Propagation to the other scale levels runs after the paint, on another thread. Moving the view to another
+	 * timepoint in between must not send the downsampled paint to that timepoint.
+	 */
+	@Test
+	fun testPropagationWritesToThePaintedSliceWhenTheViewMoves(@TempDir tmp: Path) {
+		val testCase = TestData.n5Scalar.first {
+			it.dataType == DataType.UINT64 && it.numDimensions == 4 && it.scalePyramid == TestData.ScalePyramid.Multi
+		}
+		val writer = TestData.newWriter(testCase, tmp)
+		val group = TestData.createScalarLabel(writer, testCase, "label", TestData.defaultDimensions(testCase))
+		val metadataState = createMetadataState(N5ContainerState(writer), group)!!.also { it.isLabel = true }
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, group, queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+
+		/* the first task handed to the propagation pool is the propagation itself; hold it at a gate so the view can
+		 * move before it runs. The pool needs more than one thread: the propagation submits its own block tasks to it */
+		val gate = CountDownLatch(1)
+		val reachedGate = CountDownLatch(1)
+		val gateNext = AtomicBoolean(true)
+		val propagation = object : ThreadPoolExecutor(4, 4, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue()) {
+			override fun execute(command: Runnable) {
+				if (gateNext.compareAndSet(true, false))
+					super.execute { reachedGate.countDown(); gate.await(); command.run() }
+				else
+					super.execute(command)
+			}
+		}
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), propagation)
+				as MaskedSource<UnsignedLongType, VolatileUnsignedLongType>
+		assertTrue(masked.numMipmapLevels > 1) { "this test needs a multi-scale source" }
+
+		val paintedTimepoint = 1L
+		val otherTimepoint = 0L
+		metadataState.sliceAt(longArrayOf(0, 0, 0, paintedTimepoint))
+		val mask = masked.generateMask(MaskInfo(0, 0), MaskedSource.VALID_LABEL_CHECK)
+		val region = FinalInterval(longArrayOf(2, 2, 2), longArrayOf(5, 5, 5))
+		Views.interval(mask.rai, region).forEach { it.set(111L) }
+		masked.applyMask(mask, region, MaskedSource.VALID_LABEL_CHECK)
+
+		/* the s0 paint is done once the propagation reaches the gate */
+		assertTrue(reachedGate.await(10, TimeUnit.SECONDS)) { "the propagation must reach the gate" }
+
+		metadataState.sliceAt(longArrayOf(0, 0, 0, otherTimepoint))
+		gate.countDown()
+		var waited = 0
+		while (masked.isMaskInUseBinding.get() && waited < 10_000) {
+			Thread.sleep(20); waited += 20
+		}
+		propagation.shutdown()
+
+		assertTrue(paintedCountAtTimepointAndLevel(masked, metadataState, paintedTimepoint, level = 1) > 0) { "s1 must hold the paint at the painted timepoint" }
+		assertEquals(0, paintedCountAtTimepointAndLevel(masked, metadataState, otherTimepoint, level = 1)) { "s1 must stay empty at the timepoint the view moved to" }
+		assertEquals(0, paintedCountAtTimepointAndLevel(masked, metadataState, otherTimepoint, level = 0)) { "s0 must stay empty at the timepoint the view moved to" }
 	}
 
 	private fun paintedCountAtTimepointAndLevel(masked: MaskedSource<UnsignedLongType, VolatileUnsignedLongType>, metadataState: MetadataState, timepoint: Long, level: Int): Int {

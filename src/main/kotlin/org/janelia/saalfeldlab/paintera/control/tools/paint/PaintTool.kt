@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.state.BrushProperties
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -148,8 +149,9 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val brushProperties: BrushProperties
 
 	fun refreshMeshes()
-	fun getMaskForLabel(label: Long): Converter<D, BoolType>
-	fun getBlocksForLabel(level: Int, label: Long): Array<Interval>
+	fun maskForLabel(label: Long): Converter<D, BoolType>
+	fun blocksWithLabel(level: Int, vararg labels: Long): List<Interval>
+	fun xyzBlocksWithLabel(level: Int, vararg labels: Long): List<Interval>
 	fun nextId(activate: Boolean): Long
 	fun nextId(): Long = nextId(false)
 }
@@ -165,9 +167,14 @@ private data class ConnectomicsLabelStatePaintContext<D, T>(val state: Connectom
 	override val brushProperties: BrushProperties = state.brushProperties
 
 	override fun refreshMeshes() = state.refreshMeshes()
-	override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
-	override fun getBlocksForLabel(level: Int, label: Long): Array<Interval> {
-		return state.labelBlockLookup.read(level, label)
+	override fun maskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
+	override fun blocksWithLabel(level: Int, vararg labels: Long): List<Interval> {
+		return labels.flatMap {
+			state.labelBlockLookup.read(level, it).toList()
+		}
+	}
+	override fun xyzBlocksWithLabel(level: Int, vararg labels: Long): List<Interval> {
+		return blocksWithLabel(level, *labels).toXyzBlocks(dataSource)
 	}
 
 	override fun nextId(activate: Boolean) = state.nextId(activate)

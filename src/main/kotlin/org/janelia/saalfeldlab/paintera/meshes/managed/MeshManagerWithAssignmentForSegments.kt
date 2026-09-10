@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
@@ -43,16 +44,8 @@ private typealias Fragments = TLongHashSet
 /**
  * The renderer is 3D, so a block list must be too. An nD block belongs to the scene only if it covers the slice the
  * source is currently showing; one from another timepoint or channel is dropped rather than projected onto this one.
- *
- * Blocks reach here at mixed dimensionality: the label-block-lookup file format stores exactly three dimensions, while
- * blocks derived from the canvas carry the source's own.
  */
-private fun Array<Interval>.toRenderedBlocks(source: DataSource<*, *>): Array<Interval> {
-	val mapping = (source as? MaskedSource<*, *>)?.canvasXyzView?.spatialMapping() ?: return this
-	if (mapping.numDimensions == 3)
-		return this
-	return mapNotNull { block -> if (block.numDimensions() == 3) block else mapping.toXyzIntervalOrNull(block) }.toTypedArray()
-}
+private fun Array<Interval>.toRenderedBlocks(source: DataSource<*, *>): List<Interval> = asList().toXyzBlocks(source)
 
 /**
  * @author Philipp Hanslovsky

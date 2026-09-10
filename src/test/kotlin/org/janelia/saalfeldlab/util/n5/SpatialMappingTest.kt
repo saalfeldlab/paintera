@@ -5,6 +5,7 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.img.array.ArrayImgs
+import net.imglib2.img.cell.CellGrid
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import org.junit.jupiter.api.Test
@@ -323,5 +324,39 @@ class SpatialMappingTest {
 		assertEquals(listOf(10L, 20L, 30L), (0 until 3).map { xyz!!.min(it) })
 		assertEquals(listOf(41L, 51L, 61L), (0 until 3).map { xyz!!.max(it) })
 		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 10, 20, 30, 1), longArrayOf(0, 41, 51, 61, 1))))
+	}
+
+	@Test
+	fun `toXyzBlocks keeps the blocks at the slice, drops the others, passes 3D blocks through`() {
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
+		val atSlice = FinalInterval(longArrayOf(0, 0, 0, 1, 3), longArrayOf(31, 31, 31, 1, 3))
+		val otherSlice = FinalInterval(longArrayOf(32, 0, 0, 1, 0), longArrayOf(63, 31, 31, 1, 0))
+		/* a block already over the 3D view, as LabelBlockLookupAllBlocks builds them */
+		val overView = FinalInterval(longArrayOf(64, 0, 0), longArrayOf(95, 31, 31))
+
+		val xyz = mapping.toXyzBlocks(listOf(atSlice, otherSlice, overView))
+		assertEquals(2, xyz.size, "the block at another slice must be dropped")
+		xyz.forEach { assertEquals(3, it.numDimensions(), "every block must be 3D") }
+		assertEquals(listOf(0L, 64L), xyz.map { it.min(0) })
+	}
+
+	@Test
+	fun `toXyzBlocks permutes 3D blocks on a permuted 3D source`() {
+		/* zyx: a stored block's axis 0 is z */
+		val mapping = SpatialMapping(3, intArrayOf(2, 1, 0), longArrayOf(0, 0, 0))
+		val stored = FinalInterval(longArrayOf(0, 10, 20), longArrayOf(7, 17, 27))
+		val xyz = mapping.toXyzBlocks(listOf(stored)).single()
+		assertEquals(listOf(20L, 10L, 0L), (0 until 3).map { xyz.min(it) })
+		assertEquals(listOf(27L, 17L, 7L), (0 until 3).map { xyz.max(it) })
+	}
+
+	@Test
+	fun `toBlockMapping divides each slice position by the block size along its axis`() {
+		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(5, 6, 7, 1, 3))
+		val grid = CellGrid(longArrayOf(64, 64, 64, 2, 4), intArrayOf(32, 32, 32, 1, 2))
+		val blockMapping = mapping.toBlockMapping(grid)
+		assertEquals(listOf(0, 1, 2), blockMapping.xyzSourceAxes.toList())
+		assertEquals(listOf(1L, 1L), blockMapping.slicePositions.drop(3), "c=1 in blocks of 1 is 1; t=3 in blocks of 2 is 1")
+		assertThrows(IllegalArgumentException::class.java) { mapping.toBlockMapping(CellGrid(longArrayOf(64, 64, 64), intArrayOf(32, 32, 32))) }
 	}
 }

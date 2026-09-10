@@ -8,6 +8,8 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.util.n5.SpatialMapping
 
 /**
@@ -105,6 +107,14 @@ class XyzView(
 	 */
 	fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> = spatialMapping().toXyz(source)
 
+	/**
+	 * convert nD source [blocks] to 3D canonical XYZ intervals at the current slice
+	 *
+	 * @param blocks intervals in source space
+	 * @return the canonical 3D intervals at the current slice
+	 */
+	fun toXyzBlocks(blocks: Iterable<Interval>): List<Interval> = spatialMapping().toXyzBlocks(blocks)
+
 	private fun coerceInFullExtent(interval: Interval): Interval {
 		require(interval.numDimensions() == numDimensions) { "interval must have $numDimensions dimensions, got ${interval.numDimensions()}" }
 
@@ -130,3 +140,19 @@ class XyzView(
 		fun of(axes: Array<Axis>, dimensions: LongArray) = XyzView(SpatialMapping.xyzSourceAxes(axes), dimensions)
 	}
 }
+
+/** the [XyzView] an nD source presents its backing through, or null for a plain 3D source */
+val DataSource<*, *>.xyzViewOrNull: XyzView?
+	get() = when (this) {
+		is MaskedSource<*, *> -> canvasXyzView
+		is N5DataSource<*, *> -> metadataState.xyzView
+		else -> null
+	}
+
+/**
+ * convert nD source blocks to 3D canonical XYZ intervals at the slice [source] presents
+ *
+ * @param source the source the blocks are over
+ * @return the canonical 3D intervals over the current slice
+ */
+fun Iterable<Interval>.toXyzBlocks(source: DataSource<*, *>): List<Interval> = source.xyzViewOrNull?.toXyzBlocks(this) ?: toList()

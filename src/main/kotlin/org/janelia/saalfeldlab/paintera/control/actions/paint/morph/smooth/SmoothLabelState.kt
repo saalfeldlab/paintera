@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.lazyVar
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.subscribe
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.*
 import org.janelia.saalfeldlab.paintera.control.actions.state.ViewerAndPaintableSourceActionState
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
@@ -79,13 +78,13 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
     @Synchronized
     fun getSmoothedCellImage(
         labelsToSmooth: LongArray,
-        blocksWithLabels: Set<Interval>,
+        xyzBlocksWithLabels: Set<Interval>,
         cellDimensions: IntArray? = null
     ): SmoothedCellImage {
 
-        return reuseSmoothedImage(labelsToSmooth, blocksWithLabels, cellDimensions) ?: setSmoothedImage(
+        return reuseSmoothedImage(labelsToSmooth, xyzBlocksWithLabels, cellDimensions) ?: setSmoothedImage(
             labelsToSmooth,
-            blocksWithLabels,
+            xyzBlocksWithLabels,
             cellDimensions
         )
     }
@@ -93,7 +92,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
     @Synchronized
     private fun setSmoothedImage(
         labels: LongArray,
-        blocksWithLabels: Set<Interval>,
+        xyzBlocksWithLabels: Set<Interval>,
         cellDimensions: IntArray? = null
     ): SmoothedCellImage {
         return SmoothedCellImage.createSmoothedCellImage(
@@ -105,7 +104,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
             infillStrategyProperty::get,
             replacementLabelProperty::get,
             gaussianThresholdProperty::get,
-            blocksWithLabels,
+            xyzBlocksWithLabels,
             cellDimensions
         ).also {
             currentSmoothedCellImg = it
@@ -115,7 +114,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
     @Synchronized
     private fun reuseSmoothedImage(
         labelsToSmooth: LongArray,
-        blocksWithLabel: Set<Interval>,
+        xyzBlocksWithLabel: Set<Interval>,
         cellDimensions: IntArray? = null
     ): SmoothedCellImage? {
         /*If we specify the desired dimensions, and the existing one doesn't match, then we can't reuse*/
@@ -132,7 +131,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
 
         return currentSmoothedCellImg?.invalidatedImageOrNull(
             labelsToSmooth,
-            blocksWithLabel,
+            xyzBlocksWithLabel,
             kernelSizeProperty.get().toDouble(),
             infillStrategyProperty.get(),
             replacementLabelProperty.get(),
@@ -155,17 +154,17 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
             cellDimensions
         }
         val labelsToSmooth = getSelectedLabels()
-        val blocksWithLabel = blocksForLabels(scaleLevel, labelsToSmooth)
+        val xyzBlocksWithLabel = xyzBlocksForLabels(scaleLevel, labelsToSmooth)
 
         val viewerIntervals = if (preview) viewerIntervalsInSourceSpace() else emptySet<Interval>()
         val intervalsWithLabel = if (preview) {
-            blocksWithLabel.flatMap { labelBlock ->
+            xyzBlocksWithLabel.flatMap { labelBlock ->
                 viewerIntervals.mapNotNull { viewerInterval ->
                     viewerInterval.intersect(labelBlock).takeIf { it.isNotEmpty() }
                 }
             }.toSet()
         } else
-            blocksWithLabel
+            xyzBlocksWithLabel
 
         /* For preview, size the compute cells to the visible region so the morphology runs as one block
          * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
@@ -173,7 +172,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         val computeCellDims = if (preview && cellDims == null)
             previewCellDimensions(intervalsWithLabel, cellDims)
         else cellDims
-        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, blocksWithLabel, computeCellDims)
+        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, xyzBlocksWithLabel, computeCellDims)
 
         if (update >= UpdateSignal.Full) {
             setStatus(SmoothStatus.Smoothing)

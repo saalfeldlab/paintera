@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.ensureActive
-import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.type.Type
@@ -22,7 +21,6 @@ import net.imglib2.view.IntervalView
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
@@ -106,7 +104,7 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 	}
 
 	private suspend fun <T : IntegerType<T>> ReplaceLabelState<*, *>.replaceLabels(newLabel: Long, vararg oldLabels: Long, progressProperty: DoubleProperty?, progressTextProperty: StringProperty?) = with(maskedSource) {
-		val blocks = blocksForLabels(0, *oldLabels)
+		val xyzBlocks = xyzBlocksForLabels(0, oldLabels).toList()
 		val replacedLabelMask = generateReplaceLabelMask(newLabel, *oldLabels)
 
 		val sourceMask = SourceMask(
@@ -121,7 +119,7 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 		) {}
 
 
-		val numBlocks = blocks.size
+		val numBlocks = xyzBlocks.size
 		var operationText = "Processing "
 		val actualizeBlocksProgress = SimpleDoubleProperty(0.0)
 		val applyMaskProgress = SimpleDoubleProperty(0.0)
@@ -142,12 +140,12 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 
 		/* actualize the blocks through the converter prior to apply, to give the
 		* user a chance to cancel long-running operations without affecting the mask */
-		blocks.forEachIndexed { idx, block ->
+		xyzBlocks.forEachIndexed { idx, block ->
 			coroutineContext.ensureActive()
 			sourceMask.rai.interval(block).first().get()
 			progressProperty?.let {
 				InvokeOnJavaFXApplicationThread {
-					actualizeBlocksProgress.set((idx + 1) / blocks.size.toDouble())
+					actualizeBlocksProgress.set((idx + 1) / xyzBlocks.size.toDouble())
 				}
 			}
 		}
@@ -158,9 +156,9 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 			}
 		}
 		setMask(sourceMask) { it == newLabel }
-		applyMaskOverIntervals(sourceMask, blocks, applyMaskProgress) { it == newLabel }
+		applyMaskOverIntervals(sourceMask, xyzBlocks, applyMaskProgress) { it == newLabel }
 
-		requestRepaintOverIntervals(blocks)
+		requestRepaintOverIntervals(xyzBlocks)
 		sourceState.refreshMeshes()
 	}
 
@@ -170,23 +168,6 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 			?.let { maskedSource.getSourceTransformForMask(MaskInfo(0, 0)).estimateBounds(it) }
 
 		paintera.baseView.orthogonalViews().requestRepaint(globalInterval)
-	}
-
-	fun ReplaceLabelState<*, *>.blocksForLabels(scale0: Int, vararg labels: Long): List<Interval> = with(maskedSource) {
-		val blocksFromSource = labels.flatMap { sourceState.labelBlockLookup.read(LabelBlockLookupKey(scale0, it)).toList() }
-
-		/* Read from canvas access (if in canvas) */
-		val cellGrid = getCanvasGrid(scale0)
-		val cellIntervals = cellGrid.cellIntervals().randomAccess()
-		val cellPos = LongArray(cellGrid.numDimensions())
-		val blocksFromCanvas = labels.flatMap {
-			getModifiedBlocks(scale0, it).toArray().map { block ->
-				cellGrid.getCellGridPositionFlat(block, cellPos)
-				FinalInterval(cellIntervals.setPositionAndGet(*cellPos))
-			}
-		}
-
-		return blocksFromSource + blocksFromCanvas
 	}
 }
 

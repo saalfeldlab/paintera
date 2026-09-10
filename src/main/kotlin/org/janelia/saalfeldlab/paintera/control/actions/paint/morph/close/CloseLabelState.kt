@@ -79,13 +79,13 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 	internal var previewMaskValid: Boolean = false
 
 	@Synchronized
-	fun getClosedCellImage(labelsToClose: LongArray, blocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage {
+	fun getClosedCellImage(labelsToClose: LongArray, xyzBlocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage {
 
-		return reuseClosedImage(labelsToClose, blocksWithLabels, cellDimensions) ?: setClosedImage(labelsToClose, blocksWithLabels, cellDimensions)
+		return reuseClosedImage(labelsToClose, xyzBlocksWithLabels, cellDimensions) ?: setClosedImage(labelsToClose, xyzBlocksWithLabels, cellDimensions)
 	}
 
 	@Synchronized
-	private fun setClosedImage(labels: LongArray, blocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage {
+	private fun setClosedImage(labels: LongArray, xyzBlocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage {
 		return createClosedCellImage(
 			labelsImg,
 			labels,
@@ -94,7 +94,7 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 			fillableLabelsOrNull,
 			replacementLabelOrNull,
 			::segmentForFragment,
-			blocksWithLabels,
+			xyzBlocksWithLabels,
 			cellDimensions
 		).also {
 			currentClosedCellImg = it
@@ -102,7 +102,7 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 	}
 
 	@Synchronized
-	private fun reuseClosedImage(labelsToClose: LongArray, blocksWithLabel: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage? {
+	private fun reuseClosedImage(labelsToClose: LongArray, xyzBlocksWithLabel: Set<Interval>, cellDimensions: IntArray? = null): ClosedCellImage? {
 		/*If we specify the desired dimensions, and the existing one doesn't match, then we can't reuse*/
 		cellDimensions?.let {
 			if (!cellDimensions.contentEquals(currentClosedCellImg?.img?.cellGrid?.cellDimensions))
@@ -116,7 +116,7 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 		}
 
 		return currentClosedCellImg?.takeIf {
-			it.canReuse(labelsToClose, blocksWithLabel, gapSizeProperty.get(), iterationsProperty.get(), fillableLabelsOrNull, replacementLabelOrNull, ::segmentForFragment)
+			it.canReuse(labelsToClose, xyzBlocksWithLabel, gapSizeProperty.get(), iterationsProperty.get(), fillableLabelsOrNull, replacementLabelOrNull, ::segmentForFragment)
 		}
 	}
 
@@ -135,12 +135,12 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 		val blockLabels = TLongHashSet(targetLabels).also { set ->
 			targetLabels.forEach { set.addAll(fragmentsForSegment(it)) }
 		}.toArray()
-		val blocksWithLabel = blocksForLabels(scaleLevel, blockLabels)
+		val xyzBlocksWithLabel = xyzBlocksForLabels(scaleLevel, blockLabels)
 
 		val intervalsWithLabel = if (preview)
-			viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
+			viewerIntervalsInSourceSpace(intersectFilters = xyzBlocksWithLabel)
 		else
-			blocksWithLabel
+			xyzBlocksWithLabel
 
 		/* For preview, size the compute cells to the visible region so the morphology runs as one block
 		 * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
@@ -148,7 +148,7 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 		val computeCellDims = if (preview && cellDims == null)
 			previewCellDimensions(intervalsWithLabel, cellDims)
 		else cellDims
-		val closedCellImage = getClosedCellImage(targetLabels, blocksWithLabel, computeCellDims)
+		val closedCellImage = getClosedCellImage(targetLabels, xyzBlocksWithLabel, computeCellDims)
 
 		if (update >= UpdateSignal.Full) {
 			setStatus(CloseStatus.Closing)
