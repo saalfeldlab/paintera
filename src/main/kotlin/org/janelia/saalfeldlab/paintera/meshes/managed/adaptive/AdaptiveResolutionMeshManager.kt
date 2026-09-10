@@ -122,7 +122,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { _, _ -> })
 	}
 
-	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
+	internal fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
 
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
 		requestedKeys -= key
