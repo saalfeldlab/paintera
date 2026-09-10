@@ -1,8 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ObservableValue
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.javafx.asFlow
 import kotlinx.coroutines.javafx.awaitPulse
 import net.imglib2.*
 import net.imglib2.algorithm.fill.FloodFill
@@ -13,8 +16,8 @@ import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
-import net.imglib2.util.Util
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.net.imglib2.util.AccessBoxRandomAccessible
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.getPaintera
@@ -38,6 +41,9 @@ class FloodFill<T : IntegerType<T>>(
 	val requestRepaint: Consumer<Interval?>,
 	private val isVisible: BooleanSupplier
 ) {
+
+	private val cancellableProperty = SimpleBooleanProperty(true)
+	val cancellable: Boolean by cancellableProperty.nonnullVal()
 
 	fun fillAt(x: Double, y: Double, fillSupplier: (() -> Long?)?): Job {
 		val fill = fillSupplier?.invoke() ?: let {
@@ -139,6 +145,7 @@ class FloodFill<T : IntegerType<T>>(
 			}
 		}
 
+		cancellableProperty.set(true)
 		floodFillJob = CoroutineScope(Dispatchers.Default).launch {
 			val fillContext = coroutineContext
 			InvokeOnJavaFXApplicationThread {
@@ -166,10 +173,23 @@ class FloodFill<T : IntegerType<T>>(
 			LOG.trace {
 				"Applying mask for interval ${Intervals.minAsLongArray(sourceInterval).contentToString()} ${Intervals.maxAsLongArray(sourceInterval).contentToString()}"
 			}
-			requestRepaint.accept(globalInterval)
-			source.applyMask(mask, sourceInterval, MaskedSource.VALID_LABEL_CHECK)
+			/* cannot cancel once applyMask is triggered */
+			withContext(NonCancellable) {
+				cancellableProperty.set(false)
+				requestRepaint.accept(globalInterval)
+				source.applyMask(mask, sourceInterval, MaskedSource.VALID_LABEL_CHECK)
+				source.awaitApplyMaskComplete()
+			}
 		}
 		return floodFillJob
+	}
+
+	/**
+	 * Suspend until MaskedSource.isBusyProperty is false.
+	 */
+	@OptIn(ExperimentalCoroutinesApi::class)
+	private suspend fun MaskedSource<*, *>.awaitApplyMaskComplete() {
+		isBusyProperty().asFlow().first { !it }
 	}
 
 	companion object {

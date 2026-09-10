@@ -134,7 +134,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 					name = "cancel Fill 3D"
 					createToolNode = { apply { addStyleClass(Style.REJECT_ICON)} }
 					filter = true
-					verify { floodFillTask != null }
+					verify { floodFillTask != null && fill.cancellable }
 					onAction {
 						floodFillTask?.cancel()
 						fillIsRunningProperty.set(false)
