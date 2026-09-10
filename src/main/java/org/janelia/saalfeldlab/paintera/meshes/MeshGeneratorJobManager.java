@@ -1078,7 +1078,7 @@ public class MeshGeneratorJobManager<T> {
 
 	private Node createBlockShape(final ShapeKey<T> key) {
 
-		final Interval keyInterval = key.interval();
+		final Interval keyInterval = key.xyzInterval();
 		final double[] worldMin = new double[3], worldMax = new double[3];
 		//noinspection Convert2MethodRef
 		Arrays.setAll(worldMin, d -> keyInterval.min(d));

@@ -247,8 +247,10 @@ class MeshManagerWithAssignmentForSegments(
 		relevantBindingsAndPropertiesMap.remove(key)
 	}
 
-	/** Rebuild the scene from the current block lists, reusing every mesh whose key still matches. */
-	fun updateScene() = manager.requestCancelAndUpdate()
+	/**
+	 * update the meshes without invalidating the valid mesh cache keys
+	 */
+	fun updateScene() = manager.replaceAllMeshes()
 
 	override fun refreshMeshes() {
 		super.removeAllMeshes()
@@ -401,7 +403,7 @@ class MeshManagerWithAssignmentForSegments(
 					key.minLabelRatio(),
 					key.overlap(),
 					key.sourceInterval,
-					key.interval
+					key.xyzInterval
 				)
 			)
 		}

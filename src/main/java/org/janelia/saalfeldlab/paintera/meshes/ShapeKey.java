@@ -13,5 +13,5 @@ public record ShapeKey<T>(
 		/* the block in source coordinates; nD, so the same spatial block at another slice is a different key */
 		FinalInterval sourceInterval,
 		/* the same block as the renderer sees it: always 3D */
-		FinalInterval interval) {
+		FinalInterval xyzInterval) {
 }
