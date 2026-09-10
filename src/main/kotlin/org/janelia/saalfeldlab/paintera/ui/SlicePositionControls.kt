@@ -8,7 +8,10 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
@@ -17,7 +20,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
  * Ad-hoc UI: one slider (with an editable field) per non-spatial axis of a sliced source, so the fixed slice position
  * - the timepoint or channel the 3D view is taken at - can be changed live. On change the source re-projects to 3D at
  * the new positions and the viewers repaint; the same slice positions drive the commit, so edits write to that slice.
- * Holding C/T and scrolling in a viewer steps these same positions (see NavigationControlMode.sliceDimensionActions).
+ * Holding C/T and scrolling in a viewer steps these same positions (see NavigationControlMode.nonSpatialSliceActions).
  *
  * Returns `null` for sources that are not reduced to 3D (a canonical 3D source, or a 4D source kept as channels), i.e.
  * when there is no non-spatial axis to scrub.
@@ -40,7 +43,11 @@ object SlicePositionControls {
 				xyzView.sliceAt(axis, position)
 			}
 		}
-		return VBox(5.0, *rows.toTypedArray())
+		return VBox(5.0, *rows.toTypedArray()).apply {
+			/* the sliders and the C/T scroll are the same action; a mode that refuses one refuses both */
+			val allowedActions = paintera.baseView.allowedActionsProperty()
+			disableProperty().bind(allowedActions.createNonNullValueBinding { !allowedActions.isAllowed(NavigationActionType.NonSpatialSlice) })
+		}
 	}
 
 	/** A labelled `[0, size-1]` slider with a synced editable field; [onChange] fires when the (integer) position changes. */

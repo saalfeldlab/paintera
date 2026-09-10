@@ -16,7 +16,7 @@ import kotlin.jvm.optionals.getOrNull
 object GoToCoordinate : MenuAction("_Go to Coordinate...") {
 
 	init {
-		verifyPermission(NavigationActionType.Pan)
+		verifyPermission(NavigationActionType.Pan, NavigationActionType.Slice, NavigationActionType.NonSpatialSlice)
 		onActionWithState<GoToSourceCoordinateState> {
 			initializeCurrentCoordinates()
 			when (getDialog("Go To Source Coordinate").showAndWait().getOrNull()) {

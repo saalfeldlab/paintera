@@ -5,6 +5,7 @@ import java.util.EnumSet;
 public enum NavigationActionType implements ActionType {
 	Pan,
 	Slice,
+	NonSpatialSlice,
 	Zoom,
 	Rotate,
 	Bookmark;

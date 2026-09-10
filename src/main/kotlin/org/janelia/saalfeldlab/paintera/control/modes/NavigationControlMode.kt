@@ -183,6 +183,7 @@ object NavigationTool : ViewerTool() {
 			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, resetRotationController)
 			actionSets += goToPositionAction()
 			actionSets += sliceDimensionActions(translationController!!)
+			actionSets += nonSpatialSliceActions()
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
 	}
@@ -300,14 +301,14 @@ object NavigationTool : ViewerTool() {
 	}
 
 	/** Step the active source's non-spatial axis. */
-	private fun scrollNonSpatialSlice(axisLetter: Char, step: Long) {
+	private fun stepNonSpatialSlice(axisLetter: Char, step: Long) {
 		val metadataState = activeMetadataState() ?: return
 		val xyzView = metadataState.xyzView
 		val axisIndex = xyzView.nonSpatialAxes.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisLetter } ?: return
 		xyzView.sliceAt(axisIndex, xyzView.slicePosition(axisIndex) + step)
 	}
 
-	/** Hold X/Y/Z/C/T and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */
+	/** Hold X/Y/Z and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */
 	private fun sliceDimensionActions(translationController: TranslationController): ActionSet =
 		painteraActionSet("scroll-slice-dimension", NavigationActionType.Slice) {
 			listOf(KeyCode.X to 0, KeyCode.Y to 1, KeyCode.Z to 2).forEach { (key, slot) ->
@@ -317,11 +318,21 @@ object NavigationTool : ViewerTool() {
 					onAction { translateAlongSourceAxis(slot, -ControlUtils.getBiggestScroll(it).sign) }
 				}
 			}
-			listOf(KeyCode.C to 'c', KeyCode.T to 't').forEach { (key, axisLetter) ->
-				ScrollEvent.SCROLL {
-					name = "scroll-slice-source-$axisLetter"
-					keysDown(key)
-					onAction { scrollNonSpatialSlice(axisLetter, -ControlUtils.getBiggestScroll(it).sign.toLong()) }
+		}
+
+	/** Hold T and scroll, or press T + left/right, to step the time axis of the active source; its own permission, so a mode can keep XYZ slicing and refuse this */
+	private fun nonSpatialSliceActions(): ActionSet =
+		painteraActionSet("non-spatial-slice", NavigationActionType.NonSpatialSlice) {
+			ScrollEvent.SCROLL {
+				name = "scroll-slice-source-t"
+				keysDown(KeyCode.T)
+				onAction { stepNonSpatialSlice('t', -ControlUtils.getBiggestScroll(it).sign.toLong()) }
+			}
+			listOf(KeyCode.LEFT to -1L, KeyCode.RIGHT to 1L).forEach { (arrow, step) ->
+				KEY_PRESSED(KeyCode.T, arrow) {
+					name = "key-slice-source-t-${arrow.getName().lowercase()}"
+					verify { it?.code == arrow }
+					onAction { stepNonSpatialSlice('t', step) }
 				}
 			}
 		}
