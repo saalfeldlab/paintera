@@ -100,7 +100,8 @@ class PainteraN5Factory : N5FactoryWithCache() {
 
     @Synchronized
 	fun newWriter(format: StorageFormat?, uri: String): N5Writer {
-		val asUri = StorageFormat.parseUri(uri).b
+        val (formatFromUri, asUri) = StorageFormat.parseUri(uri).run { a to b }
+        val format = format ?: formatFromUri
         runCatching { openWriter(format, asUri) }.getOrNull()?.let { return it }
         return allowCreateContainer.use(true) {
             val kva = getKeyValueAccess(asUri, false)!!
