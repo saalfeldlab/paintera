@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.convertRAI
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
@@ -290,6 +291,7 @@ class ExportSourceState {
 						finish()
 						close()
 						LOG.info { "Export Complete ($exportLocation?$dataset/$scaleLevel)" }
+						PainteraCache.RECENT_EXPORT_LOCATIONS.appendLine(exportLocation)
 						PainteraAlerts.information("Ok").apply {
 							title = "Export Complete"
 							headerText = "Export complete."
