@@ -36,6 +36,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.navigation.*
 import org.janelia.saalfeldlab.paintera.control.navigation.Rotate.Axis
+import org.janelia.saalfeldlab.paintera.data.XyzView
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
@@ -300,12 +301,23 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	/** Step the active source's non-spatial axis. */
-	private fun stepNonSpatialSlice(axisLetter: Char, step: Long) {
-		val metadataState = activeMetadataState() ?: return
+	/** The active source's view and its non-spatial axis named by [axisLetter], or null when it has none */
+	private fun nonSpatialAxis(axisLetter: Char): Pair<XyzView, Int>? {
+		val metadataState = activeMetadataState() ?: return null
 		val xyzView = metadataState.xyzView
-		val axisIndex = xyzView.nonSpatialAxes.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisLetter } ?: return
-		xyzView.sliceAt(axisIndex, xyzView.slicePosition(axisIndex) + step)
+		val axis = xyzView.nonSpatialAxes.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisLetter } ?: return null
+		return xyzView to axis
+	}
+
+	private fun stepNonSpatialSlice(axisLetter: Char, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisLetter) ?: return
+		xyzView.sliceAt(axis, xyzView.slicePosition(axis) + step)
+	}
+
+	/** Slice at the first (`step < 0`) or the last position of the axis */
+	private fun sliceNonSpatialToEnd(axisLetter: Char, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisLetter) ?: return
+		xyzView.sliceAt(axis, if (step < 0) xyzView.fullInterval.min(axis) else xyzView.fullInterval.max(axis))
 	}
 
 	/** Hold X/Y/Z and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */
@@ -320,7 +332,10 @@ object NavigationTool : ViewerTool() {
 			}
 		}
 
-	/** Hold T and scroll, or press T + left/right, to step the time axis of the active source; its own permission, so a mode can keep XYZ slicing and refuse this */
+	/**
+	 * Step the time axis of the active source: T + scroll, T + `,` / `.` for one timepoint, Shift + T + `,` / `.` for
+	 * the first / last. Its own permission, so a mode can keep XYZ slicing and refuse this
+	 */
 	private fun nonSpatialSliceActions(): ActionSet =
 		painteraActionSet("non-spatial-slice", NavigationActionType.NonSpatialSlice) {
 			ScrollEvent.SCROLL {
@@ -328,11 +343,19 @@ object NavigationTool : ViewerTool() {
 				keysDown(KeyCode.T)
 				onAction { stepNonSpatialSlice('t', -ControlUtils.getBiggestScroll(it).sign.toLong()) }
 			}
-			listOf(KeyCode.LEFT to -1L, KeyCode.RIGHT to 1L).forEach { (arrow, step) ->
-				KEY_PRESSED(KeyCode.T, arrow) {
-					name = "key-slice-source-t-${arrow.getName().lowercase()}"
-					verify { it?.code == arrow }
+			/* a KeyCombination cannot hold T and a second key, so these stay hard-coded; requiring exactly the key set keeps the plain and Shift variants apart */
+			listOf(KeyCode.COMMA to -1L, KeyCode.PERIOD to 1L).forEach { (key, step) ->
+				KEY_PRESSED(KeyCode.T, key) {
+					name = "key-slice-source-t-${key.getName().lowercase()}"
+					keysExclusive = true
+					verify { it?.code == key }
 					onAction { stepNonSpatialSlice('t', step) }
+				}
+				KEY_PRESSED(KeyCode.SHIFT, KeyCode.T, key) {
+					name = "key-slice-source-t-${key.getName().lowercase()}-end"
+					keysExclusive = true
+					verify { it?.code == key }
+					onAction { sliceNonSpatialToEnd('t', step) }
 				}
 			}
 		}
