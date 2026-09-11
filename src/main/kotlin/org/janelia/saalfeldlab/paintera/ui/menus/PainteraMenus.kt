@@ -67,7 +67,10 @@ private val recentProjectCanonicalStrings: ObservableList<String> = FXCollection
 }
 
 private val openRecentMenu by LazyForeignValue(::paintera) {
-	MatchSelectionMenu(recentProjectCanonicalStrings, "Open _Recent", 400.0) {
+	MatchSelectionMenu(recentProjectCanonicalStrings, "Open _Recent", 400.0, { removed ->
+		PainteraCache.RECENT_PROJECTS.removeEntry(removed)
+		recentProjectCanonicalStrings.indexOf(removed).takeUnless { it == -1 }?.let { recentProjectURIs.removeAt(it) }
+	}) {
 		val idx = recentProjectCanonicalStrings.indexOf(it).takeUnless { it == -1 } ?: return@MatchSelectionMenu
 		Paintera.application.loadProject(recentProjectURIs[idx].toString())
 	}

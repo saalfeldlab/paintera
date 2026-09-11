@@ -5,6 +5,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValue
 import javafx.geometry.Insets
+import javafx.collections.FXCollections
 import javafx.scene.control.*
 import javafx.scene.effect.InnerShadow
 import javafx.scene.layout.Background
@@ -57,12 +58,18 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 		}
 	}
 
+	private val recentContainers = FXCollections.observableArrayList(PainteraCache.RECENT_CONTAINERS.distinctCanonicalStrings())
+
 	val browseButton: MenuButton = BrowseRecentFavorites.menuButton(
 		"_Find",
-		PainteraCache.RECENT_CONTAINERS.distinctCanonicalStrings(),
+		recentContainers,
 		FAVORITES,
 		{ updateFromDirectoryChooser() },
-		{ updateFromFileChooser() }
+		{ updateFromFileChooser() },
+		{ removed ->
+			PainteraCache.RECENT_CONTAINERS.removeEntry(removed)
+			recentContainers.remove(removed)
+		}
 	) { containerSelection = it }.apply {
 		minWidth = Region.USE_PREF_SIZE
 	}

@@ -159,9 +159,13 @@ object ExportSourceDialog {
 					}
 				}
 				PainteraCache.RECENT_EXPORT_LOCATIONS.distinctCanonicalStrings().takeIf { it.isNotEmpty() }?.let { recentExports ->
-					containerPathField.text = recentExports.firstOrNull()
+					val recents = FXCollections.observableArrayList(recentExports)
+					containerPathField.text = recents.firstOrNull()
 					containerPathField.prefColumnCount *= 2
-					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {
+					val recentMatcher = MatchSelectionMenuButton(recents, "_Recent", null, { removed ->
+						PainteraCache.RECENT_EXPORT_LOCATIONS.removeEntry(removed)
+						recents.remove(removed)
+					}) {
 						containerPathField.text = it
 					}
 					children += recentMatcher
