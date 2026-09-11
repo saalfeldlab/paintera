@@ -14,6 +14,7 @@ import javafx.util.Subscription
 import net.imglib2.RealPoint
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -78,11 +79,18 @@ internal class StatusBar() : HBox() {
 		val subscribeToSource: SourceState<*, *>.() -> Subscription? = {
 			displayStatus?.let { displayStatusPane.children.setAll(it) }
 			// show the source name by default, or override it with source status text if any
-			statusTextProperty().createNullableValueBinding(nameProperty()) {
+			val statusSubscription = statusTextProperty().createNullableValueBinding(nameProperty()) {
 				it?.run { ifEmpty { null } } ?: nameProperty().get()
 			}.subscribe { it ->
 				conflatedTextUpdater.submit { statusLabel.text = it }
 			}.and { displayStatusPane.children.clear() }
+			/* the source coordinate status shows the slice position; update the status text when the slice pos changes */
+			val sliceSubscription = ((this as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
+				?.takeIf { it.nonSpatialAxes.isNotEmpty() }
+				?.activeIntervalProperty
+				?.subscribe { _, _ -> lastSourceCoordinate?.let { setSourceCoordinateStatus(it) } }
+
+            sliceSubscription + statusSubscription
 		}
 
 		var prevSubscription: Subscription? = null
@@ -144,7 +152,10 @@ internal class StatusBar() : HBox() {
 		}
 	}
 
+	private var lastSourceCoordinate: RealPoint? = null
+
 	internal fun setSourceCoordinateStatus(point: RealPoint?) {
+		lastSourceCoordinate = point
 		val coords = point?.let { sourcePositionString(it) } ?: NOT_APPLICABLE
 		InvokeOnJavaFXApplicationThread {
 			sourceCoordinateStatus = coords
