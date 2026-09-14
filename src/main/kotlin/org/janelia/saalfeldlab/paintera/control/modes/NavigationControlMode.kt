@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis as MetadataAxis
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
 import org.janelia.saalfeldlab.paintera.NavigationKeys.*
@@ -301,22 +302,25 @@ object NavigationTool : ViewerTool() {
 		}
 	}
 
-	/** The active source's view and its non-spatial axis named by [axisLetter], or null when it has none */
-	private fun nonSpatialAxis(axisLetter: Char): Pair<XyzView, Int>? {
+	/** The active source's view and its non-spatial axis of [axisType */
+	private fun nonSpatialAxis(axisType: String): Pair<XyzView, Int>? {
 		val metadataState = activeMetadataState() ?: return null
 		val xyzView = metadataState.xyzView
-		val axis = xyzView.nonSpatialAxes.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisLetter } ?: return null
+		val candidates = xyzView.nonSpatialAxes
+		val axis = candidates.firstOrNull { metadataState.axes[it].type == axisType }
+			?: candidates.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisType.first() }
+			?: return null
 		return xyzView to axis
 	}
 
-	private fun stepNonSpatialSlice(axisLetter: Char, step: Long) {
-		val (xyzView, axis) = nonSpatialAxis(axisLetter) ?: return
+	private fun stepNonSpatialSlice(axisType: String, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisType) ?: return
 		xyzView.sliceAt(axis, xyzView.slicePosition(axis) + step)
 	}
 
 	/** Slice at the first (`step < 0`) or the last position of the axis */
-	private fun sliceNonSpatialToEnd(axisLetter: Char, step: Long) {
-		val (xyzView, axis) = nonSpatialAxis(axisLetter) ?: return
+	private fun sliceNonSpatialToEnd(axisType: String, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisType) ?: return
 		xyzView.sliceAt(axis, if (step < 0) xyzView.fullInterval.min(axis) else xyzView.fullInterval.max(axis))
 	}
 
@@ -341,7 +345,7 @@ object NavigationTool : ViewerTool() {
 			ScrollEvent.SCROLL {
 				name = "scroll-slice-source-t"
 				keysDown(KeyCode.T)
-				onAction { stepNonSpatialSlice('t', -ControlUtils.getBiggestScroll(it).sign.toLong()) }
+				onAction { stepNonSpatialSlice(MetadataAxis.TIME,-ControlUtils.getBiggestScroll(it).sign.toLong()) }
 			}
 			/* a KeyCombination cannot hold T and a second key, so these stay hard-coded; requiring exactly the key set keeps the plain and Shift variants apart */
 			listOf(KeyCode.COMMA to -1L, KeyCode.PERIOD to 1L).forEach { (key, step) ->
@@ -349,13 +353,13 @@ object NavigationTool : ViewerTool() {
 					name = "key-slice-source-t-${key.getName().lowercase()}"
 					keysExclusive = true
 					verify { it?.code == key }
-					onAction { stepNonSpatialSlice('t', step) }
+					onAction { stepNonSpatialSlice(MetadataAxis.TIME,step) }
 				}
 				KEY_PRESSED(KeyCode.SHIFT, KeyCode.T, key) {
 					name = "key-slice-source-t-${key.getName().lowercase()}-end"
 					keysExclusive = true
 					verify { it?.code == key }
-					onAction { sliceNonSpatialToEnd('t', step) }
+					onAction { sliceNonSpatialToEnd(MetadataAxis.TIME, step) }
 				}
 			}
 		}

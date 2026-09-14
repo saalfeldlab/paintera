@@ -5,9 +5,11 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.LongProperty
 import javafx.beans.property.Property
 import javafx.beans.property.SimpleDoubleProperty
+import javafx.collections.FXCollections
 import javafx.geometry.HPos
 import javafx.geometry.Insets
 import javafx.geometry.Orientation
+import javafx.scene.control.ComboBox
 import javafx.scene.control.Label
 import javafx.scene.control.ScrollPane
 import javafx.scene.control.Separator
@@ -40,6 +42,24 @@ private fun Axis.toXyzIdx(): Int? {
     }
 }
 
+private enum class AxisRole(private val display: String, val type: String, val axisName: String) {
+    X("X", Axis.SPACE, "x"),
+    Y("Y", Axis.SPACE, "y"),
+    Z("Z", Axis.SPACE, "z"),
+    CHANNEL("C", Axis.CHANNEL, "c"),
+    TIME("T", Axis.TIME, "t");
+
+    override fun toString() = display
+
+    val isSpatial get() = type == Axis.SPACE
+
+    companion object {
+        fun of(axis: Axis): AxisRole? = entries.firstOrNull {
+            it.type == axis.type && (!it.isSpatial || it.axisName.equals(axis.name, true))
+        }
+    }
+}
+
 
 class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
 
@@ -59,22 +79,25 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
                 spacing = 2.0
                 padding = Insets(0.0, 0.0, 0.0, 10.0)
                 children += perDimensionConfigGrid
-                model.metadataStateBinding.subscribe { metadataState ->
-                    InvokeOnJavaFXApplicationThread {
-                        subscriptions?.unsubscribe()
-                        subscriptions = Subscription.EMPTY
-                        perDimensionConfigGrid.children.clear()
-                        perDimensionConfigGrid.columnConstraints.clear()
-
-                        metadataState?.let {
-                            it.bindPerDimensionConfig(perDimensionConfigGrid)
-                            addTypeBoundNodes(perDimensionConfigGrid)
-                        }
-
-                        sizeWindowToScene()
-                    }
-                }
+                model.metadataStateBinding.subscribe { _ -> rebuild() }
             }
+        }
+    }
+
+    /** rebuild the node from the current metadata */
+    private fun rebuild() {
+        InvokeOnJavaFXApplicationThread {
+            subscriptions?.unsubscribe()
+            subscriptions = Subscription.EMPTY
+            perDimensionConfigGrid.children.clear()
+            perDimensionConfigGrid.columnConstraints.clear()
+
+            model.metadataState?.let {
+                it.bindPerDimensionConfig(perDimensionConfigGrid)
+                addTypeBoundNodes(perDimensionConfigGrid)
+            }
+
+            sizeWindowToScene()
         }
     }
 
@@ -113,8 +136,25 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         col = DATA_COLUMN
         row++
         grid[0, row] = axisLabel("Axis", HPos.LEFT)
-        for (d in dimensions.indices) {
-            grid[col++, row] = axisLabel(axes[d].name.uppercase(), HPos.CENTER)
+        for (dimIdx in dimensions.indices) {
+            val axisRoles = ComboBox(FXCollections.observableArrayList(AxisRole.entries)).apply {
+                styleClass += "axis-header"
+                value = AxisRole.of(axes[dimIdx])
+                maxWidth = Double.MAX_VALUE
+                GridPane.setHalignment(this, HPos.CENTER)
+            }
+            subscriptions += axisRoles.valueProperty().subscribe { _, newRole ->
+                newRole ?: return@subscribe
+
+                /* Only a single X Y and Z axis are allowed. if the newRole is spatial, swap axes with the previous */
+                val existingRoleDim = dimensions.indices.firstOrNull { newRole.isSpatial && it != dimIdx && AxisRole.of(axes[it]) == newRole }
+                if (existingRoleDim != null)
+                    axes[existingRoleDim] = axes[dimIdx].also { axes[dimIdx] = axes[existingRoleDim] }
+                else
+                    axes[dimIdx] = Axis(newRole.type, newRole.axisName, axes[dimIdx].unit)
+                rebuild()
+            }
+            grid[col++, row] = axisRoles
         }
 
         /* dimension size row  */

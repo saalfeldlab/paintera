@@ -261,6 +261,12 @@ class PainteraDataMultiscaleMetadataState(
 	override val xyzView: XyzView
 		get() = dataMetadataState.xyzView
 
+	override var axes: Array<Axis>
+		get() = dataMetadataState.axes
+		set(value) {
+			dataMetadataState.axes = value
+		}
+
 	override fun updateTransform(newTransform: AffineTransform3D) {
 		dataMetadataState.updateTransform(newTransform)
 		super.updateTransform(newTransform)

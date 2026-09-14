@@ -1,3 +1,7 @@
+.axis-header .list-cell {
+    -fx-alignment: center;
+}
+
 .axis-header .list-cell:filled:selected {
     -fx-background-color: transparent;
     -fx-text-fill: -fx-text-base-color;

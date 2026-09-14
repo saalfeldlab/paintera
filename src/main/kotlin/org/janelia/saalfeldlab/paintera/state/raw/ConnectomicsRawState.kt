@@ -33,7 +33,9 @@ import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.addAxes
 import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreAxes
 import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
@@ -205,6 +207,7 @@ open class ConnectomicsRawState<D, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
 			}
 			return map
@@ -240,6 +243,7 @@ open class ConnectomicsRawState<D, T>(
 		private fun <D, T> deserializeConnectomicsRawState(context: JsonDeserializationContext, json: JsonElement): ConnectomicsRawState<*, *>
 			where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 			val backend: ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
+			restoreAxes(backend, json)
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
 			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
