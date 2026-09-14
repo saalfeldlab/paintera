@@ -185,14 +185,12 @@ internal class DefaultCreateDatasetModel(
 			else -> null
 		}
 
-		metadataSource?.let {
-			val blockDims = it.metadataState.datasetAttributes.blockSize
-			blockSize.xProperty.value = blockDims[0]
-			blockSize.yProperty.value = blockDims[1]
-			blockSize.zProperty.value = blockDims[2]
-		}
-		/* match the source's additional (non-spatial) axes (size, block size, type, unit, resolution and offset) in source order */
 		metadataSource?.metadataState?.let { metadataState ->
+            val (x, y, z) = metadataState.xyzView.spatialMapping().spatialProjection(metadataState.datasetAttributes.blockSize)
+            blockSize.xProperty.value = x
+            blockSize.yProperty.value = y
+            blockSize.zProperty.value = z
+
 			val attributes = metadataState.datasetAttributes
 
 			/* the highest-res NGFF child, when the source has one; its scale/translation carry the non-spatial axes */
@@ -220,7 +218,7 @@ internal class DefaultCreateDatasetModel(
 		dimensions.xProperty.value = data.dimension(0)
 		dimensions.yProperty.value = data.dimension(1)
 		dimensions.zProperty.value = data.dimension(2)
-		if (data is AbstractCellImg<*, *, *, *>) {
+		if (metadataSource == null && data is AbstractCellImg<*, *, *, *>) {
 			val grid = data.cellGrid
 			blockSize.xProperty.value = grid.cellDimension(0)
 			blockSize.yProperty.value = grid.cellDimension(1)
