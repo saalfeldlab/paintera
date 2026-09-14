@@ -102,15 +102,15 @@ open class SingleScaleMetadataState(
 	final override val metadata: N5SpatialDatasetMetadata,
 ) : MetadataState {
 
-	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
+	final override var transform: AffineTransform3D = metadata.spatialTransform3d().copy()
 	override var isLabelMultiset: Boolean = isLabelMultiset(n5ContainerState.reader, N5URI.normalizeGroupPath(metadata.path)!!, metadata)
 	override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || isLabelMultiset
 	override var datasetAttributes: DatasetAttributes = metadata.attributes
 	override var minIntensity = metadata.minIntensity()
 	override var maxIntensity = metadata.maxIntensity()
-	override var resolution = metadata.resolution
-	override var translation = metadata.offset
-	override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
+	override var resolution = metadata.resolution.copyOf()
+	override var translation = metadata.offset.copyOf()
+	override var axes: Array<Axis> = (getAxes() ?: fallbackAxes()).copyOf()
 	override var virtualCrop: Interval? = null
 	/* built on first use: [axes] is a var, and callers may replace it before the source is opened */
 	override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
@@ -163,11 +163,11 @@ open class MultiScaleMetadataState(
 ) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
 	val highestResMetadata: N5SpatialDatasetMetadata = metadata[0]
-	final override var axes: Array<Axis> = getAxes() ?: fallbackAxes()
+	override var axes: Array<Axis> = (getAxes() ?: fallbackAxes()).copyOf()
 	//TODO: xyzView should not live in the MetadataState when migration is done.
 	override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
 
-	final override var transform: AffineTransform3D = metadata.spatialTransform3d()
+	final override var transform: AffineTransform3D = metadata.spatialTransform3d().copy()
 	final override var isLabelMultiset: Boolean = isLabelMultiset(n5ContainerState.reader, N5URI.normalizeGroupPath(metadata[0].path)!!, metadata[0])
 	override var isLabel: Boolean = when {
 		metadata is N5PainteraLabelMultiscaleGroup -> metadata.isLabel
@@ -177,7 +177,7 @@ open class MultiScaleMetadataState(
 	override var translation: DoubleArray = transform.translation
 	override var group: String = N5URI.normalizeGroupPath(metadata.path)
 	override val dataset: String = N5URI.normalizeGroupPath(metadata.path)
-	val scaleTransforms: Array<AffineTransform3D> = metadata.spatialTransforms3d()
+	val scaleTransforms: Array<AffineTransform3D> = metadata.spatialTransforms3d().map { it.copy() }.toTypedArray()
 
 	/**
 	 * Per-level downsampling factors relative to s0, one entry per source axis. Non-spatial axes are included, so a
