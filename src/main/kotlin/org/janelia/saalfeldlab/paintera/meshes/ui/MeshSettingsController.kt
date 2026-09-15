@@ -481,10 +481,11 @@ abstract class MeshInfoList<T : MeshInfo<K>, K> : ListView<T>() {
 
 		init {
 			style = "-fx-padding: 0px"
-			sceneProperty().subscribe { scene ->
-				if (scene == null) {
+			sceneProperty().subscribe { _, scene ->
+				if (scene == null)
 					releaseState()
-				}
+				else
+					showPane()
 			}
 		}
 
@@ -495,21 +496,26 @@ abstract class MeshInfoList<T : MeshInfo<K>, K> : ListView<T>() {
 			meshInfoPane = null
 		}
 
+		private fun showPane() {
+			val item = item
+			if (isEmpty || item == null) {
+				graphic = null
+				releaseState()
+				return
+			}
+			if (meshInfoPane == null || meshInfoPane?.meshInfo?.key != item.key) {
+				releaseState()
+				meshInfoPane = meshNodeFactory(item).also {
+					it.bindProgressBar()
+				}
+			}
+			graphic = meshInfoPane
+		}
+
 		override fun updateItem(item: T?, empty: Boolean) {
 			super.updateItem(item, empty)
 			text = null
-			if (empty || item == null) {
-				graphic = null
-				releaseState()
-			} else {
-				if (meshInfoPane == null || meshInfoPane?.meshInfo?.key != item.key) {
-					releaseState()
-					meshInfoPane = meshNodeFactory(item).also {
-						it.bindProgressBar()
-					}
-				}
-				graphic = meshInfoPane
-			}
+			showPane()
 		}
 	}
 }
