@@ -52,7 +52,7 @@ class PainteraN5Factory : N5FactoryWithCache() {
     override fun openReader(format: StorageFormat?, access: KeyValueAccess, location: URI): N5Reader {
         val cachedReader by lazy(LazyThreadSafetyMode.NONE) { getReaderFromCache(format, location) }
         val cachedWriterAsReader by lazy(LazyThreadSafetyMode.NONE) {
-            allowWriterAsReader.allowOrNull { getWriterFromCache(format, location) as? N5Reader }
+            allowWriterAsReader.allowOrNull { getWriterFromCache(format, location, false) as? N5Reader }
 	}
         val openReader by lazy(LazyThreadSafetyMode.NONE) {
 			try {
@@ -75,7 +75,7 @@ class PainteraN5Factory : N5FactoryWithCache() {
 	@Throws(N5ContainerDoesntExist::class)
     override fun openWriter(format: StorageFormat?, access: KeyValueAccess, location: URI): N5Writer {
         val cachedWriter by lazy(LazyThreadSafetyMode.NONE) {
-            getWriterFromCache(format, location)
+            getWriterFromCache(format, location, true)
         }
         val createNewWriter by lazy(LazyThreadSafetyMode.NONE) {
             allowCreateContainer.allowOrNull<N5Writer> { super.openWriter(format, access, location) }
