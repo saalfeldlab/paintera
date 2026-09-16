@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.actions
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import javafx.beans.property.SimpleBooleanProperty
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.awaitPulse
 import org.janelia.saalfeldlab.fx.extensions.nullable
@@ -38,7 +37,7 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 
 	fun addSource() {
 		try {
-			N5OpenSourceHelper.addSource(type, this, channelSelection, paintera.baseView)
+			N5OpenSourceHelper.addSource(type, this, paintera.baseView)
 		} catch (_ : CancellationException) {
 			LOG.warn { "add source cancelled " }
 		}

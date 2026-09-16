@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state.raw
 
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
+import bdv.viewer.SourceAndConverter
 import com.google.gson.*
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -23,6 +24,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.CHANNELS
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.RawSourceStateKeys
 import org.janelia.saalfeldlab.paintera.composition.Composite
@@ -68,7 +70,7 @@ import java.util.function.BiConsumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-typealias ARGBComoposite = Composite<ARGBType, ARGBType>
+typealias ARGBComposite = Composite<ARGBType, ARGBType>
 
 open class ConnectomicsRawState<D, T>(
 	override val backend: ConnectomicsRawBackend<D, T>,
@@ -95,11 +97,15 @@ open class ConnectomicsRawState<D, T>(
 
 	override fun converter(): ARGBColorConverter<T> = converter
 
+	val channels: ChannelComposition<D, T>? = ChannelComposition.of(backend, source, converter)
+
+	override fun getSourceAndConverter(): SourceAndConverter<T> = channels?.sourceAndConverter ?: super.getSourceAndConverter()
+
 	override fun getDefaultMode(): ControlMode {
 		return RawSourceMode()
 	}
 
-	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(CompositeCopy())
+	private val _composite: ObjectProperty<ARGBComposite> = SimpleObjectProperty(CompositeCopy())
 	var composite: ARGBComposite
 		get() = _composite.value
 		set(composite) = _composite.set(composite)
@@ -136,7 +142,7 @@ open class ConnectomicsRawState<D, T>(
 	override fun preferencePaneNode(): Node {
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
-		box.children.add(RawSourceStateConverterNode(converter, this).converterNode)
+		box.children.add(channels?.preferencePaneNode() ?: RawSourceStateConverterNode(converter, this).converterNode)
 
 		val backendMeta = backend.createMetaDataNode()
 		val metaDataContents = VBox(backendMeta)
@@ -153,14 +159,15 @@ open class ConnectomicsRawState<D, T>(
 		}
 		box.children.add(metaData)
 
-		(backend as? SourceStateBackendN5<D, T>)?.let { n5Backend ->
-			SlicePositionControls.create(n5Backend.metadataState, dataSource)?.let { box.children.add(it) }
+		(backend as? SourceStateBackendN5<*, *>)?.metadataState?.let {
+			SlicePositionControls.create(it, dataSource, setOfNotNull(channels?.axis))?.let { controls -> box.children.add(controls) }
 		}
 
 		return box
 	}
 
 	override fun onAdd(paintera: PainteraBaseView) {
+		channels?.onAdd(paintera)
 		converter().minProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().maxProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().alphaProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
@@ -185,6 +192,7 @@ open class ConnectomicsRawState<D, T>(
 		const val RESOLUTION = "resolution"
 		const val VIRTUAL_CROP = "virtualCrop"
 		const val OFFSET = "offset"
+		const val CHANNELS = "channelComposite"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -207,6 +215,7 @@ open class ConnectomicsRawState<D, T>(
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
 				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				state.channels?.let { map.add(CHANNELS, it.toJson(context)) }
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
 			}
@@ -243,6 +252,16 @@ open class ConnectomicsRawState<D, T>(
 		private fun <D, T> deserializeConnectomicsRawState(context: JsonDeserializationContext, json: JsonElement): ConnectomicsRawState<*, *>
 			where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 			val backend: ConnectomicsRawBackend<D, T> = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
+			return rawState(context, json, backend, queue, priority)
+		}
+
+		override fun getTargetClass(): Class<ConnectomicsRawState<*, *>> = ConnectomicsRawState::class.java
+
+		companion object {
+
+			/** The state [json] describes over [backend]; the removed channel state's deserializer builds on this too */
+			internal fun <D, T> rawState(context: JsonDeserializationContext, json: JsonElement, backend: ConnectomicsRawBackend<D, T>, queue: SharedQueue, priority: Int): ConnectomicsRawState<D, T>
+				where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 			restoreAxes(backend, json)
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
@@ -258,20 +277,17 @@ open class ConnectomicsRawState<D, T>(
 				json[NAME] ?: backend.name
 			).apply {
 				context.fromClassInfo<Composite<ARGBType, ARGBType>>(json, COMPOSITE) { composite = it }
+				context.get<Interpolation>(json, INTERPOLATION) { interpolation = it }
+				json.get<Boolean>(IS_VISIBLE) { isVisible = it }
 				json.get<JsonObject>(CONVERTER) { conv ->
 					conv.get<Double>(CONVERTER_MIN) { converter.min = it }
 					conv.get<Double>(CONVERTER_MAX) { converter.max = it }
 					conv.get<Double>(CONVERTER_ALPHA) { converter.alphaProperty().value = it }
 					conv.get<String>(CONVERTER_COLOR) { converter.color = Colors.toARGBType(it) }
 				}
-				context.get<Interpolation>(json, INTERPOLATION) { interpolation = it }
-				json.get<Boolean>(IS_VISIBLE) { isVisible = it }
+				json.get<JsonObject>(CHANNELS) { channels?.fromJson(it, context) }
 			}
-		}
-
-		override fun getTargetClass(): Class<ConnectomicsRawState<*, *>> = ConnectomicsRawState::class.java
-
-		companion object {
+			}
 
 			private const val DEPRECATED_RAW_SOURCE_STATE = "org.janelia.saalfeldlab.paintera.state.RawSourceState"
 

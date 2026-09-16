@@ -27,16 +27,17 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
  */
 object SlicePositionControls {
 
-	fun create(metadataState: MetadataState, dataSource: DataSource<*, *>): Node? {
+	fun create(metadataState: MetadataState, dataSource: DataSource<*, *>, skipAxes: Set<Int> = emptySet()): Node? {
 		val axes = metadataState.axes
 		val xyzView = metadataState.xyzView
-		if (xyzView.nonSpatialAxes.isEmpty()) return null
+		val sliderAxes = xyzView.nonSpatialAxes - skipAxes
+		if (sliderAxes.isEmpty()) return null
 
 		val n5Source = (dataSource as? MaskedSource<*, *>)?.underlyingSource() as? N5DataSource<*, *>
 			?: dataSource as? N5DataSource<*, *>
 			?: return null
 
-		val rows = xyzView.nonSpatialAxes.map { axis ->
+		val rows = sliderAxes.map { axis ->
 			val axisName = axes.getOrNull(axis)?.name?.ifBlank { null } ?: "axis $axis"
 			sliderRow(axisName, xyzView.fullInterval.dimension(axis), xyzView.slicePosition(axis)) { position ->
 				/* the source projects to 3D live at the view's slice; PainteraBaseView repaints on the region change */

@@ -21,7 +21,7 @@ import net.imglib2.view.composite.Composite
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
+import org.janelia.saalfeldlab.paintera.data.n5.ChannelCompositeSource
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import java.util.function.Consumer
 import java.util.function.Function
@@ -108,15 +108,15 @@ class ValueDisplayListener<T>(
 	companion object {
 
 		private fun <T> stringConverterFromSource(source: Source<T>): (T) -> String {
-			val channelSource = source as? ChannelDataSource<*, *> ?: return stringConverter(source.type)
+			val channelSource = source as? ChannelCompositeSource<*, *> ?: return stringConverter(source.type)
 
-			val numChannels = channelSource.numChannels()
+			val numChannels = channelSource.numChannels
 			return { value ->
 				@Suppress("UNCHECKED_CAST")
 				val composite = (value as VolatileWithSet<out Composite<*>>).get()
 				val converter = stringConverter(composite.get(0))
 				(0 until numChannels).joinToString(", ", "(", ")") {
-                    converter(composite.get(it))
+                    converter(composite.get(it.toLong()))
                 }
 			}
 		}

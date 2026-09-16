@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui
 
 import bdv.viewer.Interpolation
+import javafx.beans.binding.Bindings
 import javafx.beans.value.ObservableBooleanValue
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -190,11 +191,18 @@ internal class StatusBar() : HBox() {
 
 			val sourceInfo = paintera.baseView.sourceInfo()
 			val currentSource = sourceInfo.currentSourceProperty()
+			val currentState = sourceInfo.currentState()
+			/* the value under the mouse is read from the source the viewer renders, e.g. a channel composite */
+			val renderSource = Bindings.createObjectBinding(
+				{ currentState.value?.sourceAndConverter?.spimSource },
+				currentState,
+				sourceInfo.trackVisibleSourcesAndConverters()
+			)
 			val vdl2 = OrthogonalViewsValueDisplayListener(
 				{ status -> statusValueLabel.text = status },
-				currentSource
+				renderSource
 			) {
-				sourceInfo.getState(it)?.interpolationProperty()?.get() ?: Interpolation.NEARESTNEIGHBOR
+				currentState.value?.interpolationProperty()?.get() ?: Interpolation.NEARESTNEIGHBOR
 			}
 			vdl2.bindActiveViewer(paintera.baseView.mostRecentFocusHolder)
 

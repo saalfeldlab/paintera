@@ -36,14 +36,14 @@ interface OpenSourceModel {
 	val sourceNameProperty: StringProperty
 	val isBusyProperty: BooleanProperty
 	val typeProperty: ObjectProperty<SourceType>
-	val channelSelectionProperty: ObjectProperty<IntArray>
+	val activeChannelsProperty: ObjectProperty<List<Int>?>
 
 	val containerState get() = containerStateProperty.value
 	var activeNode: N5TreeNode?
 	val metadataState get() = metadataStateBinding.value
 	var sourceName: String
 	var type: SourceType
-	var channelSelection: IntArray
+	var activeChannels: List<Int>?
 
 	fun reparseSelection(selection: String)
 
@@ -107,8 +107,8 @@ internal open class DefaultOpenSourceModel : OpenSourceModel {
 	override val typeProperty = SimpleObjectProperty(SourceType.RAW)
 	override var type by typeProperty.nonnull()
 
-	override val channelSelectionProperty = SimpleObjectProperty(intArrayOf())
-	override var channelSelection by channelSelectionProperty.nonnull()
+	override val activeChannelsProperty = SimpleObjectProperty<List<Int>?>(null)
+	override var activeChannels by activeChannelsProperty.nullable()
 
 	override fun reparseSelection(selection: String) {
 		throw NotImplementedError("This should only be used as an override delegate, or base class")
@@ -118,16 +118,6 @@ internal open class DefaultOpenSourceModel : OpenSourceModel {
 		val metadata = activeMetadataProperty.value ?: return@createObservableBinding null
 		val container = containerStateProperty.value ?: return@createObservableBinding null
 		MetadataUtils.createMetadataState(container, metadata)
-	}.apply {
-		/* auto-reset channel selection when the metadata changes */
-		subscribe { it ->
-			val dimensions = it?.datasetAttributes?.dimensions ?: return@subscribe
-			if (dimensions.size != 4)
-				return@subscribe
-			val channelIdx = it.axes.indexOfFirst { it.type == Axis.CHANNEL }.takeUnless { it == -1 } ?: 3
-
-			channelSelection = IntArray(max(dimensions[channelIdx].toInt(), 0)) { it }
-		}
 	}
 
 	override val sourceNameProperty = SimpleStringProperty().also { prop ->

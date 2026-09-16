@@ -5,6 +5,7 @@ import javafx.beans.property.DoubleProperty
 import javafx.beans.property.LongProperty
 import javafx.beans.property.Property
 import javafx.beans.property.SimpleDoubleProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.geometry.HPos
 import javafx.geometry.Insets
@@ -25,9 +26,10 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
+import org.janelia.saalfeldlab.paintera.state.raw.ChannelComposition
 import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceModel
+import org.janelia.saalfeldlab.paintera.ui.source.ActiveChannelsNode
 import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceToggle
-import org.janelia.saalfeldlab.paintera.ui.dialogs.open.meta.ChannelInformation
 
 private val LOG = KotlinLogging.logger {}
 
@@ -91,6 +93,7 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
             subscriptions = Subscription.EMPTY
             perDimensionConfigGrid.children.clear()
             perDimensionConfigGrid.columnConstraints.clear()
+            model.activeChannels = null
 
             model.metadataState?.let {
                 it.bindPerDimensionConfig(perDimensionConfigGrid)
@@ -152,6 +155,9 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
                     axes[existingRoleDim] = axes[dimIdx].also { axes[dimIdx] = axes[existingRoleDim] }
                 else
                     axes[dimIdx] = Axis(newRole.type, newRole.axisName, axes[dimIdx].unit)
+
+                /* the axes array was edited in place; assigning it udpates the transform via the setter */
+                axes = axes
                 rebuild()
             }
             grid[col++, row] = axisRoles
@@ -279,29 +285,32 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
             add(minField, numCols - 2, newRow)
             add(maxField, numCols - 1, newRow)
         }
+
+        addActiveChannelsNodes(gridPane)
     }
 
-    private fun addChannelInfoNode(gridPane: GridPane) {
-
+    /* only a raw source with more than one channel */
+    private fun addActiveChannelsNodes(gridPane: GridPane) {
         val metadataState = model.metadataState ?: return
-        val dimensions = metadataState.datasetAttributes.dimensions
-        if (dimensions.size != 4) return
-        val channelIdx = metadataState.axes.indexOfFirst { it.type == Axis.CHANNEL }.takeUnless { it == -1 } ?: 3
+        val channelAxis = ChannelComposition.channelAxis(metadataState) ?: return
+        val numChannels = metadataState.datasetAttributes.dimensions[channelAxis].toInt()
+        /* the node edits a non-null list; the model is null only without a channel axis */
+        val activeChannels = SimpleObjectProperty(listOf(0))
+        subscriptions += activeChannels.subscribe { channels -> model.activeChannels = channels }
 
-        val channelInfo = ChannelInformation().apply {
-            numChannelsProperty().set(dimensions[channelIdx].toInt())
-            subscriptions += channelSelectionProperty().subscribe { selection -> model.channelSelection = selection }
-        }
-
-        val node = channelInfo.node
-        subscriptions += model.typeProperty.subscribe { type ->
-            val isRaw = type == SourceType.RAW
-            node.isVisible = isRaw
-            node.isManaged = isRaw
+        val label = axisLabel("Active Channels", HPos.LEFT)
+        val controls = ActiveChannelsNode(numChannels, activeChannels).controls
+        subscriptions += model.typeProperty.subscribe { it ->
+            val isRaw = it == SourceType.RAW
+            label.isManaged = isRaw
+            controls.isManaged = isRaw
+            label.isVisible = isRaw
+            controls.isVisible = isRaw
         }
 
         val newRow = gridPane.rowCount
-        gridPane.add(node, 0, newRow, GridPane.REMAINING, 1)
+        gridPane.add(label, 0, newRow)
+        gridPane.add(controls, 1, newRow, GridPane.REMAINING, 1)
     }
 
     private fun addTypeBoundNodes(gridPane: GridPane) {
@@ -315,8 +324,6 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         gridPane.add(rowSeparator, 0, newRow, GridPane.REMAINING, 1)
 
         addRawMetaNodes(gridPane)
-
-        addChannelInfoNode(gridPane)
 
         subscriptions += model.typeProperty.subscribe { _ ->
             sizeWindowToScene()

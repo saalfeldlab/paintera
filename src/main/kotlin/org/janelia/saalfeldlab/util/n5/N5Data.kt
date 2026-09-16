@@ -90,11 +90,6 @@ object N5Data {
         val cacheHint = CacheHints(LoadingStrategy.VOLATILE, priority, true)
         val vraw: RaiWithInvalidate<V> = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(raw, queue, cacheHint)
 
-        //TODO: opening 4D+ as channels, with one of the dimensions configurable as the channel dim, is not supported;
-        //  such a source is presented sliced. See the XyzcView note in the migration plan.
-
-        /* keep the data nD and let the source project to a 3D (x, y, z) view live at the current slice positions
-         * (N5DataSource), so moving the slider just re-views the same backing - no re-open, no cache invalidation */
         val grid = gridFor(N5Helpers.getDatasetAttributes(reader, dataset)!!, mapping)
         ImagesWithTransform<T, V>(raw, vraw.rai, transform, raw.getCache(), vraw.invalidate, grid)
     }

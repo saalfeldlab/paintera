@@ -173,6 +173,13 @@ class SpatialMapping(
         }
     }
 
+    /** This mapping with [axis] sliced at [position] instead */
+    fun withSlicePosition(axis: Int, position: Long): SpatialMapping {
+        require(axis in 0 until numDimensions) { "axis $axis out of bounds for $numDimensions dimensions" }
+
+        return SpatialMapping(numDimensions, xyzSourceAxes, slicePositions.copyOf().also { it[axis] = position })
+    }
+
     /**
      * convert this mapping from voxel to block coordinates over [grid]
      *

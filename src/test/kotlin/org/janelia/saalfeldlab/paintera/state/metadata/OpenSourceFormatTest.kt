@@ -14,7 +14,9 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
-import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel
+import org.janelia.saalfeldlab.paintera.data.n5.ChannelCompositeSource
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.testdata.TestData
 import org.janelia.saalfeldlab.paintera.testdata.TestData.DataType
@@ -133,10 +135,10 @@ class OpenSourceFormatTest {
 		val dataset = TestData.createRaw(writer, testCase, "channels")
 
 		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = false }
-		val backend = N5BackendChannel<UnsignedByteType, VolatileUnsignedByteType>(metadataState, intArrayOf(0, 1), 3)
-		val source = backend.createSource(queue, 0, "channels")
-		assertNotNull(source)
-		assertEquals(2, source.numChannels()) { "should expose the selected channels for $testCase" }
+		val state = ConnectomicsRawState(N5BackendRaw<UnsignedByteType, VolatileUnsignedByteType>(metadataState), queue, 0, "channels")
+		state.channels!!.activeChannels = listOf(0, 1)
+		val source = state.sourceAndConverter.spimSource as ChannelCompositeSource<*, *>
+		assertEquals(2, source.numChannels) { "should composite the active channels for $testCase" }
 	}
 
 	@ParameterizedTest

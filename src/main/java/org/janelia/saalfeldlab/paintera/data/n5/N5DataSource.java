@@ -77,12 +77,24 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@Override public RandomAccessibleInterval<T> getSource(int t, int level) {
 
-		return cropToLevel(xyzView().toXyz(super.getSource(t, level)), level);
+		return getSource(t, level, xyzView().spatialMapping());
+	}
+
+	/** The 3D view at {@code level} through {@code mapping} instead of this source's own view */
+	public RandomAccessibleInterval<T> getSource(final int t, final int level, final SpatialMapping mapping) {
+
+		return cropToLevel(mapping.toXyz(super.getSource(t, level)), level);
 	}
 
 	@Override public RandomAccessibleInterval<D> getDataSource(int t, int level) {
 
-		return cropToLevel(xyzView().toXyz(super.getDataSource(t, level)), level);
+		return getDataSource(t, level, xyzView().spatialMapping());
+	}
+
+	/** The 3D data view at {@code level} through {@code mapping} instead of this source's own view */
+	public RandomAccessibleInterval<D> getDataSource(final int t, final int level, final SpatialMapping mapping) {
+
+		return cropToLevel(mapping.toXyz(super.getDataSource(t, level)), level);
 	}
 
 	/** The cropped active XYZ interval over scale {@code level}, or null when the spatial dimensions are not cropped. */

@@ -18,8 +18,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.LabelSourceUtils;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
-import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
+import org.janelia.saalfeldlab.paintera.state.raw.ChannelComposition;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
@@ -181,19 +180,18 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			String name) throws IOException {
 
 		final boolean isLabelData = metadataState.isLabel();
-		DatasetAttributes attributes = metadataState.getDatasetAttributes();
-		final boolean isChannelData = !isLabelData && attributes.getNumDimensions() == 4;
+		/* a raw source opens plain; `--channels` opens it composited over the listed channels */
+		final boolean isChannelData = !isLabelData && channels != null;
 
 		if (isLabelData) {
 			viewer.addState((SourceState<?, ?>)makeLabelState(viewer, metadataState, name));
 		} else if (isChannelData) {
-			channels = channels == null ? new long[][]{PainteraCommandLineArgs.range((int)attributes.getDimensions()[channelDimension])} : channels;
 			final String fname = name;
 			final Function<long[], String> nameBuilder = channels.length == 1
 					? c -> fname
 					: c -> String.format("%s-%s", fname, Arrays.toString(c));
 			for (final long[] channel : channels) {
-				viewer.addState(makeChannelSourceState(viewer, metadataState, channelDimension, channel, nameBuilder.apply(channel)));
+				viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, metadataState, nameBuilder.apply(channel), channelDimension, channel));
 			}
 		} else {
 			viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, metadataState, name));
@@ -235,54 +233,40 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		return state;
 	}
 
-	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> ConnectomicsChannelState<D, T, ?, ?, ?> makeChannelSourceState(
+	/** A raw source composited over {@code channels} */
+	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> SourceState<D, T> makeRawSourceState(
 			final PainteraBaseView viewer,
 			MetadataState metadataState,
+			final String name,
 			final int channelDimension,
-			final long[] channels,
-			final String name
+			final long[] channels
 	) {
 
-		final N5BackendChannel<D, T> backend = new N5BackendChannel<>(
-				metadataState,
-				Arrays.stream(channels).mapToInt(l -> (int)l).toArray(),
-				channelDimension
-		);
-		return new ConnectomicsChannelState<>(
-				backend,
-				viewer.getQueue(),
-				viewer.getQueue().getNumPriorities() - 1,
-				name);
+		final ConnectomicsRawState<D, T> state = (ConnectomicsRawState<D, T>)makeRawSourceState(viewer, metadataState, name);
+		final ChannelComposition<D, T> composition = state.getChannels();
+		if (composition == null)
+			throw new IllegalArgumentException("--channels given for a dataset without a channel axis");
+		if (channelDimension != composition.getAxis())
+			LOG.warn("--channel-dimension {} differs from the dataset's channel axis {}; using {}", channelDimension, composition.getAxis(), composition.getAxis());
+		composition.setActiveChannels(Arrays.stream(channels).mapToObj(l -> (int)l).collect(Collectors.toList()));
+		return state;
 	}
 
-	private static long[] range(final int N) {
-
-		final long[] range = new long[N];
-		Arrays.setAll(range, d -> d);
-		return range;
-	}
-
-	private static String[] datasetsAsRawChannelLabel(final N5Reader n5, final Collection<String> datasets) throws IOException {
+    /* raw datasets first so the labels layer on top */
+	private static String[] datasetsAsRawLabel(final N5Reader n5, final Collection<String> datasets) throws IOException {
 
 		final List<String> rawDatasets = new ArrayList<>();
-		final List<String> channelDatasets = new ArrayList<>();
-		final List<String> labelDatsets = new ArrayList<>();
+		final List<String> labelDatasets = new ArrayList<>();
 		for (final String dataset : datasets) {
 			final DatasetAttributes attributes = N5Helpers.getDatasetAttributes(n5, dataset);
-			if (attributes.getNumDimensions() == 4)
-				channelDatasets.add(dataset);
-			else if (attributes.getNumDimensions() == 3) {
-				if (
-						N5Helpers.isPainteraDataset(n5, dataset) && n5.getAttribute(dataset, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class).get("type")
-								.getAsString()
-								.equals("label") ||
-								N5Types.isLabelData(attributes.getDataType(), N5Types.isLabelMultisetType(n5, dataset)))
-					labelDatsets.add(dataset);
-				else
-					rawDatasets.add(dataset);
-			}
+			final boolean isPainteraLabel = N5Helpers.isPainteraDataset(n5, dataset)
+					&& n5.getAttribute(dataset, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class).get("type").getAsString().equals("label");
+			if (isPainteraLabel || N5Types.isLabelData(attributes.getDataType(), N5Types.isLabelMultisetType(n5, dataset)))
+				labelDatasets.add(dataset);
+			else
+				rawDatasets.add(dataset);
 		}
-		return Stream.of(rawDatasets, channelDatasets, labelDatsets).flatMap(List::stream).toArray(String[]::new);
+		return Stream.of(rawDatasets, labelDatasets).flatMap(List::stream).toArray(String[]::new);
 	}
 
 	@Override
@@ -562,7 +546,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 						final List<String> validGroups = N5Helpers.validPainteraGroupMap(rootNode.get()).keySet().stream()
 								.filter(datasetFilter)
 								.collect(Collectors.toList());
-						datasets = datasetsAsRawChannelLabel(n5Container, validGroups);
+						datasets = datasetsAsRawLabel(n5Container, validGroups);
 					} else {
 						datasets = new String[]{};
 					}
