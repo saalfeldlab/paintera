@@ -20,7 +20,7 @@ import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
-import org.janelia.saalfeldlab.paintera.control.modes.RawSourceMode
+import org.janelia.saalfeldlab.paintera.control.IntensityThreshold
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
@@ -67,11 +67,11 @@ class RawSourceStateConverterNode<T, V>(private val converter: ARGBColorConverte
 			}
 
 			resetMinMax.onAction = EventHandler {
-				RawSourceMode.resetIntensityMinMax(state as SourceState<*, RealType<*>>)
+				IntensityThreshold.resetIntensityMinMax(state as SourceState<*, RealType<*>>)
 			}
 			autoMinMax.onAction = EventHandler {
 				paintera.baseView.mostRecentFocusHolder.value?.viewer()?.let { viewer ->
-					RawSourceMode.autoIntensityMinMax(state as SourceState<*, RealType<*>>, viewer)
+					IntensityThreshold.autoIntensityMinMax(state as SourceState<*, RealType<*>>, viewer)
 				}
 			}
 			val thresholdHBox = HBox(resetMinMax, autoMinMax)
