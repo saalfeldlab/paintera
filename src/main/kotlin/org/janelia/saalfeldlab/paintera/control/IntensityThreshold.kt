@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.paintera.state.raw.ChannelComposition
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState
 import org.janelia.saalfeldlab.util.asIterable
 import org.janelia.saalfeldlab.util.convertRAI
-import java.util.Random
 import kotlin.math.roundToLong
 
 /** The intensity range of a raw source, reset to its default or estimated from what is on screen */
@@ -111,43 +110,29 @@ object IntensityThreshold {
 		return extension.minValue to extension.maxValue
 	}
 
-	/**
-	 * Up to [NUM_SAMPLES] values of [sourceRai] under the viewer's pixels: a grid over the viewer first, then random
-	 * pixels, skipping pixels outside the source and cells that are not loaded yet.
-	 */
+	/** The values of [sourceRai] under a [SAMPLE_GRID]² grid over the viewer, skipping pixels outside the source and cells that are not loaded yet */
 	private fun sampleScreen(sourceRai: RandomAccessibleInterval<RealType<*>>, sourceToGlobal: AffineTransform3D, viewer: ViewerPanelFX): Samples {
 		val globalToViewer = AffineTransform3D().also { viewer.state.getViewerTransform(it) }
 		val screenToSource = globalToViewer.concatenate(sourceToGlobal).inverse()
 		val width = viewer.width
 		val height = viewer.height
-		val random = Random()
-		val sampleSpace = sequence {
-			for (x in 0 until SAMPLE_GRID)
-				for (y in 0 until SAMPLE_GRID)
-					yield((y + 0.5) * width / SAMPLE_GRID to (x + 0.5) * height / SAMPLE_GRID)
-		}
-		val randomScreenSpace = generateSequence { random.nextDouble() * width to random.nextDouble() * height }
 
 		val access = sourceRai.randomAccess()
 		val position = RealPoint(3)
 		val sourcePos = Point(3)
-		val values = DoubleArray(NUM_SAMPLES)
+		val values = DoubleArray(SAMPLE_GRID * SAMPLE_GRID)
 		var numValues = 0
-		for ((x, y) in (sampleSpace + randomScreenSpace).take(MAX_SAMPLE_ATTEMPTS)) {
-			position.setPosition(doubleArrayOf(x, y, 0.0))
+		for (row in 0 until SAMPLE_GRID) for (col in 0 until SAMPLE_GRID) {
+			position.setPosition(doubleArrayOf((col + 0.5) * width / SAMPLE_GRID, (row + 0.5) * height / SAMPLE_GRID, 0.0))
 			screenToSource.apply(position, position)
 			for (d in 0 until 3)
 				sourcePos.setPosition(position.getDoublePosition(d).roundToLong(), d)
-            /* skip if the position is not in the source */
-            if (!Intervals.contains(sourceRai, sourcePos))
+			if (!Intervals.contains(sourceRai, sourcePos))
 				continue
 			val sourceVal = access.setPositionAndGet(sourcePos)
-            /* if volatile, and invalid, skip */
 			if ((sourceVal as? Volatile<*>)?.isValid == false)
 				continue
 			values[numValues++] = sourceVal.realDouble
-			if (numValues == NUM_SAMPLES)
-				break
 		}
 		return Samples(values.copyOf(numValues), sourceRai.type is IntegerType<*>)
 	}
@@ -217,7 +202,5 @@ object IntensityThreshold {
 	private class Samples(val values: DoubleArray, val isInteger: Boolean)
 
 	private const val SAMPLE_GRID = 32
-	private const val NUM_SAMPLES = SAMPLE_GRID * SAMPLE_GRID
-	private const val MAX_SAMPLE_ATTEMPTS = NUM_SAMPLES * 100
 
 }
