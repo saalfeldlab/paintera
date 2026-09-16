@@ -90,7 +90,7 @@ class ValueDisplayListener<T>(
 		readLoop.submit {
 			val value = getValueAt(accessible, x, y)
             val valueInfo = stringConverterFromSource(source)(value)
-			InvokeOnJavaFXApplicationThread { submitValue.accept(valueInfo) }
+			InvokeOnJavaFXApplicationThread { submitValue.accept("Value: $valueInfo") }
 		}
 	}
 
@@ -110,14 +110,12 @@ class ValueDisplayListener<T>(
 		private fun <T> stringConverterFromSource(source: Source<T>): (T) -> String {
 			val channelSource = source as? ChannelCompositeSource<*, *> ?: return stringConverter(source.type)
 
-			val numChannels = channelSource.numChannels
+			val channels = channelSource.channels
 			return { value ->
 				@Suppress("UNCHECKED_CAST")
 				val composite = (value as VolatileWithSet<out Composite<*>>).get()
 				val converter = stringConverter(composite.get(0))
-				(0 until numChannels).joinToString(", ", "(", ")") {
-                    converter(composite.get(it.toLong()))
-                }
+				channels.joinToString(", ", "(", ")") { converter(composite.get(it)) }
 			}
 		}
 
