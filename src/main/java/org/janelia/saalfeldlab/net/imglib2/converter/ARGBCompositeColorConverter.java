@@ -45,6 +45,8 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 
 	protected final double[] scaleB;
 
+	protected int[] channelIndices;
+
 	public ARGBCompositeColorConverter(final int numChannels) {
 
 		this(numChannels, 0, 255);
@@ -73,6 +75,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		this.scaleR = new double[numChannels];
 		this.scaleG = new double[numChannels];
 		this.scaleB = new double[numChannels];
+		this.channelIndices = IntStream.range(0, numChannels).toArray();
 
 		Stream.of(this.min).forEach(m -> m.addListener((obs, oldv, newv) -> update()));
 		Stream.of(this.max).forEach(m -> m.addListener((obs, oldv, newv) -> update()));
@@ -141,6 +144,14 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		return this.numChannels;
 	}
 
+	/** Read converter channel {@code i} from composite channel {@code channelIndices[i]}, e.g. the active channels of a larger composite */
+	public void setChannelIndices(final int[] channelIndices) {
+
+		if (channelIndices.length != numChannels)
+			throw new IllegalArgumentException("expected " + numChannels + " channel indices, got " + channelIndices.length);
+		this.channelIndices = channelIndices.clone();
+	}
+
 	private void update() {
 
 		A = (int)Math.min(Math.max(Math.round(255 * alphaProperty().get()), 0), 255);
@@ -196,6 +207,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 			V input,
 			final ARGBType output,
 			final int numChannels,
+			final int[] channelIndices,
 			final DoubleProperty[] min,
 			final double[] scaleR,
 			final double[] scaleG,
@@ -208,7 +220,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		double bd = 0.0;
 		final RealComposite<? extends RealType<?>> c = input.get();
 		for (int channel = 0; channel < numChannels; ++channel) {
-			final double v = c.get(channel).getRealDouble() - min[channel].get();
+			final double v = c.get(channelIndices[channel]).getRealDouble() - min[channel].get();
 			rd += scaleR[channel] * v;
 			gd += scaleG[channel] * v;
 			bd += scaleB[channel] * v;
@@ -216,9 +228,9 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		final int r0 = (int)(rd + 0.5);
 		final int g0 = (int)(gd + 0.5);
 		final int b0 = (int)(bd + 0.5);
-		final int r = Math.min(255, Math.max(r0, 0));
-		final int g = Math.min(255, Math.max(g0, 0));
-		final int b = Math.min(255, Math.max(b0, 0));
+		final int r = Math.clamp(r0, 0, 255);
+		final int g = Math.clamp(g0, 0, 255);
+		final int b = Math.clamp(b0, 0, 255);
 		output.set(ARGBType.rgba(r, g, b, A));
 	}
 
@@ -240,7 +252,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		@Override
 		public void convert(final V input, final ARGBType output) {
 
-			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleG, scaleB, A);
+			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, channelIndices, min, scaleR, scaleG, scaleB, A);
 		}
 	}
 
@@ -262,7 +274,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		@Override
 		public void convert(final V input, final ARGBType output) {
 
-			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleG, scaleB, A);
+			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, channelIndices, min, scaleR, scaleG, scaleB, A);
 		}
 	}
 }

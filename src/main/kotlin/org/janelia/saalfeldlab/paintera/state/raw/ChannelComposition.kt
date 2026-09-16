@@ -125,6 +125,7 @@ class ChannelComposition<D, T> private constructor(
     /* the render converter's channel `i` shows the settings of dataset channel `channels[i]` */
     private fun CompositeConverter<T>.boundOver(channels: List<Int>) =
         ARGBCompositeColorConverter.InvertingImp0<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>(channels.size).also { render ->
+            render.setChannelIndices(channels.toIntArray())
             render.alphaProperty().bind(alphaProperty())
             channels.forEachIndexed { idx, channel ->
                 render.colorProperty(idx).bind(colorProperty(channel))

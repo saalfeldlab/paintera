@@ -5,6 +5,10 @@ import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.cell.CellGrid
+import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.numeric.RealType
+import net.imglib2.view.Views
+import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.util.addDimension
 import org.janelia.saalfeldlab.util.hyperSlice
@@ -60,13 +64,26 @@ class SpatialMapping(
     fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
         if (isIdentity)
             return source
+        return toXyz(source, -1)
+    }
 
+    /**
+     * The canonical 3D (x, y, z) view of [source] with the non-spatial [axis] collapsed into a composite: component `c`
+     * of a pixel is the source at position `c` along [axis]
+     */
+    fun <T : RealType<T>> collapse(source: RandomAccessibleInterval<T>, axis: Int): RandomAccessibleInterval<RealComposite<T>> {
+        require(axis in 0 until numDimensions && axis !in actualSourceAxes) { "axis $axis is not a non-spatial axis" }
+        return Views.collapseReal(toXyz(source, axis))
+    }
+
+    /* the xyz view; [additionalAxis] is not sliced and ends up as the fourth dimension */
+    private fun <T> toXyz(source: RandomAccessibleInterval<T>, additionalAxis: Int): RandomAccessibleInterval<T> {
         var view = source
         /* labels[i] = source axis currently at view position i (-1 marks a synthesized singleton) */
         val labels = (0 until numDimensions).toMutableList()
         /* slice every non-spatial axis; slice the highest current position first so lower positions stay put */
         for (position in labels.reversed()) {
-            if (position in actualSourceAxes)
+            if (position in actualSourceAxes || position == additionalAxis)
                 continue
 
             view = view.hyperSlice(position, slicePositions[position])
@@ -250,9 +267,56 @@ class SpatialMapping(
         return blockSize
     }
 
+    /* canonical slot -> slot among the spatial source axes in source order, the order a source-space 3D transform uses */
+    private val spatialSlots: IntArray by lazy {
+        val spatialSourceAxes = xyzSourceAxes.filter { it >= 0 }.sorted()
+        IntArray(3) { slot -> xyzSourceAxes[slot].takeIf { it >= 0 }?.let { spatialSourceAxes.indexOf(it) } ?: -1 }
+    }
+
+    /**
+     * [transform] over the spatial source axes in source order, seen from the canonical x, y, z view: `P · transform · P⁻¹`
+     * for the permutation `P` [toXyz] applies to the data. An absent dimension keeps the identity row and column
+     */
+    @JvmOverloads
+    fun toXyz(transform: AffineTransform3D, target: AffineTransform3D = AffineTransform3D()): AffineTransform3D {
+        target.set(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+        for (row in 0..2) {
+            val sourceRow = spatialSlots[row]
+            if (sourceRow < 0)
+                continue
+            for (col in 0..2) {
+                val sourceCol = spatialSlots[col]
+                if (sourceCol >= 0)
+                    target.set(transform.get(sourceRow, sourceCol), row, col)
+            }
+            target.set(transform.get(sourceRow, 3), row, 3)
+        }
+        return target
+    }
+
+    /** The inverse of [toXyz]: [xyzTransform] written into [target] in source order */
+    fun fromXyz(xyzTransform: AffineTransform3D, target: AffineTransform3D): AffineTransform3D {
+        for (row in 0..2) {
+            val sourceRow = spatialSlots[row]
+            if (sourceRow < 0)
+                continue
+            for (col in 0..2) {
+                val sourceCol = spatialSlots[col]
+                if (sourceCol >= 0)
+                    target.set(xyzTransform.get(row, col), sourceRow, sourceCol)
+            }
+            target.set(xyzTransform.get(row, 3), sourceRow, 3)
+        }
+        return target
+    }
+
     companion object {
 
         private val identityXyzAxes = intArrayOf(0, 1, 2)
+
+        /** The mapping of [axes] with every non-spatial axis sliced at 0 */
+        @JvmStatic
+        fun of(axes: Array<Axis>) = sliceAtZero(axes.size, xyzSourceAxes(axes))
 
         /** The identity mapping: [toXyz] returns the source unchanged (already-canonical 3D, or channels kept nD). */
         @JvmStatic

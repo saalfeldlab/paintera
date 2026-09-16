@@ -16,6 +16,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.XyzView;
 import org.janelia.saalfeldlab.paintera.data.SlicedRenderSource;
@@ -95,6 +96,22 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public RandomAccessibleInterval<D> getDataSource(final int t, final int level, final SpatialMapping mapping) {
 
 		return cropToLevel(mapping.toXyz(super.getDataSource(t, level)), level);
+	}
+
+	/** The 3D view at {@code level} with the non-spatial {@code axis} collapsed into a composite; see {@link SpatialMapping#collapse} */
+	public <R extends RealType<R>> RandomAccessibleInterval<RealComposite<R>> getCompositeSource(final int t, final int level, final int axis) {
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		final RandomAccessibleInterval<R> backing = (RandomAccessibleInterval)super.getSource(t, level);
+		return cropToLevel(xyzView().spatialMapping().collapse(backing, axis), level);
+	}
+
+	/** The 3D data view at {@code level} with the non-spatial {@code axis} collapsed into a composite; see {@link SpatialMapping#collapse} */
+	public <R extends RealType<R>> RandomAccessibleInterval<RealComposite<R>> getCompositeDataSource(final int t, final int level, final int axis) {
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		final RandomAccessibleInterval<R> backing = (RandomAccessibleInterval)super.getDataSource(t, level);
+		return cropToLevel(xyzView().spatialMapping().collapse(backing, axis), level);
 	}
 
 	/** The cropped active XYZ interval over scale {@code level}, or null when the spatial dimensions are not cropped. */

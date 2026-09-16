@@ -202,9 +202,13 @@ public class SourceInfo {
 			state.onRemoval(this);
 	}
 
+	/** The state registered for {@code source}, or the one rendering through it, e.g. a channel composite */
 	public SourceState<?, ?> getState(final Source<?> source) {
 
-		return states.get(source);
+		final SourceState<?, ?> state = states.get(source);
+		if (state != null)
+			return state;
+		return states.values().stream().filter(it -> it.getSourceAndConverter().getSpimSource() == source).findFirst().orElse(null);
 	}
 
 	public ObservableList<Source<?>> trackSources() {
