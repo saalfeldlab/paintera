@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.sign
+import org.janelia.saalfeldlab.paintera.state.metadata.transform
 
 /**
  * Mode which registers Navigation controls. One [Tool] for all Navigation [Action]

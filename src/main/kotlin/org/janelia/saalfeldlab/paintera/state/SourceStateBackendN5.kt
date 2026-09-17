@@ -29,6 +29,9 @@ import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.isNotEmpty
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.union
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.transform
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	val metadataState: MetadataState
@@ -90,7 +93,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			if (canCropVirtually(metadataState))
 				children += newVirtualCropInputGrid(metadataState)
 
-			metadataState.metadata.childrenMetadata.zip(metadataState.scaleTransforms).forEachIndexed { idx, (scale, transform) ->
+			metadataState.metadata.childrenMetadata.zip(metadataState.sourceToXyzTransforms).forEachIndexed { idx, (scale, transform) ->
 				val title = "Scale $idx: ${scale.name}"
 				val scaleMetadataGrid = singleScaleMetadataNode(SingleScaleMetadataState(n5ContainerState, scale), true, transform)
 				children += TitledPanes.createCollapsed(title, scaleMetadataGrid)
@@ -149,7 +152,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			0L
 		}
 		/* the crop is over the x, y, z view, the stored dimensions are in source axis order */
-		val imgDimensions = metadataState.xyzView.spatialMapping().spatialProjection(metadataState.datasetAttributes.dimensions)
+		val imgDimensions = metadataState.xyzView.spatialMapping().toSpatial(metadataState.datasetAttributes.dimensions, 1L)
 		val cropSize = LongArray(3) {
 			(imgDimensions[it])
 		}
@@ -310,7 +313,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val offsetField = getSpatialFieldWithInitialDoubleArray(translation)
 
 		val spatialMapping = metadataState.xyzView.spatialMapping()
-		val blockSize = spatialMapping.spatialProjection(metadataState.datasetAttributes.blockSize)
+		val blockSize = spatialMapping.toSpatial(metadataState.datasetAttributes.blockSize, 1)
 		val blockSizeField = SpatialField.intField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
 			x.value = blockSize[0]
 			y.value = blockSize[1]
@@ -318,7 +321,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			editable = false
 		}
 
-		val dimensions = spatialMapping.spatialProjection(metadataState.datasetAttributes.dimensions)
+		val dimensions = spatialMapping.toSpatial(metadataState.datasetAttributes.dimensions, 1L)
 		val dimensionsField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
 			x.value = dimensions[0]
 			y.value = dimensions[1]

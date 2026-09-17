@@ -48,7 +48,6 @@ import java.nio.file.Paths
 import java.util.function.BiFunction
 import java.util.function.LongSupplier
 import java.util.function.Supplier
-import kotlin.coroutines.coroutineContext
 
 object N5Helpers {
 	const val MULTI_SCALE_KEY = "multiScale"
@@ -459,7 +458,7 @@ object N5Helpers {
 				val lblGroup = "label-to-block-mapping"
 				val scaleDatasetPattern = N5URI.normalizeGroupPath("$lblGroup/s%d")
 				val relativeLookup = LabelBlockLookupFromN5Relative(scaleDatasetPattern, metadataState.datasetAttributes.numDimensions)
-				val numScales = if (metadataState is MultiScaleMetadataState) metadataState.scaleTransforms.size else 1
+				val numScales = (metadataState as? MultiScaleMetadataState)?.sourceToXyzTransforms?.size ?: 1
 				val labelBlockLookupGroup = LabelBlockLookupGroup(group, lblGroup, numScales, relativeLookup)
 				labelBlockLookupGroup.writeMetadata(labelBlockLookupGroup, metadataState.writer!!, labelBlockLookupGroup.path)
 				relativeLookup

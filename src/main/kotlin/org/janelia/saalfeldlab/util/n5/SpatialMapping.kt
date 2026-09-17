@@ -1,4 +1,3 @@
-
 package org.janelia.saalfeldlab.util.n5
 
 import net.imglib2.FinalInterval
@@ -16,18 +15,11 @@ import org.janelia.saalfeldlab.util.moveAxis
 import java.util.Locale
 
 /**
- * Maps an nD source onto a canonical 3D (x, y, z) view, and back. Rendering and Annotating in Paintera is inherently 3D,
- * so a source with more than three dimensions should be sliced (every non-spatial axis slice at a constant position)
- * and one with fewer than three spatial dimensions must be embedded (a singleton axis added at the missing canonical slot)
+ * Maps an nD source onto a canonical 3D (x, y, z) view, and back. > 3D dimensions are sliced at `slicePositions`
+ * and <3D are widened to be a single position in the additional spatial dimension(s).
  *
- * Spatial axes are addressed by canonical slot: [xyzSourceAxes]`[0]`, `[1]`, `[2]` give the source axis that supplies
- * x, y, z respectively, or `-1` when that dimension is absent and must be synthesized. So `[0, -1, 2]` means x comes
- * from source axis 0, z from source axis 2, and y is an inserted singleton - the result is still canonical `[x, y, z]`.
- *
- * The read direction ([toXyz]) is pure view composition - `hyperSlice` to slice non-spatial axes, `moveAxis` to order the
- * spatial axes, `addDimension` to insert a missing one. No copy; the view writes through to the backing image and stays
- * lazy. The write direction ([toSourceView] / [toSourcePosition] / ...) reverses that, so a 3D edit can be committed
- * back into the right slab of the nD dataset.
+ * Spatial axes are addressed by canonical index: [xyzSourceAxes]`[0, 1, 2]` is exactly the canonical.
+ * `-1` at any position means it is a non-existent dimension that is added as a singleton.
  *
  * @param numDimensions dimensionality of the backing source
  * @param xyzSourceAxes source axis supplying each canonical dimension x, y, z (size 3); `-1` for an absent dimension
@@ -50,15 +42,65 @@ class SpatialMapping(
         require(hasSpatialAxis.all { it < numDimensions } && hasSpatialAxis.distinct().size == hasSpatialAxis.size) { "invalid spatial axes ${xyzSourceAxes.toList()} for $numDimensions dimensions" }
     }
 
-    /**
-     * Source Axes that are actually represented in the source dataset. Fewer than 3D spatial dimensions
-     * will be added with singleton dimensions, and represented here with `-1`.
-     */
-    private val actualSourceAxes = xyzSourceAxes.filter { it >= 0 }.toHashSet()
+    /* the slice axes, in source order */
+    val nonSpatialAxes: List<Int> = (0 until numDimensions).filterNot { it in xyzSourceAxes }
 
     /** True when [toXyz] is the identity (already canonical 3D, x/y/z = 0/1/2); the source is not reduced/permuted/embedded. */
     val isIdentity: Boolean
         get() = numDimensions == 3 && xyzSourceAxes.contentEquals(intArrayOf(0, 1, 2))
+
+    /** given [sourceValues] in source space, project it based on the spatial mapping.
+    * If a dimensions is missing, it will be filled with [outOfBounds] */
+    fun toSpatial(sourceValues: LongArray, outOfBounds: Long): LongArray {
+        requireSourceShape(sourceValues.size)
+
+        return LongArray(3) { slot ->
+            xyzSourceAxes[slot].takeIf { it >= 0 }?.let { sourceValues[it] } ?: outOfBounds }
+    }
+
+    fun toSpatial(sourceValues: IntArray, outOfBounds: Int): IntArray {
+        val sourceValuesLong = sourceValues.map { it.toLong() }.toLongArray()
+        return toSpatial(sourceValuesLong, outOfBounds.toLong()).map { it.toInt() }.toIntArray()
+    }
+
+    fun toSpatial(sourceInterval: Interval, outOfBounds: Long): Interval =
+        FinalInterval(toSpatial(sourceInterval.minAsLongArray(), outOfBounds), toSpatial(sourceInterval.maxAsLongArray(), outOfBounds))
+
+    /* null when [sourceInterval] does not contain the slice */
+    fun toSpatialOrNull(sourceInterval: Interval, outOfBounds: Long): Interval? {
+        requireSourceShape(sourceInterval.numDimensions())
+
+        for (axis in nonSpatialAxes)
+            if (slicePositions[axis] < sourceInterval.min(axis) || slicePositions[axis] > sourceInterval.max(axis))
+                return null
+        return toSpatial(sourceInterval, outOfBounds)
+    }
+
+    /* without the intervals that do not contain the slice */
+    fun toSpatial(sourceIntervals: Iterable<Interval>, outOfBounds: Long): List<Interval> = sourceIntervals.mapNotNull { toSpatialOrNull(it, outOfBounds) }
+
+    /* the entries off the spatial axes come from [fill] */
+    fun toSource(xyzValues: LongArray, fill: LongArray = slicePositions): LongArray {
+        require(xyzValues.size == 3) { "xyzValues must have 3 dimensions, got ${xyzValues.size}" }
+        requireSourceShape(fill.size)
+
+        return fill.copyOf().also { widened ->
+            for (slot in 0..2)
+                xyzSourceAxes[slot].takeIf { it >= 0 }?.let { widened[it] = xyzValues[slot] }
+        }
+    }
+
+    fun toSource(xyzValues: IntArray, fill: IntArray): IntArray {
+        val xyzValuesLong = xyzValues.map { it.toLong() }.toLongArray()
+        val fillLong = fill.map { it.toLong() }.toLongArray()
+        return toSource(xyzValuesLong, fillLong).map { it.toInt() }.toIntArray()
+    }
+
+    fun toSource(xyzInterval: Interval, fill: LongArray = slicePositions): Interval =
+        FinalInterval(toSource(xyzInterval.minAsLongArray(), fill), toSource(xyzInterval.maxAsLongArray(), fill))
+
+    private fun requireSourceShape(size: Int) =
+        require(size == numDimensions) { "shape must cover all $numDimensions source dimensions, got $size" }
 
     /** Derive the canonical 3D (x, y, z) view of [source]: slice non-spatial axes, order the spatial axes, add missing singleton dimensions. */
     fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
@@ -72,7 +114,7 @@ class SpatialMapping(
      * of a pixel is the source at position `c` along [axis]
      */
     fun <T : RealType<T>> collapse(source: RandomAccessibleInterval<T>, axis: Int): RandomAccessibleInterval<RealComposite<T>> {
-        require(axis in 0 until numDimensions && axis !in actualSourceAxes) { "axis $axis is not a non-spatial axis" }
+        require(axis in nonSpatialAxes) { "axis $axis is not a non-spatial axis" }
         return Views.collapseReal(toXyz(source, axis))
     }
 
@@ -83,7 +125,7 @@ class SpatialMapping(
         val labels = (0 until numDimensions).toMutableList()
         /* slice every non-spatial axis; slice the highest current position first so lower positions stay put */
         for (position in labels.reversed()) {
-            if (position in actualSourceAxes || position == additionalAxis)
+            if (position in xyzSourceAxes || position == additionalAxis)
                 continue
 
             view = view.hyperSlice(position, slicePositions[position])
@@ -108,93 +150,55 @@ class SpatialMapping(
         return view
     }
 
-    /** mapping a canonical 3D (x, y, z) position back to the full nD source position. */
-    fun toSourcePosition(x: Long, y: Long, z: Long): LongArray {
-        val position = slicePositions.copyOf()
-        val canonical = longArrayOf(x, y, z)
-        for (slot in 0..2) if (xyzSourceAxes[slot] >= 0) position[xyzSourceAxes[slot]] = canonical[slot]
-        return position
-    }
-
-    /** Project an nD source position onto the canonical 3D (x, y, z) position; an absent dimension is 0. */
-    fun toXyzPosition(sourcePosition: LongArray): LongArray {
-        requireSourceShape(sourcePosition.size)
-
-        return LongArray(3) { if (xyzSourceAxes[it] >= 0) sourcePosition[xyzSourceAxes[it]] else 0L }
-    }
-
-    /** Map a canonical 3D interval back to the full nD source interval at the slice positions. */
-    fun toSourceInterval(xyzInterval: Interval): Interval {
-
-        require(xyzInterval.numDimensions() == 3) { "xyzInterval must have 3 dimensions, got ${xyzInterval.numDimensions()}" }
-
-        val min = slicePositions.copyOf()
-        val max = slicePositions.copyOf()
-        for (slot in 0..2) if (xyzSourceAxes[slot] >= 0) {
-            min[xyzSourceAxes[slot]] = xyzInterval.min(slot)
-            max[xyzSourceAxes[slot]] = xyzInterval.max(slot)
-        }
-        return FinalInterval(min, max)
+    private val spatialSlots: IntArray by lazy {
+        val spatialSourceAxes = xyzSourceAxes.filter { it >= 0 }.sorted()
+        IntArray(3) { slot -> xyzSourceAxes[slot].takeIf { it >= 0 }?.let { spatialSourceAxes.indexOf(it) } ?: -1 }
     }
 
     /**
-     * Project an nD source interval onto the canonical 3D (x, y, z) interval: drop the non-spatial axes, order the
-     * spatial ones, and give an absent spatial dimension the singleton `[0, 0]`.
-     *
-     * The inverse of [toSourceInterval] for any interval whose non-spatial axes sit at [slicePositions].
+     * [sourceToWorld] over the spatial source axes in source order
      */
-    fun toXyzInterval(sourceInterval: Interval): Interval {
+    fun toXyz(sourceToWorld: AffineTransform3D): AffineTransform3D {
+        val xyzToWorld = AffineTransform3D()
+        mappedPositions().forEach { (mapped, unmapped) ->
+            xyzToWorld.set(sourceToWorld.get(unmapped.row, unmapped.col), mapped.row, mapped.col)
+        }
+        return xyzToWorld
+    }
 
-        require(sourceInterval.numDimensions() == numDimensions) { "sourceInterval must have $numDimensions dimensions, got ${sourceInterval.numDimensions()}" }
+    /* the inverse of [toXyz] */
+    fun fromXyz(xyzToWorld: AffineTransform3D): AffineTransform3D {
+        val sourceToWorld = AffineTransform3D()
+        mappedPositions().forEach { (mapped, unmapped) ->
+            sourceToWorld.set(xyzToWorld.get(mapped.row, mapped.col), unmapped.row, unmapped.col)
+        }
+        return sourceToWorld
+    }
 
-        val min = LongArray(3)
-        val max = LongArray(3)
-        for (slot in 0..2) {
-            val axis = xyzSourceAxes[slot]
-            if (axis < 0)
+    private data class Position(val row: Int, val col: Int)
+
+    /* mapped positions where each row/col cell of the mapped corresponds to the row/col cell of the unmapped */
+    private fun mappedPositions(): Sequence<Pair<Position, Position>> = sequence {
+        for (xyzRow in 0..2) {
+            val sourceRow = spatialSlots[xyzRow]
+            if (sourceRow < 0)
                 continue
-            min[slot] = sourceInterval.min(axis)
-            max[slot] = sourceInterval.max(axis)
-        }
-        return FinalInterval(min, max)
-    }
-
-    /**
-     * convert an nD [sourceInterval] to a 3D canonical XYZ interval based on current [slicePositions]
-     *
-     * @param sourceInterval an interval over all [numDimensions] source dimensions
-     * @return the canonical 3D interval, or null when [sourceInterval] lies outside the sliced positions
-     */
-    fun toXyzIntervalOrNull(sourceInterval: Interval): Interval? {
-
-        for (axis in 0 until numDimensions) {
-            if (axis in actualSourceAxes)
-                continue
-            if (slicePositions[axis] < sourceInterval.min(axis) || slicePositions[axis] > sourceInterval.max(axis))
-                return null
-        }
-        return toXyzInterval(sourceInterval)
-    }
-
-    /**
-     * convert nD source [blocks] to 3D canonical XYZ intervals based on current [slicePositions]
-     *
-     * @param blocks intervals over all [numDimensions] source dimensions; a 3D interval is already canonical and kept as is
-     * @return the canonical 3D intervals, without the blocks that lie outside the sliced positions
-     */
-    fun toXyzBlocks(blocks: Iterable<Interval>): List<Interval> = blocks.mapNotNull { block ->
-        when {
-            isIdentity -> block
-            block.numDimensions() != numDimensions -> block
-            else -> toXyzIntervalOrNull(block)
+            for (xyzCol in 0..2) {
+                val sourceCol = spatialSlots[xyzCol]
+                if (sourceCol >= 0)
+                    yield(Position(xyzRow, xyzCol) to Position(sourceRow, sourceCol))
+            }
+            yield(Position(xyzRow, TRANSLATION_COLUMN) to Position(sourceRow, TRANSLATION_COLUMN))
         }
     }
+
+    fun withSlicePositions(positions: LongArray): SpatialMapping = SpatialMapping(numDimensions, xyzSourceAxes, positions)
 
     /** This mapping with [axis] sliced at [position] instead */
     fun withSlicePosition(axis: Int, position: Long): SpatialMapping {
         require(axis in 0 until numDimensions) { "axis $axis out of bounds for $numDimensions dimensions" }
 
-        return SpatialMapping(numDimensions, xyzSourceAxes, slicePositions.copyOf().also { it[axis] = position })
+        return withSlicePositions(slicePositions.copyOf().also { it[axis] = position })
     }
 
     /**
@@ -206,125 +210,22 @@ class SpatialMapping(
     fun toBlockMapping(grid: CellGrid): SpatialMapping {
         require(grid.numDimensions() == numDimensions) { "grid must have $numDimensions dimensions, got ${grid.numDimensions()}" }
 
-        return SpatialMapping(numDimensions, xyzSourceAxes, LongArray(numDimensions) { slicePositions[it] / grid.cellDimension(it) })
-    }
-
-    /** Project an nD shape array (block size, dimensions, ...) to an [x,y,z] shape array using the
-     * this [SpatialMapping]. drops non-spatial dimensions, reorders to [x,y,z], adds single-position dimension if < 3 spatial dims */
-    fun spatialProjection(shape: IntArray): IntArray {
-        requireSourceShape(shape.size)
-
-        return IntArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1 }
-    }
-
-    fun spatialProjection(shape: LongArray): LongArray {
-        requireSourceShape(shape.size)
-
-        return LongArray(3) { if (xyzSourceAxes[it] >= 0) shape[xyzSourceAxes[it]] else 1L }
-    }
-
-    private fun requireSourceShape(size: Int) =
-        require(size == numDimensions) { "shape must cover all $numDimensions source dimensions, got $size" }
-
-    /**
-     * Map a canonical 3D (x, y, z) view back to the full nD source view: drop the embedded singletons for absent
-     * dimensions, send the present spatial axes to their source positions, and make every non-spatial axis a singleton
-     * at its slice position. The inverse of [toXyz]
-     */
-    fun <T> toSourceView(slice3D: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> {
-        if (isIdentity) return slice3D
-        var view = slice3D
-        /* labels[i] = source axis at view position i; -1 marks a slot that was synthesized for an absent dimension */
-        val labels = xyzSourceAxes.toMutableList()
-        /* drop the synthesized singletons (highest position first) so only the present spatial axes remain */
-        while (labels.contains(-1)) {
-            val position = labels.lastIndexOf(-1)
-            view = view.hyperSlice(position, view.min(position))
-            labels.removeAt(position)
-        }
-        /* append a singleton dimension for each non-spatial axis, slice at its position */
-        for (axis in (0 until numDimensions).filter { it !in actualSourceAxes }) {
-            view = view.addDimension(slicePositions[axis], slicePositions[axis])
-            labels.add(axis)
-        }
-        /* move each axis to its source index */
-        for (target in 0 until numDimensions) {
-            val current = labels.indexOf(target)
-            if (current != target) {
-                view = view.moveAxis(current, target)
-                labels.add(target, labels.removeAt(current))
-            }
-        }
-        return view
-    }
-
-    /** Widen a 3D block size to the nD source block size, putting 1 at every non-spatial (and embedded) axis. */
-    fun toSourceBlockSize(blockSize3D: IntArray): IntArray {
-        require(blockSize3D.size == 3) { "blockSize3D must have 3 dimensions, got ${blockSize3D.size}" }
-
-        val blockSize = IntArray(numDimensions) { 1 }
-        for (slot in 0..2) if (xyzSourceAxes[slot] >= 0) blockSize[xyzSourceAxes[slot]] = blockSize3D[slot]
-        return blockSize
-    }
-
-    /* canonical slot -> slot among the spatial source axes in source order, the order a source-space 3D transform uses */
-    private val spatialSlots: IntArray by lazy {
-        val spatialSourceAxes = xyzSourceAxes.filter { it >= 0 }.sorted()
-        IntArray(3) { slot -> xyzSourceAxes[slot].takeIf { it >= 0 }?.let { spatialSourceAxes.indexOf(it) } ?: -1 }
-    }
-
-    /**
-     * [transform] over the spatial source axes in source order, seen from the canonical x, y, z view: `P · transform · P⁻¹`
-     * for the permutation `P` [toXyz] applies to the data. An absent dimension keeps the identity row and column
-     */
-    @JvmOverloads
-    fun toXyz(transform: AffineTransform3D, target: AffineTransform3D = AffineTransform3D()): AffineTransform3D {
-        target.set(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-        for (row in 0..2) {
-            val sourceRow = spatialSlots[row]
-            if (sourceRow < 0)
-                continue
-            for (col in 0..2) {
-                val sourceCol = spatialSlots[col]
-                if (sourceCol >= 0)
-                    target.set(transform.get(sourceRow, sourceCol), row, col)
-            }
-            target.set(transform.get(sourceRow, 3), row, 3)
-        }
-        return target
-    }
-
-    /** The inverse of [toXyz]: [xyzTransform] written into [target] in source order */
-    fun fromXyz(xyzTransform: AffineTransform3D, target: AffineTransform3D): AffineTransform3D {
-        for (row in 0..2) {
-            val sourceRow = spatialSlots[row]
-            if (sourceRow < 0)
-                continue
-            for (col in 0..2) {
-                val sourceCol = spatialSlots[col]
-                if (sourceCol >= 0)
-                    target.set(xyzTransform.get(row, col), sourceRow, sourceCol)
-            }
-            target.set(xyzTransform.get(row, 3), sourceRow, 3)
-        }
-        return target
+        return withSlicePositions(LongArray(numDimensions) { slicePositions[it] / grid.cellDimension(it) })
     }
 
     companion object {
+
+        private const val TRANSLATION_COLUMN = 3
 
         private val identityXyzAxes = intArrayOf(0, 1, 2)
 
         /** The mapping of [axes] with every non-spatial axis sliced at 0 */
         @JvmStatic
-        fun of(axes: Array<Axis>) = sliceAtZero(axes.size, xyzSourceAxes(axes))
+        fun of(axes: Array<Axis>) = SpatialMapping(axes.size, xyzSourceAxes(axes), LongArray(axes.size))
 
         /** The identity mapping: [toXyz] returns the source unchanged (already-canonical 3D, or channels kept nD). */
         @JvmStatic
         fun identity() = SpatialMapping(3, identityXyzAxes.copyOf(), LongArray(3))
-
-        /** A mapping over [numDimensions] axes [xyzSourceAxes] that slice every non-spatial axis at 0. */
-        @JvmStatic
-        fun sliceAtZero(numDimensions: Int, xyzSourceAxes: IntArray) = SpatialMapping(numDimensions, xyzSourceAxes, LongArray(numDimensions))
 
         /** The source axis supplying each canonical dimension x, y, z from [axes] (`-1` when absent); at least one required. */
         @JvmStatic
@@ -339,13 +240,6 @@ class SpatialMapping(
             }
             require(xyz.any { it >= 0 }) { "need at least one spatial (x, y, z) axis, got ${axes.map { it.name }}" }
             return xyz
-        }
-
-        /** Source-axis indices that are not spatial (not x/y/z): the slice/scrub axes (channel, time, ...), in source order. */
-        @JvmStatic
-        fun nonSpatialAxes(axes: Array<Axis>, numDimensions: Int): List<Int> {
-            val spatial = xyzSourceAxes(axes).filter { it >= 0 }.toSet()
-            return (0 until numDimensions).filterNot { it in spatial }
         }
     }
 }

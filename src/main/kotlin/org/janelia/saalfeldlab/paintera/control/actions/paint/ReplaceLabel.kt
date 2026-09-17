@@ -38,6 +38,8 @@ import kotlin.coroutines.coroutineContext
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.nextUp
 import net.imglib2.type.label.Label as ImgLib2Label
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 
 class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 

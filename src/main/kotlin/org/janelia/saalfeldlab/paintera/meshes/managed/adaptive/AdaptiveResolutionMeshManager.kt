@@ -56,8 +56,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
 	/** meshes are rendered as 3D, but the cache is in source space (nD).
 	 * Need to map so we can cache the blocks across higher dimensional slices. **/
-	val toSourceInterval = UnaryOperator<Interval> { xyz ->
-		(source as? MaskedSource<*, *>)?.canvasXyzView?.spatialMapping()?.toSourceInterval(xyz) ?: xyz
+	val toSourceInterval = UnaryOperator<Interval> { xyzInterval ->
+		(source as? MaskedSource<*, *>)?.canvasXyzView?.spatialMapping()?.toSource(xyzInterval) ?: xyzInterval
 	}
 
 	val meshesGroup = Group()

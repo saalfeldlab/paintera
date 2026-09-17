@@ -158,121 +158,71 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `toSourceView round-trips a non-prefix spatial subset`() {
-		/* (x, z), no y: widening drops the y singleton and restores source axes 0 (x) and 1 (z) */
-		val mapping = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
-		val widened = mapping.toSourceView(mapping.toXyz(filled(longArrayOf(5, 7))))
-		assertEquals(listOf(5L, 7L), (0 until 2).map { widened.dimension(it) })
-		val access = widened.randomAccess()
-		for (x in 0L..2L) for (z in 0L..2L) {
-			access.setPosition(longArrayOf(x, z))
-			assertEquals(encode(longArrayOf(x, z)), access.get().get(), "XZ widen mismatch at ($x,$z)")
-		}
-		assertEquals(listOf(50, 1, 70), mapping.spatialProjection(intArrayOf(50, 70)).toList())
-		assertEquals(listOf(50, 70), mapping.toSourceBlockSize(intArrayOf(50, 1, 70)).toList())
-	}
-
-	@Test
-	fun `toSourceView round-trips two-spatial sources`() {
-		/* pure 2D: widening drops the embedded z back to 2 dims */
-		val mapping2d = SpatialMapping(2, intArrayOf(0, 1, -1), longArrayOf(0, 0))
-		val widened2d = mapping2d.toSourceView(mapping2d.toXyz(filled(longArrayOf(5, 6))))
-		assertEquals(listOf(5L, 6L), (0 until 2).map { widened2d.dimension(it) })
-		assertEquals(listOf(50, 60), mapping2d.toSourceBlockSize(intArrayOf(50, 60, 1)).toList())
-
-		/* x, y, c: widening drops z and restores the channel as a singleton at its fixed position */
-		val mappingXYC = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2))
-		val widenedXYC = mappingXYC.toSourceView(mappingXYC.toXyz(filled(longArrayOf(5, 6, 4))))
-		assertEquals(listOf(5L, 6L, 1L), (0 until 3).map { widenedXYC.dimension(it) })
-		val access = widenedXYC.randomAccess()
-		for (x in 0L..2L) for (y in 0L..2L) {
-			access.setPosition(longArrayOf(x, y, 2))
-			assertEquals(encode(longArrayOf(x, y, 2)), access.get().get(), "XYC widen mismatch at ($x,$y)")
-		}
-		assertEquals(listOf(50, 60, 1), mappingXYC.toSourceBlockSize(intArrayOf(50, 60, 1)).toList())
-	}
-
-	@Test
-	fun `toSourceView reinserts singleton axes at the fixed slice`() {
-		val dims = longArrayOf(5, 6, 4, 7, 3)
+	fun `toSource block size puts 1 at non-spatial axes`() {
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		val ndImg = filled(dims)
-		val widened = mapping.toSourceView(mapping.toXyz(ndImg))
-		/* the widened view is nD with singletons at the non-spatial axes, fixed at their positions */
-		assertEquals(listOf(5L, 6L, 1L, 7L, 1L), (0 until 5).map { widened.dimension(it) })
-		val access = widened.randomAccess()
-		for (x in 0L..2L) for (y in 0L..2L) for (z in 0L..2L) {
-			access.setPosition(longArrayOf(x, y, 2, z, 1))
-			assertEquals(encode(longArrayOf(x, y, 2, z, 1)), access.get().get(), "widened mismatch at ($x,$y,$z)")
-		}
+		assertEquals(listOf(50, 60, 1, 70, 1), mapping.toSource(intArrayOf(50, 60, 70), IntArray(5) { 1 }).toList())
 	}
 
 	@Test
-	fun `toSourceBlockSize puts 1 at non-spatial axes`() {
+	fun `toSource interval reinserts fixed positions`() {
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		assertEquals(listOf(50, 60, 1, 70, 1), mapping.toSourceBlockSize(intArrayOf(50, 60, 70)).toList())
-	}
-
-	@Test
-	fun `toSourceInterval reinserts fixed positions`() {
-		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		val sourceInterval = mapping.toSourceInterval(net.imglib2.FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6)))
+		val sourceInterval = mapping.toSource(net.imglib2.FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6)))
 		assertEquals(listOf(1L, 2L, 2L, 3L, 1L), (0 until 5).map { sourceInterval.min(it) })
 		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), (0 until 5).map { sourceInterval.max(it) })
 	}
 
 	@Test
-	fun `toXyzPosition and toSourcePosition round-trip at the slice positions`() {
+	fun `toSpatial and toSource positions round-trip at the slice positions`() {
 		/* XYCZT: spatial on 0, 1, 3 */
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		assertEquals(listOf(4L, 5L, 6L), mapping.toXyzPosition(longArrayOf(4, 5, 2, 6, 1)).toList())
-		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), mapping.toSourcePosition(4, 5, 6).toList())
+		assertEquals(listOf(4L, 5L, 6L), mapping.toSpatial(longArrayOf(4, 5, 2, 6, 1), 0L).toList())
+		assertEquals(listOf(4L, 5L, 2L, 6L, 1L), mapping.toSource(longArrayOf(4, 5, 6)).toList())
 
 		/* an absent dimension projects to 0, unlike a shape, where it is the singleton extent 1 */
 		val embedded = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
-		assertEquals(listOf(3L, 0L, 7L), embedded.toXyzPosition(longArrayOf(3, 7)).toList())
-		assertEquals(listOf(50L, 1L, 70L), embedded.spatialProjection(longArrayOf(50, 70)).toList())
+		assertEquals(listOf(3L, 0L, 7L), embedded.toSpatial(longArrayOf(3, 7), 0L).toList())
+		assertEquals(listOf(50L, 1L, 70L), embedded.toSpatial(longArrayOf(50, 70), 1L).toList())
 	}
 
 	@Test
 	fun `the shape projections reject a shape of the wrong length`() {
 		/* a shape of the wrong length reads the wrong axes and still returns a plausible-looking grid */
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		assertThrows(IllegalArgumentException::class.java) { mapping.spatialProjection(intArrayOf(8, 9, 10)) }
-		assertThrows(IllegalArgumentException::class.java) { mapping.spatialProjection(longArrayOf(8, 9, 10)) }
-		assertThrows(IllegalArgumentException::class.java) { mapping.toSourceBlockSize(intArrayOf(8, 9, 10, 1, 1)) }
+		assertThrows(IllegalArgumentException::class.java) { mapping.toSpatial(intArrayOf(8, 9, 10), 1) }
+		assertThrows(IllegalArgumentException::class.java) { mapping.toSpatial(longArrayOf(8, 9, 10), 1L) }
+		assertThrows(IllegalArgumentException::class.java) { mapping.toSource(intArrayOf(8, 9, 10, 1, 1), IntArray(5) { 1 }) }
 
 		/* an absent spatial dimension still projects to a singleton, which is its real extent */
 		val embedded = SpatialMapping(2, intArrayOf(0, -1, 1), longArrayOf(0, 0))
-		assertEquals(listOf(50, 1, 70), embedded.spatialProjection(intArrayOf(50, 70)).toList())
+		assertEquals(listOf(50, 1, 70), embedded.toSpatial(intArrayOf(50, 70), 1).toList())
 	}
 
 	@Test
-	fun `toXyzInterval drops the non-spatial axes`() {
+	fun `toSpatial interval drops the non-spatial axes`() {
 		/* XYCZT: spatial on 0, 1, 3; the channel (2) and time (4) extents must not reach the 3D interval */
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
-		val xyz = mapping.toXyzInterval(FinalInterval(longArrayOf(1, 2, 2, 3, 1), longArrayOf(4, 5, 2, 6, 1)))
+		val xyz = mapping.toSpatial(FinalInterval(longArrayOf(1, 2, 2, 3, 1), longArrayOf(4, 5, 2, 6, 1)), 0L)
 		assertEquals(listOf(1L, 2L, 3L), (0 until 3).map { xyz.min(it) })
 		assertEquals(listOf(4L, 5L, 6L), (0 until 3).map { xyz.max(it) })
 	}
 
 	@Test
-	fun `toXyzInterval and toSourceInterval round-trip at the slice positions`() {
+	fun `toSpatial and toSource intervals round-trip at the slice positions`() {
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 3), longArrayOf(0, 0, 2, 0, 1))
 		/* an interval already degenerate at the slice positions is what toSourceInterval produces, so it survives both ways */
 		val source = FinalInterval(longArrayOf(1, 2, 2, 3, 1), longArrayOf(4, 5, 2, 6, 1))
-		val roundTripped = mapping.toSourceInterval(mapping.toXyzInterval(source))
+		val roundTripped = mapping.toSource(mapping.toSpatial(source, 0L))
 		assertTrue(Intervals.equals(source, roundTripped), "expected ${Intervals.toString(source)}, got ${Intervals.toString(roundTripped)}")
 
 		val xyz = FinalInterval(longArrayOf(1, 2, 3), longArrayOf(4, 5, 6))
-		assertTrue(Intervals.equals(xyz, mapping.toXyzInterval(mapping.toSourceInterval(xyz))), "3D interval should survive the round trip")
+		assertTrue(Intervals.equals(xyz, mapping.toSpatial(mapping.toSource(xyz), 0L)), "3D interval should survive the round trip")
 	}
 
 	@Test
-	fun `toXyzInterval gives an absent dimension a singleton`() {
+	fun `toSpatial interval gives an absent dimension a singleton`() {
 		/* x, y, c with no z: the z slot is synthesized, so it must be [0, 0] and not the channel extent */
 		val mapping = SpatialMapping(3, intArrayOf(0, 1, -1), longArrayOf(0, 0, 2))
-		val xyz = mapping.toXyzInterval(FinalInterval(longArrayOf(1, 2, 2), longArrayOf(4, 5, 2)))
+		val xyz = mapping.toSpatial(FinalInterval(longArrayOf(1, 2, 2), longArrayOf(4, 5, 2)), 0L)
 		assertEquals(listOf(1L, 2L, 0L), (0 until 3).map { xyz.min(it) })
 		assertEquals(listOf(4L, 5L, 0L), (0 until 3).map { xyz.max(it) })
 	}
@@ -296,56 +246,55 @@ class SpatialMappingTest {
 	}
 
 	@Test
-	fun `toXyzIntervalOrNull keeps a block that covers the slice`() {
+	fun `toSpatialOrNull keeps a block that covers the slice`() {
 		/* xyzct sliced at c=1, t=3; the block spans t 2..3, so it covers the slice */
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
 		val block = FinalInterval(longArrayOf(0, 0, 0, 1, 2), longArrayOf(31, 31, 31, 1, 3))
-		val xyz = mapping.toXyzIntervalOrNull(block)
+		val xyz = mapping.toSpatialOrNull(block, 0L)
 		assertTrue(xyz != null, "a block spanning the sliced position must be kept")
 		assertEquals(listOf(0L, 0L, 0L), (0 until 3).map { xyz!!.min(it) })
 		assertEquals(listOf(31L, 31L, 31L), (0 until 3).map { xyz!!.max(it) })
 	}
 
 	@Test
-	fun `toXyzIntervalOrNull drops a block from another slice`() {
+	fun `toSpatialOrNull drops a block from another slice`() {
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
 		/* same spatial block, but only timepoints 0..1 */
-		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 0, 0, 1, 0), longArrayOf(31, 31, 31, 1, 1))))
+		assertEquals(null, mapping.toSpatialOrNull(FinalInterval(longArrayOf(0, 0, 0, 1, 0), longArrayOf(31, 31, 31, 1, 1)), 0L))
 		/* right timepoint, wrong channel */
-		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 0, 0, 0, 3), longArrayOf(31, 31, 31, 0, 3))))
+		assertEquals(null, mapping.toSpatialOrNull(FinalInterval(longArrayOf(0, 0, 0, 0, 3), longArrayOf(31, 31, 31, 0, 3)), 0L))
 	}
 
 	@Test
-	fun `toXyzIntervalOrNull reads the non-spatial axes by role, not by index`() {
+	fun `toSpatialOrNull reads the non-spatial axes by role, not by index`() {
 		/* cxyzt: the channel is axis 0, so a positional check would test x against the channel slice */
 		val mapping = SpatialMapping(5, intArrayOf(1, 2, 3), longArrayOf(2, 0, 0, 0, 1))
 		val covering = FinalInterval(longArrayOf(2, 10, 20, 30, 1), longArrayOf(2, 41, 51, 61, 1))
-		val xyz = mapping.toXyzIntervalOrNull(covering)
+		val xyz = mapping.toSpatialOrNull(covering, 0L)
 		assertEquals(listOf(10L, 20L, 30L), (0 until 3).map { xyz!!.min(it) })
 		assertEquals(listOf(41L, 51L, 61L), (0 until 3).map { xyz!!.max(it) })
-		assertEquals(null, mapping.toXyzIntervalOrNull(FinalInterval(longArrayOf(0, 10, 20, 30, 1), longArrayOf(0, 41, 51, 61, 1))))
+		assertEquals(null, mapping.toSpatialOrNull(FinalInterval(longArrayOf(0, 10, 20, 30, 1), longArrayOf(0, 41, 51, 61, 1)), 0L))
 	}
 
 	@Test
-	fun `toXyzBlocks keeps the blocks at the slice, drops the others, passes 3D blocks through`() {
+	fun `toSpatial over blocks keeps the blocks at the slice and drops the others`() {
 		val mapping = SpatialMapping(5, intArrayOf(0, 1, 2), longArrayOf(0, 0, 0, 1, 3))
 		val atSlice = FinalInterval(longArrayOf(0, 0, 0, 1, 3), longArrayOf(31, 31, 31, 1, 3))
 		val otherSlice = FinalInterval(longArrayOf(32, 0, 0, 1, 0), longArrayOf(63, 31, 31, 1, 0))
-		/* a block already over the 3D view, as LabelBlockLookupAllBlocks builds them */
-		val overView = FinalInterval(longArrayOf(64, 0, 0), longArrayOf(95, 31, 31))
+		val alsoAtSlice = FinalInterval(longArrayOf(64, 0, 0, 0, 0), longArrayOf(95, 31, 31, 1, 3))
 
-		val xyz = mapping.toXyzBlocks(listOf(atSlice, otherSlice, overView))
+		val xyz = mapping.toSpatial(listOf(atSlice, otherSlice, alsoAtSlice), 0L)
 		assertEquals(2, xyz.size, "the block at another slice must be dropped")
 		xyz.forEach { assertEquals(3, it.numDimensions(), "every block must be 3D") }
 		assertEquals(listOf(0L, 64L), xyz.map { it.min(0) })
 	}
 
 	@Test
-	fun `toXyzBlocks permutes 3D blocks on a permuted 3D source`() {
+	fun `toSpatial over blocks permutes 3D blocks on a permuted 3D source`() {
 		/* zyx: a stored block's axis 0 is z */
 		val mapping = SpatialMapping(3, intArrayOf(2, 1, 0), longArrayOf(0, 0, 0))
 		val stored = FinalInterval(longArrayOf(0, 10, 20), longArrayOf(7, 17, 27))
-		val xyz = mapping.toXyzBlocks(listOf(stored)).single()
+		val xyz = mapping.toSpatial(listOf(stored), 0L).single()
 		assertEquals(listOf(20L, 10L, 0L), (0 until 3).map { xyz.min(it) })
 		assertEquals(listOf(27L, 17L, 7L), (0 until 3).map { xyz.max(it) })
 	}

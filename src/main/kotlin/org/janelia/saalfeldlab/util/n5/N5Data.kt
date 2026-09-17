@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.util.TmpVolatileHelpers.RaiWithInvalidate
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup.PainteraLabelMultiscaleParser
 import java.io.IOException
+import org.janelia.saalfeldlab.paintera.state.metadata.transform
 
 object N5Data {
 
@@ -103,7 +104,7 @@ object N5Data {
      */
     private fun gridFor(attributes: DatasetAttributes, mapping: SpatialMapping): CellGrid =
         if (mapping.isIdentity) CellGrid(attributes.dimensions, attributes.blockSize)
-        else CellGrid(mapping.spatialProjection(attributes.dimensions), mapping.spatialProjection(attributes.blockSize))
+        else CellGrid(mapping.toSpatial(attributes.dimensions, 1L), mapping.toSpatial(attributes.blockSize, 1))
 
     /** Multi-scale [openRaw] for the source described by [metadataState], opening all levels in parallel. */
     suspend fun <T : NativeType<T>, V> openRawMultiscale(
@@ -114,7 +115,7 @@ object N5Data {
         val scalePaths = metadataState.metadata.paths
         LOG.debug { "Opening groups ${scalePaths.contentToString()} as multi-scale in ${metadataState.group} " }
 
-        val scaleTransform: Array<AffineTransform3D> = metadataState.scaleTransforms
+        val scaleTransform: Array<AffineTransform3D> = metadataState.sourceToXyzTransforms
         val reader = metadataState.reader
         val mapping = metadataState.xyzView.spatialMapping()
 
@@ -209,7 +210,7 @@ object N5Data {
 
         LOG.debug { "Opening groups ${scalePaths.contentToString()} as multi-scale in ${metadata.path} " }
 
-        val scaleTransforms: Array<AffineTransform3D> = metadataState.scaleTransforms
+        val scaleTransforms: Array<AffineTransform3D> = metadataState.sourceToXyzTransforms
         val reader = metadataState.reader
         val mapping = metadataState.xyzView.spatialMapping()
         val imagesWithInvalidate = coroutineScope {

@@ -30,6 +30,8 @@ import org.janelia.saalfeldlab.paintera.state.raw.ChannelComposition
 import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceModel
 import org.janelia.saalfeldlab.paintera.ui.source.ActiveChannelsNode
 import org.janelia.saalfeldlab.paintera.ui.TranslationSpaceToggle
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 
 private val LOG = KotlinLogging.logger {}
 

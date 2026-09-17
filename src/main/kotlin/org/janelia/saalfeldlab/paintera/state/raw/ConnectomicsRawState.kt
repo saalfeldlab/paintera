@@ -46,6 +46,8 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Deseria
 import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.ui.SlicePositionControls
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.BACKEND
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.COMPOSITE
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.CONVERTER

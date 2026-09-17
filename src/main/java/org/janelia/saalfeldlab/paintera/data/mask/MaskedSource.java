@@ -363,7 +363,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final long[] xyzPos = new long[xyzGrid.numDimensions()];
 		return xyzBlock -> {
 			xyzGrid.getCellGridPositionFlat(xyzBlock, xyzPos);
-			final long[] canvasPos = blockMapping.toSourcePosition(xyzPos[0], xyzPos[1], xyzPos[2]);
+			final long[] canvasPos = blockMapping.toSource(xyzPos, blockMapping.getSlicePositions());
 			return IntervalIndexer.positionToIndex(canvasPos, canvasGridDimensions);
 		};
 	}

@@ -63,7 +63,7 @@ class SlicedDataSourceTest {
 			xyzAxes: IntArray = DEFAULT_XYZ_AXES
 		): ImagesWithTransform<*, *> = runBlocking {
 			val queue = SharedQueue(1, 1)
-			val mapping = SpatialMapping.sliceAtZero(numDimensions, xyzAxes)
+			val mapping = SpatialMapping(numDimensions, xyzAxes, LongArray(numDimensions))
 			N5Data.openRaw<Nothing, Nothing>(writer, dataset, DEFAULT_RES, DEFAULT_OFFSET, mapping, queue, 0) as ImagesWithTransform<*, *>
 		}
 

@@ -28,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.FieldSource
 import java.nio.file.Path
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 
 @TestInstance(PER_CLASS)
 class CreateLabelDatasetFormatTest {
@@ -247,7 +249,7 @@ class CreateLabelDatasetFormatTest {
 		assertEquals("seconds", metadataState.axes[4].unit) { "axis units must come from the block" }
 
 		/* s1's transform derives from the block: spatially doubled scale, unchanged translation */
-		val s1Transform = (metadataState as MultiScaleMetadataState).scaleTransforms[1]
+		val s1Transform = (metadataState as MultiScaleMetadataState).sourceToXyzTransforms[1]
 		assertArrayEquals(doubleArrayOf(4.0, 6.0, 8.0), doubleArrayOf(s1Transform[0, 0], s1Transform[1, 1], s1Transform[2, 2]))
 		assertArrayEquals(doubleArrayOf(1.0, 2.0, 3.0), s1Transform.translation)
 	}

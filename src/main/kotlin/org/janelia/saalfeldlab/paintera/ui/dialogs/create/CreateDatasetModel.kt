@@ -28,7 +28,6 @@ import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxes
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.util.n5.SpatialMapping
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleGroup
 import java.io.File
 
@@ -186,7 +185,7 @@ internal class DefaultCreateDatasetModel(
 		}
 
 		metadataSource?.metadataState?.let { metadataState ->
-            val (x, y, z) = metadataState.xyzView.spatialMapping().spatialProjection(metadataState.datasetAttributes.blockSize)
+            val (x, y, z) = metadataState.xyzView.spatialMapping().toSpatial(metadataState.datasetAttributes.blockSize, 1)
             blockSize.xProperty.value = x
             blockSize.yProperty.value = y
             blockSize.zProperty.value = z
@@ -200,7 +199,7 @@ internal class DefaultCreateDatasetModel(
 				is SpatialMultiscaleMetadata<*> -> metadata.childrenMetadata.firstOrNull() as? NgffSingleScaleAxesMetadata
 				else -> null
 			}
-			val nonSpatial = SpatialMapping.nonSpatialAxes(metadataState.axes, attributes.numDimensions)
+			val nonSpatial = metadataState.xyzView.nonSpatialAxes
 			additionalAxes.setAll(nonSpatial.map { axisIndex ->
 				val sourceAxis = metadataState.axes[axisIndex]
 				val type = if (sourceAxis.type == Axis.TIME) NonSpatialAxisType.TIME else NonSpatialAxisType.CHANNEL

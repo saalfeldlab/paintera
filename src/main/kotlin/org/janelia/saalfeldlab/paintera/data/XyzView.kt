@@ -5,7 +5,6 @@ import javafx.beans.property.ReadOnlyObjectWrapper
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.img.cell.CellGrid
 import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -33,14 +32,14 @@ class XyzView(
 
 	val numDimensions: Int = fullInterval.numDimensions()
 
-	/** The source axes supplying none of x, y, z: the slice axes (channel, time, ...), in source order. */
-	val nonSpatialAxes: List<Int> = (0 until numDimensions).filterNot { it in this.xyzSourceAxes }
+	private var cachedMapping: SpatialMapping? = null
 
 	private val mutableActiveInterval = object : ReadOnlyObjectWrapper<Interval>(fullInterval) {
 		override fun set(newValue: Interval?) {
 			val clamped = coerceInFullExtent(newValue ?: fullInterval)
 			if (Intervals.equals(get(), clamped))
 				return
+			cachedMapping = null
 			super.set(clamped)
 		}
 	}
@@ -54,32 +53,25 @@ class XyzView(
 	private val activeInterval: Interval
 		get() = mutableActiveInterval.get()
 
+	/** The mapping at [activeInterval]; a mapping read before a slice change keeps the slice it was read for */
+	val mapping: SpatialMapping
+		get() = cachedMapping ?: SpatialMapping(numDimensions, xyzSourceAxes, activeInterval.minAsLongArray()).also { cachedMapping = it }
+
+	fun spatialMapping(): SpatialMapping = mapping
+
+	/** The source axes supplying none of x, y, z: the slice axes (channel, time, ...), in source order. */
+	val nonSpatialAxes: List<Int>
+		get() = mapping.nonSpatialAxes
+
+	/** True when this view reduces the source's dimensionality; a crop alone does not make it sliced. */
+	val isSliced: Boolean
+		get() = !mapping.isIdentity
+
 	/** The position [axis] is sliced at. */
 	fun slicePosition(axis: Int): Long {
 		require(axis in 0 until numDimensions) { "axis $axis out of bounds for $numDimensions dimensions" }
 
 		return activeInterval.min(axis)
-	}
-
-	/** For any sliced axis `i`, the result of  slicePositions()[i] is the position in that axis that the
-	 * view is sliced at. For any axis that is not slice, the value of the resulting array is meaningless.  */
-	fun slicePositions(): LongArray = activeInterval.minAsLongArray()
-
-	/** The mapping over [interval], whose min slices the non-spatial axes. Defaults to [activeInterval]. */
-	@JvmOverloads
-	fun spatialMapping(interval: Interval = activeInterval) = SpatialMapping(numDimensions, xyzSourceAxes, interval.minAsLongArray())
-
-	/** [activeInterval] in [grid]'s block coordinates. Returns the active blocks in the CellGrid space */
-	fun blockInterval(grid: CellGrid): Interval {
-		require(grid.numDimensions() == numDimensions) { "grid must have $numDimensions dimensions, got ${grid.numDimensions()}" }
-
-		val min = LongArray(numDimensions)
-		val max = LongArray(numDimensions)
-		for (axis in 0 until numDimensions) {
-			min[axis] = activeInterval.min(axis) / grid.cellDimension(axis)
-			max[axis] = activeInterval.max(axis) / grid.cellDimension(axis)
-		}
-		return FinalInterval(min, max)
 	}
 
 	/** Collapse [axis] at [position]. */
@@ -98,22 +90,27 @@ class XyzView(
 		mutableActiveInterval.set(fullInterval)
 	}
 
-	/** True when this view reduces the source's dimensionality; a crop alone does not make it sliced. */
-	val isSliced: Boolean
-		get() = !spatialMapping().isIdentity
-
 	/**
-	 * A Canonical XYZ view of [source]. Axes may be reordered or sliced according to [spatialMapping] to transform to the canonical XYZ view.
+	 * A Canonical XYZ view of [source]. Axes may be reordered or sliced according to [mapping] to transform to the canonical XYZ view.
 	 */
-	fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> = spatialMapping().toXyz(source)
+	fun <T> toXyz(source: RandomAccessibleInterval<T>): RandomAccessibleInterval<T> = mapping.toXyz(source)
 
 	/**
 	 * convert nD source [blocks] to 3D canonical XYZ intervals at the current slice
 	 *
-	 * @param blocks intervals in source space
+	 * @param blocks intervals in source space; a 3D interval is already canonical and kept as is
 	 * @return the canonical 3D intervals at the current slice
 	 */
-	fun toXyzBlocks(blocks: Iterable<Interval>): List<Interval> = spatialMapping().toXyzBlocks(blocks)
+	fun toXyzBlocks(blocks: Iterable<Interval>): List<Interval> {
+		val mapping = mapping
+		return blocks.mapNotNull { block ->
+			when {
+				mapping.isIdentity -> block
+				block.numDimensions() != numDimensions -> block
+				else -> mapping.toSpatialOrNull(block, 0L)
+			}
+		}
+	}
 
 	private fun coerceInFullExtent(interval: Interval): Interval {
 		require(interval.numDimensions() == numDimensions) { "interval must have $numDimensions dimensions, got ${interval.numDimensions()}" }

@@ -189,7 +189,7 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 
 		val n5Backend = sourceState.backend as? SourceStateBackendN5<*, *>
 		val metadataState = n5Backend?.metadataState as? MultiScaleMetadataState
-		metadataState?.scaleTransforms?.get(scaleLevel)?.let { metadataScales ->
+		metadataState?.sourceToXyzTransforms?.get(scaleLevel)?.let { metadataScales ->
 			return doubleArrayOf(metadataScales[0, 0], metadataScales[1, 1], metadataScales[2, 2])
 		}
 

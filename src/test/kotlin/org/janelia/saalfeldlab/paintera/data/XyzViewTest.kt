@@ -124,6 +124,21 @@ class XyzViewTest {
 	}
 
 	@Test
+	fun `toXyzBlocks passes a 3D block through and maps nD blocks at the slice`() {
+		val xyzView = interleaved()
+		xyzView.sliceAt(2, 1)
+		xyzView.sliceAt(4, 3)
+		val atSlice = FinalInterval(longArrayOf(0, 0, 1, 0, 3), longArrayOf(7, 8, 1, 9, 3))
+		val otherSlice = FinalInterval(longArrayOf(0, 0, 0, 0, 0), longArrayOf(7, 8, 0, 9, 0))
+		/* a block already over the 3D view, as LabelBlockLookupAllBlocks builds them */
+		val overView = FinalInterval(longArrayOf(64, 0, 0), longArrayOf(95, 31, 31))
+
+		val xyz = xyzView.toXyzBlocks(listOf(atSlice, otherSlice, overView))
+		assertEquals(2, xyz.size, "the block at another slice must be dropped")
+		assertEquals(listOf(0L, 64L), xyz.map { it.min(0) })
+	}
+
+	@Test
 	fun `nonSpatialAxes lists the axes that supply no spatial dimension`() {
 		assertEquals(listOf(2, 4), interleaved().nonSpatialAxes, "channel at 2 and time at 4")
 		assertEquals(emptyList<Int>(), XyzView(intArrayOf(0, 1, 2), longArrayOf(8, 9, 10)).nonSpatialAxes)
@@ -132,30 +147,27 @@ class XyzViewTest {
 	}
 
 	@Test
-	fun `blockInterval divides the active interval by the block size`() {
+	fun `the block mapping divides the slice positions by the block size`() {
 		val xyzView = interleaved()
 		val grid = CellGrid(interleavedDimensions, intArrayOf(4, 4, 1, 4, 1))
 		xyzView.sliceAt(2, 2)
 		xyzView.sliceAt(4, 3)
 
-		val blocks = xyzView.blockInterval(grid)
-		assertEquals(listOf(0L, 0L, 2L, 0L, 3L), blocks.minAsLongArray().toList(), "the sliced axes carry their block; spatial spans the grid")
-		assertEquals(listOf(1L, 2L, 2L, 2L, 3L), blocks.maxAsLongArray().toList(), "x 7/4=1, y 8/4=2, z 9/4=2")
+		assertEquals(listOf(0L, 0L, 2L, 0L, 3L), xyzView.spatialMapping().toBlockMapping(grid).slicePositions.toList(), "the sliced axes carry their block")
 	}
 
 	@Test
-	fun `blockInterval divides a non-unit slice axis too`() {
+	fun `the block mapping divides a non-unit slice axis too`() {
 		/* a timepoint chunked 2-per-block: t = 3 lives in block 1 */
 		val xyzView = interleaved()
 		val grid = CellGrid(interleavedDimensions, intArrayOf(4, 4, 1, 4, 2))
 		xyzView.sliceAt(4, 3)
 
-		assertEquals(1L, xyzView.blockInterval(grid).min(4))
-		assertEquals(1L, xyzView.blockInterval(grid).max(4))
+		assertEquals(1L, xyzView.spatialMapping().toBlockMapping(grid).slicePositions[4])
 	}
 
 	@Test
-	fun `toXyz over a blockInterval slices the cells image in block units`() {
+	fun `toXyz over the block mapping slices the cells image in block units`() {
 		/* the prefetch case: the cells image is nD in block coordinates, so its XYZ view is a plain toXyz */
 		val xyzView = interleaved()
 		val grid = CellGrid(interleavedDimensions, intArrayOf(4, 4, 1, 4, 1))
@@ -163,7 +175,7 @@ class XyzViewTest {
 		xyzView.sliceAt(4, 3)
 
 		val cells = filled(grid.gridDimensions)
-		val cellsXyz = xyzView.spatialMapping(xyzView.blockInterval(grid)).toXyz(cells)
+		val cellsXyz = xyzView.spatialMapping().toBlockMapping(grid).toXyz(cells)
 
 		assertEquals(3, cellsXyz.numDimensions())
 		val access = cellsXyz.randomAccess().also { it.setPosition(longArrayOf(1, 2, 1)) }
@@ -171,19 +183,18 @@ class XyzViewTest {
 	}
 
 	@Test
-	fun `blockInterval rejects a grid of the wrong dimensionality`() {
+	fun `the block mapping rejects a grid of the wrong dimensionality`() {
 		assertThrows(IllegalArgumentException::class.java) {
-			interleaved().blockInterval(CellGrid(longArrayOf(8, 9, 10), intArrayOf(4, 4, 4)))
+			interleaved().spatialMapping().toBlockMapping(CellGrid(longArrayOf(8, 9, 10), intArrayOf(4, 4, 4)))
 		}
 	}
 
 	@Test
-	fun `a mapping taken over an interval carries that interval's slice`() {
-		/* slicing and cropping are one interval, so the min of whatever you map over is the slice; the view does not move */
+	fun `a mapping re-sliced by hand does not move the view`() {
 		val xyzView = interleaved()
 		val backing = filled(interleavedDimensions)
 
-		val view = xyzView.spatialMapping(FinalInterval(longArrayOf(0, 0, 1, 0, 3), longArrayOf(7, 8, 1, 9, 3))).toXyz(backing)
+		val view = xyzView.spatialMapping().withSlicePosition(2, 1).withSlicePosition(4, 3).toXyz(backing)
 
 		val access = view.randomAccess().also { it.setPosition(longArrayOf(3, 4, 5)) }
 		assertEquals(encode(longArrayOf(3, 4, 1, 5, 3)), access.get().get(), "channel 1 and time 3 come from the interval")
@@ -248,7 +259,7 @@ class XyzViewTest {
 	@Test
 	fun `starts at the full extent`() {
 		val xyzView = XyzView(intArrayOf(0, 1, 2), longArrayOf(8, 9, 10))
-		assertEquals(listOf(0L, 0L, 0L), xyzView.slicePositions().toList())
+		assertEquals(listOf(0L, 0L, 0L), xyzView.spatialMapping().slicePositions.toList())
 		assertEquals(listOf(7L, 8L, 9L), (0 until xyzView.numDimensions).map { xyzView.fullInterval.max(it) })
 		assertEquals(3, xyzView.numDimensions)
 	}

@@ -70,6 +70,14 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		this.metadataState = metadataState;
 	}
 
+	@Override public void getSourceTransform(final int t, final int level, final AffineTransform3D transform) {
+
+		if (metadataState instanceof MultiScaleMetadataState multiScale)
+			transform.set(multiScale.getSourceToXyzTransforms()[level]);
+		else
+			transform.set(metadataState.getSourceToXyz());
+	}
+
 	/** The view this source is presented through. */
 	private XyzView xyzView() {
 
@@ -123,7 +131,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		if (level == 0)
 			return s0Interval;
 
-		final AffineTransform3D[] transforms = ((MultiScaleMetadataState)metadataState).getScaleTransforms();
+		final AffineTransform3D[] transforms = ((MultiScaleMetadataState)metadataState).getSourceToXyzTransforms();
 		final AffineTransform3D s0Transform = transforms[0].copy();
 		final AffineTransform3D levelTransform = transforms[level].inverse();
 		final AffineTransform3D s0ToLevelTransform = s0Transform.concatenate(levelTransform);
@@ -182,40 +190,36 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 		/* the current slice, in cell units */
 		final CellGrid ndGrid = cellImg.getCellGrid();
-		final Interval cellSlice = xyzView().blockInterval(ndGrid);
+		final SpatialMapping cellMapping = xyzView().spatialMapping().toBlockMapping(ndGrid);
 
 		/* the visible footprint at the current slice, at the prefetch priority */
-		fetchSliceCells(cellImg, cellSlice, hints, sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation);
+		fetchSliceCells(cellImg, cellMapping, hints, sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation);
 
 		/* warm the same footprint at adjacent non-spatial (timepoint/channel) slices at decaying priority, so a scrub
 		 * to the next slice isn't a cold load; the queue dedups and re-prioritises, so this never starves the frame */
 		final long[] ndGridDimensions = ndGrid.getGridDimensions();
 		final int basePriority = hints.getQueuePriority();
 		int slabsPrefetched = 0;
-		for (final int axis : xyzView().getNonSpatialAxes()) {
+		for (final int axis : cellMapping.getNonSpatialAxes()) {
 			for (int step = 1; step <= TIME_PREFETCH_DEPTH; ++step) {
 				/* offset the CELL coordinate, so a multi-slice-per-block layout warms the adjacent block, not the same one */
 				final CacheHints stepHints = new CacheHints(LoadingStrategy.VOLATILE, Math.min(basePriority + step, MAX_QUEUE_PRIORITY), false);
 				for (int sign = -1; sign <= 1; sign += 2) {
-					final long pos = cellSlice.min(axis) + (long)sign * step;
+					final long pos = cellMapping.getSlicePositions()[axis] + (long)sign * step;
 					if (pos < 0 || pos >= ndGridDimensions[axis])
 						continue;
 					if (slabsPrefetched++ >= MAX_PREFETCH_SLICES)
 						return;
-					final long[] adjacentMin = cellSlice.minAsLongArray();
-					final long[] adjacentMax = cellSlice.maxAsLongArray();
-					adjacentMin[axis] = pos;
-					adjacentMax[axis] = pos;
-					fetchSliceCells(cellImg, new FinalInterval(adjacentMin, adjacentMax), stepHints, sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation);
+					fetchSliceCells(cellImg, cellMapping.withSlicePosition(axis, pos), stepHints, sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation);
 				}
 			}
 		}
 	}
 
-	/** Prefetch the screen footprint at one non-spatial [cellSlice] (in cell units), enqueued at [hints]'s priority. */
+	/** Prefetch the screen footprint at the non-spatial slice of [cellMapping] (in cell units), enqueued at [hints]'s priority. */
 	private void fetchSliceCells(
 			final VolatileCachedCellImg<?, ?> cellImg,
-			final Interval cellSlice,
+			final SpatialMapping cellMapping,
 			final CacheHints hints,
 			final AffineTransform3D sourceToScreen,
 			final int[] cellDimensions,
@@ -224,9 +228,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final Interpolation interpolation) {
 
 		cellImg.setCacheHints(hints);
-		/* slice the nD cells image to 3D at this slice's cell positions, so touching a 3D cell loads the right nD block;
-		 * the mapping only reads the interval's min, so the spatial extent being level-0's does not matter here */
-		final SpatialMapping cellMapping = xyzView().spatialMapping(cellSlice);
+		/* slice the nD cells image to 3D at this slice's cell positions, so touching a 3D cell loads the right nD block */
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final RandomAccess<?> cellsRandomAccess = cellMapping.toXyz((RandomAccessibleInterval)cellImg.getCells()).randomAccess();
 		Prefetcher.fetchCells(sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation, cellsRandomAccess);
