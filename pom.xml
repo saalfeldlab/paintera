@@ -652,6 +652,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
+					<argLine>-XX:SoftRefLRUPolicyMSPerMB=10</argLine>
 					<excludes>
 						<exclude>**PainteraBaseViewTest**</exclude>
 						<exclude>**WindowDimensionsTest**</exclude>
