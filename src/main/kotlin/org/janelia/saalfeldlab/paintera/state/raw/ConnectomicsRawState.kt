@@ -14,8 +14,6 @@ import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
-import net.imglib2.Interval
-import net.imglib2.RealInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
@@ -37,8 +35,10 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.addAxes
 import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.addVirtualCrop
 import org.janelia.saalfeldlab.paintera.serialization.restoreAxes
 import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreVirtualCrop
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
@@ -60,7 +60,6 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Serializa
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.NAME
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.OFFSET
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RESOLUTION
-import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.VIRTUAL_CROP
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.n5.N5Helpers.serializeTo
@@ -192,7 +191,6 @@ open class ConnectomicsRawState<D, T>(
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
 		const val RESOLUTION = "resolution"
-		const val VIRTUAL_CROP = "virtualCrop"
 		const val OFFSET = "offset"
 		const val CHANNELS = "channelComposite"
 	}
@@ -216,7 +214,7 @@ open class ConnectomicsRawState<D, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.backend.xyzView.xyzCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addVirtualCrop(state.backend, context)
 				state.channels?.let { map.add(CHANNELS, it.toJson(context)) }
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
@@ -267,9 +265,8 @@ open class ConnectomicsRawState<D, T>(
 			restoreAxes(backend, json)
 			val resolution = context[json, RESOLUTION] ?: backend.resolution
 			val offset = context[json, OFFSET] ?: backend.translation
-			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
 			backend.updateTransform(resolution, offset)
-			backend.xyzView.setCropInterval(virtualCrop)
+			restoreVirtualCrop(backend, json, context)
 			restoreSlicePositions(backend, json)
 
 			return ConnectomicsRawState(

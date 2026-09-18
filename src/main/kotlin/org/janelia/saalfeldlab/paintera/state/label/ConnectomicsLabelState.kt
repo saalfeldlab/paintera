@@ -70,8 +70,10 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.addAxes
 import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.addVirtualCrop
 import org.janelia.saalfeldlab.paintera.serialization.restoreAxes
 import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreVirtualCrop
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
@@ -583,7 +585,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
-        const val VIRTUAL_CROP                     = "virtualCrop"
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
@@ -623,7 +624,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.backend.xyzView.xyzCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addVirtualCrop(state.backend, context)
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
@@ -674,9 +675,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val name = json[NAME] ?: backend.name
 						val resolution = context[json, RESOLUTION] ?: backend.resolution
 						val offset = context[json, OFFSET] ?: backend.translation
-						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
-						backend.xyzView.setCropInterval(virtualCrop)
+						restoreVirtualCrop(backend, json, context)
 						restoreSlicePositions(backend, json)
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
