@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.ensureActive
 import net.imglib2.Interval
+import net.imglib2.cache.img.DiskCachedCellImg
 import net.imglib2.cache.img.DiskCachedCellImgFactory
 import net.imglib2.type.Type
 import net.imglib2.type.label.Label
@@ -86,28 +87,9 @@ class ReplaceLabel(menuText: String, val mode: Mode) : MenuAction(menuText) {
 		}
 	}
 
-	private fun <T : IntegerType<T>> ReplaceLabelState<*, *>.generateReplaceLabelMask(newLabel: Long, vararg fragments: Long) = with(maskedSource) {
-		val dataSource = getDataSource(0, 0)
-
-		val fragmentsSet = fragments.toHashSet()
-
-		DiskCachedCellImgFactory(UnsignedLongType(Label.INVALID)).create(dataSource) { replacedLabelChunk ->
-			val sourceCursor = dataSource.interval(replacedLabelChunk).cursor()
-			val maskCursor = replacedLabelChunk.cursor()
-
-			while (sourceCursor.hasNext() && maskCursor.hasNext()) {
-				val sourceLabel = sourceCursor.next()
-				val maskedLabel = maskCursor.next()
-
-				val value = if (sourceLabel.integerLong in fragmentsSet) newLabel else ImgLib2Label.INVALID
-				maskedLabel.set(value)
-			}
-		}
-	}
-
 	private suspend fun <T : IntegerType<T>> ReplaceLabelState<*, *>.replaceLabels(newLabel: Long, vararg oldLabels: Long, progressProperty: DoubleProperty?, progressTextProperty: StringProperty?) = with(maskedSource) {
 		val xyzBlocks = xyzBlocksForLabels(0, oldLabels).toList()
-		val replacedLabelMask = generateReplaceLabelMask(newLabel, *oldLabels)
+		val replacedLabelMask = replaceLabelMask(newLabel, level = 0, *oldLabels)
 
 		val sourceMask = SourceMask(
 			MaskInfo(0, 0),
@@ -185,4 +167,24 @@ private fun <T : IntegerType<T>> MaskedSource<T, out Type<*>>.addReplaceMaskAsSo
 		"fragmentMask",
 		LabelBlockLookupAllBlocks.fromSource(underlyingSource())
 	)!!
+}
+
+/** Image with all [fragments] mapped to [newLabel]. Aligned with MaskedSource canvas space */
+internal fun MaskedSource<*, *>.replaceLabelMask(newLabel: Long, level: Int, vararg fragments: Long): DiskCachedCellImg<UnsignedLongType, *> {
+	val dataSource = getDataSource(0, level)
+
+	val fragmentsSet = fragments.toHashSet()
+
+	return DiskCachedCellImgFactory(UnsignedLongType(Label.INVALID)).create(getGrid(level).imgDimensions) { replacedLabelChunk ->
+		val sourceCursor = dataSource.interval(replacedLabelChunk).cursor()
+		val maskCursor = replacedLabelChunk.cursor()
+
+		while (sourceCursor.hasNext() && maskCursor.hasNext()) {
+			val sourceLabel = sourceCursor.next() as IntegerType<*>
+			val maskedLabel = maskCursor.next()
+
+			val value = if (sourceLabel.integerLong in fragmentsSet) newLabel else ImgLib2Label.INVALID
+			maskedLabel.set(value)
+		}
+	}
 }
