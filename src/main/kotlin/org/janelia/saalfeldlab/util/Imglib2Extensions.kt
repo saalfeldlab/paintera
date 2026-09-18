@@ -17,6 +17,7 @@ import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -30,6 +31,9 @@ infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.le
 	?: this
 
 fun Interval.numElements() = Intervals.numElements(this)
+
+fun Interval.pad(vararg padding: Int): Interval = extendBy(*padding)
+fun Interval.intersectOrNull(other: Interval): Interval? = (this intersect other).takeIf { it.isNotEmpty() }
 
 /**
  * Return an expanded interval. [borderPercent] is a double that corresponds to the percent added to each dimension.
