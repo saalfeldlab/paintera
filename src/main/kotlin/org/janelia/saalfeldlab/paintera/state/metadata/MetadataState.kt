@@ -3,8 +3,6 @@ package org.janelia.saalfeldlab.paintera.state.metadata
 import bdv.cache.SharedQueue
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
-import net.imglib2.FinalInterval
-import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -53,9 +51,6 @@ interface MetadataState {
     var axes: Array<Axis>
     val xyzView: XyzView
 
-
-    var virtualCrop: Interval?
-
     var unit: String
     var labelBlockLookup: LabelBlockLookup?
     val reader: N5Reader
@@ -91,10 +86,10 @@ interface MetadataState {
             target.maxIntensity = source.maxIntensity
             target.axes = source.axes.copyOf()
             target.updateTransform(source.transform)
-            target.virtualCrop = source.virtualCrop?.let { FinalInterval(it.minAsLongArray(), it.maxAsLongArray()) }
             target.unit = source.unit
             target.group = source.group
             source.xyzView.nonSpatialAxes.forEach { target.xyzView.sliceAt(it, source.xyzView.slicePosition(it)) }
+            target.xyzView.setCropInterval(source.xyzView.xyzCrop)
         }
     }
 }
@@ -136,7 +131,6 @@ open class SingleScaleMetadataState(
     override val sourceToXyz: AffineTransform3D
         get() = cachedSourceToXyz ?: SpatialMapping.of(axes).toXyz(sourceTransform).also { cachedSourceToXyz = it }
 
-    override var virtualCrop: Interval? = null
     override val xyzView: XyzView by lazy { XyzView.of(axes, datasetAttributes.dimensions) }
     override var unit: String = metadata.unit()
     override var labelBlockLookup: LabelBlockLookup? = null
@@ -276,12 +270,6 @@ class PainteraDataMultiscaleMetadataState(
 
     @Suppress("UNCHECKED_CAST")
     val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata as SpatialMultiscaleMetadata<N5SpatialDatasetMetadata>)
-
-    override var virtualCrop: Interval? = null
-        set(value) {
-            dataMetadataState.virtualCrop = value
-            field = value
-        }
 
     override val xyzView: XyzView
         get() = dataMetadataState.xyzView

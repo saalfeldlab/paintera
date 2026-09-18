@@ -281,7 +281,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		meshManager.refreshMeshes()
 
 		sliceMeshRefresh = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
-			?.takeIf { it.nonSpatialAxes.isNotEmpty() }
 			?.activeIntervalProperty
 			?.subscribe { _, _ -> meshManager.updateScene() }
 
@@ -624,7 +623,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				state.backend.xyzView.xyzCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
@@ -677,7 +676,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val offset = context[json, OFFSET] ?: backend.translation
 						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
-						backend.virtualCrop = virtualCrop
+						backend.xyzView.setCropInterval(virtualCrop)
 						restoreSlicePositions(backend, json)
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]

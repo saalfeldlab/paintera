@@ -228,7 +228,7 @@ internal class DefaultCreateDatasetModel(
 		resolution.xProperty.value = transform[0, 0]
 		resolution.yProperty.value = transform[1, 1]
 		resolution.zProperty.value = transform[2, 2]
-		metadataSource?.metadataState?.virtualCrop?.let {
+		metadataSource?.metadataState?.xyzView?.xyzCrop?.let {
 			offset.xProperty.value = it.min(0) * transform[0, 0]
 			offset.yProperty.value = it.min(1) * transform[1, 1]
 			offset.zProperty.value = it.min(2) * transform[2, 2]

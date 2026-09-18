@@ -8,9 +8,11 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -329,5 +331,69 @@ class XyzViewTest {
 		val xyzView = interleaved()
 		assertThrows(IllegalArgumentException::class.java) { xyzView.sliceAt(5, 0) }
 		assertThrows(IllegalArgumentException::class.java) { xyzView.sliceAt(-1, 0) }
+	}
+
+	/* the crop narrows the spatial axes of the active interval; x, y, z of the interleaved view are source axes 0, 1, 3 */
+	@Test
+	fun `a crop is the spatial part of the active interval`() {
+		val xyzView = interleaved()
+		assertNull(xyzView.xyzCrop, "uncropped")
+
+		xyzView.setCropInterval(FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7)))
+		assertArrayEquals(longArrayOf(2, 3, 0, 4, 0), xyzView.activeIntervalProperty.get().minAsLongArray())
+		assertArrayEquals(longArrayOf(5, 6, 2, 7, 3), xyzView.activeIntervalProperty.get().maxAsLongArray(), "the non-spatial axes still span the full extent")
+		assertTrue(Intervals.equals(FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7)), xyzView.xyzCrop!!))
+
+		xyzView.setCropInterval(null)
+		assertNull(xyzView.xyzCrop, "removed")
+
+		val plain = XyzView(intArrayOf(0, 1, 2), longArrayOf(8, 9, 10))
+		plain.setCropInterval(FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7)))
+		assertFalse(plain.isSliced, "a crop alone does not slice")
+	}
+
+	@Test
+	fun `crop and slice keep each other`() {
+		val xyzView = interleaved()
+		xyzView.sliceAt(2, 1)
+		xyzView.sliceAt(4, 3)
+		xyzView.setCropInterval(FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7)))
+		assertEquals(1, xyzView.slicePosition(2))
+		assertEquals(3, xyzView.slicePosition(4))
+
+		xyzView.sliceAt(4, 0)
+		assertTrue(Intervals.equals(FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7)), xyzView.xyzCrop!!), "a slice keeps the crop")
+
+		/* the mapping at the crop still slices where the view does */
+		val sliced = xyzView.toXyz(filled(interleavedDimensions))
+		assertEquals(3, sliced.numDimensions())
+		assertEquals(encode(longArrayOf(0, 0, 1, 0, 0)), sliced.randomAccess().setPositionAndGet(0, 0, 0).get(), "toXyz slices but does not crop")
+
+		xyzView.reset()
+		assertNull(xyzView.xyzCrop, "reset removes the crop")
+		assertTrue(xyzView.nonSpatialAxes.all { xyzView.slicePosition(it) == xyzView.fullInterval.min(it) }, "and the slices")
+	}
+
+	@Test
+	fun `a crop past the data is clamped and a crop equal to the data is none`() {
+		val xyzView = interleaved()
+		xyzView.setCropInterval(FinalInterval(longArrayOf(-4, 0, 0), longArrayOf(5, 8, 50)))
+		assertTrue(Intervals.equals(FinalInterval(longArrayOf(0, 0, 0), longArrayOf(5, 8, 9)), xyzView.xyzCrop!!))
+
+		xyzView.setCropInterval(FinalInterval(longArrayOf(0, 0, 0), longArrayOf(7, 8, 9)))
+		assertNull(xyzView.xyzCrop, "the full spatial extent is not a crop")
+	}
+
+	@Test
+	fun `a crop change notifies like a slice change`() {
+		val xyzView = interleaved()
+		var notifications = 0
+		xyzView.activeIntervalProperty.subscribe { _, _ -> notifications++ }
+		val crop = FinalInterval(longArrayOf(2, 3, 4), longArrayOf(5, 6, 7))
+		xyzView.setCropInterval(crop)
+		xyzView.setCropInterval(crop)
+		assertEquals(1, notifications, "the same crop again must not notify")
+		xyzView.setCropInterval(null)
+		assertEquals(2, notifications)
 	}
 }

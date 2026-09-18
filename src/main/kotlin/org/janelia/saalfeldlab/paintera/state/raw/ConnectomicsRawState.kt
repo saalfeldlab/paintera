@@ -216,7 +216,7 @@ open class ConnectomicsRawState<D, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				state.backend.xyzView.xyzCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
 				state.channels?.let { map.add(CHANNELS, it.toJson(context)) }
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
@@ -269,7 +269,7 @@ open class ConnectomicsRawState<D, T>(
 			val offset = context[json, OFFSET] ?: backend.translation
 			val virtualCrop = context.get<RealInterval?>(json, VIRTUAL_CROP) as? Interval
 			backend.updateTransform(resolution, offset)
-			backend.virtualCrop = virtualCrop
+			backend.xyzView.setCropInterval(virtualCrop)
 			restoreSlicePositions(backend, json)
 
 			return ConnectomicsRawState(

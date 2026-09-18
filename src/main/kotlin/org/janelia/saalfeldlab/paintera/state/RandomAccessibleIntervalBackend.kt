@@ -14,7 +14,6 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
-import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.cache.Invalidate
@@ -25,13 +24,13 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.Type
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.util.Util
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource
+import org.janelia.saalfeldlab.paintera.data.XyzView
+import org.janelia.saalfeldlab.paintera.data.XyzViewDataSource
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.util.convertRAI
 import java.util.function.Predicate
@@ -55,7 +54,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 	override val translation: DoubleArray
 		get() = translations[0]
 
-	override var virtualCrop: Interval? = null
+	override val xyzView = XyzView(intArrayOf(0, 1, 2), sources[0].dimensionsAsLongArray())
 
 	val transform = AffineTransform3D().also {
 		it.set(
@@ -110,16 +109,16 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 			volatileSources += volatileSource
 		}
 
-		return RandomAccessibleIntervalDataSource(
+		return XyzViewDataSource(
 			dataSources.toTypedArray(),
 			volatileSources.toTypedArray(),
 			{ transforms },
 			NO_OP_INVALIDATE,
 			{ NearestNeighborInterpolatorFactory() },
 			{ NearestNeighborInterpolatorFactory() },
-			name
+			name,
+			xyzView
 		)
-
 	}
 
 	override fun createMetaDataNode(): Node {

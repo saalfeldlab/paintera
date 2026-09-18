@@ -68,6 +68,7 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import org.janelia.saalfeldlab.net.imglib2.view.RealRandomAccessibleTriple;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.XyzView;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
@@ -178,8 +179,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private final int[][] blockSizes;
 
-	/* the canvas matches the dataset's nD block grid, with a (== dataset block grid per scale).
-	 * for a 3D source these equal the 3D dimensions/blockSizes */
 	private final long[][] canvasDimensions;
 
 	private final int[][] canvasBlockSizes;
@@ -257,32 +256,26 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		this.queue = queue;
 		this.dimensions = IntStream
 				.range(0, source.getNumMipmapLevels())
-				.mapToObj(level -> Intervals.dimensionsAsLongArray(this.source.getSource(0, level)))
+				.mapToObj(level -> source.getGrid(level).getImgDimensions())
 				.toArray(long[][]::new);
 		this.blockSizes = blockSizes;
 
 		/* the canvas is stored nD, like the source, so an edit at one timepoint/channel does not disturb another;
 		 * a source with no N5 metadata is already 3D, so it gets the identity view rather than a null one */
 		final MetadataState canvasMetadataState = (source instanceof N5DataSource<?, ?> n5DataSource) ? n5DataSource.getMetadataState() : null;
-		this.canvasXyzView = canvasMetadataState != null
-				? canvasMetadataState.getXyzView()
+		this.canvasXyzView = source instanceof RandomAccessibleIntervalDataSource<?, ?> raiSource
+				? raiSource.getXyzView()
 				: new XyzView(new int[]{0, 1, 2}, dimensions[0]);
 		this.canvasIsSliced = canvasXyzView.isSliced();
 		if (canvasIsSliced) {
 			final DatasetAttributes attributes = canvasMetadataState.getDatasetAttributes();
+			final SpatialMapping mapping = canvasXyzView.spatialMapping();
 			this.canvasDimensions = new long[dimensions.length][];
 			this.canvasBlockSizes = new int[blockSizes.length][];
 			for (int level = 0; level < dimensions.length; ++level) {
-				/* spatial extents follow the presented 3D source at this level; every other axis spans the dataset */
-				this.canvasDimensions[level] = attributes.getDimensions().clone();
-				this.canvasBlockSizes[level] = attributes.getBlockSize().clone();
-				for (int slot = 0; slot < NUM_DIMENSIONS; ++slot) {
-					final int axis = canvasXyzView.getXyzSourceAxes()[slot];
-					if (axis < 0)
-						continue;
-					this.canvasDimensions[level][axis] = dimensions[level][slot];
-					this.canvasBlockSizes[level][axis] = blockSizes[level][slot];
-				}
+				/* the spatial axes follow the grid at this level; every other axis spans the dataset */
+				this.canvasDimensions[level] = mapping.toSource(dimensions[level], attributes.getDimensions());
+				this.canvasBlockSizes[level] = mapping.toSource(blockSizes[level], attributes.getBlockSize());
 			}
 		} else {
 			this.canvasDimensions = this.dimensions;
@@ -592,7 +585,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final int[] blockSize = new int[grid.numDimensions()];
 			grid.cellDimensions(blockSize);
 
-			final FinalInterval paintedIntervalOverCanvas = Intervals.intersect(canvas, paintedInterval);
+			/* The canvas is over the full source image, but the data source may be a cropped subset.
+			* This is necessary since the crop can dynamically move. but it means we need to
+			* restrict to the data source not the crop */
+            final RandomAccessibleInterval<D> dataSource = source.getDataSource(0, maskInfo.level);
+            final FinalInterval paintedIntervalOverCanvas = Intervals.intersect(dataSource, paintedInterval);
 
 			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), grid, paintedIntervalOverCanvas);
 
@@ -712,8 +709,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		/* Start as busy, so a new mask isn't generated until we are done applying this one. */
 		this.isBusy.set(true);
 
+		final Interval dataSource = source.getDataSource(0, maskInfo.level);
 		for (Interval interval : intervals) {
-			final FinalInterval intervalOverCanvas = Intervals.intersect(canvas, interval);
+			final FinalInterval intervalOverCanvas = Intervals.intersect(dataSource, interval);
 			if (Intervals.isEmpty(intervalOverCanvas))
 				continue;
 
@@ -1098,9 +1096,15 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		}
 
 		// extend the interpolated source with the specified out of bounds value
-		final RealInterval bounds = new FinalRealInterval(source.getSource(time, level));
+        final RealInterval cropInterval = getCropInterval(level);
+        final RealInterval bounds = cropInterval != null ? cropInterval : new FinalRealInterval(source.getSource(time, level));
 		final RealRandomAccessibleRealInterval<T> boundedSource = new FinalRealRandomAccessibleRealInterval<>(sourceToExtend, bounds);
 		return new ExtendedRealRandomAccessibleRealInterval<>(boundedSource, new RealOutOfBoundsConstantValueFactory<>(extensionT.copy()));
+	}
+
+	@Override public RealInterval getCropInterval(final int level) {
+
+		return source.getCropInterval(level);
 	}
 
 	@Override
@@ -1185,7 +1189,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		}
 
 		// extend the interpolated source with the specified out of bounds value
-		final RealInterval bounds = new FinalRealInterval(source.getDataSource(t, level));
+        final RealInterval cropInterval = getCropInterval(level);
+        final RealInterval bounds = cropInterval != null ? cropInterval : new FinalRealInterval(source.getDataSource(t, level));
 		final RealRandomAccessibleRealInterval<D> boundedDataSource = new FinalRealRandomAccessibleRealInterval<>(dataSourceToExtend, bounds);
 		return new ExtendedRealRandomAccessibleRealInterval<>(boundedDataSource, new RealOutOfBoundsConstantValueFactory<>(extensionD.copy()));
 	}
@@ -1495,7 +1500,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			LOG.debug("Upsampling to higher resolution level={}", higherResLevel);
 			final TLongSet affectedBlocksAtHigherRes = this.scaleBlocksToLevel(paintedBlocksAtPaintedScale, initialPaintLevel, higherResLevel);
 			final double[] paintedToHigherScales = DataSource.getRelativeScales(this, 0, higherResLevel, initialPaintLevel);
-			final Interval intervalAtHigherRes = scaleIntervalToLevel(intervalAtPaintedScale, initialPaintLevel, higherResLevel);
+            /* the lower res scale levels may be larger than the high res, especially when the data source is cropped
+            * at some s0 pixel interval, since we have to cover at least that in the lower res scale levels.
+            *
+            * Here we ensure when upsampling that we only propagate the part that is in the crop over the higher
+            * res crops. */
+            final Interval paintIntervalScaledToNextLevel = scaleIntervalToLevel(intervalAtPaintedScale, initialPaintLevel, higherResLevel);
+            final Interval intervalAtHigherRes = Intervals.intersect(source.getDataSource(0, higherResLevel), paintIntervalScaledToNextLevel);
 
 			// upsample
 			final RandomAccessibleInterval<UnsignedLongType> higherResCanvas = canvasSliceAtCurrentMask(higherResLevel);
@@ -1978,8 +1989,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final int level) {
 
 		final CellLoader<UnsignedLongType> loader = img -> img.forEach(pixel -> pixel.set(Label.INVALID));
+		/* the uncropped extent, so a mask aligns with the canvas regardless of crop. This allows the crop
+		* to just move the valid paint region, rather than need to dictate the mask size.*/
 		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts)
-				.create(source.getSource(0, level), loader);
+				.create(dimensions[level], loader);
 
 	}
 

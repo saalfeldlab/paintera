@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.data;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -12,6 +13,7 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
@@ -98,6 +100,16 @@ public interface DataSource<D, T> extends Source<T>, Invalidate<Long> {
 				.range(0, getNumMipmapLevels())
 				.mapToObj(this::getGrid)
 				.toArray(CellGrid[]::new);
+	}
+
+	/** For a virtual cropped data source, return the bounds of the crop interval at `level` as a RealInterval.
+     * This should perfectly align with the highest resolution crop interval, to be used to intersect
+     * low-res intervals that otherwise would extend past the highest res crop interval due to pixel size.
+     * <p>
+     * [null] if DataSource is not virtually cropped. */
+	default @Nullable RealInterval getCropInterval(final int level) {
+
+		return null;
 	}
 
 	default CellGrid getGrid(int level) {

@@ -87,7 +87,6 @@ internal class StatusBar() : HBox() {
 			}.and { displayStatusPane.children.clear() }
 			/* the source coordinate status shows the slice position; update the status text when the slice pos changes */
 			val sliceSubscription = ((this as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
-				?.takeIf { it.nonSpatialAxes.isNotEmpty() }
 				?.activeIntervalProperty
 				?.subscribe { _, _ -> lastSourceCoordinate?.let { setSourceCoordinateStatus(it) } }
 

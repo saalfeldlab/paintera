@@ -7,6 +7,7 @@ import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.cache.img.DiskCachedCellImg
 import net.imglib2.cache.img.DiskCachedCellImgFactory
+import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
@@ -21,6 +22,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
+import org.janelia.saalfeldlab.util.intersectOrNull
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
@@ -158,16 +160,20 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 
 	/** For the given [scaleLevel] and  [labels], return a  set of blocks that contain any label in [labels].
 	 *
-	 * returned intervals are in the currently active XYZ canonical space (not in the underlying source space).*/
+	 * @return intervals in the currently active XYZ canonical space*/
 	fun xyzBlocksForLabels(scaleLevel: Int, labels: LongArray, mode: BlocksForLabels = BlocksForLabels.SourceAndCanvas): Set<Interval> {
-		val blocks = with(mode) { getBlocksWithLabels(scaleLevel, labels) }
-		return blocks.toXyzBlocks(maskedSource).toSet()
+		val sourceBlocks = with(mode) { getBlocksWithLabels(scaleLevel, labels) }
+		val dataSource = maskedSource.getDataSource(0, scaleLevel)
+		return sourceBlocks.toXyzBlocks(maskedSource)
+            .mapNotNullTo(mutableSetOf()) { it.intersectOrNull(dataSource) }
 	}
 
 	fun createSourceAndCanvasImage(timepoint: Int, scaleLevel: Int): DiskCachedCellImg<UnsignedLongType, *> {
 		val sourceImg = maskedSource.getReadOnlyDataBackground(timepoint, scaleLevel)
 		val canvasImg = maskedSource.getReadOnlyDataCanvas(timepoint, scaleLevel)
-		return DiskCachedCellImgFactory(UnsignedLongType()).create(sourceImg) { cell ->
+		val grid = maskedSource.getGrid(scaleLevel)
+		val options = DiskCachedCellImgOptions.options().cellDimensions(*IntArray(grid.numDimensions()) { grid.cellDimension(it) })
+		return DiskCachedCellImgFactory(UnsignedLongType(), options).create(grid.imgDimensions) { cell ->
 
 			val canvasCursor = canvasImg.interval(cell).cursor()
 			val sourceCursor = sourceImg.interval(cell).cursor()

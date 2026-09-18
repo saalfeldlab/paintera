@@ -14,16 +14,17 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.XyzView;
 import org.janelia.saalfeldlab.paintera.data.SlicedRenderSource;
+import org.janelia.saalfeldlab.paintera.state.VirtualCrop;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.util.n5.SpatialMapping;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.function.Function;
 
@@ -78,15 +79,14 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			transform.set(metadataState.getSourceToXyz());
 	}
 
-	/** The view this source is presented through. */
-	private XyzView xyzView() {
+	@Override public XyzView getXyzView() {
 
 		return metadataState.getXyzView();
 	}
 
 	@Override public RandomAccessibleInterval<T> getSource(int t, int level) {
 
-		return getSource(t, level, xyzView().spatialMapping());
+		return getSource(t, level, getXyzView().spatialMapping());
 	}
 
 	/** The 3D view at {@code level} through {@code mapping} instead of this source's own view */
@@ -97,7 +97,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@Override public RandomAccessibleInterval<D> getDataSource(int t, int level) {
 
-		return getDataSource(t, level, xyzView().spatialMapping());
+		return getDataSource(t, level, getXyzView().spatialMapping());
 	}
 
 	/** The 3D data view at {@code level} through {@code mapping} instead of this source's own view */
@@ -111,7 +111,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final RandomAccessibleInterval<R> backing = (RandomAccessibleInterval)super.getSource(t, level);
-		return cropToLevel(xyzView().spatialMapping().collapse(backing, axis), level);
+		return cropToLevel(getXyzView().spatialMapping().collapse(backing, axis), level);
 	}
 
 	/** The 3D data view at {@code level} with the non-spatial {@code axis} collapsed into a composite; see {@link SpatialMapping#collapse} */
@@ -119,24 +119,27 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final RandomAccessibleInterval<R> backing = (RandomAccessibleInterval)super.getDataSource(t, level);
-		return cropToLevel(xyzView().spatialMapping().collapse(backing, axis), level);
+		return cropToLevel(getXyzView().spatialMapping().collapse(backing, axis), level);
 	}
 
 	/** The cropped active XYZ interval over scale {@code level}, or null when the spatial dimensions are not cropped. */
-	private Interval getCroppedInterval(final int level) {
+	private @Nullable Interval getCroppedInterval(final int level) {
 
-		final Interval s0Interval = metadataState.getVirtualCrop();
-		if (s0Interval == null)
-			return null;
-		if (level == 0)
-			return s0Interval;
+		final Interval s0Crop = getXyzView().getXyzCrop();
+		return s0Crop == null ? null : VirtualCrop.cropAtLevel(s0Crop, sourceToXyzTransforms(), level);
+	}
 
-		final AffineTransform3D[] transforms = ((MultiScaleMetadataState)metadataState).getSourceToXyzTransforms();
-		final AffineTransform3D s0Transform = transforms[0].copy();
-		final AffineTransform3D levelTransform = transforms[level].inverse();
-		final AffineTransform3D s0ToLevelTransform = s0Transform.concatenate(levelTransform);
-		final FinalRealInterval cropAtLevel = s0ToLevelTransform.estimateBounds(s0Interval);
-		return Intervals.smallestContainingInterval(cropAtLevel);
+	@Override public RealInterval getCropInterval(final int level) {
+
+		final Interval s0Crop = getXyzView().getXyzCrop();
+		return s0Crop == null ? null : VirtualCrop.cropBoundsAtLevel(s0Crop, sourceToXyzTransforms(), level);
+	}
+
+	private AffineTransform3D[] sourceToXyzTransforms() {
+
+		if (metadataState instanceof MultiScaleMetadataState multiScale)
+			return multiScale.getSourceToXyzTransforms();
+		return new AffineTransform3D[]{metadataState.getSourceToXyz()};
 	}
 
 	/** Narrow an XYZ view to the crop at {@code level}; both are XYZ, so this is a plain interval restriction. */
@@ -153,7 +156,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@Override public boolean isSliced() {
 
-		return xyzView().isSliced();
+		return getXyzView().isSliced();
 	}
 
 	@Override public void setSliceCacheHints(final int level, final CacheHints hints) {
@@ -190,7 +193,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 		/* the current slice, in cell units */
 		final CellGrid ndGrid = cellImg.getCellGrid();
-		final SpatialMapping cellMapping = xyzView().spatialMapping().toBlockMapping(ndGrid);
+		final SpatialMapping cellMapping = getXyzView().spatialMapping().toBlockMapping(ndGrid);
 
 		/* the visible footprint at the current slice, at the prefetch priority */
 		fetchSliceCells(cellImg, cellMapping, hints, sourceToScreen, cellDimensions, dimensions, screenInterval, interpolation);

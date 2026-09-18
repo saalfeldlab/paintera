@@ -8,13 +8,19 @@ import kotlin.Unit;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval;
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 
@@ -201,6 +207,15 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		return true;
 	}
 
+	private XyzView xyzView = null;
+
+	public XyzView getXyzView() {
+
+		if (xyzView == null)
+			xyzView = new XyzView(new int[]{0, 1, 2}, Intervals.dimensionsAsLongArray(dataSources[0]));
+		return xyzView;
+	}
+
 	@Override
 	public CellGrid getGrid(final int level) {
 
@@ -221,10 +236,20 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
 		LOG.trace("Requesting source at t={}, level={} with interpolation {}: ", t, level, method);
-		return Views.interpolate(
+		final RealRandomAccessible<T> interpolated = Views.interpolate(
 				Views.extendValue(getSource(t, level), typeSupplier),
 				interpolation.apply(method)
 		);
+		return boundToCrop(interpolated, level, typeSupplier);
+	}
+
+	protected <A extends Type<A>> RealRandomAccessible<A> boundToCrop(final RealRandomAccessible<A> interpolated, final int level, final A outside) {
+
+		final RealInterval bounds = getCropInterval(level);
+		if (bounds == null)
+			return interpolated;
+		final RealRandomAccessibleRealInterval<A> bounded = new FinalRealRandomAccessibleRealInterval<>(interpolated, bounds);
+		return new ExtendedRealRandomAccessibleRealInterval<>(bounded, new RealOutOfBoundsConstantValueFactory<>(outside.copy()));
 	}
 
 	@Override
@@ -271,10 +296,11 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
 		LOG.trace("Requesting data source at t={}, level={} with interpolation {}: ", t, level, method);
-		return Views.interpolate(
+		final RealRandomAccessible<D> interpolated = Views.interpolate(
 				Views.extendValue(getDataSource(t, level), dataTypeSupplier),
 				dataInterpolation.apply(method)
 		);
+		return boundToCrop(interpolated, level, dataTypeSupplier);
 	}
 
 	@Override
