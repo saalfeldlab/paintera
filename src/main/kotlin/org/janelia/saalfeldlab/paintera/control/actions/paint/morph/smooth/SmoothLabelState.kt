@@ -166,13 +166,7 @@ internal open class SmoothLabelState<D, T>(delegate: SmoothLabelModel = SmoothLa
         } else
             xyzBlocksWithLabel
 
-        /* For preview, size the compute cells to the visible region so the morphology runs as one block
-         * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
-         * over-computing the full cell depth for a thin view slab. */
-        val computeCellDims = if (preview && cellDims == null)
-            previewCellDimensions(intervalsWithLabel, cellDims)
-        else cellDims
-        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, xyzBlocksWithLabel, computeCellDims)
+        val smoothedCellImage = getSmoothedCellImage(labelsToSmooth, xyzBlocksWithLabel, cellDims)
 
         if (update >= UpdateSignal.Full) {
             setStatus(SmoothStatus.Smoothing)

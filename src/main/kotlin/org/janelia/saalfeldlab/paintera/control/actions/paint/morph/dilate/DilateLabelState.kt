@@ -133,13 +133,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 		else
 			xyzBlocksWithLabel
 
-		/* For preview, size the compute cells to the visible region so the morphology runs as one block
-		 * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
-		 * over-computing the full cell depth for a thin view slab. */
-		val computeCellDims = if (preview && cellDims == null)
-			previewCellDimensions(intervalsWithLabel, cellDims)
-		else cellDims
-		val dilatedCellImage = getDilatedCellImage(labelsToDilate, xyzBlocksWithLabel, computeCellDims)
+		val dilatedCellImage = getDilatedCellImage(labelsToDilate, xyzBlocksWithLabel, cellDims)
 
 		if (update >= UpdateSignal.Full) {
 			setStatus(DilateStatus.Dilating)

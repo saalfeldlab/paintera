@@ -142,13 +142,7 @@ internal open class CloseLabelState<D, T>(delegate: CloseLabelModel = CloseLabel
 		else
 			xyzBlocksWithLabel
 
-		/* For preview, size the compute cells to the visible region so the morphology runs as one block
-		 * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
-		 * over-computing the full cell depth for a thin view slab. */
-		val computeCellDims = if (preview && cellDims == null)
-			previewCellDimensions(intervalsWithLabel, cellDims)
-		else cellDims
-		val closedCellImage = getClosedCellImage(targetLabels, xyzBlocksWithLabel, computeCellDims)
+		val closedCellImage = getClosedCellImage(targetLabels, xyzBlocksWithLabel, cellDims)
 
 		if (update >= UpdateSignal.Full) {
 			setStatus(CloseStatus.Closing)
