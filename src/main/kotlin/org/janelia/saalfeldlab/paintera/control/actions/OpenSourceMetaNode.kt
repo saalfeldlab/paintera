@@ -310,9 +310,17 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
             controls.isVisible = isRaw
         }
 
-        val newRow = gridPane.rowCount
-        gridPane.add(label, 0, newRow)
-        gridPane.add(controls, 1, newRow, GridPane.REMAINING, 1)
+        /* add a separator that spans the grid horizontally */
+        val rowSeparator = Separator(Orientation.HORIZONTAL).apply {
+            padding = Insets(10.0, 0.0, 10.0, 0.0)
+        }
+
+        val separatorRow = gridPane.rowCount
+        gridPane.add(rowSeparator, 0, separatorRow, GridPane.REMAINING, 1)
+
+        val activeChannelsRow = gridPane.rowCount
+        gridPane.add(label, 0, activeChannelsRow)
+        gridPane.add(controls, 1, activeChannelsRow, GridPane.REMAINING, 1)
     }
 
     private fun addTypeBoundNodes(gridPane: GridPane) {
