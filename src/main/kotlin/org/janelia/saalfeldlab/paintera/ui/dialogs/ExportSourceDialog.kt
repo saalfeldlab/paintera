@@ -210,17 +210,23 @@ object ExportSourceDialog {
 			}
             //@formatter:off
             val configNodes : List<List<ConfigNode?>> = listOf(
-                listOf( SegmentFragmentMappingConfig(state), StorageFormatConfig(state), ScaleLevelConfig(scaleLevelsBinding, state) ),
-                listOf(                                null,   CompressionConfig(state),                       DataTypeConfig(state) )
+                listOf( SegmentFragmentMappingConfig(state) , StorageFormatConfig(state), ScaleLevelConfig(scaleLevelsBinding, state) ),
+                listOf( ExportRegionConfig(choiceBox, state),   CompressionConfig(state),                       DataTypeConfig(state) )
             )
             //@formatter:on
 
             configNodes.forEachIndexed { row, nodes ->
                 nodes.forEachIndexed { colIdx, configNode ->
                     configNode?.apply {
-                        val column = colIdx*2
-                        smallOptions[column, row] = label
-                        smallOptions[column + 1, row] = config
+                        val column = colIdx * 2
+                        if (span) {
+                            val spannedNode = HBox(10.0, label, config).apply { alignment = Pos.CENTER_LEFT }
+                            smallOptions.add(spannedNode, column, row, 2, 1)
+                            GridPane.setHalignment(spannedNode, HPos.LEFT)
+                        } else {
+                            smallOptions[column, row] = label
+                            smallOptions[column + 1, row] = config
+                        }
                     }
                 }
             }
@@ -243,6 +249,8 @@ object ExportSourceDialog {
     private interface ConfigNode {
         val label: Label
         val config: Node
+        val span: Boolean
+            get() = false
     }
 
     private data class DataTypeConfig(override val label: Label, override val config: ChoiceBox<DataType>) : ConfigNode {
@@ -337,7 +345,7 @@ object ExportSourceDialog {
 		}
 	}
 
-    private data class SegmentFragmentMappingConfig(override val label: Label, override val config: CheckBox) :
+    private data class SegmentFragmentMappingConfig(override val label: Label, override val config: CheckBox, override val span: Boolean = true) :
         ConfigNode {
         constructor(state: ExportSourceState) : this(
             Label("Map Fragment to Segment ID").apply { alignment = Pos.BOTTOM_RIGHT },
@@ -349,6 +357,37 @@ object ExportSourceDialog {
                 selectedProperty().set(true)
             }
         )
+    }
+
+    private data class ExportRegionConfig(override val label: Label, override val config: ChoiceBox<ExportRegion>) : ConfigNode {
+        constructor(choiceBox: ChoiceBox<ConnectomicsLabelState<*, *>>, state: ExportSourceState) : this(
+            Label("Export Region").apply { alignment = Pos.BOTTOM_RIGHT },
+            ChoiceBox<ExportRegion>().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
+                converter = ExportRegionConverter
+                itemsProperty().get().setAll(*ExportRegion.entries.toTypedArray())
+                selectionModel.select(ExportRegion.CROP_ONLY)
+                selectionModel.selectedItemProperty().subscribe { region -> state.exportCropProperty.set(region == ExportRegion.CROP_ONLY) }
+            }
+        ) {
+            val cropped = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { it.backend.xyzView.xyzCrop != null }
+            label.visibleProperty().bind(cropped)
+            label.managedProperty().bind(cropped)
+            config.visibleProperty().bind(cropped)
+            config.managedProperty().bind(cropped)
+        }
+
+        enum class ExportRegion(val text: String) {
+            FULL_SOURCE("Full Source"),
+            CROP_ONLY("Crop Only")
+        }
+
+        companion object ExportRegionConverter : StringConverter<ExportRegion>() {
+            override fun toString(`object`: ExportRegion?) = `object`?.text ?: ""
+
+            override fun fromString(string: String?): ExportRegion? = ExportRegion.entries.firstOrNull { it.text == string }
+        }
     }
 
     private fun sourceChoiceNode(): ChoiceBox<ConnectomicsLabelState<*, *>> {

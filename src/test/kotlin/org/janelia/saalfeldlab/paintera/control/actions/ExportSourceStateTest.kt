@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.actions
 
 import bdv.cache.SharedQueue
 import kotlinx.coroutines.runBlocking
+import net.imglib2.FinalInterval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.type.label.Label
@@ -24,6 +25,8 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.PainteraDataMultiscaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.testdata.TestData
 import org.janelia.saalfeldlab.paintera.testdata.TestData.TestCase
@@ -68,6 +71,12 @@ class ExportSourceStateTest {
 		val slicedExportCases = TestData.writeableLabelSourceCases
 			.filter { it.numDimensions == 5 && it.dataType == TestData.DataType.UINT64 }
 			.distinctBy { it.format to it.metadata }
+
+		/* 3D labels over N5, zarr2 and zarr3, single and two scale; the crop test reads every voxel back */
+		@JvmField
+		val croppedExportCases = TestData.writeableLabelSourceCases
+			.filter { it.numDimensions == 3 && it.dataType == TestData.DataType.UINT64 && it.metadata == TestData.Metadata.NONE }
+			.distinctBy { Triple(it.format, it.scalePyramid, it.shape.sharded) }
 
 		lateinit var tmpN5: N5Writer
 		lateinit var tmpZarr2: N5Writer
@@ -230,6 +239,82 @@ class ExportSourceStateTest {
 		assertNotNull(exportedMetadata) { "exported metadata should re-open for $testCase" }
 		assertEquals(dimensions.size, exportedMetadata!!.datasetAttributes.numDimensions) { "exported metadata dimensions for $testCase" }
 		exportWriter.remove("")
+	}
+
+	@ParameterizedTest
+	@FieldSource("croppedExportCases")
+	fun `export of a cropped source is the crop with its offset`(testCase: TestCase, @TempDir tmp: Path) {
+		val writer = TestData.newWriter(testCase, tmp)
+		val dimensions = TestData.defaultDimensions(testCase)
+		val dataset = TestData.createRaw(writer, testCase, "labels", dimensions, resolution = doubleArrayOf(4.0, 4.0, 40.0), offset = doubleArrayOf(100.0, 200.0, 300.0)) { scaleDataset, scaleDimensions, scaleIndex ->
+			if (scaleIndex == 0)
+				fillWithLabels(writer, scaleDataset, scaleDimensions)
+		}
+		val s0 = "$dataset/s0".takeIf { writer.datasetExists("$dataset/s0") } ?: dataset
+
+		/* not block aligned on either side */
+		val crop = FinalInterval(longArrayOf(13, 7, 21), longArrayOf(70, 61, 55))
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!.also {
+			it.isLabel = true
+			it.xyzView.setCropInterval(crop)
+		}
+		val sourceResolution = metadataState.resolution
+		val sourceTranslation = metadataState.translation
+		val queue = SharedQueue(1)
+		val executor = Executors.newSingleThreadExecutor()
+		val backend = N5BackendLabel.createFrom<UnsignedLongType, VolatileUnsignedLongType>(metadataState, executor)
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, "labels", queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor) as MaskedSource
+
+		val exportLocation = tmp.resolve("export.n5").absolutePathString()
+		val exportState = ExportSourceState().apply {
+			backendProperty.set(backend)
+			sourceProperty.set(masked)
+			scaleLevelProperty.set(0)
+			dataTypeProperty.set(DataType.UINT64)
+			segmentFragmentMappingProperty.set(false)
+			exportLocationProperty.set(exportLocation)
+			datasetProperty.set("exported")
+		}
+		var exportFailure: Throwable? = null
+		runBlocking {
+			val job = exportState.exportSource()!!
+			job.invokeOnCompletion { cause -> exportFailure = cause }
+			job.join()
+		}
+		assertNull(exportFailure) { "export failed for $testCase: $exportFailure" }
+
+		val exportWriter = Paintera.n5Factory.newWriter(exportLocation)
+		val exported = N5Utils.open<UnsignedLongType>(exportWriter, "exported/s0")
+		val expected = N5Utils.open<UnsignedLongType>(writer, s0)
+		assertArrayEquals(crop.dimensionsAsLongArray(), exported.dimensionsAsLongArray()) { "the export is the crop's size for $testCase" }
+
+		val expectedAccess = expected.randomAccess()
+		val cursor = exported.localizingCursor()
+		val position = LongArray(3)
+		while (cursor.hasNext()) {
+			val value = cursor.next()
+			cursor.localize(position)
+			for (d in 0 until 3)
+				position[d] += crop.min(d)
+			expectedAccess.setPosition(position)
+			assertEquals(expectedAccess.get().integerLong, value.integerLong) { "exported voxel at ${position.toList()} for $testCase" }
+		}
+
+		val exportedMetadata = MetadataUtils.createMetadataState(N5ContainerState(exportWriter), "exported")!!
+		assertArrayEquals(sourceResolution, exportedMetadata.resolution, 1e-9) { "resolution for $testCase" }
+		val expectedTranslation = DoubleArray(3) { sourceTranslation[it] + crop.min(it) * sourceResolution[it] }
+		assertArrayEquals(expectedTranslation, exportedMetadata.translation, 1e-9) { "translation moves to the crop's min for $testCase" }
+		exportWriter.remove("")
+
+		/* with the toggle off the crop is ignored: the whole source, its own translation */
+		exportState.exportCropProperty.set(false)
+		runBlocking { exportState.exportSource()!!.join() }
+		val wholeWriter = Paintera.n5Factory.newWriter(exportLocation)
+		assertArrayEquals(dimensions, N5Utils.open<UnsignedLongType>(wholeWriter, "exported/s0").dimensionsAsLongArray()) { "the whole source for $testCase" }
+		assertArrayEquals(sourceTranslation, MetadataUtils.createMetadataState(N5ContainerState(wholeWriter), "exported")!!.translation, 1e-9) { "the source translation for $testCase" }
+		wholeWriter.remove("")
 	}
 
 	/** Fill [dataset] with a repeating pattern of label ids, so the export has something to match. */

@@ -7,10 +7,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.javafx.awaitPulse
+import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.img.array.ArrayImgFactory
 import net.imglib2.img.cell.CellGrid
+import net.imglib2.iterator.IntervalIterator
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
@@ -41,11 +43,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.openLabelMultiset
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.cropAtLevel
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
@@ -55,6 +59,7 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.saalfeldlab.util.n5.N5Helpers.PAINTERA_NAMESPACE
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlock
 import org.janelia.saalfeldlab.util.n5.N5Helpers.forEachBlockExists
+import org.janelia.saalfeldlab.util.n5.SpatialMapping
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import org.scijava.annotations.Index
 import kotlin.coroutines.cancellation.CancellationException
@@ -83,6 +88,7 @@ class ExportSourceState {
 	val datasetProperty = SimpleStringProperty()
 	val exportLocationProperty = SimpleStringProperty()
 	val segmentFragmentMappingProperty = SimpleBooleanProperty(true)
+	val exportCropProperty = SimpleBooleanProperty(true)
 	val scaleLevelProperty = SimpleIntegerProperty(0)
 	val dataTypeProperty = SimpleObjectProperty(DataType.UINT64)
 	val storageFormatProperty = SimpleObjectProperty<StorageFormat?>(null)
@@ -144,8 +150,8 @@ class ExportSourceState {
 	//TODO Caleb: some future ideas:
 	//  - Export specific label? Maybe only if LabelBlockLookup is present?
 	//  - Export multiscale pyramid
-	//  - Export interval of label source
 	//  - custom fragment to segment mapping
+    //  - export sharded zarr source
 	fun exportSource(showProgressAlert: Boolean = false): Job? {
 
 		val backend = getBackend() ?: return null
@@ -198,7 +204,7 @@ class ExportSourceState {
 		/* only a key-value container can be asked which blocks exist; otherwise every block is written */
 		val n5 = metadataState.reader as? GsonKeyValueN5Reader
 
-		val exportRAI = exportableSourceRAI(
+		val committedRAI = exportableSourceRAI(
 			metadataState.reader,
 			sourceMetadata.path,
 			metadataState.isLabelMultiset,
@@ -206,9 +212,16 @@ class ExportSourceState {
 		) ?: return null
 		val sourceAttributes: DatasetAttributes = sourceMetadata.attributes
 
-		val exportAttributes = DatasetAttributes(sourceAttributes.dimensions, sourceAttributes.chunkSize, dataType, compression)
+		/* the crop over this level, in source order with the non-spatial axes whole; null exports the whole dataset block for block */
+		val cropInterval = metadataState.xyzView.xyzCrop?.takeIf { exportCropProperty.value }?.let { cropInterval(metadataState, scaleLevel, sourceAttributes.dimensions, it) }
+		val exportRAI = cropInterval?.let { Views.zeroMin(Views.interval(committedRAI, it)) } ?: committedRAI
+		val exportTranslation = cropInterval?.let { translation.withCropOffset(it, sourceMetadata.resolution, metadataState.xyzView.spatialMapping()) } ?: translation
+		val exportDimensions = cropInterval?.dimensionsAsLongArray() ?: sourceAttributes.dimensions
 
-		val iterationGrid = CellGrid(sourceAttributes.dimensions, sourceAttributes.blockSize)
+		val exportAttributes = DatasetAttributes(exportDimensions, sourceAttributes.chunkSize, dataType, compression)
+
+		val iterationGrid = CellGrid(exportDimensions, sourceAttributes.blockSize)
+		val sourceGrid = CellGrid(sourceAttributes.dimensions, sourceAttributes.blockSize)
 		val totalBlocks = iterationGrid.gridDimensions.reduce { acc, dim -> acc * dim }
 		val count = SimpleIntegerProperty(0)
 		val labelProp = SimpleStringProperty("Blocks Processed:\t0 / $totalBlocks").apply {
@@ -235,7 +248,7 @@ class ExportSourceState {
 		val incrementWritten = { -> blocksWritten.update { it + 1 } }
 
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
-			val createdAttributes = exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, translation)
+			val createdAttributes = exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, exportTranslation)
 			writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/isLabel", true)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", maxIdProperty.value)
@@ -244,15 +257,21 @@ class ExportSourceState {
 				exportBlock<UnsignedLongType>(exportRAI, cellInterval, writer, scaleLevelDataset, createdAttributes)
 			}
 
-			n5?.let {
-				forEachBlockExists(it, sourceMetadata.path, { incrementProcessed() }) { cellInterval ->
+			when {
+				/* the export grid is the source grid, so an existing source block is an export block */
+				cropInterval == null && n5 != null -> forEachBlockExists(n5, sourceMetadata.path, { incrementProcessed() }) { cellInterval ->
 					writeBlock(cellInterval)
 					incrementWritten()
 				}
-			} ?: forEachBlock(iterationGrid) { cellInterval ->
-				writeBlock(cellInterval)
-				incrementProcessed()
-				incrementWritten()
+
+				else -> forEachBlock(iterationGrid) { cellInterval ->
+					val sourceBlockInterval = cropInterval?.let { Intervals.translate(cellInterval, *it.minAsLongArray()) } ?: cellInterval
+					if (n5 == null || n5.anyBlockExists(sourceMetadata.path, sourceGrid, sourceBlockInterval)) {
+						writeBlock(cellInterval)
+						incrementWritten()
+					}
+					incrementProcessed()
+				}
 			}
 			Paintera.n5Factory.remove(exportLocation)
 		}
@@ -367,6 +386,46 @@ class ExportSourceState {
 									""".trimIndent()
 		}.showAndWait()
 	}.getOrNull()
+}
+
+/* [dimensions] of scale [level] narrowed to [s0Crop] on the spatial axes; the non-spatial axes stay whole */
+internal fun cropInterval(metadataState: MetadataState, level: Int, dimensions: LongArray, s0Crop: Interval): Interval {
+	val fullSourceInterval = FinalInterval(*dimensions)
+	val sourceToXyzTransforms = (metadataState as? MultiScaleMetadataState)?.sourceToXyzTransforms ?: arrayOf(metadataState.sourceToXyz)
+	val cropXyz = cropAtLevel(s0Crop, sourceToXyzTransforms, level)
+	val mapping = metadataState.xyzView.spatialMapping()
+	val sourceCropMin = mapping.toSource(cropXyz.minAsLongArray(), fullSourceInterval.minAsLongArray())
+	val sourceCropMax = mapping.toSource(cropXyz.maxAsLongArray(), fullSourceInterval.maxAsLongArray())
+	return Intervals.intersect(FinalInterval(sourceCropMin, sourceCropMax), fullSourceInterval)
+}
+
+/** This translation moved to the min of [exportInterval], in source order */
+internal fun DoubleArray.withCropOffset(exportInterval: Interval, resolution: DoubleArray, mapping: SpatialMapping): DoubleArray {
+	val numDimensions = exportInterval.numDimensions()
+	val translation = toSource(mapping, numDimensions, 0.0)
+	val voxelSize = resolution.toSource(mapping, numDimensions, 1.0)
+	return DoubleArray(numDimensions) { axis -> translation[axis] + exportInterval.min(axis) * voxelSize[axis] }
+}
+
+/* a 3D array over an nD source is indexed by xyz slot; the other axes get [fill] */
+private fun DoubleArray.toSource(mapping: SpatialMapping, numDimensions: Int, fill: Double): DoubleArray =
+	if (size == numDimensions) this else mapping.toSource(this, DoubleArray(numDimensions) { fill })
+
+/** Whether any block of [sourceGrid] meeting [sourceInterval] exists in [dataset] */
+private fun GsonKeyValueN5Reader.anyBlockExists(dataset: String, sourceGrid: CellGrid, sourceInterval: Interval): Boolean {
+	val attributes = getDatasetAttributes(dataset)
+	val inSource = Intervals.intersect(sourceInterval, FinalInterval(*sourceGrid.imgDimensions))
+	if (Intervals.isEmpty(inSource))
+		return false
+	val minCell = LongArray(inSource.numDimensions()) { inSource.min(it) / sourceGrid.cellDimension(it) }
+	val maxCell = LongArray(inSource.numDimensions()) { inSource.max(it) / sourceGrid.cellDimension(it) }
+	val cells = IntervalIterator(FinalInterval(minCell, maxCell))
+	while (cells.hasNext()) {
+		cells.fwd()
+		if (blockExists(dataset, attributes, *cells.positionAsLongArray()))
+			return true
+	}
+	return false
 }
 
 internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = downscaleTranslation(

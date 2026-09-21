@@ -96,6 +96,16 @@ class SpatialMapping(
         return toSource(xyzValuesLong, fillLong).map { it.toInt() }.toIntArray()
     }
 
+    fun toSource(xyzValues: DoubleArray, fill: DoubleArray): DoubleArray {
+        require(xyzValues.size == 3) { "xyzValues must have 3 dimensions, got ${xyzValues.size}" }
+        requireSourceShape(fill.size)
+
+        return fill.copyOf().also { widened ->
+            for (slot in 0..2)
+                xyzSourceAxes[slot].takeIf { it >= 0 }?.let { widened[it] = xyzValues[slot] }
+        }
+    }
+
     fun toSource(xyzInterval: Interval, fill: LongArray = slicePositions): Interval =
         FinalInterval(toSource(xyzInterval.minAsLongArray(), fill), toSource(xyzInterval.maxAsLongArray(), fill))
 
