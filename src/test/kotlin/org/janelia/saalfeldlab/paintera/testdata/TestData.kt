@@ -215,17 +215,16 @@ object TestData {
     @JvmField
     val twoDimensionalCases = matrixOf(Formats.N5, Metadata.NONE, SCALAR, SMALL_UNSHARDED_2D, ScalePyramid.Single)
 
-    /* 4D is always channelized atm, so only 3D or 5D+ are interpreted as raw sources */
     @JvmField
-    val rawSources = allCases.filterNot { it.numDimensions == 4 }
+    val rawSources = allCases
 
     /* opened as a label source at any supported dimensionality: 2D embeds a singleton z, >3D slices to 3D */
     @JvmField
     val readOnlyAsLabelSourceCases = twoDimensionalCases + allCases
 
-    /* opened as a writable (masked) label source; nD as above, but not sharded (can't write sharded yet) */
+    /* opened as a writable (masked) label source */
     @JvmField
-    val writeableLabelSourceCases = readOnlyAsLabelSourceCases.filterNot { it.sharded }
+    val writeableLabelSourceCases = readOnlyAsLabelSourceCases
 
     /* the paintera label format needs variable length blocks for unique-labels and label-to-block-mapping, so it is N5 only */
     @JvmField
@@ -235,13 +234,9 @@ object TestData {
     @JvmField
     val uncreatableLabelDatasetCases = (zarr2Cases + zarr3Cases + hdf5Cases).filter { it.numDimensions == 3 && !it.sharded }
 
-    /* channel is only supported if explicitly 4D; label multisets are labels, never channel sources */
+    /* a raw source with a channel axis composites its active channels; label multisets are labels, never composited */
     @JvmField
-    val channelSource4DCases = allCases.filter { it.numDimensions == 4 && !it.isLabelMultiset }
-
-    /* any (n > 4)d source is sliced at timepoint 0 for now */
-    @JvmField
-    val hyperDimension5DCases = allCases.filter { it.numDimensions == 5 }
+    val channelCompositeCases = allCases.filter { it.numDimensions >= 4 && !it.isLabelMultiset }
 
     /**
      * Default dataset dimensions for [testCase], derived from its [DataShape.blockSize]: spatial dims span two

@@ -129,8 +129,8 @@ class OpenSourceFormatTest {
 	}
 
 	@ParameterizedTest
-	@FieldSource("org.janelia.saalfeldlab.paintera.testdata.TestData#channelSource4DCases")
-	fun `open channel source for 4D data`(testCase: TestCase, @TempDir tmp: Path) {
+	@FieldSource("org.janelia.saalfeldlab.paintera.testdata.TestData#channelCompositeCases")
+	fun `a raw source with a channel axis composites the active channels`(testCase: TestCase, @TempDir tmp: Path) {
 		val writer = TestData.newWriter(testCase, tmp)
 		val dataset = TestData.createRaw(writer, testCase, "channels")
 
@@ -139,19 +139,6 @@ class OpenSourceFormatTest {
 		state.channels!!.activeChannels = listOf(0, 1)
 		val source = state.sourceAndConverter.spimSource as ChannelCompositeSource<*, *>
 		assertEquals(2, source.numChannels) { "should composite the active channels for $testCase" }
-	}
-
-	@ParameterizedTest
-	@FieldSource("org.janelia.saalfeldlab.paintera.testdata.TestData#hyperDimension5DCases")
-	fun `slice high-dimensional data to 3D`(testCase: TestCase, @TempDir tmp: Path) {
-		val writer = TestData.newWriter(testCase, tmp)
-		val dataset = TestData.createRaw(writer, testCase, "highdim")
-
-		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!
-		val source = openRaw(metadataState, "highdim", testCase)
-		val opened = source.getDataSource(0, 0)
-		assertEquals(3, opened.numDimensions()) { "n>4D data should be sliced to 3D for $testCase" }
-		assertArrayEquals(longArrayOf(100, 100, 100), Intervals.dimensionsAsLongArray(opened))
 	}
 
 	/**
