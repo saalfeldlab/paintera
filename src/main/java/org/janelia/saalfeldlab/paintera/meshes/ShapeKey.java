@@ -10,10 +10,8 @@ public record ShapeKey<T>(
 		int smoothingIterations,
 		double minLabelRatio,
 		boolean overlap,
-		FinalInterval interval) {
-
-	public FinalInterval interval() {
-
-		return interval;
-	}
+		/* the block in source coordinates; nD, so the same spatial block at another slice is a different key */
+		FinalInterval sourceInterval,
+		/* the same block as the renderer sees it: always 3D */
+		FinalInterval xyzInterval) {
 }

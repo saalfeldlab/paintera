@@ -10,6 +10,7 @@ import net.imglib2.view.IntervalView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
@@ -48,8 +49,10 @@ object GoToLabel : MenuAction("Go to _Label...") {
 			is LabelBlockLookupNoBlocks -> TODO("No LabelBlockLookup Present")
 		}
 
-		val blocksWithLabel = sourceState.labelBlockLookup.read(LabelBlockLookupKey(0, labelId))
-		val block = blocksWithLabel.firstOrNull() ?: return
+		val xyzBlocksWithLabel = sourceState.labelBlockLookup.read(LabelBlockLookupKey(0, labelId))
+			.asList()
+			.toXyzBlocks(sourceState.dataSource)
+		val block = xyzBlocksWithLabel.firstOrNull() ?: return
 
 
 		val sourceData = sourceState.dataSource.getInterpolatedDataSource(0, 0, Interpolation.NEARESTNEIGHBOR)

@@ -10,7 +10,7 @@ import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.application.Platform
-import javafx.beans.Observable
+import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -48,7 +48,6 @@ import net.imglib2.type.volatiles.VolatileFloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
-import net.imglib2.view.RandomAccessibleIntervalCursor
 import org.apache.commons.io.output.NullPrintStream
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
 import org.janelia.saalfeldlab.control.VPotControl
@@ -144,7 +143,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	override val statusProperty = SimpleStringProperty()
 
-	private val selectedIdListener: (obs: Observable) -> Unit = {
+	private val selectedIdListener = InvalidationListener {
 		statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
 	}
 
@@ -295,6 +294,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}
 		}
 		InvokeOnJavaFXApplicationThread { setViewer?.children?.removeIf { SAM_POINT.style in it.styleClass } }
+		statePaintContext?.selectedIds?.removeListener(selectedIdListener)
 		paintera.baseView.disabledPropertyBindings -= this
         lastPrediction?.maskInterval?.let { currentViewerMask?.viewerMask?.requestRepaint(it) }
 		viewerMask = null
@@ -1003,8 +1003,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         val minPos = longArrayOf(topLeft.x.toLong(), topLeft.y.toLong())
                         val maxPos = longArrayOf(bottomRight.x.toLong(), bottomRight.y.toLong())
                         val boxInterval = FinalInterval(minPos, maxPos)
-						thresholdPrediction.extendBorder().randomAccess(boxInterval)
-						val thresholdCursor = RandomAccessibleIntervalCursor(thresholdPrediction.extendBorder(), boxInterval)
+                        val thresholdCursor = thresholdPrediction.interval(boxInterval).cursor()
                         val componentsCursor = connectedComponents.interval(boxInterval).cursor()
                         while (thresholdCursor.hasNext()) {
                             val meetsThreshold = thresholdCursor.next()

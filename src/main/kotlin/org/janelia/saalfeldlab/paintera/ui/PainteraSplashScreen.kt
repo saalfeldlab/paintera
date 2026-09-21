@@ -34,7 +34,7 @@ class SplashScreenUpdateNotification @JvmOverloads constructor(val text: String,
 class PainteraSplashScreen : Preloader() {
 	companion object {
 
-		private val SPLASH_SCREEN_RES = "/icon-256.png"
+		private const val SPLASH_SCREEN_IMG = "/icons/logo/icon-256.png"
 
 		private fun wrapHBoxAndCenter(node: Node, width: Double = 512.0): HBox {
 			node.also { HBox.setHgrow(it, Priority.ALWAYS) }
@@ -149,7 +149,7 @@ class PainteraSplashScreen : Preloader() {
 		}
 	}
 
-	private val splashImg = ImageView(SPLASH_SCREEN_RES).also { HBox.setHgrow(it, Priority.ALWAYS) }
+	private val splashImg = ImageView(SPLASH_SCREEN_IMG).also { HBox.setHgrow(it, Priority.ALWAYS) }
 	private val root = VBox()
 
 	var backgroundColor: Color = Color.valueOf("#444444")

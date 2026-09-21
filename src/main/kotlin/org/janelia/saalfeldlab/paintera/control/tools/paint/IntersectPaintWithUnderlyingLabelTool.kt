@@ -58,7 +58,7 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
 	private val intersector: IntersectPainting?
 		get() = activeViewer?.let { viewer ->
 			statePaintContext?.let { ctx ->
-				IntersectPainting(viewer, paintera.baseView.sourceInfo(), paintera.baseView.orthogonalViews()::requestRepaint, ctx::getMaskForLabel)
+				IntersectPainting(viewer, paintera.baseView.sourceInfo(), paintera.baseView.orthogonalViews()::requestRepaint, ctx::maskForLabel)
 			}
 		}
 

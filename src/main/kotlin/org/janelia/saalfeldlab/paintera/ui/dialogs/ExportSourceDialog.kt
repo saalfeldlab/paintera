@@ -38,11 +38,11 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.label.CommitHandler
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
 import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalURIs
 import org.janelia.saalfeldlab.util.n5.N5Helpers.MAX_ID_KEY
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression
 import kotlin.jvm.optionals.getOrNull
@@ -61,12 +61,32 @@ object ExportSourceDialog {
 
 		val state = ExportSourceState()
 		when (newDialog(state).showAndWait().getOrNull()) {
-			ButtonType.OK -> state.exportSource(true)
+			ButtonType.OK -> if (commitCanvasOrCancel(state))
+				state.exportSource(true)
 		}
 	}
 
+	/** Prompt to commit first, or otherwise cancel */
+	private fun commitCanvasOrCancel(state: ExportSourceState): Boolean {
+		if (!state.hasUncommittedCanvas)
+			return true
+
+		val sourceState = state.sourceStateProperty.value ?: return true
+		val committed = CommitHandler.showCommitDialog(
+			sourceState,
+			paintera.baseView.sourceInfo().indexOf(sourceState.dataSource),
+			false,
+			{ index, name -> "The export writes committed data only.\nCommit source $index: $name before exporting?" },
+			true,
+			"_Cancel Export",
+			"Commi_t and Export",
+			fragmentSegmentAssignmentState = sourceState.fragmentSegmentAssignment
+		)
+		return committed == ButtonType.OK
+	}
+
 	/**
-	 * Picks the smallest data type that can hold all values less than or equal to maxId value.
+	 * Pick the smallest data type that can hold all values less than or equal to maxId value.
 	 *
 	 * @param maxId the maximum ID value
 	 * @return the smallest data type that can contain up to maxId
@@ -77,11 +97,12 @@ object ExportSourceDialog {
 
 		val smallestType = acceptableDataTypes
 			.asSequence()
-			.map { it to N5Utils.type(it) }
-			.filterIsInstance<Pair<DataType, RealType<*>>>()
-			.filter { maxId < it.second.maxValue }
-			.map { it.first }
-			.firstOrNull() ?: DataType.UINT64
+			.firstNotNullOfOrNull { dataType ->
+				dataType.takeIf {
+					val type = N5Utils.type(it)
+					type is RealType<*> && type.maxValue > maxId
+				}
+			} ?: DataType.UINT64
 
 		return smallestType
 	}
@@ -138,9 +159,13 @@ object ExportSourceDialog {
 					}
 				}
 				PainteraCache.RECENT_EXPORT_LOCATIONS.distinctCanonicalStrings().takeIf { it.isNotEmpty() }?.let { recentExports ->
-					containerPathField.text = recentExports.firstOrNull()
+					val recents = FXCollections.observableArrayList(recentExports)
+					containerPathField.text = recents.firstOrNull()
 					containerPathField.prefColumnCount *= 2
-					val recentMatcher = MatchSelectionMenuButton(recentExports, "_Recent") {
+					val recentMatcher = MatchSelectionMenuButton(recents, "_Recent", null, { removed ->
+						PainteraCache.RECENT_EXPORT_LOCATIONS.removeEntry(removed)
+						recents.remove(removed)
+					}) {
 						containerPathField.text = it
 					}
 					children += recentMatcher
@@ -189,17 +214,23 @@ object ExportSourceDialog {
 			}
             //@formatter:off
             val configNodes : List<List<ConfigNode?>> = listOf(
-                listOf( SegmentFragmentMappingConfig(state), StorageFormatConfig(state), ScaleLevelConfig(scaleLevelsBinding, state) ),
-                listOf(                                null,   CompressionConfig(state),                       DataTypeConfig(state) )
+                listOf( SegmentFragmentMappingConfig(state) , StorageFormatConfig(state), ScaleLevelConfig(scaleLevelsBinding, state) ),
+                listOf( ExportRegionConfig(choiceBox, state),   CompressionConfig(state),                       DataTypeConfig(state) )
             )
             //@formatter:on
 
             configNodes.forEachIndexed { row, nodes ->
                 nodes.forEachIndexed { colIdx, configNode ->
                     configNode?.apply {
-                        val column = colIdx*2
-                        smallOptions[column, row] = label
-                        smallOptions[column + 1, row] = config
+                        val column = colIdx * 2
+                        if (span) {
+                            val spannedNode = HBox(10.0, label, config).apply { alignment = Pos.CENTER_LEFT }
+                            smallOptions.add(spannedNode, column, row, 2, 1)
+                            GridPane.setHalignment(spannedNode, HPos.LEFT)
+                        } else {
+                            smallOptions[column, row] = label
+                            smallOptions[column + 1, row] = config
+                        }
                     }
                 }
             }
@@ -222,6 +253,8 @@ object ExportSourceDialog {
     private interface ConfigNode {
         val label: Label
         val config: Node
+        val span: Boolean
+            get() = false
     }
 
     private data class DataTypeConfig(override val label: Label, override val config: ChoiceBox<DataType>) : ConfigNode {
@@ -316,7 +349,7 @@ object ExportSourceDialog {
 		}
 	}
 
-    private data class SegmentFragmentMappingConfig(override val label: Label, override val config: CheckBox) :
+    private data class SegmentFragmentMappingConfig(override val label: Label, override val config: CheckBox, override val span: Boolean = true) :
         ConfigNode {
         constructor(state: ExportSourceState) : this(
             Label("Map Fragment to Segment ID").apply { alignment = Pos.BOTTOM_RIGHT },
@@ -328,6 +361,37 @@ object ExportSourceDialog {
                 selectedProperty().set(true)
             }
         )
+    }
+
+    private data class ExportRegionConfig(override val label: Label, override val config: ChoiceBox<ExportRegion>) : ConfigNode {
+        constructor(choiceBox: ChoiceBox<ConnectomicsLabelState<*, *>>, state: ExportSourceState) : this(
+            Label("Export Region").apply { alignment = Pos.BOTTOM_RIGHT },
+            ChoiceBox<ExportRegion>().apply {
+                GridPane.setFillWidth(this, true)
+                maxWidth = Double.MAX_VALUE
+                converter = ExportRegionConverter
+                itemsProperty().get().setAll(*ExportRegion.entries.toTypedArray())
+                selectionModel.select(ExportRegion.CROP_ONLY)
+                selectionModel.selectedItemProperty().subscribe { region -> state.exportCropProperty.set(region == ExportRegion.CROP_ONLY) }
+            }
+        ) {
+            val cropped = choiceBox.selectionModel.selectedItemProperty().createNonNullValueBinding { it.backend.xyzView.xyzCrop != null }
+            label.visibleProperty().bind(cropped)
+            label.managedProperty().bind(cropped)
+            config.visibleProperty().bind(cropped)
+            config.managedProperty().bind(cropped)
+        }
+
+        enum class ExportRegion(val text: String) {
+            FULL_SOURCE("Full Source"),
+            CROP_ONLY("Crop Only")
+        }
+
+        companion object ExportRegionConverter : StringConverter<ExportRegion>() {
+            override fun toString(`object`: ExportRegion?) = `object`?.text ?: ""
+
+            override fun fromString(string: String?): ExportRegion? = ExportRegion.entries.firstOrNull { it.text == string }
+        }
     }
 
     private fun sourceChoiceNode(): ChoiceBox<ConnectomicsLabelState<*, *>> {

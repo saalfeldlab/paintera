@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis as MetadataAxis
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.NavigationKeys
 import org.janelia.saalfeldlab.paintera.NavigationKeys.*
@@ -36,14 +37,19 @@ import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.navigation.*
 import org.janelia.saalfeldlab.paintera.control.navigation.Rotate.Axis
+import org.janelia.saalfeldlab.paintera.data.XyzView
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.sign
+import org.janelia.saalfeldlab.paintera.state.metadata.transform
 
 /**
  * Mode which registers Navigation controls. One [Tool] for all Navigation [Action]
@@ -179,6 +185,8 @@ object NavigationTool : ViewerTool() {
 
 			actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, resetRotationController)
 			actionSets += goToPositionAction()
+			actionSets += sliceDimensionActions(translationController!!)
+			actionSets += nonSpatialSliceActions()
 			actionSets.filterNotNull().toMutableList()
 		} ?: mutableListOf()
 	}
@@ -273,6 +281,86 @@ object NavigationTool : ViewerTool() {
 							}
 						}
 					}
+				}
+			}
+		}
+
+	private fun activeMetadataState(): MetadataState? {
+		val state = paintera.baseView.sourceInfo().currentState().get() ?: return null
+		return ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
+	}
+
+	/** Move the view one source-voxel along the active source's canonical [axis]. */
+	private fun translateAlongSourceAxis(axis: Int, voxelStep: Double) {
+		val metadataState = activeMetadataState() ?: return
+		val sourceToWorld = metadataState.transform
+		val worldShift = doubleArrayOf(sourceToWorld[0, axis] * voxelStep, sourceToWorld[1, axis] * voxelStep, sourceToWorld[2, axis] * voxelStep)
+		synchronized(globalTransformManager) {
+			val global = AffineTransform3D()
+			globalTransformManager.getTransform(global)
+			global.concatenate(AffineTransform3D().apply { setTranslation(*worldShift) })
+			globalTransformManager.setTransform(global)
+		}
+	}
+
+	/** The active source's view and its non-spatial axis of [axisType */
+	private fun nonSpatialAxis(axisType: String): Pair<XyzView, Int>? {
+		val metadataState = activeMetadataState() ?: return null
+		val xyzView = metadataState.xyzView
+		val candidates = xyzView.nonSpatialAxes
+		val axis = candidates.firstOrNull { metadataState.axes[it].type == axisType }
+			?: candidates.firstOrNull { metadataState.axes[it].name?.lowercase()?.firstOrNull() == axisType.first() }
+			?: return null
+		return xyzView to axis
+	}
+
+	private fun stepNonSpatialSlice(axisType: String, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisType) ?: return
+		xyzView.sliceAt(axis, xyzView.slicePosition(axis) + step)
+	}
+
+	/** Slice at the first (`step < 0`) or the last position of the axis */
+	private fun sliceNonSpatialToEnd(axisType: String, step: Long) {
+		val (xyzView, axis) = nonSpatialAxis(axisType) ?: return
+		xyzView.sliceAt(axis, if (step < 0) xyzView.fullInterval.min(axis) else xyzView.fullInterval.max(axis))
+	}
+
+	/** Hold X/Y/Z and scroll to slice through that dimension of the active source, regardless of which viewer is focused. */
+	private fun sliceDimensionActions(translationController: TranslationController): ActionSet =
+		painteraActionSet("scroll-slice-dimension", NavigationActionType.Slice) {
+			listOf(KeyCode.X to 0, KeyCode.Y to 1, KeyCode.Z to 2).forEach { (key, slot) ->
+				ScrollEvent.SCROLL {
+					name = "scroll-slice-source-${key.getName().lowercase()}"
+					keysDown(key)
+					onAction { translateAlongSourceAxis(slot, -ControlUtils.getBiggestScroll(it).sign) }
+				}
+			}
+		}
+
+	/**
+	 * Step the time axis of the active source: T + scroll, T + `,` / `.` for one timepoint, Shift + T + `,` / `.` for
+	 * the first / last. Its own permission, so a mode can keep XYZ slicing and refuse this
+	 */
+	private fun nonSpatialSliceActions(): ActionSet =
+		painteraActionSet("non-spatial-slice", NavigationActionType.NonSpatialSlice) {
+			ScrollEvent.SCROLL {
+				name = "scroll-slice-source-t"
+				keysDown(KeyCode.T)
+				onAction { stepNonSpatialSlice(MetadataAxis.TIME,-ControlUtils.getBiggestScroll(it).sign.toLong()) }
+			}
+			/* a KeyCombination cannot hold T and a second key, so these stay hard-coded; requiring exactly the key set keeps the plain and Shift variants apart */
+			listOf(KeyCode.COMMA to -1L, KeyCode.PERIOD to 1L).forEach { (key, step) ->
+				KEY_PRESSED(KeyCode.T, key) {
+					name = "key-slice-source-t-${key.getName().lowercase()}"
+					keysExclusive = true
+					verify { it?.code == key }
+					onAction { stepNonSpatialSlice(MetadataAxis.TIME,step) }
+				}
+				KEY_PRESSED(KeyCode.SHIFT, KeyCode.T, key) {
+					name = "key-slice-source-t-${key.getName().lowercase()}-end"
+					keysExclusive = true
+					verify { it?.code == key }
+					onAction { sliceNonSpatialToEnd(MetadataAxis.TIME, step) }
 				}
 			}
 		}

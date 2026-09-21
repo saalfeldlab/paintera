@@ -45,10 +45,10 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>> implements Cach
 
 		final float[] vertices = new MarchingCubes<>(
 				Views.extendZero(mask),
-				Intervals.expand(key.interval(), smoothingIterations + 2)
+				Intervals.expand(key.xyzInterval(), smoothingIterations + 2)
 		).generateMesh();
 
-		final Mesh meshMesh = new Mesh(vertices, key.interval(), transform, key.overlap());
+		final Mesh meshMesh = new Mesh(vertices, key.xyzInterval(), transform, key.overlap());
 		if (smoothingIterations > 0)
 			meshMesh.smooth(key.smoothingLambda(), smoothingIterations);
 

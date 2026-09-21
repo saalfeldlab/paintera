@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui
 
 import bdv.viewer.Interpolation
+import javafx.beans.binding.Bindings
 import javafx.beans.value.ObservableBooleanValue
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -14,6 +15,7 @@ import javafx.util.Subscription
 import net.imglib2.RealPoint
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.extensions.plus
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
@@ -22,6 +24,8 @@ import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListe
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
 
 private const val NOT_APPLICABLE = "N/A"
 
@@ -76,11 +80,17 @@ internal class StatusBar() : HBox() {
 		val subscribeToSource: SourceState<*, *>.() -> Subscription? = {
 			displayStatus?.let { displayStatusPane.children.setAll(it) }
 			// show the source name by default, or override it with source status text if any
-			statusTextProperty().createNullableValueBinding(nameProperty()) {
+			val statusSubscription = statusTextProperty().createNullableValueBinding(nameProperty()) {
 				it?.run { ifEmpty { null } } ?: nameProperty().get()
 			}.subscribe { it ->
 				conflatedTextUpdater.submit { statusLabel.text = it }
 			}.and { displayStatusPane.children.clear() }
+			/* the source coordinate status shows the slice position; update the status text when the slice pos changes */
+			val sliceSubscription = ((this as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
+				?.activeIntervalProperty
+				?.subscribe { _, _ -> lastSourceCoordinate?.let { setSourceCoordinateStatus(it) } }
+
+            sliceSubscription + statusSubscription
 		}
 
 		var prevSubscription: Subscription? = null
@@ -142,12 +152,32 @@ internal class StatusBar() : HBox() {
 		}
 	}
 
+	private var lastSourceCoordinate: RealPoint? = null
+
 	internal fun setSourceCoordinateStatus(point: RealPoint?) {
-		val coords = point?.let {
-			CoordinateDisplayListener.realPointToString(point)
-		} ?: NOT_APPLICABLE
+		lastSourceCoordinate = point
+		val coords = point?.let { sourcePositionString(it) } ?: NOT_APPLICABLE
 		InvokeOnJavaFXApplicationThread {
 			sourceCoordinateStatus = coords
+		}
+	}
+
+	/**
+	 * The full nD source position under the cursor as `(value:Axis, ...)` in source-axis order: spatial axes take the
+	 * cursor position, non-spatial (c/t/...) axes their fixed slice. Falls back to the plain 3D point for a source with
+	 * no N5 metadata.
+	 */
+	private fun sourcePositionString(point: RealPoint): String {
+		val state = paintera.baseView.sourceInfo().currentState().get()
+		val metadataState = ((state as? SourceStateWithBackend<*, *>)?.backend as? SourceStateBackendN5<*, *>)?.metadataState
+			?: return CoordinateDisplayListener.realPointToString(point)
+		val axes = metadataState.axes
+		val xyzView = metadataState.xyzView
+		return (0 until xyzView.numDimensions).joinToString(prefix = "(", postfix = ")") { axis ->
+			val slot = xyzView.xyzSourceAxes.indexOfFirst { it == axis }
+			val value = if (slot >= 0) Math.round(point.getDoublePosition(slot)) else xyzView.slicePosition(axis)
+			val name = (axes.getOrNull(axis)?.name?.ifBlank { null } ?: "axis $axis").uppercase()
+			"$value:$name"
 		}
 	}
 
@@ -160,11 +190,18 @@ internal class StatusBar() : HBox() {
 
 			val sourceInfo = paintera.baseView.sourceInfo()
 			val currentSource = sourceInfo.currentSourceProperty()
+			val currentState = sourceInfo.currentState()
+			/* the value under the mouse is read from the source the viewer renders, e.g. a channel composite */
+			val renderSource = Bindings.createObjectBinding(
+				{ currentState.value?.sourceAndConverter?.spimSource },
+				currentState,
+				sourceInfo.trackVisibleSourcesAndConverters()
+			)
 			val vdl2 = OrthogonalViewsValueDisplayListener(
 				{ status -> statusValueLabel.text = status },
-				currentSource
+				renderSource
 			) {
-				sourceInfo.getState(it)?.interpolationProperty()?.get() ?: Interpolation.NEARESTNEIGHBOR
+				currentState.value?.interpolationProperty()?.get() ?: Interpolation.NEARESTNEIGHBOR
 			}
 			vdl2.bindActiveViewer(paintera.baseView.mostRecentFocusHolder)
 

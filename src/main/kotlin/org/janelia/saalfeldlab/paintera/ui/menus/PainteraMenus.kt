@@ -16,10 +16,13 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.actions.ActionMenu
+import org.janelia.saalfeldlab.paintera.control.actions.OpenSource
+import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDataset
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.smooth.SmoothLabel
+import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.close.CloseGaps
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.dilate.DilateLabel
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.erode.ErodeLabel
 import org.janelia.saalfeldlab.paintera.paintera
@@ -64,7 +67,10 @@ private val recentProjectCanonicalStrings: ObservableList<String> = FXCollection
 }
 
 private val openRecentMenu by LazyForeignValue(::paintera) {
-	MatchSelectionMenu(recentProjectCanonicalStrings, "Open _Recent", 400.0) {
+	MatchSelectionMenu(recentProjectCanonicalStrings, "Open _Recent", 400.0, { removed ->
+		PainteraCache.RECENT_PROJECTS.removeEntry(removed)
+		recentProjectCanonicalStrings.indexOf(removed).takeUnless { it == -1 }?.let { recentProjectURIs.removeAt(it) }
+	}) {
 		val idx = recentProjectCanonicalStrings.indexOf(it).takeUnless { it == -1 } ?: return@MatchSelectionMenu
 		Paintera.application.loadProject(recentProjectURIs[idx].toString())
 	}
@@ -77,9 +83,9 @@ private val fileMenu by LazyForeignValue(::paintera) {
 		}
 	}
 }
-private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", null, NEW_LABEL_SOURCE.menu, newVirtualSourceMenu).apply { addStyleClass(Style.ADD_ICON) } }
+private val newSourceMenu by LazyForeignValue(::paintera) { Menu("_New", null, CreateDataset.menuItem, newVirtualSourceMenu).apply { addStyleClass(Style.ADD_ICON) } }
 private val newVirtualSourceMenu by LazyForeignValue(::paintera) { Menu("_Virtual", null, NEW_CONNECTED_COMPONENT_SOURCE.menu, NEW_THRESHOLDED_SOURCE.menu) }
-private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OPEN_SOURCE.menu, EXPORT_SOURCE.menu, newSourceMenu) }
+private val sourcesMenu by LazyForeignValue(::paintera) { Menu("_Sources", null, currentSourceMenu, OpenSource.menuItem, EXPORT_SOURCE.menu, newSourceMenu) }
 private val menuBarMenu by LazyForeignValue(::paintera) { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
 private val statusBarMenu by LazyForeignValue(::paintera) { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
 private val sideBarMenu by LazyForeignValue(::paintera) { Menu("_Side Bar", null, TOGGLE_SIDE_BAR.menu) }
@@ -104,6 +110,7 @@ private val actionMenuItems by LazyForeignValue(::paintera) {
 		DilateLabel.menuItem,
 		ErodeLabel.menuItem,
 		SmoothLabel.menuItem,
+		CloseGaps.menuItem,
 		ReplaceLabel.replaceMenu().menuItem,
 		ReplaceLabel.deleteMenu().menuItem,
 		GoToCoordinate.menuItem,
@@ -117,7 +124,8 @@ private val helpMenu by LazyForeignValue(::paintera) { ActionMenu("_Help", null,
 
 val menuBar by LazyForeignValue(::paintera) {
 	MenuBar(fileMenu, sourcesMenu, actionMenu, viewMenu, helpMenu).apply {
-		widthProperty().subscribe { _ -> minWidth = prefWidth(-1.0) }
+		/* only lock minWidth once layout has computed a real prefWidth */
+		widthProperty().subscribe { w -> if (w.toDouble() > 0) minWidth = prefWidth(-1.0) }
 		padding = Insets.EMPTY
 		visibleProperty().bind(paintera.properties.menuBarConfig.isVisibleProperty)
 		managedProperty().bind(visibleProperty())

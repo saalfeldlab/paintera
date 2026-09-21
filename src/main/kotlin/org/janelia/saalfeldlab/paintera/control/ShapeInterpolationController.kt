@@ -1293,9 +1293,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 							.reduce { a, b -> a && b }
 			}
 
-			val sourceInMaskInterval = mask.initialMaskToSourceTransform.inverse().estimateBounds(mask.source.getSource(0, mask.info.level))
 			selectionIntervals
-				.map { BundleView(mask.viewerImg).interval(it intersect sourceInMaskInterval) }
+				.map { BundleView(mask.viewerImg).interval(it intersect mask.viewerImg) }
 				.map {
 					val shrinkingInterval = ShrinkingInterval(it.numDimensions())
 					LoopBuilder.setImages(it).forEachPixel { access ->

@@ -71,13 +71,13 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 	internal var previewMaskValid: Boolean = false
 
 	@Synchronized
-	fun getDilatedCellImage(labelsToDilate: LongArray, blocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage {
+	fun getDilatedCellImage(labelsToDilate: LongArray, xyzBlocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage {
 
-		return reuseDilatedImage(labelsToDilate, blocksWithLabels, cellDimensions) ?: setDilatedImage(labelsToDilate, blocksWithLabels, cellDimensions)
+		return reuseDilatedImage(labelsToDilate, xyzBlocksWithLabels, cellDimensions) ?: setDilatedImage(labelsToDilate, xyzBlocksWithLabels, cellDimensions)
 	}
 
 	@Synchronized
-	private fun setDilatedImage(labels: LongArray, blocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage {
+	private fun setDilatedImage(labels: LongArray, xyzBlocksWithLabels: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage {
 		return createDilatedCellImage(
 			labelsImg,
 			labels,
@@ -85,7 +85,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 			getLevelResolution(scaleLevel),
 			infillStrategyProperty::get,
 			replacementLabelProperty::get,
-			blocksWithLabels,
+			xyzBlocksWithLabels,
 			cellDimensions
 		).also {
 			currentDilatedCellImg = it
@@ -93,7 +93,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 	}
 
 	@Synchronized
-	private fun reuseDilatedImage(labelsToDilate: LongArray, blocksWithLabel: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage? {
+	private fun reuseDilatedImage(labelsToDilate: LongArray, xyzBlocksWithLabel: Set<Interval>, cellDimensions: IntArray? = null): DilatedCellImage? {
 		/*If we specify the desired dimensions, and the existing one doesn't match, then we can't reuse*/
 		cellDimensions?.let {
 			if (!cellDimensions.contentEquals(currentDilatedCellImg?.img?.cellGrid?.cellDimensions))
@@ -108,7 +108,7 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 
 		return currentDilatedCellImg?.invalidatedImageOrNull(
 			labelsToDilate,
-			blocksWithLabel,
+			xyzBlocksWithLabel,
 			kernelSizeProperty.get().toDouble(),
 			infillStrategyProperty.get(),
 			replacementLabelProperty.get()
@@ -126,20 +126,14 @@ internal open class DilateLabelState<D, T>(delegate: DilateLabelModel = DilateLa
 		}
 
 		val labelsToDilate = getSelectedLabels()
-		val blocksWithLabel = blocksForLabels(scaleLevel, labelsToDilate)
+		val xyzBlocksWithLabel = xyzBlocksForLabels(scaleLevel, labelsToDilate)
 
 		val intervalsWithLabel = if (preview)
-			viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
+			viewerIntervalsInSourceSpace(intersectFilters = xyzBlocksWithLabel)
 		else
-			blocksWithLabel
+			xyzBlocksWithLabel
 
-		/* For preview, size the compute cells to the visible region so the morphology runs as one block
-		 * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
-		 * over-computing the full cell depth for a thin view slab. */
-		val computeCellDims = if (preview && cellDims == null)
-			previewCellDimensions(intervalsWithLabel, cellDims)
-		else cellDims
-		val dilatedCellImage = getDilatedCellImage(labelsToDilate, blocksWithLabel, computeCellDims)
+		val dilatedCellImage = getDilatedCellImage(labelsToDilate, xyzBlocksWithLabel, cellDims)
 
 		if (update >= UpdateSignal.Full) {
 			setStatus(DilateStatus.Dilating)

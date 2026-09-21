@@ -7,6 +7,7 @@ import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.cache.img.DiskCachedCellImg
 import net.imglib2.cache.img.DiskCachedCellImgFactory
+import net.imglib2.cache.img.DiskCachedCellImgOptions
 import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
@@ -20,6 +21,8 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
+import org.janelia.saalfeldlab.util.intersectOrNull
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
@@ -119,8 +122,16 @@ interface LabelActionState<S, D, T> : SourceStateActionState<S>
 		return fragmentsForSegments.toArray()
 	}
 
-	fun getBlocksForLabel(level: Int, label: Long): Array<Interval> = sourceState.labelBlockLookup.read(level, label)
-	fun getMaskForLabel(label: Long): Converter<D, BoolType> = sourceState.maskForLabel.apply(label)
+	fun blocksWithLabel(level: Int,vararg labels: Long): List<Interval> {
+
+		return labels.flatMap { sourceState.labelBlockLookup.read(level, it).asList() }
+	}
+
+	fun xyzBlocksWithLabel(level: Int, vararg labels: Long): List<Interval> {
+		return blocksWithLabel(level, *labels).toXyzBlocks(sourceState.dataSource).toList()
+	}
+
+	fun maskForLabel(label: Long): Converter<D, BoolType> = sourceState.maskForLabel.apply(label)
 
 	open class FromActiveSource<S : ConnectomicsLabelState<D, T>, D, T> :
 		PainteraActionState(),
@@ -147,16 +158,22 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 
 	fun nextId(activate: Boolean = false): Long = sourceState.nextId(activate)
 
-	fun blocksForLabels(scaleLevel: Int, labels: LongArray, mode: BlocksForLabels = BlocksForLabels.SourceAndCanvas): Set<Interval> {
-		return with(mode) {
-			getBlocks(scaleLevel, labels)
-		}
+	/** For the given [scaleLevel] and  [labels], return a  set of blocks that contain any label in [labels].
+	 *
+	 * @return intervals in the currently active XYZ canonical space*/
+	fun xyzBlocksForLabels(scaleLevel: Int, labels: LongArray, mode: BlocksForLabels = BlocksForLabels.SourceAndCanvas): Set<Interval> {
+		val sourceBlocks = with(mode) { getBlocksWithLabels(scaleLevel, labels) }
+		val dataSource = maskedSource.getDataSource(0, scaleLevel)
+		return sourceBlocks.toXyzBlocks(maskedSource)
+            .mapNotNullTo(mutableSetOf()) { it.intersectOrNull(dataSource) }
 	}
 
 	fun createSourceAndCanvasImage(timepoint: Int, scaleLevel: Int): DiskCachedCellImg<UnsignedLongType, *> {
 		val sourceImg = maskedSource.getReadOnlyDataBackground(timepoint, scaleLevel)
 		val canvasImg = maskedSource.getReadOnlyDataCanvas(timepoint, scaleLevel)
-		return DiskCachedCellImgFactory(UnsignedLongType()).create(sourceImg) { cell ->
+		val grid = maskedSource.getGrid(scaleLevel)
+		val options = DiskCachedCellImgOptions.options().cellDimensions(*IntArray(grid.numDimensions()) { grid.cellDimension(it) })
+		return DiskCachedCellImgFactory(UnsignedLongType(), options).create(grid.imgDimensions) { cell ->
 
 			val canvasCursor = canvasImg.interval(cell).cursor()
 			val sourceCursor = sourceImg.interval(cell).cursor()
@@ -178,7 +195,7 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 
 		val n5Backend = sourceState.backend as? SourceStateBackendN5<*, *>
 		val metadataState = n5Backend?.metadataState as? MultiScaleMetadataState
-		metadataState?.scaleTransforms?.get(scaleLevel)?.let { metadataScales ->
+		metadataState?.sourceToXyzTransforms?.get(scaleLevel)?.let { metadataScales ->
 			return doubleArrayOf(metadataScales[0, 0], metadataScales[1, 1], metadataScales[2, 2])
 		}
 
@@ -206,15 +223,15 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 	companion object {
 		enum class BlocksForLabels {
 			SourceOnly {
-				override fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval> {
+				override fun MaskedSourceActionState<*, *, *>.getBlocksWithLabels(scaleLevel: Int, labels: LongArray): Set<Interval> {
 
 					val lbl = (sourceState as ConnectomicsLabelState<*, *>).labelBlockLookup.takeIf { it !is LabelBlockLookupNoBlocks } ?: LabelBlockLookupAllBlocks.fromSource(sourceState.dataSource)
 					return labels.flatMapTo(mutableSetOf()) { lbl.read(LabelBlockLookupKey(scaleLevel, it)).toSet() }
 				}
 			},
 			CanvasOnly {
-				override fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval> {
-					val cellGrid = maskedSource.getCellGrid(timepoint, scaleLevel)
+				override fun MaskedSourceActionState<*, *, *>.getBlocksWithLabels(scaleLevel: Int, labels: LongArray): Set<Interval> {
+					val cellGrid = maskedSource.getCanvasGrid(scaleLevel)
 					val cellIntervals = cellGrid.cellIntervals().randomAccess()
 					val cellPos = LongArray(cellGrid.numDimensions())
 					return labels.flatMapTo(mutableSetOf()) {
@@ -226,14 +243,12 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 				}
 			},
 			SourceAndCanvas {
-				override fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval> {
-					return SourceOnly.run { getBlocks(scaleLevel, labels) } + CanvasOnly.run { getBlocks(scaleLevel, labels) }
+				override fun MaskedSourceActionState<*, *, *>.getBlocksWithLabels(scaleLevel: Int, labels: LongArray): Set<Interval> {
+					return SourceOnly.run { getBlocksWithLabels(scaleLevel, labels) } + CanvasOnly.run { getBlocksWithLabels(scaleLevel, labels) }
 				}
 			};
 
-			val timepoint = 0 /* aspirational */
-
-			abstract fun MaskedSourceActionState<*, *, *>.getBlocks(scaleLevel: Int, labels: LongArray): Set<Interval>
+			abstract fun MaskedSourceActionState<*, *, *>.getBlocksWithLabels(scaleLevel: Int, labels: LongArray): Set<Interval>
 		}
 	}
 }
@@ -252,7 +267,7 @@ interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : Mask
 	val brushProperties get() = sourceState.brushProperties
 
 	/**
-	 * PaintContextActionSTate from the current active  mode
+	 * PaintContextActionSTate from the current active mode
 	 */
 	open class FromCurrentMode<S : ConnectomicsLabelState<D, T>, D, T> :
 		PainteraActionState(),

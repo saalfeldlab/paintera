@@ -33,6 +33,7 @@ jobs:
           repo: wix3
           tag: wix3112rtm
           file: wix311-binaries.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Decompress Wix
         uses: DuckSoft/extract-7z-action@v1.0
         if: runner.os == 'Windows'

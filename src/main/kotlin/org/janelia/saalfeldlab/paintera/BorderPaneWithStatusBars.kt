@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.SettingsView
+import org.janelia.saalfeldlab.paintera.ui.SlicePositionsPane
 import org.janelia.saalfeldlab.paintera.ui.StatusBar
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.ui.menus.menuBar
@@ -163,11 +164,16 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		vGrow(Priority.NEVER)
 	}
 
+	private val slicePositionsPane = SlicePositionsPane().apply {
+		maxWidthProperty().bind(sideBarWidthProperty)
+	}
+
 	internal val rightGroup = VBox().apply {
 		alignment = Pos.TOP_RIGHT
 		isFillWidth = true
 		children += rightTopGroup
 		children += scrollPane
+		children += slicePositionsPane
 		managedProperty().bind(visibleProperty())
 
 	}

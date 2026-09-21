@@ -183,7 +183,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 								.forName(state.get(STATE_TYPE_KEY).getAsString());
 						LOG.debug("Deserializing state={}, class={}", state, clazz);
 						try {
-							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
+							sourceStates[k] = gson.getAdapter(clazz).fromJsonTree(state.get(STATE_KEY));
 						} catch (Exception e) {
 							//noinspection ConstantValue
 							if (e instanceof N5Helpers.RemoveSourceException) {

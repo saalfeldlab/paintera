@@ -15,6 +15,8 @@ import kotlinx.coroutines.*
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.PainteraDispatchers
+import net.imglib2.Interval
+import java.util.function.UnaryOperator
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
@@ -77,6 +79,10 @@ abstract class MeshManager<Key>(
 				meshManagerScope.launch { manager.takeDeferredKeys().forEach { createMeshFor(it) } }
 		}
 	}
+
+	/** Lifts a 3D renderer block back to the slice it is rendered at, so mesh keys built outside the renderer match. */
+	val toSourceInterval: UnaryOperator<Interval>
+		get() = manager.toSourceInterval
 
 	protected val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
 

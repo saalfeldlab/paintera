@@ -17,18 +17,21 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.data.XyzView
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
-import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.paintera.util.PainteraUtils.intervalInSourceSpace
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.isNotEmpty
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.union
+import org.janelia.saalfeldlab.paintera.state.metadata.resolution
+import org.janelia.saalfeldlab.paintera.state.metadata.transform
+import org.janelia.saalfeldlab.paintera.state.metadata.translation
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	val metadataState: MetadataState
@@ -45,11 +48,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	override val translation: DoubleArray
 		get() = metadataState.translation
 
-	override var virtualCrop: Interval?
-		get() = metadataState.virtualCrop
-		set(value) {
-			metadataState.virtualCrop = value
-		}
+	override val xyzView: XyzView
+		get() = metadataState.xyzView
 
 	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = metadataState.updateTransform(resolution, translation)
 
@@ -65,20 +65,6 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		container.close()
 	}
 
-	/**
-	 * Determines whether virtual cropping can be applied to the given metadata state.
-	 * Currently virtual cropping is supported as long as the data is RAW or read-only.
-	 *
-	 * i.e. painting/modifying labels is not allowed on virtual crops
-	 *
-	 * @param metadataState The metadata state to be evaluated.
-	 * @return True if virtual cropping can be applied, false otherwise.
-	 */
-	private fun canCropVirtually(metadataState: MetadataState): Boolean {
-		//FIXME Caleb: expand support for virtual crop
-		return !metadataState.isLabel || metadataState.n5ContainerState.writer == null
-	}
-
 	fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): Node {
 
 		return VBox().apply {
@@ -87,10 +73,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			val n5ContainerState = metadataState.n5ContainerState
 			addContainerAndDatasetChildren(n5ContainerState, metadataState)
 			children += Separator(Orientation.HORIZONTAL)
-			if (canCropVirtually(metadataState))
-				children += newVirtualCropInputGrid(metadataState)
+			children += newVirtualCropInputGrid(metadataState)
 
-			metadataState.metadata.childrenMetadata.zip(metadataState.scaleTransforms).forEachIndexed { idx, (scale, transform) ->
+			metadataState.metadata.childrenMetadata.zip(metadataState.sourceToXyzTransforms).forEachIndexed { idx, (scale, transform) ->
 				val title = "Scale $idx: ${scale.name}"
 				val scaleMetadataGrid = singleScaleMetadataNode(SingleScaleMetadataState(n5ContainerState, scale), true, transform)
 				children += TitledPanes.createCollapsed(title, scaleMetadataGrid)
@@ -148,7 +133,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val cropMins = LongArray(3) {
 			0L
 		}
-		val imgDimensions = metadataState.datasetAttributes.dimensions
+		/* the crop is over the x, y, z view, the stored dimensions are in source axis order */
+		val imgDimensions = metadataState.xyzView.spatialMapping().toSpatial(metadataState.datasetAttributes.dimensions, 1L)
 		val cropSize = LongArray(3) {
 			(imgDimensions[it])
 		}
@@ -193,7 +179,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			}
 		}
 		virtualCropInterval.subscribe { it ->
-			metadataState.virtualCrop = it
+			metadataState.xyzView.setCropInterval(it)
 			updateNumberFields(it)
 			paintera.baseView.orthogonalViews().requestRepaint()
 			paintera.baseView.orthogonalViews().drawOverlays()
@@ -247,16 +233,16 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		virtualCropGrid.add(resetMin, 4, 1)
 		virtualCropGrid.add(resetMax, 4, 2)
 
-		 val cropToRegionBox = HBox().apply {
+		val cropToRegionBox = VBox().apply {
 			padding = Insets(10.0, 0.0, 10.0, 0.0)
 			maxWidth = Double.MAX_VALUE
-			children += Label("Crop to Region: ").hGrow {
-				alignment = Pos.BASELINE_LEFT
-			}
-			children += Region().hGrow()
-			children += ButtonBar().apply {
-				buttons += Button("Current View").apply { setOnAction { virtualCropInterval.value = uncroppedInterval intersect sourceIntervalForCurrentView() } }
-				buttons += Button("Remove Crop").apply { setOnAction { virtualCropInterval.value = null } }
+			alignment = Pos.CENTER_LEFT
+			children += Label("Crop to Region: ")
+			children += HBox(10.0).apply {
+				maxWidth = Double.MAX_VALUE
+				alignment = Pos.CENTER_RIGHT
+				children += Button("Current View").apply { setOnAction { virtualCropInterval.value = uncroppedInterval intersect sourceIntervalForCurrentView() } }
+				children += Button("Remove Crop").apply { setOnAction { virtualCropInterval.value = null } }
 			}
 		}
 		virtualCropGrid.add(cropToRegionBox, 0, 3)
@@ -282,7 +268,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val n5ContainerState = metadataState.n5ContainerState
 
 		val resolutionLabel = Labels.withTooltip("Resolution", "Resolution of the source dataset")
-		val offsetLabel = Labels.withTooltip("Offset", "Offset of the source dataset")
+		val offsetLabel = Labels.withTooltip("Translation", "Translation of the source dataset")
 		val labelMultisetLabel = Label("Label Multiset?")
 		val dataTypeLabel = Label("Data Type")
 		val unitLabel = Label("Unit")
@@ -308,7 +294,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val resolutionField = getSpatialFieldWithInitialDoubleArray(resolution)
 		val offsetField = getSpatialFieldWithInitialDoubleArray(translation)
 
-		val blockSize = metadataState.datasetAttributes.blockSize
+		val spatialMapping = metadataState.xyzView.spatialMapping()
+		val blockSize = spatialMapping.toSpatial(metadataState.datasetAttributes.blockSize, 1)
 		val blockSizeField = SpatialField.intField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
 			x.value = blockSize[0]
 			y.value = blockSize[1]
@@ -316,8 +303,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			editable = false
 		}
 
-
-		val dimensions = metadataState.datasetAttributes.dimensions
+		val dimensions = spatialMapping.toSpatial(metadataState.datasetAttributes.dimensions, 1L)
 		val dimensionsField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
 			x.value = dimensions[0]
 			y.value = dimensions[1]
@@ -332,10 +318,8 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 				addContainerAndDatasetChildren(n5ContainerState, metadataState)
 				children += Separator(Orientation.HORIZONTAL)
 
-				if (canCropVirtually(metadataState)) {
-					children += newVirtualCropInputGrid(metadataState)
-					children += Separator(Orientation.HORIZONTAL)
-				}
+				children += newVirtualCropInputGrid(metadataState)
+				children += Separator(Orientation.HORIZONTAL)
 			}
 
 			children += GridPane().apply {

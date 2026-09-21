@@ -17,6 +17,7 @@ import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -30,6 +31,9 @@ infix fun RealInterval.intersect(other: RealInterval?): RealInterval = other?.le
 	?: this
 
 fun Interval.numElements() = Intervals.numElements(this)
+
+fun Interval.pad(vararg padding: Int): Interval = extendBy(*padding)
+fun Interval.intersectOrNull(other: Interval): Interval? = (this intersect other).takeIf { it.isNotEmpty() }
 
 /**
  * Return an expanded interval. [borderPercent] is a double that corresponds to the percent added to each dimension.
@@ -92,6 +96,8 @@ fun <T, F : RandomAccessibleInterval<T>> F.expandborder(vararg border: Long) = V
 
 fun <T> RandomAccessible<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!
 fun <T> RandomAccessibleInterval<T>.hyperSlice(dimension: Int = this.numDimensions() - 1, position: Long = 0) = Views.hyperSlice(this, dimension, position)!!
+fun <T> RandomAccessibleInterval<T>.permute(fromAxis: Int, toAxis: Int) = Views.permute(this, fromAxis, toAxis)!!
+fun <T> RandomAccessibleInterval<T>.moveAxis(fromAxis: Int, toAxis: Int) = Views.moveAxis(this, fromAxis, toAxis)!!
 fun <T> RandomAccessibleInterval<T>.zeroMin() = Views.zeroMin(this)!!
 fun <T> RandomAccessible<T>.translate(vararg translation: Long) = Views.translate(this, *translation)!!
 fun <T> RandomAccessibleInterval<T>.translate(vararg translation: Long) = Views.translate(this, *translation)!!

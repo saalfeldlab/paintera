@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.raw.n5
 
 import bdv.cache.SharedQueue
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -11,6 +12,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.set
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
@@ -46,7 +48,7 @@ class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendRaw<D
 		val map = JsonObject()
 		with(SerializationKeys) {
 			backend.container.serializeTo(map)
-			map.addProperty(DATASET, backend.dataset)
+			map[DATASET] = backend.dataset
 		}
 		return map
 	}

@@ -72,13 +72,13 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
     @Synchronized
     fun getErodedCellImage(
         labelsToErode: LongArray,
-        blocksWithLabels: Set<Interval>,
+        xyzBlocksWithLabels: Set<Interval>,
         cellDimensions: IntArray? = null
     ): ErodedCellImage {
 
-        return reuseErodedImage(labelsToErode, blocksWithLabels, cellDimensions) ?: setErodedImage(
+        return reuseErodedImage(labelsToErode, xyzBlocksWithLabels, cellDimensions) ?: setErodedImage(
             labelsToErode,
-            blocksWithLabels,
+            xyzBlocksWithLabels,
             cellDimensions
         )
     }
@@ -86,7 +86,7 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
     @Synchronized
     private fun setErodedImage(
         labels: LongArray,
-        blocksWithLabels: Set<Interval>,
+        xyzBlocksWithLabels: Set<Interval>,
         cellDimensions: IntArray? = null
     ): ErodedCellImage {
         return createErodedCellImage(
@@ -96,7 +96,7 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
             getLevelResolution(scaleLevel),
             infillStrategyProperty::get,
             replacementLabelProperty::get,
-            blocksWithLabels,
+            xyzBlocksWithLabels,
             cellDimensions
         ).also {
             currentErodedCellImg = it
@@ -106,7 +106,7 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
     @Synchronized
     private fun reuseErodedImage(
         labelsToErode: LongArray,
-        blocksWithLabel: Set<Interval>,
+        xyzBlocksWithLabel: Set<Interval>,
         cellDimensions: IntArray? = null
     ): ErodedCellImage? {
         /*If we specify the desired dimensions, and the existing one doesn't match, then we can't reuse*/
@@ -123,7 +123,7 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
 
         return currentErodedCellImg?.invalidatedImageOrNull(
             labelsToErode,
-            blocksWithLabel,
+            xyzBlocksWithLabel,
             kernelSizeProperty.get().toDouble(),
             infillStrategyProperty.get(),
             replacementLabelProperty.get()
@@ -145,20 +145,14 @@ internal open class ErodeLabelState<D, T>(delegate: ErodeLabelModel = ErodeLabel
         }
 
         val labelsToErode = getSelectedLabels()
-        val blocksWithLabel = blocksForLabels(scaleLevel, labelsToErode)
+        val xyzBlocksWithLabel = xyzBlocksForLabels(scaleLevel, labelsToErode)
 
         val intervalsWithLabel = if (preview)
-            viewerIntervalsInSourceSpace(intersectFilters = blocksWithLabel)
+            viewerIntervalsInSourceSpace(intersectFilters = xyzBlocksWithLabel)
         else
-            blocksWithLabel
+            xyzBlocksWithLabel
 
-        /* For preview, size the compute cells to the visible region so the morphology runs as one block
-         * per view rather than many kernel-sized tiles; cuts the per-cell padding overlap and avoids
-         * over-computing the full cell depth for a thin view slab. */
-        val computeCellDims = if (preview && cellDims == null)
-            previewCellDimensions(intervalsWithLabel, cellDims)
-        else cellDims
-        val erodedCellImage = getErodedCellImage(labelsToErode, blocksWithLabel, computeCellDims)
+        val erodedCellImage = getErodedCellImage(labelsToErode, xyzBlocksWithLabel, cellDims)
 
         if (update >= UpdateSignal.Full) {
             setStatus(ErodeStatus.Eroding)

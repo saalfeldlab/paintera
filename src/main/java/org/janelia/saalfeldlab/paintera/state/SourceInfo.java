@@ -30,8 +30,10 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SourceInfo {
@@ -138,11 +140,14 @@ public class SourceInfo {
 		// viewer is updated
 		this.composites.put(source, state.compositeProperty().getValue());
 		this.sources.add(source);
-		state.isVisibleProperty().addListener((obs, oldv, newv) -> updateVisibleSources());
+		state.isVisibleProperty().subscribe((_, _) -> updateVisibleSources());
 		if (this.currentSource.get() == null) {
 			this.currentSource.set(source);
 		}
-		state.compositeProperty().addListener((obs, oldv, newv) -> this.composites.put(source, newv));
+		state.compositeProperty().subscribe((_, newv) -> {
+			this.composites.put(source, newv);
+			updateVisibleSourcesAndConverters();
+		});
 	}
 
 	public synchronized void removeAllSources() {
@@ -197,9 +202,13 @@ public class SourceInfo {
 			state.onRemoval(this);
 	}
 
+	/** The state registered for {@code source}, or the one rendering through it, e.g. a channel composite */
 	public SourceState<?, ?> getState(final Source<?> source) {
 
-		return states.get(source);
+		final SourceState<?, ?> state = states.get(source);
+		if (state != null)
+			return state;
+		return states.values().stream().filter(it -> it.getSourceAndConverter().getSpimSource() == source).findFirst().orElse(null);
 	}
 
 	public ObservableList<Source<?>> trackSources() {
@@ -291,13 +300,31 @@ public class SourceInfo {
 		this.visibleSources.setAll(visibleSources);
 	}
 
+	/** Re-derive the viewer's source/converter pairs; for a state whose {@link SourceState#getSourceAndConverter()} changed */
+	public synchronized void refreshVisibleSourcesAndConverters() {
+
+		updateVisibleSourcesAndConverters();
+	}
+
 	private void updateVisibleSourcesAndConverters() {
 
-		this.visibleSourcesAndConverter.setAll(this.visibleSources
+		final List<SourceAndConverter<?>> sourcesAndConverters = visibleSources
 				.stream()
 				.map(states::get)
 				.map(SourceState::getSourceAndConverter)
-				.collect(Collectors.toList()));
+				.collect(Collectors.toList());
+
+        for (int i = 0; i < sourcesAndConverters.size(); ++i) {
+			final Source<?> renderSource = sourcesAndConverters.get(i).getSpimSource();
+			final Source<?> dataSource = visibleSources.get(i);
+			if (renderSource != dataSource)
+				composites.put(renderSource, composites.get(dataSource));
+		}
+
+        final Set<Source<?>> currentStates = new HashSet<>(states.keySet());
+		sourcesAndConverters.forEach(sac -> currentStates.add(sac.getSpimSource()));
+		composites.keySet().retainAll(currentStates);
+		visibleSourcesAndConverter.setAll(sourcesAndConverters);
 	}
 
 	private void updateCurrentSourceIndexInVisibleSources() {

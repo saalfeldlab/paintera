@@ -39,6 +39,30 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 			return emptyList()
 		}
 	}
+	/**
+	 * Drop every entry whose canonical form matches [entry].
+	 *
+	 * Rows are shown in canonical form while the cache holds whatever was written.
+     * e.g. an exact comparison would miss `/x/y.n5` against `file:/x/y.n5`.
+	 */
+	fun removeEntry(entry: String) {
+		val lines = readLines().takeUnless { it.isEmpty() } ?: return
+
+        val remaining = lines.filterNot { line ->
+            entry.canonicalOrNull() == line.canonicalOrNull()
+        }
+        /* no change, short circuit */
+		if (remaining.size == lines.size)
+			return
+		try {
+			cachePath.createParentDirectories()
+			cachePath.writeLines(remaining)
+			LOG.debug { "Removed $entry from $cacheKey" }
+		} catch (e: IOException) {
+			LOG.error(e) { "Caught exception when trying to remove $entry from file at $cacheKey" }
+		}
+	}
+
 	fun appendLine(line : String, maxNumLines : Int = 10) {
 		val lines: MutableList<String> = readLines().toMutableList().apply {
 			remove(line)
@@ -56,6 +80,12 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 	companion object {
 
 		private val LOG = KotlinLogging.logger { }
+
+		/** the canonical form of a cached line, or null if it cannot be parsed as a URI */
+		private fun String.canonicalOrNull(): String? = runCatching {
+			val uri = StorageFormat.parseUri(this).b.takeIf { it.isAbsolute } ?: URI("file", this, null)
+			N5Helpers.canonicalString(uri)
+		}.getOrNull()
 
 		@JvmStatic
 		fun readLines(cache: PainteraCache) = cache.readLines()

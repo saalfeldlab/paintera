@@ -11,6 +11,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.util.n5.SpatialMapping;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -24,6 +25,7 @@ public class SourceMask implements Mask {
 	protected Invalidate<?> invalidate;
 	protected Invalidate<?> invalidateVolatile;
 	protected Runnable shutdown;
+	protected SpatialMapping spatialMapping;
 
 	protected SourceMask() {
 
@@ -53,6 +55,16 @@ public class SourceMask implements Mask {
 	@Override public MaskInfo getInfo() {
 
 		return info;
+	}
+
+	public SpatialMapping getSpatialMapping() {
+
+		return spatialMapping;
+	}
+
+	void setSpatialMapping(final SpatialMapping sliceMapping) {
+
+		this.spatialMapping = sliceMapping;
 	}
 
 	@Override public RandomAccessibleInterval<UnsignedLongType> getRai() {

@@ -15,18 +15,21 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.ChannelLoop
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraDispatchers
 import org.janelia.saalfeldlab.paintera.PainteraDispatchers.asExecutorService
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
+import java.util.function.UnaryOperator
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BooleanSupplier
@@ -51,9 +54,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 	// happen at high frequency so we can run only on pulses.
 	private val cancelAndUpdateService = InvokeOnJavaFXApplicationThread.conflatedPulseLoop()
 
+	/** meshes are rendered as 3D, but the cache is in source space (nD).
+	 * Need to map so we can cache the blocks across higher dimensional slices. **/
+	val toSourceInterval = UnaryOperator<Interval> { xyzInterval ->
+		(source as? MaskedSource<*, *>)?.canvasXyzView?.spatialMapping()?.toSource(xyzInterval) ?: xyzInterval
+	}
+
 	val meshesGroup = Group()
 	val rendererSettings = MeshManagerModel()
-	/* pausing interrupts any active mesh generation. unpausing replaces interrupted meshes */
+	/** pausing interrupts any active mesh generation. unpausing replaces interrupted meshes **/
 	val pausedProperty: BooleanProperty = SimpleBooleanProperty(false)
 	/** indicates that it is valid to generate meshes. */
 	private val meshesAndViewerEnabledBinding = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
@@ -113,7 +122,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 			?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { _, _ -> })
 	}
 
-	private fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
+	internal fun replaceAllMeshes() = meshKeys.map { replaceMesh(it, false) }.also { requestCancelAndUpdate() }
 
 	fun removeMeshFor(key: ObjectKey, releaseState: (ObjectKey, MeshGenerator.State) -> Unit): MeshGenerator.State? {
 		requestedKeys -= key
@@ -241,6 +250,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 					key,
 					getBlockListFor,
 					getMeshFor,
+					toSourceInterval,
 					meshViewUpdateQueue,
 					{ level: Int -> unshiftedWorldTransforms[level] },
 					PainteraDispatchers.MeshManagerDispatcher.asExecutorService(),

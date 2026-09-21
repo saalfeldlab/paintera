@@ -111,7 +111,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
         LOG.trace { "Reading block for position $gridPosition" }
         /* `null` means no block exists. don't cache an exception as an empty block */
         val block = try {
-			n5.readBlock(dataset, datasetAttributes, *gridPosition)
+			n5.readBlock<ByteArray>(dataset, datasetAttributes, *gridPosition)
         } catch (e: Exception) {
             /* an interrupted read is a cancelled load, not an error */
             if (e is InterruptedException || e is ClosedByInterruptException || Thread.currentThread().isInterrupted)
@@ -121,7 +121,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 
         return block?.let {
             LOG.trace { "Read block $it for position $gridPosition" }
-            it.data as ByteArray?
+            it.data
         } ?: let {
             LOG.trace { "No block at $gridPosition" }
             null

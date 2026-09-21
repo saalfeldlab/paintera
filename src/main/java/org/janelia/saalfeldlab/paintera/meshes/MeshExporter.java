@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.function.UnaryOperator;
 
 public abstract class MeshExporter<T> {
 
@@ -31,13 +32,14 @@ public abstract class MeshExporter<T> {
 	public void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final UnaryOperator<Interval> toSourceInterval,
 			final MeshSettings[] meshSettings,
 			final List<T> ids,
 			final int scale,
 			final String path) {
 
 		for (int i = 0; i < ids.size(); i++) {
-			exportMesh(getBlockListFor, getMeshFor, meshSettings[i], ids.get(i), scale, path, i != 0);
+			exportMesh(getBlockListFor, getMeshFor, toSourceInterval, meshSettings[i], ids.get(i), scale, path, i != 0);
 		}
 	}
 
@@ -53,6 +55,7 @@ public abstract class MeshExporter<T> {
 	private void exportMesh(
 			final GetBlockListFor<T> getBlockListFor,
 			final GetMeshFor<T> getMeshFor,
+			final UnaryOperator<Interval> toSourceInterval,
 			final MeshSettings meshSettings,
 			final T id,
 			final int scaleIndex,
@@ -82,6 +85,7 @@ public abstract class MeshExporter<T> {
 					meshSettings.getSmoothingIterations(),
 					meshSettings.getMinLabelRatio(),
 					meshSettings.getOverlap(),
+					new FinalInterval(toSourceInterval.apply(block)),
 					new FinalInterval(block)
 			));
 		}

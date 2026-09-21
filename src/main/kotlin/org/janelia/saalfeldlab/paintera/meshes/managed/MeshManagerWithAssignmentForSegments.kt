@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.toXyzBlocks
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
@@ -39,6 +40,12 @@ import kotlin.math.min
 
 private typealias Segments = TLongHashSet
 private typealias Fragments = TLongHashSet
+
+/**
+ * The renderer is 3D, so a block list must be too. An nD block belongs to the scene only if it covers the slice the
+ * source is currently showing; one from another timepoint or channel is dropped rather than projected onto this one.
+ */
+private fun Array<Interval>.toRenderedBlocks(source: DataSource<*, *>): List<Interval> = asList().toXyzBlocks(source)
 
 /**
  * @author Philipp Hanslovsky
@@ -60,7 +67,7 @@ class MeshManagerWithAssignmentForSegments(
 		val intervals = mutableSetOf<HashWrapper<Interval>>()
 		val fragments = selectedSegments.assignment.getFragments(segment)
 		fragments.forEach { id ->
-			labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
+			labelBlockLookup.read(level, id).toRenderedBlocks(source).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
 			true
 		}
 		intervals.map { it.data }.toTypedArray()
@@ -233,6 +240,11 @@ class MeshManagerWithAssignmentForSegments(
 		relevantBindingsAndPropertiesMap.remove(key)
 	}
 
+	/**
+	 * update the meshes without invalidating the valid mesh cache keys
+	 */
+	fun updateScene() = manager.replaceAllMeshes()
+
 	override fun refreshMeshes() {
 		super.removeAllMeshes()
 		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
@@ -331,7 +343,7 @@ class MeshManagerWithAssignmentForSegments(
 			}
 
 			private fun affectedBlocksForLabel(source: MaskedSource<*, *>, level: Int, id: Long): Array<Interval> {
-				val grid = source.getCellGrid(0, level)
+				val grid = source.getCanvasGrid(level)
 				val imgDim = grid.imgDimensions
 				val blockSize = IntArray(imgDim.size) { grid.cellDimension(it) }
 				LOG.debug("Getting blocks at level={} for id={}", level, id)
@@ -366,7 +378,7 @@ class MeshManagerWithAssignmentForSegments(
 		val intervals = mutableSetOf<HashWrapper<Interval>>()
 		val fragments = key.fragments
 		fragments.forEach { id ->
-			labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
+			labelBlockLookup.read(level, id).toRenderedBlocks(source).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
 			true
 		}
 		intervals.map { it.data }.toTypedArray()
@@ -383,7 +395,8 @@ class MeshManagerWithAssignmentForSegments(
 					key.smoothingIterations(),
 					key.minLabelRatio(),
 					key.overlap(),
-					key.interval
+					key.sourceInterval,
+					key.xyzInterval
 				)
 			)
 		}

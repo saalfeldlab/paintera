@@ -4,21 +4,72 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer
-import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.N5GenericSingleScaleMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadataParser
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
+import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache.Companion.HashableN5Reader
+import org.janelia.saalfeldlab.paintera.cache.ParsedN5LoaderCache.Companion.ParseN5Wrapper
 import org.janelia.saalfeldlab.util.coroutineBackedExecutorService
-import org.janelia.saalfeldlab.util.n5.N5Helpers.GROUP_PARSERS
-import org.janelia.saalfeldlab.util.n5.N5Helpers.METADATA_PARSERS
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleMetadata.PainteraDataMultiscaleParser
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup.PainteraLabelMultiscaleParser
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiscaleGroup.PainteraRawMultiscaleParser
 import java.util.concurrent.*
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.coroutineContext
 
+private object BaseParsers {
+
+    val PAINTERA_GROUP = listOf<N5MetadataParser<*>>(
+        PainteraRawMultiscaleParser(),
+        PainteraLabelMultiscaleParser(),
+        PainteraDataMultiscaleParser()
+    )
+
+    val GENERIC_GROUP = listOf<N5MetadataParser<*>>(
+        N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
+        N5MultiScaleMetadata.MultiScaleParser()
+    )
+
+    val METADATA = listOf<N5MetadataParser<*>>(
+        N5CosemMetadataParser(),
+        N5SingleScaleMetadataParser(),
+        N5GenericSingleScaleMetadataParser()
+    )
+}
+
+fun getGroupParsers(n5: N5Reader) = BaseParsers.PAINTERA_GROUP + OmeNgffMetadataParser(n5) + BaseParsers.GENERIC_GROUP
+fun getMetadataParsers(n5: N5Reader) = BaseParsers.METADATA
 
 private fun getDiscoverer(n5: N5Reader, executorService: ExecutorService): N5DatasetDiscoverer {
-	return N5DatasetDiscoverer(n5, executorService, METADATA_PARSERS, GROUP_PARSERS)
+	val baseReader = extractBaseReader(n5)
+
+	val metadataParsers = getMetadataParsers(baseReader)
+	val groupParsers = getGroupParsers(baseReader)
+
+	return N5DatasetDiscoverer(baseReader, executorService, metadataParsers, groupParsers)
 }
 
 private val LOG = KotlinLogging.logger { }
+
+/**
+ * Some internal N5Readers are delegate wrappers; Some parsers branch on the N5 type (zarr vs n5) so
+ * we need to extract the delegate base.
+ *
+ * @param n5 to recursively extract the base reader from
+ * @return the base reader; may be the same as the input
+ */
+private fun extractBaseReader(n5: N5Reader) : N5Reader {
+	return when (n5) {
+		is ParseN5Wrapper -> extractBaseReader(n5.reader)
+		is HashableN5Reader -> extractBaseReader(n5.reader)
+		else -> n5
+	}
+}
 
 /**
  * Parses the metadata from a given N5Reader starting at a specified initial group and applies parsing results to nodes
@@ -66,22 +117,4 @@ internal suspend fun asyncDiscoverAndParseRecursive(
 			}
 		}
 	}.await()
-}
-
-fun main() {
-	var waiting = 5
-	var n5 = N5Factory.createReader("s3://janelia-cosem-datasets/jrc_mus-kidney/jrc_mus-kidney.zarr")
-	var paths = mutableSetOf<String>()
-	val parseJob = CoroutineScope(Dispatchers.IO).launch {
-			asyncDiscoverAndParseRecursive(n5, "/", { println("deeplist: $it")}) {
-				if (paths.add(it.path))
-					println("parse: ${it.path}")
-			}
-	}
-	runBlocking {
-		delay(1000)
-		parseJob.cancel()
-		println("cancelled!")
-		delay(1000)
-	}
 }

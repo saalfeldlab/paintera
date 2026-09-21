@@ -1,22 +1,29 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
+import io.github.oshai.kotlinlogging.KLogger;
+import io.github.oshai.kotlinlogging.KotlinLogging;
 import kotlin.Triple;
+import kotlin.Unit;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.cache.Invalidate;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.net.imglib2.FinalRealRandomAccessibleRealInterval;
+import org.janelia.saalfeldlab.net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,15 +33,15 @@ import java.util.stream.Stream;
 
 public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final KLogger LOG = KotlinLogging.INSTANCE.logger(() -> Unit.INSTANCE);
 
 	private final Supplier<AffineTransform3D[]> getMipmapTransforms;
 
-	private final RandomAccessibleInterval<T>[] sources;
+	private RandomAccessibleInterval<T>[] sources;
 
-	private final RandomAccessibleInterval<D>[] dataSources;
+	private RandomAccessibleInterval<D>[] dataSources;
 
-	private final Invalidate<Long> invalidate;
+	private Invalidate<Long> invalidate;
 
 	private final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation;
 
@@ -46,6 +53,9 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 
 	private final String name;
 
+	/** Per-level 3D cell grids carried from open time; null entries fall back to deriving the grid from the data. */
+	private CellGrid[] grids = null;
+
 	public static class DataWithInvalidate<D, T> {
 
 		public final RandomAccessibleInterval<D>[] data;
@@ -56,16 +66,30 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 
 		public final Invalidate<Long> invalidate;
 
+		/** Per-level 3D cell grids; entries may be null if derivable from the data. */
+		public final CellGrid[] grids;
+
 		public DataWithInvalidate(
 				final RandomAccessibleInterval<D>[] data,
 				final RandomAccessibleInterval<T>[] viewData,
 				final AffineTransform3D[] transforms,
 				final Invalidate<Long> invalidate) {
 
+			this(data, viewData, transforms, invalidate, null);
+		}
+
+		public DataWithInvalidate(
+				final RandomAccessibleInterval<D>[] data,
+				final RandomAccessibleInterval<T>[] viewData,
+				final AffineTransform3D[] transforms,
+				final Invalidate<Long> invalidate,
+				final CellGrid[] grids) {
+
 			this.data = data;
 			this.viewData = viewData;
 			this.transforms = transforms;
 			this.invalidate = invalidate;
+			this.grids = grids;
 		}
 	}
 
@@ -83,6 +107,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 				dataInterpolation,
 				interpolation,
 				name);
+		this.grids = dataWithInvalidate.grids;
 	}
 
 	public RandomAccessibleIntervalDataSource(
@@ -167,18 +192,37 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		final RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data()).toArray(RandomAccessibleInterval[]::new);
 		final RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata()).toArray(RandomAccessibleInterval[]::new);
 		final AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform()).toArray(AffineTransform3D[]::new);
+		final CellGrid[] grids = Stream.of(imagesWithTransform).map(i -> i.grid()).toArray(CellGrid[]::new);
 		final Invalidate<Long> invalidate = new InvalidateDelegates<>(
 				Stream
 						.of(imagesWithTransform)
 						.flatMap(iwt -> Stream.of(iwt.invalidateData(), iwt.invalidateVData())).filter(Objects::nonNull)
 						.collect(Collectors.toList()));
-		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidate);
+		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidate, grids);
 	}
 
 	@Override
 	public boolean isPresent(final int t) {
 
 		return true;
+	}
+
+	private XyzView xyzView = null;
+
+	public XyzView getXyzView() {
+
+		if (xyzView == null)
+			xyzView = new XyzView(new int[]{0, 1, 2}, Intervals.dimensionsAsLongArray(dataSources[0]));
+		return xyzView;
+	}
+
+	@Override
+	public CellGrid getGrid(final int level) {
+
+		/* a sliced source is a view, not a cell image; use the grid provided if present */
+		if (grids != null && grids[level] != null)
+			return grids[level];
+		return DataSource.super.getGrid(level);
 	}
 
 	@Override
@@ -192,10 +236,20 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
 		LOG.trace("Requesting source at t={}, level={} with interpolation {}: ", t, level, method);
-		return Views.interpolate(
+		final RealRandomAccessible<T> interpolated = Views.interpolate(
 				Views.extendValue(getSource(t, level), typeSupplier),
 				interpolation.apply(method)
 		);
+		return boundToCrop(interpolated, level, typeSupplier);
+	}
+
+	protected <A extends Type<A>> RealRandomAccessible<A> boundToCrop(final RealRandomAccessible<A> interpolated, final int level, final A outside) {
+
+		final RealInterval bounds = getCropInterval(level);
+		if (bounds == null)
+			return interpolated;
+		final RealRandomAccessibleRealInterval<A> bounded = new FinalRealRandomAccessibleRealInterval<>(interpolated, bounds);
+		return new ExtendedRealRandomAccessibleRealInterval<>(bounded, new RealOutOfBoundsConstantValueFactory<>(outside.copy()));
 	}
 
 	@Override
@@ -242,10 +296,11 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
 		LOG.trace("Requesting data source at t={}, level={} with interpolation {}: ", t, level, method);
-		return Views.interpolate(
+		final RealRandomAccessible<D> interpolated = Views.interpolate(
 				Views.extendValue(getDataSource(t, level), dataTypeSupplier),
 				dataInterpolation.apply(method)
 		);
+		return boundToCrop(interpolated, level, dataTypeSupplier);
 	}
 
 	@Override

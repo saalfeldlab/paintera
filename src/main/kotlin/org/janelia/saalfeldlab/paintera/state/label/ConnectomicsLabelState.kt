@@ -19,6 +19,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
+import javafx.util.Subscription
 import javafx.scene.shape.Rectangle
 import net.imglib2.Interval
 import net.imglib2.RealInterval
@@ -67,6 +68,12 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.addAxes
+import org.janelia.saalfeldlab.paintera.serialization.addSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.addVirtualCrop
+import org.janelia.saalfeldlab.paintera.serialization.restoreAxes
+import org.janelia.saalfeldlab.paintera.serialization.restoreSlicePositions
+import org.janelia.saalfeldlab.paintera.serialization.restoreVirtualCrop
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
@@ -122,6 +129,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	internal var skipCommit = false
 
+	private var sliceMeshRefresh: Subscription? = null
 
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
@@ -273,12 +281,17 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsec)
 		meshManager.refreshMeshes()
 
+		sliceMeshRefresh = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
+			?.activeIntervalProperty
+			?.subscribe { _, _ -> meshManager.updateScene() }
 
 		// TODO make resolution/offset configurable
 	}
 
 	override fun onRemoval(sourceInfo: SourceInfo) {
 		LOG.info("Removed ConnectomicsLabelState {}", name)
+		sliceMeshRefresh?.unsubscribe()
+		sliceMeshRefresh = null
 		meshManager.removeAllMeshes()
 		CommitHandler.showCommitDialog(
 			this,
@@ -568,7 +581,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
-        const val VIRTUAL_CROP                     = "virtualCrop"
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
@@ -608,7 +620,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addProperty(IS_VISIBLE, state.isVisible)
 				map.add(RESOLUTION, context[state.resolution])
 				map.add(OFFSET, context[state.offset])
-				state.virtualCrop?.let { map.add(VIRTUAL_CROP, context[it]) }
+				map.addVirtualCrop(state.backend, context)
+				map.addAxes(state.backend)
+				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 			}
@@ -653,12 +667,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						val backend = context.fromClassInfo<ConnectomicsLabelBackend<D, T>>(json, BACKEND)!!
 						/* We know we are a label, make sure the backend state knows */
 						(backend as? N5BackendLabel<D,T>)?.metadataState?.isLabel = true
+						restoreAxes(backend, json)
 						val name = json[NAME] ?: backend.name
 						val resolution = context[json, RESOLUTION] ?: backend.resolution
 						val offset = context[json, OFFSET] ?: backend.translation
-						val virtualCrop = context.get<Interval?>(json, VIRTUAL_CROP)
 						backend.updateTransform(resolution, offset)
-						backend.virtualCrop = virtualCrop
+						restoreVirtualCrop(backend, json, context)
+						restoreSlicePositions(backend, json)
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(
