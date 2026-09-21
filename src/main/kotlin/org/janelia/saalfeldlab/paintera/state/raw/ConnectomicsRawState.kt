@@ -44,7 +44,6 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withC
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
 import org.janelia.saalfeldlab.paintera.state.*
-import org.janelia.saalfeldlab.paintera.ui.SlicePositionControls
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.translation
@@ -159,10 +158,6 @@ open class ConnectomicsRawState<D, T>(
 			alignment = Pos.CENTER_RIGHT
 		}
 		box.children.add(metaData)
-
-		(backend as? SourceStateBackendN5<*, *>)?.metadataState?.let {
-			SlicePositionControls.create(it, dataSource, setOfNotNull(channels?.axis))?.let { controls -> box.children.add(controls) }
-		}
 
 		return box
 	}

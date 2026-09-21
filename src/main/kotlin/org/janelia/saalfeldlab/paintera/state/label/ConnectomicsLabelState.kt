@@ -78,7 +78,6 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
-import org.janelia.saalfeldlab.paintera.ui.SlicePositionControls
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.stream.*
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
@@ -368,9 +367,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 graphic = tpGraphics
                 contentDisplay = ContentDisplay.GRAPHIC_ONLY
                 alignment = Pos.CENTER_RIGHT
-		}
-		(backend as? SourceStateBackendN5<D, T>)?.let { n5Backend ->
-			SlicePositionControls.create(n5Backend.metadataState, dataSource)?.let { node.children.add(it) }
 		}
 		return node.apply { children.add(metaData) }
 	}
