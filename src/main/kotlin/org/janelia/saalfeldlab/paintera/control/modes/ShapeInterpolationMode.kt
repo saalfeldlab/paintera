@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.ai.EncodePriority
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.ai.sam.MultipleChoicePrompt
@@ -557,7 +558,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 	}
 
-	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
+	internal fun cacheLoadSamSliceInfo(
+		depth: Double,
+		translate: Boolean = depth != controller.currentDepth,
+		provideGlobalToViewerTransform: AffineTransform3D? = null,
+		priority: EncodePriority = EncodePriority.EAGER
+	): SamSliceInfo {
 
 		val globalToViewerTransform = (provideGlobalToViewerTransform ?: targetTransform(depth, translate)).copy()
 		val viewerAndTransforms = activeViewerProperty.value!!
@@ -610,7 +616,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 			/* the view changed, but the slice at this depth did not; carry its state over */
 			SamSliceInfo(renderState, mask, interpolationPrompt, cachedSliceInfo?.sliceInfo, cachedSliceInfo?.locked ?: false).also {
-                SamEncoder.cache.load(renderState)
+				when (priority) {
+					EncodePriority.IMMEDIATE -> SamEncoder.cache.request(renderState)
+					EncodePriority.EAGER -> SamEncoder.cache.load(renderState)
+				}
 				samSliceCache[depth] = it
 			}
 		}

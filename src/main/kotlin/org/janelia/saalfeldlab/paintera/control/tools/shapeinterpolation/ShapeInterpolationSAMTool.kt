@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.ai.SamEncoder
+import org.janelia.saalfeldlab.paintera.ai.EncodePriority
 import org.janelia.saalfeldlab.util.math.HashableTransform.Companion.hashable
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -41,21 +41,12 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 
 		val depth = controller.currentDepth
 
-		/* If we are requesting a new embedding that isn't already pre-cached,
-		 *  then likely the existing requests are no longer needed.
-		 *  Cancel any that have not yet returned. */
-
-		var drawPrompt = false
-		mode.samSliceCache[depth]?.takeIf {
+		val drawPrompt = mode.samSliceCache[depth]?.let {
 			val currentGlobalToViewerTransform = AffineTransform3D().also { activeViewer?.state?.getViewerTransform(it) }
 			it.globalToViewerTransform.hashable() == currentGlobalToViewerTransform.hashable()
-		}?.let  {
-			drawPrompt = true
-		} ?: let {
-            SamEncoder.cache.embeddingRequester.cancelPendingRequests()
-		}
+		} ?: false
 
-		val info = mode.cacheLoadSamSliceInfo(depth)
+		val info = mode.cacheLoadSamSliceInfo(depth, priority = EncodePriority.IMMEDIATE)
 		maskedSource?.resetMasks(false)
 		/* only replace existing if we are at a slice, and it's not locked.
 		 * The cases are:

@@ -1,30 +1,27 @@
 package org.janelia.saalfeldlab.paintera.ai
 
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.plus
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
+import org.janelia.saalfeldlab.samlink.encode.TritonEncodeOptions
+import java.awt.image.BufferedImage
 
-interface SamEncodeRequester<R> : AutoCloseable where R : EncoderResult {
+enum class EncodePriority(val level: Long) {
+    IMMEDIATE(1),
+    EAGER(2)
+}
 
-    companion object {
-        val embeddingIOScope = CoroutineScope(Dispatchers.IO + SupervisorJob()) + CoroutineName("EMBEDDING_IO")
-    }
-
-    val scope : CoroutineScope
+interface SamEncodeRequester<R, O> : AutoCloseable where R : EncoderResult, O : TritonEncodeOptions {
 
     val imageSize: Int
 
-    suspend fun getImageEmbedding(it: RenderUnitState): R
+    /** render [state] at the encoder's input size */
+    suspend fun renderImage(state: RenderUnitState): BufferedImage
+
+    suspend fun encode(image: BufferedImage, withOptions: (O.() -> Unit)? = null): R
 
     suspend fun healthCheck() : Boolean
 
     suspend fun requestSessionId(): String
-
-    fun cancelPendingRequests(vararg ids: String)
 }
 
 
