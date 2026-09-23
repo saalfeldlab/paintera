@@ -504,9 +504,9 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		/* Set the interpolatedMaskImgs to the composite fill+interpolation RAIs*/
 		globalCompositeFillAndInterpolationImgs = compositeMaskInGlobal to compositeVolatileMaskInGlobal
-		val maskInfo = currentViewerMask?.info ?: MaskInfo(0, currentBestMipMapLevel)
+		val maskInfo = MaskInfo(0, currentBestMipMapLevel)
 		currentViewerMask?.setMaskOnUpdate = false
-		val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, currentBestMipMapLevel, it) }.inverse()
+		val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, maskInfo.level, it) }.inverse()
 		synchronized(source) {
 			source.resetMasks(false)
 			source.setMask(
@@ -757,8 +757,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		/* get union of adjacent slices bounding boxes */
 		val unionInterval = let {
 
-			val sourceIntervalInMaskSpace = viewerMask.run { currentMaskToSourceTransform.inverse().estimateBounds(source.getSource(0, info.level)) }
-			val interpolantIntervalInMaskSpace = viewerMask.currentGlobalToMaskTransform.estimateBounds(interpolantInterval)
+			val sourceIntervalInMaskSpace = viewerMask.run { initialMaskToSourceTransform.inverse().estimateBounds(source.getSource(0, info.level)) }
+			val interpolantIntervalInMaskSpace = viewerMask.initialGlobalToMaskTransform.estimateBounds(interpolantInterval)
 
 			val minZSlice = interpolantIntervalInMaskSpace.minAsDoubleArray().also { it[2] = 0.0 }
 			val maxZSlice = interpolantIntervalInMaskSpace.maxAsDoubleArray().also { it[2] = 0.0 }
@@ -766,7 +766,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 
 			val interpolatedMaskView = interpolant.dataInterpolant
-				.affine(viewerMask.currentGlobalToMaskTransform)
+				.affine(viewerMask.initialGlobalToMaskTransform)
 				.interval(interpolantIntervalSliceInMaskSpace)
 			val fillMaskOverInterval = viewerMask.viewerImg.apply {
 				extendValue(Label.INVALID)

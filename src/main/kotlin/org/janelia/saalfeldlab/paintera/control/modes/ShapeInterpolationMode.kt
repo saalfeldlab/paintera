@@ -18,6 +18,7 @@ import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.realtransform.Translation3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
@@ -617,6 +618,16 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		return newSliceInfo
 	}
 
+	/**
+	 * Return a new global to viewer transform translated by [dz] relative to the [initialGlobalToViewerTransform]
+     */
+	private fun ShapeInterpolationController<*>.translateInitialViewerDepth(dz: Double): AffineTransform3D {
+		val initialGlobalToViewer = initialGlobalToViewerTransform!!
+		return initialGlobalToViewer.copy()
+			.preConcatenate(Translation3D(0.0, 0.0, dz))
+			.preConcatenate(initialGlobalToViewer.inverse())
+	}
+
 	private fun ShapeInterpolationController<*>.calculateGlobalToViewerTransformAtDepth(depth: Double): AffineTransform3D {
 		return adjacentSlices(depth).let { (first, second) ->
 			when {
@@ -636,14 +647,14 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				first != null -> {
 					first.mask.initialGlobalToViewerTransform.let {
 						val prevDepth = depthAt(first.globalTransform)
-						it.copy().apply { translate(0.0, 0.0, prevDepth - depth) }
+						it.copy().concatenate(translateInitialViewerDepth(prevDepth - depth))
 					}
 				}
 
 				second != null -> {
 					second.mask.initialGlobalToViewerTransform.let {
 						val nextDepth = depthAt(second.globalTransform)
-						it.copy().apply { translate(0.0, 0.0, nextDepth - depth) }
+						it.copy().concatenate(translateInitialViewerDepth(nextDepth - depth))
 					}
 				}
 
