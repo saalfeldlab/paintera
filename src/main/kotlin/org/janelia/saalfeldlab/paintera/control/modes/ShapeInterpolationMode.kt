@@ -630,7 +630,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					val depthPercent = (depth - firstDepth) / distance
 					val firstMaskTransform = first.mask.initialGlobalToViewerTransform
 					val secondMaskTransform = second.mask.initialGlobalToViewerTransform
-					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).get(depthPercent)
+					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).scaleInvariantGet(depthPercent)
 				}
 
 				first != null -> {
