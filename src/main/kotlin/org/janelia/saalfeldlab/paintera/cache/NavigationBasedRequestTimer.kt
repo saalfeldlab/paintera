@@ -28,11 +28,17 @@ class NavigationBasedRequestTimer(
     private var previousJob: Job = Job()
         set(value) {
             field.cancel()
+            cancelPendingNavigationRequest()
             field = value
         }
+
     private var requestCountDown = AtomicInteger(REQUEST_COUNTDOWN)
     val countdownResetListener = TransformListener<AffineTransform3D> {
         requestCountDown.set(REQUEST_COUNTDOWN)
+    }
+
+    private fun cancelPendingNavigationRequest() {
+        embeddingCache.cancelEagerRequests(sessionId)
     }
 
     override fun handle(now: Long) {
@@ -53,5 +59,6 @@ class NavigationBasedRequestTimer(
     override fun stop() {
         super.stop()
         viewerAndTransforms.globalToViewerTransform.removeListener(countdownResetListener)
+        previousJob = Job()
     }
 }

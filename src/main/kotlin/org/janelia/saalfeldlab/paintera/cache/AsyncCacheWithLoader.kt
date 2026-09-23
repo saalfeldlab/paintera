@@ -36,12 +36,18 @@ abstract class AsyncCacheWithLoader<K : Any, V>(
 		request(key, clear = true).await()
 	}
 
-	open fun request(key: K, clear : Boolean = false): Deferred<V> = runBlocking {
+	open fun request(key: K, clear : Boolean = false): Deferred<V> = request(key, clear) {
+		loaderScope.async { loader(it) }
+	}
+
+	/** request a Deferred value for [key]; If the key already has a Deferred value, return it,
+     *  otherwise, run [generateValue] */
+	protected fun request(key: K, clear: Boolean, generateValue: (K) -> Deferred<V>): Deferred<V> = runBlocking {
 		cache.get(key) {
 			LOG.trace { "cache miss, trigger new loader request for $key" }
 			if (clear)
 				cancelUnfinishedRequests()
-			loaderScope.async { loader(key) }
+			generateValue(key)
 		}.invalidateOnException(key)
 	}
 

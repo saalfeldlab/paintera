@@ -894,6 +894,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 			}.getOrElse { exception ->
 				isBusy = false
 
+                if (exception is CancellationException && currentCoroutineContext().isActive)
+                    LOG.warn(exception) { "embedding request cancelled while the SAM tool is active" }
+
                 when (exception) {
                 is InterruptedException if !currentCoroutineContext().isActive -> null
                 is CancellationException -> null

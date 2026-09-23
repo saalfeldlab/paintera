@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ai.EncodePriority
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
 import org.janelia.saalfeldlab.paintera.control.actions.*
@@ -211,10 +212,12 @@ internal class ShapeInterpolationTool(
 	): AffineTransform3D {
 
 		val newPrediction = mode.samSliceCache[depth] == null
-		if (newPrediction)
-			SamEncoder.cache.embeddingRequester.cancelPendingRequests()
 
-		val samSliceInfo = mode.cacheLoadSamSliceInfo(depth, provideGlobalToViewerTransform = provideGlobalToViewerTransform)
+		val samSliceInfo = mode.cacheLoadSamSliceInfo(
+			depth,
+			provideGlobalToViewerTransform = provideGlobalToViewerTransform,
+			priority = EncodePriority.IMMEDIATE
+		)
 
 		if (!newPrediction && refresh) {
             val interpolationImg = controller.getInterpolationImg(samSliceInfo.globalToViewerTransform, fallbackToNearestSlice = true)

@@ -18,6 +18,7 @@ import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.realtransform.Translation3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
@@ -37,6 +38,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.*
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.*
+import org.janelia.saalfeldlab.paintera.ai.EncodePriority
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
 import org.janelia.saalfeldlab.paintera.ai.sam.MultipleChoicePrompt
@@ -556,7 +558,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 	}
 
-	internal fun cacheLoadSamSliceInfo(depth: Double, translate: Boolean = depth != controller.currentDepth, provideGlobalToViewerTransform: AffineTransform3D? = null): SamSliceInfo {
+	internal fun cacheLoadSamSliceInfo(
+		depth: Double,
+		translate: Boolean = depth != controller.currentDepth,
+		provideGlobalToViewerTransform: AffineTransform3D? = null,
+		priority: EncodePriority = EncodePriority.EAGER
+	): SamSliceInfo {
 
 		val globalToViewerTransform = (provideGlobalToViewerTransform ?: targetTransform(depth, translate)).copy()
 		val viewerAndTransforms = activeViewerProperty.value!!
@@ -609,12 +616,25 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 			/* the view changed, but the slice at this depth did not; carry its state over */
 			SamSliceInfo(renderState, mask, interpolationPrompt, cachedSliceInfo?.sliceInfo, cachedSliceInfo?.locked ?: false).also {
-                SamEncoder.cache.load(renderState)
+				when (priority) {
+					EncodePriority.IMMEDIATE -> SamEncoder.cache.request(renderState)
+					EncodePriority.EAGER -> SamEncoder.cache.load(renderState)
+				}
 				samSliceCache[depth] = it
 			}
 		}
         interpolantImg?.shutdown?.invoke()
 		return newSliceInfo
+	}
+
+	/**
+	 * Return a new global to viewer transform translated by [dz] relative to the [initialGlobalToViewerTransform]
+     */
+	private fun ShapeInterpolationController<*>.translateInitialViewerDepth(dz: Double): AffineTransform3D {
+		val initialGlobalToViewer = initialGlobalToViewerTransform!!
+		return initialGlobalToViewer.copy()
+			.preConcatenate(Translation3D(0.0, 0.0, dz))
+			.preConcatenate(initialGlobalToViewer.inverse())
 	}
 
 	private fun ShapeInterpolationController<*>.calculateGlobalToViewerTransformAtDepth(depth: Double): AffineTransform3D {
@@ -630,20 +650,20 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					val depthPercent = (depth - firstDepth) / distance
 					val firstMaskTransform = first.mask.initialGlobalToViewerTransform
 					val secondMaskTransform = second.mask.initialGlobalToViewerTransform
-					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).get(depthPercent)
+					SimilarityTransformInterpolator(firstMaskTransform, secondMaskTransform).scaleInvariantGet(depthPercent)
 				}
 
 				first != null -> {
 					first.mask.initialGlobalToViewerTransform.let {
 						val prevDepth = depthAt(first.globalTransform)
-						it.copy().apply { translate(0.0, 0.0, prevDepth - depth) }
+						it.copy().concatenate(translateInitialViewerDepth(prevDepth - depth))
 					}
 				}
 
 				second != null -> {
 					second.mask.initialGlobalToViewerTransform.let {
 						val nextDepth = depthAt(second.globalTransform)
-						it.copy().apply { translate(0.0, 0.0, nextDepth - depth) }
+						it.copy().concatenate(translateInitialViewerDepth(nextDepth - depth))
 					}
 				}
 

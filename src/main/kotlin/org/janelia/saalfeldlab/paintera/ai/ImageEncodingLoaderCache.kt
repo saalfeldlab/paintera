@@ -22,20 +22,19 @@ import org.janelia.saalfeldlab.paintera.ai.sam.SamLinkEncodeRequester
 import org.janelia.saalfeldlab.paintera.cache.AsyncCacheWithLoader
 import org.janelia.saalfeldlab.paintera.cache.NavigationBasedRequestTimer
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
+import org.janelia.saalfeldlab.samlink.encode.TritonEncodeOptions
 import java.io.InterruptedIOException
+import java.util.concurrent.ConcurrentHashMap
 
 abstract class ImageEncodingLoaderCache<V> : AsyncCacheWithLoader<RenderUnitState, V>(), AutoCloseable
 where V : EncoderResult {
-    abstract val embeddingRequester: SamLinkEncodeRequester<V>
+    abstract val embeddingRequester: SamLinkEncodeRequester<V, out TritonEncodeOptions>
 
     private var navigationBasedRequestTimer: NavigationBasedRequestTimer? = null
         set(value) {
             if (value == null) field?.stop()
             field = value?.apply { start() }
         }
-
-    private val encodeSlots = Semaphore(MAX_CONCURRENT_ENCODES)
-    private val eagerSlots = Semaphore(MAX_CONCURRENT_EAGER_ENCODES)
 
     suspend fun healthCheck() = embeddingRequester.healthCheck()
 
@@ -71,6 +70,10 @@ where V : EncoderResult {
         return load(sessionState)
     }
 
+    /* live eager requests associated with their session ID  */
+    private val eagerRequests = ConcurrentHashMap<Deferred<V>, String>()
+    private val eagerRenderSlot = Semaphore(1)
+
     override fun load(key: RenderUnitState): Job {
         val sessionState = (key as? SessionRenderUnitState)
             ?: let {
@@ -80,11 +83,29 @@ where V : EncoderResult {
         /* invalidate if exceptional */
         cache.getIfPresent(sessionState)?.invokeOnCompletion { cause -> cause?.let { invalidate(sessionState) } }
         /* reuse if present */
-        cache.getIfPresent(sessionState)?.let { return it }
+        cache.getIfPresent(sessionState)?.let { cached -> return loaderQueueScope.launch { cached.join() } }
         /* trigger the load */
         return loaderQueueScope.async {
             if (!isActive) invalidate(sessionState)
-            else eagerSlots.withPermit { request(sessionState).await() }
+            else request(sessionState, clear = false) { state ->
+                loaderScope.async { loader(state, EncodePriority.EAGER) }.also { eager ->
+                    eagerRequests[eager] = sessionState.sessionId
+                    eager.invokeOnCompletion { eagerRequests -= eager }
+                }
+            }.await()
+        }
+    }
+
+    /** an immediate request. if this is a promotion from an eager request, remove the eagerRequests reference so it isn't cancelled accidentally  */
+    override fun request(key: RenderUnitState, clear: Boolean): Deferred<V> {
+        return super.request(key, clear).also { eagerRequests -= it }
+    }
+
+    fun cancelEagerRequests(sessionId: String) {
+        val stale = eagerRequests.filterValues { it == sessionId }.keys
+        stale.forEach { eager ->
+            eagerRequests -= eager
+            eager.cancel(CancellationException("eager request cancelled for session $sessionId"))
         }
     }
 
@@ -96,11 +117,18 @@ where V : EncoderResult {
     }
 
 
-    override suspend fun loader(key: RenderUnitState): V {
+    override suspend fun loader(key: RenderUnitState) = loader(key, EncodePriority.IMMEDIATE)
+
+    private suspend fun loader(key: RenderUnitState, priority: EncodePriority): V {
         var lastError: Throwable? = null
         repeat(MAX_RETRIES) { attempt ->
             try {
-                return encodeSlots.withPermit { embeddingRequester.getImageEmbedding(key) }
+                /* immediate requests trigger immediately, eager requests go one at a time (render is faster than encode, so this doesn't bottleneck the parallel eager requests)*/
+                val image = when (priority) {
+                    EncodePriority.IMMEDIATE -> embeddingRequester.renderImage(key)
+                    EncodePriority.EAGER -> eagerRenderSlot.withPermit { embeddingRequester.renderImage(key) }
+                }
+                return embeddingRequester.encode(image) { this.priority = priority.level }
             } catch (error: Throwable) {
                 if (error is CancellationException)
                     throw error
@@ -126,9 +154,6 @@ where V : EncoderResult {
     }
 
     companion object {
-        /* based on the current lane count on the triton client, which is 4 */
-        private const val MAX_CONCURRENT_ENCODES = 8
-        private const val MAX_CONCURRENT_EAGER_ENCODES = 4
         private const val MAX_RETRIES = 2
         private val LOG = KotlinLogging.logger {}
     }
@@ -169,7 +194,6 @@ object SamEncoder {
         if (lazyCacheProperty.isInitialized()) {
             cache.apply {
                 stopNavigationBasedRequests()
-                embeddingRequester.cancelPendingRequests()
                 cancelUnfinishedRequests()
                 invalidateAll()
             }
