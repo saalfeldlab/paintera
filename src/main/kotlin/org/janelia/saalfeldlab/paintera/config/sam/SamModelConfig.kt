@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.config.sam
 
 import com.google.gson.*
 import javafx.application.Platform
-import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValueBase
@@ -317,7 +316,7 @@ abstract class SamModelConfigAdapter<T : SamModelConfig<*>> : PainteraSerializat
             return JsonNull.INSTANCE
 
         return JsonObject().also {
-            if (src.serviceUrl != src.defaultDecoderLocation)
+            if (src.serviceUrl != src.defaultServiceUrl)
                 it[src::serviceUrl.name] = src.serviceUrl
             if (src.decoderLocation != src.defaultDecoderLocation)
                 it[src::decoderLocation.name] = src.decoderLocation
