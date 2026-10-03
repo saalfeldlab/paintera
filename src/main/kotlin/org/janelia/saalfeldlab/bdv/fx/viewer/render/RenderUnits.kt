@@ -76,38 +76,51 @@ open class BaseRenderUnit(
 			target = renderTarget ?: return
 		}
 
-		val renderedScreenScaleIndex = renderer.paint(
-			state.sources,
-			state.timepoint,
-			state.transform,
-			interpolation,
-			null
-		)
+		/* let the renderer know when it failed, so it can act on that. */
+		val renderStatus = try {
+			render.paint(
+                state.sources,
+                state.timepoint,
+                state.transform,
+                interpolation
+            )
+		} catch (e: Throwable) {
+			render.paintFailed(null, e)
+			throw e
+		}
+		try {
+			if (renderStatus.success())
+				submitRenderResult(render, target, renderStatus.screenScaleIndex)
+		} catch (e: Throwable) {
+			render.paintFailed(renderStatus, e)
+			throw e
+		}
+		render.paintCompleted(renderStatus)
+	}
 
-		if (renderedScreenScaleIndex != -1) {
-			val screenInterval = render.lastRenderedScreenInterval
-			val renderTargetRealInterval = render.lastRenderTargetRealInterval
+	private fun submitRenderResult(render: MultiResolutionRendererFX, target: TransformAwareBufferedImageOverlayRendererFX, renderedScreenScaleIndex: Int) {
+		val screenInterval = render.lastRenderedScreenInterval
+		val renderTargetRealInterval = render.lastRenderTargetRealInterval
 
-			if (skipOverlays) {
-				val imgBeforeOverlays = target.setBufferedImage(null)
-				renderResultProperty.set(
-					RenderResult(
-						imgBeforeOverlays,
-						screenInterval,
-						renderTargetRealInterval,
-						renderedScreenScaleIndex
-					)
+		if (skipOverlays) {
+			val imgBeforeOverlays = target.setBufferedImage(null)
+			renderResultProperty.set(
+				RenderResult(
+					imgBeforeOverlays,
+					screenInterval,
+					renderTargetRealInterval,
+					renderedScreenScaleIndex
 				)
-			} else target.drawOverlays { img: Image? ->
-				renderResultProperty.set(
-					RenderResult(
-						img,
-						screenInterval,
-						renderTargetRealInterval,
-						renderedScreenScaleIndex
-					)
+			)
+		} else target.drawOverlays { img: Image? ->
+			renderResultProperty.set(
+				RenderResult(
+					img,
+					screenInterval,
+					renderTargetRealInterval,
+					renderedScreenScaleIndex
 				)
-			}
+			)
 		}
 	}
 }

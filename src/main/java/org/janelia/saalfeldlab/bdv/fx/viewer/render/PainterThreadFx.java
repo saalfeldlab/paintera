@@ -50,7 +50,9 @@ public final class PainterThreadFx extends Thread {
 			if (paint) {
 				try {
 					paintable.paint();
-				} catch (RejectedExecutionException var5) {
+				} catch (RejectedExecutionException _) {
+				} catch (Throwable e) {
+					LOG.error(e, () -> "Paint failed: " + getName());
 				}
 			}
 

@@ -51,7 +51,10 @@ import org.janelia.saalfeldlab.net.imglib2.view.BundleView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.io.InterruptedIOException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -271,7 +274,22 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			}
 
 			try {
-				taskExecutor.getExecutorService().invokeAll(tasks);
+				/* a task that threw would otherwise leave its rows unpainted and the pass looking valid */
+				for (final Future<Void> task : taskExecutor.getExecutorService().invokeAll(tasks)) {
+					try {
+						task.get();
+					} catch (final ExecutionException e) {
+						if (wasInterrupted(e.getCause())) {
+                            /* For example, S3 readers do this occassionaly, and correctly retry, so this
+                            * is not an unrecoverable exception in all cases. */
+							LOG.debug(e, () -> "Render task interrupted");
+							canceled.set(true);
+						} else {
+							LOG.error(e, () -> "Render task failed");
+							valid = false;
+						}
+					}
+				}
 			} catch (final InterruptedException e) {
 				canceled.set(true);
 			}
@@ -340,5 +358,14 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 				}
 			}
 		}
+	}
+
+	/* an interrupted read (an aws sdk request, a cell load) surfaces as a cause somewhere down the chain */
+	private static boolean wasInterrupted(Throwable throwable) {
+
+		for (; throwable != null; throwable = throwable.getCause())
+			if (throwable instanceof InterruptedException || throwable instanceof InterruptedIOException)
+				return true;
+		return false;
 	}
 }

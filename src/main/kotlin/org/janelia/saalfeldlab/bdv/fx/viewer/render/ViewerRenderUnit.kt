@@ -9,6 +9,7 @@ import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.parallel.TaskExecutor
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
+import java.util.concurrent.CompletableFuture
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -43,24 +44,28 @@ open class ViewerRenderUnit(
 
 	private fun notifyRepaintObservable() = repaintRequestProperty.set(!repaintRequestProperty.value)
 
-	override fun requestRepaint() {
-		super.requestRepaint()
-		notifyRepaintObservable()
+	override fun requestRepaint(): CompletableFuture<Void> {
+		return super.requestRepaint().also {
+            notifyRepaintObservable()
+        }
 	}
 
-	override fun requestRepaint(screenScaleIndex: Int) {
-		super.requestRepaint(screenScaleIndex)
-		notifyRepaintObservable()
+	override fun requestRepaint(screenScaleIndex: Int): CompletableFuture<Void> {
+		return super.requestRepaint(screenScaleIndex).also {
+            notifyRepaintObservable()
+        }
 	}
 
-	override fun requestRepaint(min: LongArray?, max: LongArray?) {
-		super.requestRepaint(min, max)
-		notifyRepaintObservable()
+	override fun requestRepaint(min: LongArray?, max: LongArray?): CompletableFuture<Void> {
+		return super.requestRepaint(min, max).also {
+            notifyRepaintObservable()
+        }
 	}
 
-	override fun requestRepaint(screenScaleIndex: Int, min: LongArray?, max: LongArray?) {
-		super.requestRepaint(screenScaleIndex, min, max)
-		notifyRepaintObservable()
+	override fun requestRepaint(screenScaleIndex: Int, min: LongArray?, max: LongArray?): CompletableFuture<Void> {
+		return super.requestRepaint(screenScaleIndex, min, max).also {
+            notifyRepaintObservable()
+        }
 	}
 
 	companion object {
