@@ -4,6 +4,7 @@ import bdv.cache.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -208,15 +209,16 @@ public class PainteraBaseView {
 			}
 		});
 
+		final InvalidationListener disableListener = _ -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+            var disabledBindingStream = Arrays.stream(disabledPropertyBindings.values().toArray(ObservableBooleanValue[]::new));
+            isDisabledProperty.set(disabledBindingStream.anyMatch(ObservableBooleanValue::get));
+        });
 		disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
-			isDisabledProperty.unbind();
-			final var isDisabledBinding = Bindings.createBooleanBinding(
-					() -> Arrays.stream(disabledPropertyBindings.values().toArray(ObservableBooleanValue[]::new))
-							.map(ObservableBooleanValue::get)
-							.reduce(Boolean::logicalOr)
-							.orElse(false),
-					disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
-			isDisabledProperty.bind(isDisabledBinding);
+			if (change.wasRemoved())
+				change.getValueRemoved().removeListener(disableListener);
+			if (change.wasAdded())
+				change.getValueAdded().addListener(disableListener);
+			disableListener.invalidated(change.getMap());
 		});
 
 		activeModeProperty.set(AppControlMode.INSTANCE);
