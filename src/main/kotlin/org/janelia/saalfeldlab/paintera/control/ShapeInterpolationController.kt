@@ -215,16 +215,21 @@ class ShapeInterpolationController<D : IntegerType<D>>(
    		return slice
 	}
 
-	private val sliceMasks = ConcurrentHashMap.newKeySet<ViewerMask>()
+	private val trackedViewerMasks = ConcurrentHashMap.newKeySet<ViewerMask>()
 
 	private fun addSlice(depth: Double, slice: SliceInfo) {
-		sliceMasks += slice.mask
+		trackedViewerMasks += slice.mask
 		slicesAndInterpolants.add(depth, slice)
 	}
 
+	/* a mask from [getMask] that never became a slice is not shut down by anyone else */
+	private fun ViewerMask.shutdownIfUntracked() {
+		takeUnless { it in trackedViewerMasks }?.shutdown?.run()
+	}
+
 	private fun shutdownSliceMasks() {
-		val masks = sliceMasks.toList()
-		sliceMasks -= masks.toSet()
+		val masks = trackedViewerMasks.toList()
+		trackedViewerMasks -= masks.toSet()
 		/* queued behind any interpolation still reading the masks */
 		interpolationScope.launch(NonCancellable) {
 			masks.forEach { it.shutdown?.run() }
@@ -292,6 +297,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		selectedIds.deactivate(interpolationId)
 		controllerState = ControllerState.Off
 		slicesAndInterpolants.clear()
+		currentViewerMask?.shutdownIfUntracked()
 		currentViewerMask = null
 		globalCompositeFillAndInterpolationImgs = null
         initialId = Label.INVALID
@@ -431,7 +437,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val finalInterpolationId = interpolationId
 		if (Label.regular(finalTargetId)) {
 			val maskInfo = source.currentMask.info
-			source.hideCurrentMask()
 			val interpolatedMaskImgsA = globalCompositeFillAndInterpolationImgs!!.first
 				.affineReal(globalToSource)
 				.convert(UnsignedLongType(Label.INVALID)) { input, output ->
@@ -452,13 +457,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						out.get().set(label)
 					}
 				}
-			source.setMask(
-				maskInfo,
-				interpolatedMaskImgsA,
-				interpolatedMaskImgsB,
-				null, null, null, MaskedSource.VALID_LABEL_CHECK
-			)
-
+			synchronized(source) {
+				source.hideCurrentMask()
+				source.setMask(
+					maskInfo,
+					interpolatedMaskImgsA,
+					interpolatedMaskImgsB,
+					null, null, null, MaskedSource.VALID_LABEL_CHECK
+				)
+			}
 		}
 		source.isApplyingMaskProperty.addListener(doneApplyingMaskListener)
 		source.applyMask(source.currentMask, slicesUnionSourceInterval, MaskedSource.VALID_LABEL_CHECK)
@@ -628,13 +635,26 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
 	}
 
-	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
+    /**
+     * Returns a mask that is valid for the current state of the ShapeInterpolationController.
+     * It may create a new mask if none exists.
+     * It may prefill a new mask from an interpolated portion if creating a new mask over an interpolant
+     * It may return the current mask if it is valid for the current state.
+     *
+     * It will also ensure the returned mask is valid, i.e. set on the MaskedSource
+     *
+     * @param targetMipMapLevel the target mip map level
+     * @param ignoreExisting create a new mask even if a slice exists at the current depth
+     * @return the viewer mask
+     */
+    fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
 
 		/* If we have a mask, get it; else create a new one */
 		val depth = currentDepth
 		val currentSlice = sliceAtCurrentDepth
 		val currentSliceBoundingBox = currentSlice?.maskBoundingBox
 
+		val previousMask = currentViewerMask
  		currentViewerMask = when {
 			/* No existing slice, or we are ignoring it; make a new one */
 			currentSlice == null || ignoreExisting -> newMask(targetMipMapLevel)
@@ -650,7 +670,12 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			/* wrap the existing mask at a different scale level */
 			else -> wrapExistingSlice(currentSlice, targetMipMapLevel)
 		}
-		currentViewerMask?.setViewerMaskOnSource()
+		/* ensure this is an atomic operation */
+		synchronized(source) {
+			source.hideCurrentMask()
+			previousMask?.shutdownIfUntracked()
+			currentViewerMask?.setViewerMaskOnSource()
+		}
 
 		if (preview && slicesAndInterpolants.getInterpolantAtDepth(currentDepth) != null)
 			copyInterpolationToMask()

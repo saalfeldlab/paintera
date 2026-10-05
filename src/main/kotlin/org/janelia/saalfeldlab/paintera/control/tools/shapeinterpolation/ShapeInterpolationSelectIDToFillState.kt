@@ -26,7 +26,6 @@ class ShapeInterpolationSelectIDToFillState<D, T>() :
 	}
 
 	var mask by verifiable {
-		maskedSource.hideCurrentMask()
 		shapeInterpolationController.getMask()
 	}
 

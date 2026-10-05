@@ -491,7 +491,6 @@ internal class ShapeInterpolationTool(
 							fun fillFromViewerMask() {
 								val prevSlice = controller.sliceAt(currentDepth)!!.also {
 									deleteSliceAt(currentDepth, reinterpolate = false)
-									source.hideCurrentMask()
 									/* replace mask with new one after deleting slice */
 									mask = getMask()
 								}
@@ -514,7 +513,6 @@ internal class ShapeInterpolationTool(
 							fun fillFromSourceMask() {
 								val prevSlice = controller.sliceAt(currentDepth)?.also {
 									deleteSliceAt(currentDepth, reinterpolate = false)
-									source.hideCurrentMask()
 									/* replace mask with new one after deleting slice */
 									mask = getMask()
 								}
