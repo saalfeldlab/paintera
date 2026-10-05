@@ -54,7 +54,7 @@ internal class ShapeInterpolationFillTool(private val controller : ShapeInterpol
 				onAction {
 					/* On click, provide the mask, setup the task listener */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-						source.resetMasks(false)
+						source.hideCurrentMask()
 						val mask = controller.getMask()
 						mask.pushNewImageLayer()
 						fillJobProperty.onceWhen(fillJobProperty.isNotNull).subscribe { _, job ->

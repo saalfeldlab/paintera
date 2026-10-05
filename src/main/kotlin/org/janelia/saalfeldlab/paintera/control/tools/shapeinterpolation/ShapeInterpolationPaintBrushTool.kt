@@ -92,7 +92,7 @@ internal class ShapeInterpolationPaintBrushTool(activeSourceStateProperty: Simpl
 					/* On click, generate a new mask, */
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						paintClickOrDrag!!.let { paintController ->
-							source.resetMasks(false)
+							source.hideCurrentMask()
 							val mask = controller.getMask()
 							mask.pushNewImageLayer()
 							paintController.provideMask(mask)

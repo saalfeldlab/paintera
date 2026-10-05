@@ -117,7 +117,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 									paintera.baseView.disabledPropertyBindings -= this
 									cause?.let {
 										LOG.debug(cause) { "Fill 3D cancelled, resetting mask. " }
-										statePaintContext?.dataSource?.resetMasks(true)
+										statePaintContext?.dataSource?.resetMasks()
 										fill.source.resetMasks()
 										fill.requestRepaint.accept(null)
 									}

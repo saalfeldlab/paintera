@@ -47,7 +47,7 @@ internal class ShapeInterpolationSAMTool(private val controller: ShapeInterpolat
 		} ?: false
 
 		val info = mode.cacheLoadSamSliceInfo(depth, priority = EncodePriority.IMMEDIATE)
-		maskedSource?.resetMasks(false)
+		maskedSource?.hideCurrentMask()
 		/* only replace existing if we are at a slice, and it's not locked.
 		 * The cases are:
 		 * - At a slice and not locked -> implies an auto-predicted SAM slice, so we replace it

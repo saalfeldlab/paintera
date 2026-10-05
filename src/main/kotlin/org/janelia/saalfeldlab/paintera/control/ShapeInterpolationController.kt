@@ -260,7 +260,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		// extra cleanup if shape interpolation was aborted
 		if (!completed) {
 			interruptInterpolation("Exiting Shape Interpolation")
-			source.resetMasks(true)
+			source.hideCurrentMask()
+			shutdownSliceMasks()
 		}
 
 
@@ -394,7 +395,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val finalInterpolationId = interpolationId
 		if (Label.regular(finalTargetId)) {
 			val maskInfo = source.currentMask.info
-			source.resetMasks(false)
+			source.hideCurrentMask()
 			val interpolatedMaskImgsA = globalCompositeFillAndInterpolationImgs!!.first
 				.affineReal(globalToSource)
 				.convert(UnsignedLongType(Label.INVALID)) { input, output ->
@@ -508,7 +509,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		currentViewerMask?.setMaskOnUpdate = false
 		val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, maskInfo.level, it) }.inverse()
 		synchronized(source) {
-			source.resetMasks(false)
+			/* the current mask may be a slice's; slice masks are shut down when shape interpolation ends */
+			source.hideCurrentMask()
 			source.setMask(
 				maskInfo,
 				compositeMaskInGlobal.affine(globalToSource),
@@ -559,7 +561,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private fun updateSliceAndInterpolantsCompositeMask() {
 		if (numSlices == 0) {
-			source.resetMasks()
+			source.hideCurrentMask()
 			paintera().orthogonalViews().requestRepaint()
 		} else {
 			try {
