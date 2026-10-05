@@ -940,30 +940,30 @@ internal class SamSliceCache : HashMap<Float, SamSliceInfo>() {
 		remove(key)
 	}
 
+	/* a slice keeps its mask after its entry is replaced or removed; the controller shuts slice masks down */
+	private fun SamSliceInfo.shutdownUnlessSliceMask() {
+		if (sliceInfo?.mask !== mask)
+			mask.shutdown?.run()
+	}
+
 	override fun clear() {
-		values.forEach {
-			it.mask.shutdown?.run()
-		}
+		values.forEach { it.shutdownUnlessSliceMask() }
 		super.clear()
 	}
 
 	override fun remove(key: Float): SamSliceInfo? {
-		return super.remove(key)?.also {
-			it.mask.shutdown?.run()
-		}
+		return super.remove(key)?.also { it.shutdownUnlessSliceMask() }
 	}
 
 	override fun remove(key: Float, value: SamSliceInfo): Boolean {
 		return if (super.remove(key, value)) {
-			value.mask.shutdown?.run()
+			value.shutdownUnlessSliceMask()
 			true
 		} else false
 	}
 
 	override fun put(key: Float, value: SamSliceInfo): SamSliceInfo? {
-		return super.put(key, value)?.also {
-			it.mask.shutdown?.run()
-		}
+		return super.put(key, value)?.also { it.shutdownUnlessSliceMask() }
 	}
 }
 
