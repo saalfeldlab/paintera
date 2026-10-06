@@ -9,6 +9,7 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.util.Duration
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
@@ -252,13 +253,17 @@ internal class ShapeInterpolationTool(
 			}
 		}
 
-		samTool.lastPredictionProperty.addListener { _, _, prediction ->
-			val addedSliceTransform = prediction
-				?.let { mode.addSelection(it.maskInterval, viewerMask, globalTransform) }
-				?.let { globalTransform }
-
-			samTool.cleanup()
-			samTool.activeViewerProperty.unbind()
+        val prediction = samTool.requestPrediction(samSliceInfo.prompt)
+		prediction.invokeOnCompletion { cause ->
+			val addedSliceTransform = try {
+                @OptIn(ExperimentalCoroutinesApi::class)
+                prediction.takeIf { cause == null }?.getCompleted()
+                    ?.let { mode.addSelection(it.maskInterval, viewerMask, globalTransform) }
+                    ?.let { globalTransform }
+            } finally {
+				samTool.cleanup()
+				samTool.activeViewerProperty.unbind()
+			}
 
 			runCatching {
 				afterPrediction(addedSliceTransform)
@@ -266,7 +271,6 @@ internal class ShapeInterpolationTool(
 				LOG.warn(e) { "Error processing SAM prediction" }
 			}
 		}
-		samTool.requestPrediction(samSliceInfo.prompt)
 		return globalTransform
 	}
 
@@ -487,7 +491,6 @@ internal class ShapeInterpolationTool(
 							fun fillFromViewerMask() {
 								val prevSlice = controller.sliceAt(currentDepth)!!.also {
 									deleteSliceAt(currentDepth, reinterpolate = false)
-									source.resetMasks(false)
 									/* replace mask with new one after deleting slice */
 									mask = getMask()
 								}
@@ -510,7 +513,6 @@ internal class ShapeInterpolationTool(
 							fun fillFromSourceMask() {
 								val prevSlice = controller.sliceAt(currentDepth)?.also {
 									deleteSliceAt(currentDepth, reinterpolate = false)
-									source.resetMasks(false)
 									/* replace mask with new one after deleting slice */
 									mask = getMask()
 								}

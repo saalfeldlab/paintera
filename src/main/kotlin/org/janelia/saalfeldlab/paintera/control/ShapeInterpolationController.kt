@@ -60,6 +60,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Collections
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 import kotlin.math.absoluteValue
@@ -193,7 +194,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		fun newSlice(): SliceInfo {
 			val slice = SliceInfo(viewerMask, globalTransform, maskIntervalOverSelection)
-			slicesAndInterpolants.add(selectionDepth, slice)
+			addSlice(selectionDepth, slice)
 			return slice
 		}
 
@@ -212,6 +213,27 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		interpolateBetweenSlices(false)
    		return slice
+	}
+
+	private val trackedViewerMasks = ConcurrentHashMap.newKeySet<ViewerMask>()
+
+	private fun addSlice(depth: Double, slice: SliceInfo) {
+		trackedViewerMasks += slice.mask
+		slicesAndInterpolants.add(depth, slice)
+	}
+
+	/* a mask from [getMask] that never became a slice is not shut down by anyone else */
+	private fun ViewerMask.shutdownIfUntracked() {
+		takeUnless { it in trackedViewerMasks }?.shutdown?.run()
+	}
+
+	private fun shutdownSliceMasks() {
+		val masks = trackedViewerMasks.toList()
+		trackedViewerMasks -= masks.toSet()
+		/* queued behind any interpolation still reading the masks */
+		interpolationScope.launch(NonCancellable) {
+			masks.forEach { it.shutdown?.run() }
+		}
 	}
 
 	internal fun sliceAt(depth: Double) = slicesAndInterpolants.getSliceAtDepth(depth)
@@ -260,7 +282,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		// extra cleanup if shape interpolation was aborted
 		if (!completed) {
 			interruptInterpolation("Exiting Shape Interpolation")
-			source.resetMasks(true)
+			source.hideCurrentMask()
+			shutdownSliceMasks()
 		}
 
 
@@ -274,6 +297,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		selectedIds.deactivate(interpolationId)
 		controllerState = ControllerState.Off
 		slicesAndInterpolants.clear()
+		currentViewerMask?.shutdownIfUntracked()
 		currentViewerMask = null
 		globalCompositeFillAndInterpolationImgs = null
         initialId = Label.INVALID
@@ -310,7 +334,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	@OptIn(ExperimentalCoroutinesApi::class)
 	@Synchronized
 	fun interpolateBetweenSlices(replaceExistingInterpolants: Boolean) {
-		if (freezeInterpolation) return
+		if (freezeInterpolation) {
+			isBusy = false
+			return
+		}
 		if (slicesAndInterpolants.slices.size < 2) {
 			updateSliceAndInterpolantsCompositeMask()
 			isBusy = false
@@ -347,20 +374,32 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			updateInterval
 		}.also { job ->
 			job.invokeOnCompletion { cause ->
-				cause?.let {
-					LOG.debug(cause) { "Interpolation job cancelled" }
-				} ?: InvokeOnJavaFXApplicationThread { controllerState = ControllerState.Preview }
-
-				job.getCompleted()?.let { updateInterval ->
-					requestRepaint(updateInterval)
-				} ?: let {
-					/* a bit of a band-aid. It shouldn't be triggered often, but occasionally when an interpolation is triggered
-					* and there is no interpolation to be done (i.e. interpolation is already done, no new slices) then the refresh
-					* interval can desync, and show an empty interpolation result. This isn't a great fix, doesn't solve the underlying
-					* cause, but should stop it from happening as frequently. */
-					paintera().orthogonalViews().requestRepaint()
+				when (cause) {
+					null -> {
+						InvokeOnJavaFXApplicationThread { controllerState = ControllerState.Preview }
+						job.getCompleted()?.let { updateInterval ->
+							requestRepaint(updateInterval)
+						} ?: let {
+							/* a bit of a band-aid. It shouldn't be triggered often, but occasionally when an interpolation is triggered
+							* and there is no interpolation to be done (i.e. interpolation is already done, no new slices) then the refresh
+							* interval can desync, and show an empty interpolation result. This isn't a great fix, doesn't solve the underlying
+							* cause, but should stop it from happening as frequently.
+							* ---
+							* Its also possible its not longer required, but it's quite difficult to convince that it's not longer helpful. */
+							paintera().orthogonalViews().requestRepaint()
+						}
+					}
+					is CancellationException -> LOG.debug(cause) { "Interpolation job cancelled" }
+					else -> {
+						LOG.error(cause) { "Interpolation failed" }
+						InvokeOnJavaFXApplicationThread {
+							if (controllerState == ControllerState.Interpolate)
+								controllerState = ControllerState.Select
+						}
+					}
 				}
-				isBusy = false
+				/* a canceled job may have been replaced by one that is still running */
+				InvokeOnJavaFXApplicationThread { isBusy = interpolationSupervisor.children.any { it.isActive } }
 			}
 		}
 	}
@@ -374,10 +413,14 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			togglePreviewMode()
 		}
 		if (controllerState == ControllerState.Interpolate) {
-			// wait until the interpolation is done
-			runBlocking { interpolationSupervisor.children.forEach { it.join() } }
+			/* wait until interpolation is done */
+			val interpolations = interpolationSupervisor.children.toList()
+			runBlocking { interpolations.joinAll() }
+
+			if (interpolations.any { it.isCancelled })
+				return false
+			controllerState = ControllerState.Preview
 		}
-		assert(controllerState == ControllerState.Preview)
 
 		val globalToSource = source.getSourceTransformForMask(source.currentMask.info).inverse()
 		val slicesUnionSourceInterval = slicesAndInterpolants
@@ -394,7 +437,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		val finalInterpolationId = interpolationId
 		if (Label.regular(finalTargetId)) {
 			val maskInfo = source.currentMask.info
-			source.resetMasks(false)
 			val interpolatedMaskImgsA = globalCompositeFillAndInterpolationImgs!!.first
 				.affineReal(globalToSource)
 				.convert(UnsignedLongType(Label.INVALID)) { input, output ->
@@ -415,13 +457,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 						out.get().set(label)
 					}
 				}
-			source.setMask(
-				maskInfo,
-				interpolatedMaskImgsA,
-				interpolatedMaskImgsB,
-				null, null, null, MaskedSource.VALID_LABEL_CHECK
-			)
-
+			synchronized(source) {
+				source.hideCurrentMask()
+				source.setMask(
+					maskInfo,
+					interpolatedMaskImgsA,
+					interpolatedMaskImgsB,
+					null, null, null, MaskedSource.VALID_LABEL_CHECK
+				)
+			}
 		}
 		source.isApplyingMaskProperty.addListener(doneApplyingMaskListener)
 		source.applyMask(source.currentMask, slicesUnionSourceInterval, MaskedSource.VALID_LABEL_CHECK)
@@ -443,6 +487,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private fun doneApplyingMask() {
 		source.isApplyingMaskProperty.removeListener(doneApplyingMaskListener)
+		if (!isControllerActive)
+			shutdownSliceMasks()
 		// generate mesh for the interpolated shape
 		refreshMeshes()
 	}
@@ -508,7 +554,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		currentViewerMask?.setMaskOnUpdate = false
 		val globalToSource = AffineTransform3D().also { source.getSourceTransform(0, maskInfo.level, it) }.inverse()
 		synchronized(source) {
-			source.resetMasks(false)
+			/* the current mask may be a slice's; slice masks are shut down when shape interpolation ends */
+			source.hideCurrentMask()
 			source.setMask(
 				maskInfo,
 				compositeMaskInGlobal.affine(globalToSource),
@@ -559,7 +606,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 	private fun updateSliceAndInterpolantsCompositeMask() {
 		if (numSlices == 0) {
-			source.resetMasks()
+			source.hideCurrentMask()
 			paintera().orthogonalViews().requestRepaint()
 		} else {
 			try {
@@ -588,13 +635,26 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		return source.createViewerMask(maskInfo, activeViewer!!, setMask = false)
 	}
 
-	fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
+    /**
+     * Returns a mask that is valid for the current state of the ShapeInterpolationController.
+     * It may create a new mask if none exists.
+     * It may prefill a new mask from an interpolated portion if creating a new mask over an interpolant
+     * It may return the current mask if it is valid for the current state.
+     *
+     * It will also ensure the returned mask is valid, i.e. set on the MaskedSource
+     *
+     * @param targetMipMapLevel the target mip map level
+     * @param ignoreExisting create a new mask even if a slice exists at the current depth
+     * @return the viewer mask
+     */
+    fun getMask(targetMipMapLevel: Int = currentBestMipMapLevel, ignoreExisting: Boolean = false): ViewerMask {
 
 		/* If we have a mask, get it; else create a new one */
 		val depth = currentDepth
 		val currentSlice = sliceAtCurrentDepth
 		val currentSliceBoundingBox = currentSlice?.maskBoundingBox
 
+		val previousMask = currentViewerMask
  		currentViewerMask = when {
 			/* No existing slice, or we are ignoring it; make a new one */
 			currentSlice == null || ignoreExisting -> newMask(targetMipMapLevel)
@@ -610,7 +670,12 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			/* wrap the existing mask at a different scale level */
 			else -> wrapExistingSlice(currentSlice, targetMipMapLevel)
 		}
-		currentViewerMask?.setViewerMaskOnSource()
+		/* ensure this is an atomic operation */
+		synchronized(source) {
+			source.hideCurrentMask()
+			previousMask?.shutdownIfUntracked()
+			currentViewerMask?.setViewerMaskOnSource()
+		}
 
 		if (preview && slicesAndInterpolants.getInterpolantAtDepth(currentDepth) != null)
 			copyInterpolationToMask()
@@ -655,7 +720,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		/* Replace old slice info */
 		slicesAndInterpolants.removeSlice(existingSlice)
-		existingSlice.mask.shutdown?.run()
 
 		val newSlice = SliceInfo(
 			newMask,
@@ -665,7 +729,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
 			).smallestContainingInterval
 		)
-		slicesAndInterpolants.add(currentDepth, newSlice)
+		addSlice(currentDepth, newSlice)
 		return newMask
 	}
 
@@ -793,7 +857,7 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			/* remove the old interpolant*/
 			slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
 			/* add the new slice */
-			slicesAndInterpolants.add(currentDepth, slice)
+			addSlice(currentDepth, slice)
 		}
 		return slice
 	}

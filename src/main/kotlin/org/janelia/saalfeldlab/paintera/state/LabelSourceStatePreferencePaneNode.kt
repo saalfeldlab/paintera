@@ -24,7 +24,6 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.addKeyAndScrollHandlers
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.EventDisplay
 import org.janelia.saalfeldlab.fx.undo.EventHistory
@@ -48,6 +47,8 @@ import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfoList
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
+import org.janelia.saalfeldlab.paintera.ui.LabelIdConverter
+import org.janelia.saalfeldlab.paintera.ui.LabelIdsConverter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.text.DecimalFormat
@@ -99,32 +100,24 @@ class LabelSourceStatePreferencePaneNode(
 		private val selectedSegments: SelectedSegments,
 	) {
 
-		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<LongArray>() {
-			override fun toString(ids: LongArray?): String = ids?.joinToString(",") ?: ""
+		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : LabelIdsConverter() {
 
 			override fun fromString(string: String?): LongArray {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
-				val segments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
-					?.map { it.toLong() }
-					?: emptyList()
+				val segments = super.fromString(string)
 				/* get fragments from segments and update */
-				segments
+				val fragments = segments
 					.flatMap { selectedSegments.assignment.getFragments(it).toArray().asIterable() }
-					.toLongArray().let { fragments ->
-						if (fragments.isEmpty()) {
-							selectedSegments.selectedIds.activateAlso(selectedSegments.selectedIds.lastSelection)
-							return@let
-						}
-						selectedSegments.selectedIds.activate(*fragments)
-						if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
-							selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
-						}
-					}
-				return segments.toLongArray()
+					.toLongArray()
+				selectedSegments.selectedIds.activate(*fragments)
+				if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
+					selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
+				}
+				return segments
 			}
 		}
 
-		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : StringConverter<LongArray>() {
+		class SelectedFragmentsConverter(val selectedSegments: SelectedSegments) : LabelIdsConverter() {
 
 			companion object {
 				fun fragmentIds(selectedSegments: SelectedSegments): LongArray {
@@ -142,28 +135,17 @@ class LabelSourceStatePreferencePaneNode(
 				}
 			}
 
-			override fun toString(ids: LongArray?): String = ids?.joinToString(",") ?: ""
-
 			override fun fromString(string: String?): LongArray {
 				val lastFragmentSelection = selectedSegments.selectedIds.lastSelection
-				val fragments = string?.split(Regex("\\D+"))?.filter { it.isNotBlank() }
-					?.map { it.toLong() }
-					?.toLongArray()
-					?: LongArray(0)
-
-				fragments.let {
-					if (it.isEmpty()) {
-						selectedSegments.selectedIds.activateAlso(selectedSegments.selectedIds.lastSelection)
-						return@let
-					}
-					selectedSegments.selectedIds.activate(*it)
-					if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
-						selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
-					}
+				val fragments = super.fromString(string)
+				selectedSegments.selectedIds.activate(*fragments)
+				if (selectedSegments.selectedIds.isActive(lastFragmentSelection)) {
+					selectedSegments.selectedIds.activateAlso(lastFragmentSelection)
 				}
 				return fragments
 			}
 		}
+
 
 		val node: Node
 			get() {
@@ -222,14 +204,17 @@ class LabelSourceStatePreferencePaneNode(
 				segmentsField.displayConverter = { renderIds(it) }
 				fragmentsField.displayConverter = { renderIds(it) }
 
-				val lastSelectionField = NumberField.longField(
-					selectedSegments.selectedIds.lastSelection,
-					{ it >= 0 && it.toULong() < Imglib2Labels.MAX_ID.toULong() },
+				val lastSelectionField = ObjectField(
+					SimpleObjectProperty(selectedSegments.selectedIds.lastSelection),
+					LabelIdConverter(),
 					ObjectField.SubmitOn.ENTER_PRESSED,
 					ObjectField.SubmitOn.FOCUS_LOST
 				)
 				lastSelectionField.valueProperty().addListener { _, _, newId ->
-					val activeFragment = newId.toLong()
+					val activeFragment = newId
+					/* the field was updated from the selection, not edited */
+					if (activeFragment == selectedSegments.selectedIds.lastSelection)
+						return@addListener
 					if (selectedSegments.selectedIds.isActive(activeFragment))
 						selectedSegments.selectedIds.activateAlso(activeFragment)
 					else
@@ -367,14 +352,16 @@ class LabelSourceStatePreferencePaneNode(
 				Active fragments (and the containing segments) will be highlighted in the 2D cross-sections and rendered
 				in the 3D viewer. All segments that contain the specified fragments will also be selected.
 				If the current Last Selection ID is not one of the listed Fragment Selection IDs, then
-				the last fragment specified will be used for the Last Selection ID. 
+				the first fragment specified will be used for the Last Selection ID.
+				IDs are separated by commas or newlines; an entry that is not a whole number is ignored.
 			""".trimIndent()
 
 			private val SEGMENT_SELECTION_DIALOG_DESCRIPTION = """
 				Active segments (and all contained fragments) will be highlighted in the 2D cross-sections and rendered
 				in the 3D viewer. When manually specified, all fragments contained by the selected fragments will also be selected.
-				If the current last selection is not part of the specified selected segment(s), the resulting last fragment will be used
-				for the Last Selection ID.
+				If the current last selection is not part of the specified selected segment(s), a fragment of the first specified
+				segment will be used for the Last Selection ID.
+				IDs are separated by commas or newlines; an entry that is not a whole number is ignored.
 			""".trimIndent()
 
 			private val DESCRIPTION = """

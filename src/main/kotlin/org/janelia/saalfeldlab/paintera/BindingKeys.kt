@@ -55,6 +55,7 @@ object PainteraBaseKeys {
     const val TOGGLE_SIDE_BAR                  = "toggle side bar"
     const val TOGGLE_TOOL_BAR_MODE             = "toggle tool bar mode"
     const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
+    const val TOGGLE_CROSSHAIRS                = "toggle crosshairs"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
     const val RESET_3D_LOCATION                = "Reset 3D Location"
@@ -77,6 +78,7 @@ object PainteraBaseKeys {
         TOGGLE_SIDE_BAR                             byKeyCombo P,
         TOGGLE_TOOL_BAR_MODE                        byKeyCombo SHIFT_DOWN + F5,
         TOGGLE_TOOL_BAR                             byKeyCombo F5,
+        TOGGLE_CROSSHAIRS                           byKeyCombo F6,
         CYCLE_CURRENT_SOURCE_FORWARD                byKeyCombo CONTROL_DOWN + TAB,
         CYCLE_CURRENT_SOURCE_BACKWARD               byKeyCombo CONTROL_DOWN + SHIFT_DOWN + TAB,
         TOGGLE_CURRENT_SOURCE_VISIBILITY            byKeyCombo V,

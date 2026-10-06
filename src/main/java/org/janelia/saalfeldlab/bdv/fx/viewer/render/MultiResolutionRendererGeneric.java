@@ -82,7 +82,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -94,6 +94,8 @@ import java.util.function.ToIntFunction;
 public class MultiResolutionRendererGeneric<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final String FRAME_DROPPED = "The requested interval failed to be displayed";
 
 	public interface ImageGenerator<T> {
 
@@ -169,6 +171,32 @@ public class MultiResolutionRendererGeneric<T> {
 	 * Pending repaint requests for each {@link #screenScales screen scale}.
 	 */
 	private Interval[] pendingRepaintRequests;
+
+	private final RepaintRequests repaintRequests = new RepaintRequests();
+
+	/**
+	 * The outcome of one {@link #paint}.
+	 *
+	 * @param screenScaleIndex        the rendered screen scale, or -1 if nothing was rendered
+	 * @param interval                the screen interval the paint took, or null if there was none pending
+	 * @param valid                   whether the rendered data was complete; a volatile render is not until its cells are loaded
+	 */
+	public record PaintStatus(int screenScaleIndex, Interval interval, boolean valid) {
+
+		public static final PaintStatus NOTHING_PENDING = new PaintStatus(-1, null, false);
+
+        /// @return true if the PaintRequest was successful
+		public boolean success() {
+
+			return screenScaleIndex != -1;
+		}
+
+        /// @return true if [success()] and at the highest resolution (e.g. [screenScaleIndex == 0]`)
+		public boolean paintedAtFullResolution() {
+
+			return screenScaleIndex == 0 && valid;
+		}
+	}
 
 	/**
 	 * The last rendered interval in screen space.
@@ -420,17 +448,16 @@ public class MultiResolutionRendererGeneric<T> {
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
 	 *
-	 * @return index of the rendered screen scale, or -1 if the rendering was not successful
+	 * @return what was painted
 	 */
-	public int paint(
+	public PaintStatus paint(
 			final List<SourceAndConverter<?>> sources,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
-			final Function<Source<?>, Interpolation> interpolationForSource,
-			final Object synchronizationLock) {
+			final Function<Source<?>, Interpolation> interpolationForSource) {
 
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
-			return -1;
+			return PaintStatus.NOTHING_PENDING;
 
 		final boolean resized = checkResize();
 		// the projector that paints to the screenImage.
@@ -444,7 +471,8 @@ public class MultiResolutionRendererGeneric<T> {
 			repaintScreenInterval = pendingRepaintRequests[requestedScreenScaleIndex];
 			pendingRepaintRequests[requestedScreenScaleIndex] = null;
 			if (repaintScreenInterval == null)
-				return -1;
+				return PaintStatus.NOTHING_PENDING;
+			repaintRequests.paintStarted(repaintScreenInterval);
 
 			final boolean sameAsLastRenderedInterval =
 					lastRenderedScreenInterval != null && Intervals.equals(repaintScreenInterval, lastRenderedScreenInterval);
@@ -465,7 +493,7 @@ public class MultiResolutionRendererGeneric<T> {
 				renderTarget = getScreenImages(currentScreenScaleIndex).peek();
 
 
-				synchronized (Optional.ofNullable(synchronizationLock).orElse(this)) {
+				synchronized (this) {
 					final int numSources = sacs.size();
 					checkRenewRenderImages(numSources);
 					checkRenewMaskArrays(numSources);
@@ -527,8 +555,10 @@ public class MultiResolutionRendererGeneric<T> {
 			// if rendering was not cancelled...
 			if (success) {
 				if (createProjector) {
-					if (reuseBufferScreenScale >= screenImages.size())
-						return -1;
+					if (reuseBufferScreenScale >= screenImages.size()) {
+						repaintRequests.failed(repaintScreenInterval, new IllegalStateException(FRAME_DROPPED));
+						return new PaintStatus(-1, repaintScreenInterval, false);
+					}
 
 					final ArrayDeque<T> buffers;
 					final T renderTarget;
@@ -537,7 +567,8 @@ public class MultiResolutionRendererGeneric<T> {
 						renderTarget = doubleBuffered ? buffers.pop() : buffers.peek();
 					} catch (NoSuchElementException | IndexOutOfBoundsException ignore) {
 						//TODO Caleb: Debug why this case can happen...
-						return -1;
+						repaintRequests.failed(repaintScreenInterval, new IllegalStateException(FRAME_DROPPED));
+						return new PaintStatus(-1, repaintScreenInterval, false);
 					}
 
 					final T unusedBuffer = display.setBufferedImageAndTransform(renderTarget, currentProjectorTransform);
@@ -562,7 +593,7 @@ public class MultiResolutionRendererGeneric<T> {
 				}
 
 				if (currentScreenScaleIndex > 0)
-					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex - 1);
+					addPendingRepaint(lastRenderedScreenInterval, currentScreenScaleIndex - 1);
 				else if (!p.isValid()) {
 					try {
 						Thread.sleep(1);
@@ -570,15 +601,17 @@ public class MultiResolutionRendererGeneric<T> {
 						// restore interrupted state
 						Thread.currentThread().interrupt();
 					}
-					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex);
+					addPendingRepaint(lastRenderedScreenInterval, currentScreenScaleIndex);
 				}
 			} else {
 				// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
 				// Screen scales are first initialized with the default setting (see ViewerRenderUnit),
 				// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
 				// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
-				if (currentScreenScaleIndex >= pendingRepaintRequests.length)
-					return -1;
+				if (currentScreenScaleIndex >= pendingRepaintRequests.length) {
+					repaintRequests.failed(repaintScreenInterval, new IllegalStateException(FRAME_DROPPED));
+					return new PaintStatus(-1, repaintScreenInterval, false);
+				}
 
 				// Add the requested interval back into the queue if it was not rendered
 				if (pendingRepaintRequests[currentScreenScaleIndex] == null)
@@ -587,7 +620,7 @@ public class MultiResolutionRendererGeneric<T> {
 					pendingRepaintRequests[currentScreenScaleIndex] = Intervals.union(pendingRepaintRequests[currentScreenScaleIndex], repaintScreenInterval);
 			}
 
-			return success ? currentScreenScaleIndex : -1;
+			return new PaintStatus(success ? currentScreenScaleIndex : -1, repaintScreenInterval, success && p.isValid());
 		}
 	}
 
@@ -604,20 +637,55 @@ public class MultiResolutionRendererGeneric<T> {
 	/**
 	 * Request a repaint of the given display interval.
 	 * The initial screen scale is decided dynamically by the {@code renderTimer}.
+	 *
+	 * @return see {@link #requestRepaint(Interval, int)}
 	 */
-	public synchronized void requestRepaint(final Interval interval) {
+	public synchronized CompletableFuture<Void> requestRepaint(final Interval interval) {
 
 		newFrameRequest = true;
 		if (interval != null && !Intervals.isEmpty(interval))
 			maxScreenScaleIndex = renderTimer.estimateTargetScreenScale(interval);
-		requestRepaint(interval, maxScreenScaleIndex);
+		return requestRepaint(interval, maxScreenScaleIndex);
 	}
 
 	/**
 	 * Request a repaint of the given display interval from the painter thread. The painter thread will trigger a {@link #paint} as
 	 * soon as possible (that is, immediately or after the currently running {@link #paint} has completed).
+	 *
+	 * @return completes when {@code interval} is painted at the highest resolution.
 	 */
-	public void requestRepaint(final Interval interval, final int screenScaleIndex) {
+	public synchronized CompletableFuture<Void> requestRepaint(final Interval interval, final int screenScaleIndex) {
+
+		if (Intervals.isEmpty(interval))
+			return CompletableFuture.completedFuture(null);
+
+		addPendingRepaint(interval, screenScaleIndex);
+		return repaintRequests.request(interval);
+	}
+
+	/**
+	 * Called after a successful {@link #paint}.
+	 */
+	public void paintCompleted(final PaintStatus result) {
+
+		if (result.paintedAtFullResolution())
+			repaintRequests.painted(result.interval());
+	}
+
+	/**
+	 * Called after a failed {@link #paint}, forwarding its exception; without a {@link PaintStatus} every request fails.
+	 */
+	public void paintFailed(final PaintStatus result, final Throwable failure) {
+
+		repaintRequests.failed(result == null ? null : result.interval(), failure);
+	}
+
+	public void cancelRepaints() {
+
+		repaintRequests.cancel();
+	}
+
+	private void addPendingRepaint(final Interval interval, final int screenScaleIndex) {
 
 		if (Intervals.isEmpty(interval))
 			return;
@@ -955,6 +1023,8 @@ public class MultiResolutionRendererGeneric<T> {
 		this.screenScales = screenScales.clone();
 		renderTimer.setScreenScales(this.screenScales);
 		createVariables();
+		/* the pending requests were dropped with the old scales */
+		repaintRequests.cancel();
 	}
 
 	/**

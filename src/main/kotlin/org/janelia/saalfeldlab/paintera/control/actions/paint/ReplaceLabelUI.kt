@@ -21,11 +21,13 @@ import javafx.scene.layout.VBox
 import javafx.util.converter.LongStringConverter
 import org.controlsfx.control.SegmentedButton
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
+import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelState.Mode
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.IdSelection.Companion.getReplaceIdSelectionButtons
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.Model.Companion.getDialog
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabelUI.ReplaceTargetSelection.Companion.getReplaceTargetSelectionButtons
+import org.janelia.saalfeldlab.paintera.ui.LabelIdsConverter
 import org.janelia.saalfeldlab.paintera.ui.PositiveLongTextFormatter
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.hGrow
@@ -145,8 +147,8 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 			}
 			userData = this@IdSelection
 			onAction = EventHandler {
-				ui.model.fragmentsToReplace.setAll(*fragmentsToReplace(ui.model).toTypedArray())
-				ui.segmentsToReplace.setAll(*segmentsToReplace(ui.model).toTypedArray())
+				ui.model.fragmentsToReplace.setAll(fragmentsToReplace(ui.model).filter { ui.isSelectable(it) })
+				ui.segmentsToReplace.setAll(segmentsToReplace(ui.model).filter { ui.isSelectable(it) })
 			}
 		}
 
@@ -219,13 +221,9 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 		}
 	}
 
-	private val addFragmentField = TextField().hGrow {
-		promptText = "Add a Fragment ID..."
-		textFormatter = PositiveLongTextFormatter()
-		onAction = EventHandler { submitFragmentHandler() }
-	}
+	private val addFragmentField = idsField("Add Fragment IDs...") { fragments -> fragments.forEach { addFragment(it) } }
 
-	private val segmentsListView = ListView<Long>(segmentsToReplace).apply {
+	private val segmentsListView = ListView(segmentsToReplace).apply {
 		cellFactory = TextFieldListCell.forListView(LongStringConverter())
 		selectionModel.selectionMode = SelectionMode.MULTIPLE
 		onKeyPressed = EventHandler {
@@ -234,19 +232,19 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 			it.consume()
 		}
 	}
-	private val addSegmentField = TextField().hGrow {
-		promptText = "Add a Segment ID..."
-		textFormatter = PositiveLongTextFormatter()
-		onAction = EventHandler { submitSegmentHandler() }
-	}
+	private val addSegmentField = idsField("Add Segment IDs...") { segments -> segments.forEach { addSegment(it) } }
 
-	private val submitSegmentHandler: () -> Unit = {
-		addSegmentField.run {
-			commitValue()
-			(textFormatter as? PositiveLongTextFormatter)?.run {
-				value?.let { addSegment(it) }
-				value = null
-			}
+	private fun idsField(prompt: String, add: (LongArray) -> Unit) = ObjectField(
+		SimpleObjectProperty(longArrayOf()),
+		LabelIdsConverter(),
+		*ObjectField.SubmitOn.values(),
+	).apply {
+		textField.promptText = prompt
+		valueProperty().subscribe { _, ids ->
+			if (ids.isEmpty())
+				return@subscribe
+			add(ids)
+			value = longArrayOf()
 		}
 	}
 
@@ -260,24 +258,20 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 		model.fragmentsToReplace -= fragment
 	}
 
-	private val submitFragmentHandler: () -> Unit = {
-		addFragmentField.run {
-			commitValue()
-			(textFormatter as? PositiveLongTextFormatter)?.run {
-				value?.let { addFragment(it) }
-				value = null
-			}
-		}
-	}
+	private fun isSelectable(id: Long) = !(model.mode == Mode.Delete && id == 0L)
 
 	private fun addSegment(segment: Long) {
+		if (!isSelectable(segment))
+			return
 		model.fragmentsToReplace += model.fragmentsForSegment(segment)
-			.filter { it !in model.fragmentsToReplace }
+			.filter { it !in model.fragmentsToReplace && isSelectable(it) }
 			.toSet()
 		segment.takeIf { it !in segmentsToReplace }?.let { segmentsToReplace += it }
 	}
 
 	private fun addFragment(fragment: Long) {
+		if (!isSelectable(fragment))
+			return
 		fragment.takeIf { it !in model.fragmentsToReplace }?.let { model.fragmentsToReplace += it }
 	}
 
@@ -372,9 +366,9 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 				children += Label("Fragments to ${model.mode.name}")
 				children += fragmentsListView.hvGrow()
 				children += HBox().hGrow {
-					children += addFragmentField
-					children += Button("Add Fragment ID").apply {
-						onAction = EventHandler { submitFragmentHandler() }
+					children += addFragmentField.textField.hGrow()
+					children += Button("Add Fragment IDs").apply {
+						onAction = EventHandler { addFragmentField.submit() }
 					}
 				}
 			}
@@ -383,9 +377,9 @@ class ReplaceLabelUI(val model: Model) : VBox() {
 				children += Label("Segments to ${model.mode.name}")
 				children += segmentsListView.hvGrow()
 				children += HBox().hGrow {
-					children += addSegmentField
-					children += Button("Add Segment ID").apply {
-						onAction = EventHandler { submitSegmentHandler() }
+					children += addSegmentField.textField.hGrow()
+					children += Button("Add Segment IDs").apply {
+						onAction = EventHandler { addSegmentField.submit() }
 					}
 				}
 			}

@@ -99,6 +99,7 @@ private val viewMenu by LazyForeignValue(::paintera) {
 		sideBarMenu,
 		statusBarMenu,
 		toolBarMenu,
+		TOGGLE_CROSSHAIRS.menu,
 		FULL_SCREEN.menu,
 		SHOW_REPL.menu,
 		RESET_VIEWER_POSITIONS.menu,

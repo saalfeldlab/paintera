@@ -5,6 +5,8 @@ import bdv.viewer.Interpolation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.embed.swing.SwingFXUtils
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.future.asDeferred
+import kotlinx.coroutines.selects.select
 import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
@@ -20,11 +22,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 object ImageRenderer {
-
-    enum class ImageEncoding {
-        JPEG,
-        PNG
-    }
 
     private val LOG = KotlinLogging.logger { }
 
@@ -61,8 +58,13 @@ object ImageRenderer {
         }
 
         try {
-            imageRenderer.requestRepaint()
-            return renderedImage.await()
+            val repaintRequest = imageRenderer.requestRepaint().asDeferred()
+            /* repaintRequest will only error if it's Await returns first, which only happens
+            * in the case of an exception.  */
+            return select {
+                renderedImage.onAwait { it }
+                repaintRequest.onAwait { error("The repaint completed without rendering an image") }
+            }
         } finally {
             sub.unsubscribe()
             sharedQueue.shutdown()

@@ -70,9 +70,9 @@ import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.StyleGroup
 import org.janelia.saalfeldlab.paintera.addStyleClass
+import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.calculateTargetScreenScaleFactor
 import org.janelia.saalfeldlab.paintera.ai.ImageRenderer.renderState
 import org.janelia.saalfeldlab.paintera.ai.SamEncoder
-import org.janelia.saalfeldlab.paintera.ai.sam.MAX_DIM_TARGET
 import org.janelia.saalfeldlab.paintera.ai.sam.MultipleChoicePrompt
 import org.janelia.saalfeldlab.paintera.ai.sam.SamPredictor
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
@@ -80,6 +80,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode.waitForEvent
 import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
+import org.janelia.saalfeldlab.paintera.control.modes.viewerToRenderPoint
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.REQUIRES_ACTIVE_VIEWER
@@ -110,7 +111,6 @@ import kotlin.collections.forEach
 import kotlin.collections.indexOfFirst
 import kotlin.collections.indexOfLast
 import kotlin.collections.listOf
-import kotlin.collections.max
 import kotlin.collections.minusAssign
 import kotlin.collections.mutableListOf
 import kotlin.collections.plusAssign
@@ -219,15 +219,19 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 	private var screenScale = Double.NaN
 
-    private val promptChannel = Channel<Pair<SamPrompt, Boolean>>(1)
+	private class PredictionRequest(val prompt: SamPrompt, val estimateThreshold: Boolean) {
+		val result = CompletableDeferred<SamTaskInfo?>()
+	}
 
-	private var currentPredictionRequest: Pair<SamPrompt, Boolean>? = null
-		set(value) = runBlocking {
-            promptChannel.tryReceive() /* capacity 1, so this will always either do nothing, or empty the channel */
-			value?.let { (request, _) ->
-                promptChannel.send(value)
+    private val promptChannel = Channel<PredictionRequest>(Channel.CONFLATED) { it.result.cancel() }
+
+	private var currentPredictionRequest: PredictionRequest? = null
+		set(value) {
+            promptChannel.tryReceive().getOrNull()?.result?.cancel()
+			value?.let { request ->
+                promptChannel.trySend(request)
 				if (!temporaryPrompt)
-					request.drawPrompt()
+					request.prompt.drawPrompt()
 			}
 			field = value
 		}
@@ -249,12 +253,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		/* Trigger initial prediction request when activating the tool */
 		setViewer?.takeIf { requestOnActivate }?.let { viewer ->
 			statusProperty.set("Predicting...")
-			val x = viewer.mouseXProperty.get().toLong()
-			val y = viewer.mouseYProperty.get().toLong()
+			val x = viewer.mouseXProperty.get()
+			val y = viewer.mouseYProperty.get()
 			LOG.trace { "initial prediction at viewer ($x, $y), screenScale=$screenScale" }
 			temporaryPrompt = true
-			val points = listOf(PointPrompt((x * screenScale).toFloat(), (y * screenScale).toFloat(), SamPointLabel.FOREGROUND))
-			requestPrediction(points)
+			val (renderX, renderY) = renderState.viewerToRenderPoint(x, y)
+			requestPrediction(listOf(PointPrompt(renderX, renderY, SamPointLabel.FOREGROUND)))
 		}
 	}
 
@@ -273,10 +277,10 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		setCurrentLabelToSelection()
 		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
 		setViewer = activeViewer //TODO Caleb: We should try not to use the viewer directly
-		screenScale = renderUnitState?.calculateTargetScreenScaleFactor() ?: calculateTargetScreenScaleFactor(setViewer!!)
 		statusProperty.set("Preparing SAM")
 		paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
 		renderState = renderUnitState ?: activeViewer!!.renderState(excludeActiveSource = true)
+		screenScale = renderState.encoderScreenScale()
 		LOG.trace { "initializeSam" }
 		encodeRequest = SamEncoder.cache.request(renderState)
 	}
@@ -285,7 +289,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		clearPromptDrawings()
 		currentLabelToPaint = Label.INVALID
 		predictionJob.cancel()
-        promptChannel.tryReceive() /*clear the channel if not empty */
+        promptChannel.tryReceive().getOrNull()?.result?.cancel()
 		if (unwrapResult) {
 			if (!maskProvided) {
 				maskedSource?.resetMasks()
@@ -402,7 +406,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						}
 						val increment = (thresholdBounds.max - thresholdBounds.min) / 100.0
 						threshold += delta * increment
-						currentPredictionRequest?.first?.let {
+						currentPredictionRequest?.prompt?.let {
 							requestPrediction(it, false)
 						}
 					}
@@ -418,13 +422,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 						clearPromptDrawings()
 						temporaryPrompt = true
 
-						requestPrediction(listOf(
-							PointPrompt(
-								(it!!.x * screenScale).toFloat(),
-								(it.y * screenScale).toFloat(),
-								SamPointLabel.FOREGROUND
-							)
-						))
+						val (x, y) = renderState.viewerToRenderPoint(it!!.x, it.y)
+						requestPrediction(listOf(PointPrompt(x, y, SamPointLabel.FOREGROUND)))
 					}
 				}
 
@@ -464,7 +463,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							/* If no event, triggered via button, wait for click before continuing */
 							(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
 								val label = primaryClickLabel ?: SamPointLabel.FOREGROUND
-								val points = currentPredictionRequest?.first.addPoints(PointPrompt((event.x * screenScale).toFloat(), (event.y * screenScale).toFloat(), label))
+								val (x, y) = renderState.viewerToRenderPoint(event.x, event.y)
+								val points = currentPredictionRequest?.prompt.addPoints(PointPrompt(x, y, label))
 								temporaryPrompt = false
 								requestPrediction(points)
 							}
@@ -494,8 +494,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 							/* If no event, triggered via button, wait for click before continuing */
 							(it ?: viewerMask!!.viewer.waitForEvent<MouseEvent>(MOUSE_CLICKED))?.let { event ->
-								val points = currentPredictionRequest?.first.addPoints(PointPrompt((event.x * screenScale).toFloat(), (event.y * screenScale).toFloat(),
-									SamPointLabel.BACKGROUND))
+								val (x, y) = renderState.viewerToRenderPoint(event.x, event.y)
+								val points = currentPredictionRequest?.prompt.addPoints(PointPrompt(x, y, SamPointLabel.BACKGROUND))
 								temporaryPrompt = false
 								requestPrediction(points)
 							}
@@ -504,7 +504,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}.also { primaryClickToggleExcludeAction = it }
 
 				KEY_PRESSED(SEGMENT_ANYTHING__RESET_PROMPT) {
-					createToolNode = { apply { addStyleClass(Style.RESET_ICON) } }
+					createToolNode = { apply { addStyleClass(Style.RESET_ICON, Style.IGNORE_DISABLE) } }
 					onAction {
 						resetPromptAndPrediction()
 						primaryClickLabel = null
@@ -515,7 +515,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				KEY_PRESSED(SEGMENT_ANYTHING__ACCEPT_SEGMENTATION) {
 					name = "apply last segmentation result to canvas"
-					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON) } }
+					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON, Style.IGNORE_DISABLE) } }
 					verify(" label is not valid ") { isLabelValid }
 					onAction {
 						lastPrediction ?: return@onAction
@@ -576,7 +576,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							}
 							onAction {
 								threshold = it!!.value.toDouble()
-								currentPredictionRequest?.first?.let {
+								currentPredictionRequest?.prompt?.let {
 									requestPrediction(it, false)
 								}
 							}
@@ -594,7 +594,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 							}
 							onAction {
 								threshold = thresholdBounds.min + (thresholdBounds.max - thresholdBounds.min) * it!!.value.toDouble()
-								currentPredictionRequest?.first?.let {
+								currentPredictionRequest?.prompt?.let {
 									requestPrediction(it, false)
 								}
 							}
@@ -612,20 +612,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 	internal fun DragActionSet.requestBoxPromptPrediction(mouse: MouseEvent) {
-		val (width, height) = activeViewer?.run { width to height } ?: return
-		val scale = if (!screenScale.isNaN()) screenScale else return
+		if (screenScale.isNaN())
+			return
 
-        val xInBounds = mouse.x.coerceIn(0.0, width - 1.0)
-        val yInBounds = mouse.y.coerceIn(0.0, height - 1.0)
-
-		val (minX, maxX) = (if (startX < mouse.x) startX to xInBounds else xInBounds to startX)
-		val (minY, maxY) = (if (startY < mouse.y) startY to yInBounds else yInBounds to startY)
-
-		val x1 = (minX * scale).toFloat()
-		val y1 = (minY * scale).toFloat()
-		val x2 = (maxX * scale).toFloat()
-		val y2 = (maxY * scale).toFloat()
-		val prompt = setBoxPrompt( x1, y1, x2, y2)
+		/* viewerToRenderPoint clamps each corner to the rendered image */
+		val (x1, y1) = renderState.viewerToRenderPoint(min(startX, mouse.x), min(startY, mouse.y))
+		val (x2, y2) = renderState.viewerToRenderPoint(max(startX, mouse.x), max(startY, mouse.y))
+		val prompt = setBoxPrompt(x1, y1, x2, y2)
 		temporaryPrompt = false
 		requestPrediction(prompt)
 	}
@@ -662,7 +655,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	}
 
 	fun setBoxPrompt(x1 : Float, y1 : Float, x2: Float, y2 : Float): SamPrompt {
-		val prompt = currentPredictionRequest?.first.removePoints(removeBox = true)
+		val prompt = currentPredictionRequest?.prompt.removePoints(removeBox = true)
 		prompt.prompts += BoxPrompt(x1, y1, x2, y2)
 		return prompt
 	}
@@ -680,7 +673,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 					MOUSE_CLICKED {
 						onAction {
 							children -= this@apply
-							requestPrediction(currentPredictionRequest?.first.removePoints(point))
+							requestPrediction(currentPredictionRequest?.prompt.removePoints(point))
 						}
 					}
 				}.also { installActionSet(it) }
@@ -841,21 +834,32 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 		}
 	}
 
-	fun requestPrediction(prompt: SamPrompt, estimateThreshold: Boolean = true) {
+	/**
+     * request a Prediction, and provide a [Deferred] over the result to act on.
+     *
+     * Deferred will complete when the prediction is available. If canceled, Deferred will cancel;
+     * If prediction returns an empty image, Deferred will return [null]
+     */
+	fun requestPrediction(prompt: SamPrompt, estimateThreshold: Boolean = true): Deferred<SamTaskInfo?> {
 		if (prompt.prompts.isEmpty())
 			temporaryPrompt = true
 
 		if (!predictionJob.isActive) {
 			startPredictionJob()
 		}
-		currentPredictionRequest = prompt to estimateThreshold
+		val request = PredictionRequest(prompt, estimateThreshold)
+		currentPredictionRequest = request
+
+		val onJobEnd = predictionJob.invokeOnCompletion { request.result.cancel() }
+		request.result.invokeOnCompletion { onJobEnd.dispose() }
+		return request.result
 	}
 
-	open fun requestPrediction(promptPoints: List<PointPrompt>, estimateThreshold: Boolean = true) {
+	open fun requestPrediction(promptPoints: List<PointPrompt>, estimateThreshold: Boolean = true): Deferred<SamTaskInfo?> {
 		val prompt = SamPrompt().run {
 			addPoints(*(promptPoints.toTypedArray()))
 		}
-		requestPrediction(prompt, estimateThreshold)
+		return requestPrediction(prompt, estimateThreshold)
 	}
 
 	enum class MaskPriority {
@@ -882,7 +886,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				switchTool(defaultTool)
 			}
 		}
-		SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
 	}
 
 	protected open var currentDisplay = false
@@ -1104,61 +1107,71 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             val predictor = getSamPredictor() ?: return@launch
 
-            while (predictionJob.isActive) {
+            while (isActive) {
 
-                var (prompt, estimateThreshold) = promptChannel.receive()
-                ensureActive()
+                val request = promptChannel.receive()
+                try {
+                    ensureActive()
+                    var prompt = request.prompt
+                    val estimateThreshold = request.estimateThreshold
 
-                val prediction = currentPrediction
-                    ?.takeUnless { estimateThreshold }
-                    ?: predictor.predict(prompt)
+                    val prediction = currentPrediction
+                        ?.takeUnless { estimateThreshold }
+                        ?: predictor.predict(prompt)
+                    ensureActive()
 
-				prompt = (prompt as? MultipleChoicePrompt)?.preferredPrompt ?: prompt
-                currentPrediction = prediction
-                val predictionLabel = currentLabelToPaint
+                    prompt = (prompt as? MultipleChoicePrompt)?.preferredPrompt ?: prompt
+                    currentPrediction = prediction
+                    val predictionLabel = currentLabelToPaint
 
-                val (decodeSpacePrediction, promptSpacePrediction) = prediction.decodeResult.run {
-                    val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
-                    val centreFilteredLogits = morph2D.centre( 5 to 5).output
-                    prediction.raiInDecodeSpace(centreFilteredLogits) to prediction.raiInPromptSpace(centreFilteredLogits)
-				}
+                    val (decodeSpacePrediction, promptSpacePrediction) = prediction.decodeResult.run {
+                        val morph2D = Morph2D(bestMask, FloatArray(bestMask.size), maskSize to maskSize)
+                        val centreFilteredLogits = morph2D.centre(5 to 5).output
+                        prediction.raiInDecodeSpace(centreFilteredLogits) to prediction.raiInPromptSpace(centreFilteredLogits)
+                    }
 
-                val promptInDecodedSpace = prompt.scaleToDecodeOutput(prediction.encodeResult, prediction.decodeResult)
+                    val promptInDecodedSpace = prompt.scaleToDecodeOutput(prediction.encodeResult, prediction.decodeResult)
 
-                if (estimateThreshold)
-                    updateThresholdEstimate(promptInDecodedSpace, decodeSpacePrediction)
+                    if (estimateThreshold)
+                        updateThresholdEstimate(promptInDecodedSpace, decodeSpacePrediction)
 
-                val previousInterval = lastPrediction?.maskInterval
-                val previousRepaintInterval = previousInterval?.extendBy(1.0)?.smallestContainingInterval
+                    val previousInterval = lastPrediction?.maskInterval
+                    val previousRepaintInterval = previousInterval?.extendBy(1.0)?.smallestContainingInterval
 
-                val (binaryPredictionMask, predictionInterval2D) = thresholdPrediction(promptSpacePrediction) ?: let {
-                    paintMask.requestRepaint(previousRepaintInterval)
-                    lastPrediction = null
-                    continue
-		}
+                    val (binaryPredictionMask, predictionInterval2D) = thresholdPrediction(promptSpacePrediction) ?: let {
+                        paintMask.requestRepaint(previousRepaintInterval)
+                        lastPrediction = null
+                        request.result.complete(null)
+                        continue
+                    }
 
-                val selectedComponentMask =
-                    selectConnectedComponents(binaryPredictionMask, prompt) ?: continue
+                    val selectedComponentMask =
+                        selectConnectedComponents(binaryPredictionMask, prompt) ?: continue
 
-                val (alignedComponentMask, predictionToViewerTransform) = alignImageToViewer(
-                    selectedComponentMask,
-                    paintMask
-                )
+                    val (alignedComponentMask, predictionToViewerTransform) = alignImageToViewer(
+                        selectedComponentMask,
+                        paintMask
+                    )
 
-                overlayPredictionOnViewerMask(alignedComponentMask, overlay, predictionLabel)
+                    overlayPredictionOnViewerMask(alignedComponentMask, overlay, predictionLabel)
 
-                val predictionInterval3D = Intervals.addDimension(predictionInterval2D, 0, 0)
-                val predictionIntervalInViewerSpace =
-                    predictionToViewerTransform.estimateBounds(predictionInterval3D).smallestContainingInterval
+                    val predictionInterval3D = Intervals.addDimension(predictionInterval2D, 0, 0)
+                    val predictionIntervalInViewerSpace =
+                        predictionToViewerTransform.estimateBounds(predictionInterval3D).smallestContainingInterval
 
-                paintMask.requestRepaint(predictionIntervalInViewerSpace union previousRepaintInterval)
-                val encodedImage = predictor.encodeResult
-                lastPrediction = SamTaskInfo(
-                    maskSource,
-                    predictionIntervalInViewerSpace,
-                    encodedImage,
-                    prompt
-                )
+                    paintMask.requestRepaint(predictionIntervalInViewerSpace union previousRepaintInterval)
+                    val encodedImage = predictor.encodeResult
+                    lastPrediction = SamTaskInfo(
+                        maskSource,
+                        predictionIntervalInViewerSpace,
+                        encodedImage,
+                        prompt
+                    )
+                    request.result.complete(lastPrediction)
+                } catch (e: Throwable) {
+                    request.result.completeExceptionally(e)
+                    throw e
+                }
             }
         }
     }
@@ -1330,35 +1343,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 		private val LOG = KotlinLogging.logger { }
 
-		private var SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + Job())
+		private val SAM_TASK_SCOPE = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
 
-		private fun calculateTargetScreenScaleFactor(viewer: ViewerPanelFX): Double {
-			val highestScreenScale = viewer.renderUnit.screenScalesProperty.get().max()
-			return calculateTargetScreenScaleFactor(viewer.width, viewer.height, highestScreenScale)
-		}
-
-		private fun RenderUnitState.calculateTargetScreenScaleFactor(): Double {
-			val maxScreenScale = paintera.properties.screenScalesConfig.screenScalesProperty().get().scalesCopy.max()
-			return calculateTargetScreenScaleFactor(width.toDouble(), height.toDouble(), maxScreenScale)
-		}
-
-		/**
-		 * Calculates the target screen scale factor based on the highest screen scale and the viewer's dimensions.
-		 * The resulting scale factor will always be the smallest of either:
-		 *  1. the highest explicitly specified factor, or
-		 *  2. [SamPredictor.MAX_DIM_TARGET] / `max(width, height)`
-		 *
-		 *  This means if the `scaleFactor * maxEdge` is less than [SamPredictor.MAX_DIM_TARGET] it will be used,
-		 *  but if the `scaleFactor * maxEdge` is still larger than [SamPredictor.MAX_DIM_TARGET], then a more
-		 *  aggressive scale factor will be returned. See [SamPredictor.MAX_DIM_TARGET] for more information.
-		 *
-		 * @return The calculated scale factor.
-		 */
-		private fun calculateTargetScreenScaleFactor(width: Double, height: Double, highestScreenScale: Double): Double {
-			val maxEdge = max(ceil(width * highestScreenScale), ceil(height * highestScreenScale))
-			return min(highestScreenScale, MAX_DIM_TARGET / maxEdge)
-		}
+		/* the same scale the encoder renders at; prompts must be in that image's pixel space */
+		private fun RenderUnitState.encoderScreenScale() = calculateTargetScreenScaleFactor(
+			SamEncoder.cache.embeddingRequester.imageSize.toDouble(),
+			width.toDouble(),
+			height.toDouble()
+		)
 
 
 		data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval, val encodedImage: EncoderResult, val samPrompt: SamPrompt)

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public abstract class RenderUnit implements PainterThreadFx.Paintable {
@@ -62,8 +63,10 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 
 	public void stopRendering() {
 		var render = renderer;
-		if (render != null)
+		if (render != null) {
 			render.animation.stop();
+			render.cancelRepaints();
+		}
 		painterThread.stopRendering();
 	}
 
@@ -114,22 +117,25 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	 * Request repaint of the whole screen
 	 *
 	 * @param screenScaleIndex request repaint at this target scale
+	 * @return see {@link #requestRepaint()}
 	 */
-	public synchronized void requestRepaint(final int screenScaleIndex) {
+	public synchronized CompletableFuture<Void> requestRepaint(final int screenScaleIndex) {
 
 		if (renderer == null)
-			return;
-		renderer.requestRepaint(new FinalInterval(dimensions), screenScaleIndex);
+			return CompletableFuture.completedFuture(null);
+		return renderer.requestRepaint(new FinalInterval(dimensions), screenScaleIndex);
 	}
 
 	/**
 	 * Request repaint of the whole screen at highest possible resolution
+	 *
+	 * @return completes when the requested interval is painted at the highest resolution.
 	 */
-	public synchronized void requestRepaint() {
+	public synchronized CompletableFuture<Void> requestRepaint() {
 
 		if (renderer == null)
-			return;
-		renderer.requestRepaint(new FinalInterval(dimensions));
+			return CompletableFuture.completedFuture(null);
+		return renderer.requestRepaint(new FinalInterval(dimensions));
 	}
 
 	/**
@@ -138,12 +144,13 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	 * @param screenScaleIndex request repaint at this target scale
 	 * @param min              top left corner of interval
 	 * @param max              bottom right corner of interval
+	 * @return see {@link #requestRepaint()}
 	 */
-	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max) {
+	public synchronized CompletableFuture<Void> requestRepaint(final int screenScaleIndex, final long[] min, final long[] max) {
 
 		if (renderer == null)
-			return;
-		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)), screenScaleIndex);
+			return CompletableFuture.completedFuture(null);
+		return renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)), screenScaleIndex);
 	}
 
 	/**
@@ -151,12 +158,13 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	 *
 	 * @param min top left corner of interval
 	 * @param max bottom right corner of interval
+	 * @return see {@link #requestRepaint()}
 	 */
-	public synchronized void requestRepaint(final long[] min, final long[] max) {
+	public synchronized CompletableFuture<Void> requestRepaint(final long[] min, final long[] max) {
 
 		if (renderer == null)
-			return;
-		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)));
+			return CompletableFuture.completedFuture(null);
+		return renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)));
 	}
 
 	private Interval clampRepaintInterval(final Interval interval) {
@@ -167,8 +175,10 @@ public abstract class RenderUnit implements PainterThreadFx.Paintable {
 	protected synchronized void update() {
 
 		LOG.debug("Updating render unit");
-		if (renderer != null)
+		if (renderer != null) {
 			renderer.animation.stop();
+			renderer.cancelRepaints();
+		}
 
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
 		renderTarget.setCanvasSize((int)dimensions[0], (int)dimensions[1]);

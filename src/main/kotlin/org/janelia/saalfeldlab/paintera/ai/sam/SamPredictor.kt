@@ -16,8 +16,6 @@ import org.janelia.saalfeldlab.samlink.decode.SamPromptBase
 import org.janelia.saalfeldlab.samlink.encode.EncoderResult
 import org.janelia.saalfeldlab.util.*
 
-const val MAX_DIM_TARGET = 1024
-
 private var cachedDecoder: SamDecoder<*>? = null
 private fun cachedOrNewDecoder(encodedImage: EncoderResult): SamDecoder<*> {
 

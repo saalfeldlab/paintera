@@ -74,11 +74,20 @@ public class SelectedIds extends ObservableWithListenersList {
 
 	private void activateAlsoNoLock(final long... ids) {
 
-		for (final long id : ids) {
-			selectedIds.add(id);
+		long firstId = Label.INVALID;
+        for (final long id : ids) {
+            if (id == Label.INVALID)
+                continue;
+
+            if (firstId == Label.INVALID)
+                firstId = id;
+
+
+            selectedIds.add(id);
 		}
-		if (ids.length > 0)
-			this.lastSelection = ids[0];
+
+		if (firstId != Label.INVALID)
+			this.lastSelection = firstId;
 	}
 
 	private void deactivateAllNoLock() {

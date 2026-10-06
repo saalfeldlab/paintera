@@ -11,6 +11,7 @@ import javafx.scene.canvas.GraphicsContext
 import javafx.scene.input.MouseEvent
 import org.janelia.saalfeldlab.fx.ObservablePosition
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.paintera
 
 abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableValue<ViewerPanelFX?>) : OverlayRendererGeneric<GraphicsContext> {
@@ -34,31 +35,26 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
 
 	var visible = false
 		set(value) {
-			if (value != field) {
-				if (value) {
-					if (!field) {
-						/* we are changing to visible, store the cursor*/
-						previousCursor = paintera.baseView.node.scene.cursor
-					}
-					viewer?.listenOnViewer()
-					updateCursorInViewer()
-					/* remove and add the renderer (to avoid duplicates) */
-					viewer?.display?.let {
-						it.addOverlayRenderer(this@CursorOverlayInViewer)
-						it.drawOverlays()
-					}
-				} else {
-					removeListenerFromViewer()
-				}
-			}
-			viewer?.apply {
-				setPosition(mouseXProperty.doubleValue(), mouseYProperty.doubleValue())
-			}
+			if (value == field)
+				return
 			field = value
-			viewer?.display?.drawOverlays()
+			updateCursorState(value)
 		}
 
-	var cursor: Cursor = Cursor.CROSSHAIR
+	private fun updateCursorState(visible: Boolean) = InvokeOnJavaFXApplicationThread {
+
+        if (visible)
+            addCursor()
+        else
+            removeCursor()
+
+        viewer?.apply {
+			setPosition(mouseXProperty.doubleValue(), mouseYProperty.doubleValue())
+		}
+		viewer?.display?.drawOverlays()
+	}
+
+    var cursor: Cursor = Cursor.CROSSHAIR
 		set(value) {
 			field = value
 			viewer?.cursor = field
@@ -87,7 +83,7 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
 
 		viewerProperty.addListener { _, old, new ->
 			old?.let {
-				removeListenerFromViewer()
+				removeCursor()
 			}
 			new?.apply {
 				listenOnViewer()
@@ -102,7 +98,7 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
 
 	private fun ViewerPanelFX.listenOnViewer() {
 		/* Just incase, so there are no duplicates */
-		removeListenerFromViewer()
+		removeCursor()
 
 		val setPos = EventHandler<MouseEvent> { setPosition(it) }
 		listeners.add(Triple(this, MouseEvent.MOUSE_MOVED, setPos))
@@ -114,7 +110,21 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
 		display?.addOverlayRenderer(this@CursorOverlayInViewer)
 	}
 
-	private fun removeListenerFromViewer() {
+    private fun addCursor() {
+
+        /* we are changing to visible, store the cursor*/
+        previousCursor = paintera.baseView.node.scene.cursor
+        viewer?.listenOnViewer()
+        updateCursorInViewer()
+
+        /* remove and add the renderer (to avoid duplicates) */
+        viewer?.display?.let {
+            it.addOverlayRenderer(this@CursorOverlayInViewer)
+            it.drawOverlays()
+        }
+    }
+
+	private fun removeCursor() {
 
 		/* reset the cursor state*/
 		previousCursor?.let {

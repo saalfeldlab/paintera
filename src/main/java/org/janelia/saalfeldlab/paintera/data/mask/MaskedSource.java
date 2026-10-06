@@ -862,11 +862,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public void resetMasks() throws MaskInUse {
 
-		resetMasks(true);
-	}
-
-	public void resetMasks(final boolean clearOldMask) throws MaskInUse {
-
 		synchronized (this) {
 			final boolean canNotResetMask = isCreatingMask() || isApplyingMask.get();
 			if (canNotResetMask) {
@@ -880,9 +875,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			setCurrentMask(null);
 			this.isBusy.set(true);
 		}
-		if (clearOldMask) {
-			setMasksConstant();
-		}
+        setMasksConstant();
 
 		this.isBusy.set(false);
 	}

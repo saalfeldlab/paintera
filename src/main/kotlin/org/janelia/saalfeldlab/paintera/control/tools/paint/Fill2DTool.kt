@@ -140,7 +140,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 		val applyIfMaskNotProvided = fill2D.viewerMask == null
 		if (applyIfMaskNotProvided) {
-			statePaintContext!!.dataSource.resetMasks(true)
+			statePaintContext!!.dataSource.resetMasks()
 		}
 
 
@@ -166,7 +166,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 						/* Then apply when done */
 						val source = statePaintContext!!.dataSource
 						val mask = source.currentMask as ViewerMask
-						source.resetMasks(true)
+						source.resetMasks()
 						mask.requestRepaint()
 					}
 					cleanup()
