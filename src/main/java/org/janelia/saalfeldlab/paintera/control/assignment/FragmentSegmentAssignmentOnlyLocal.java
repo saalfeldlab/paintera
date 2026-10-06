@@ -304,7 +304,13 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			final TLongLongIterator fragSegIter = initialLut.get().iterator();
 			while (fragSegIter.hasNext()) {
 				fragSegIter.advance();
-				fragmentToSegmentMap.put(fragSegIter.key(), Long.valueOf(fragSegIter.value()));
+				final long fragment = fragSegIter.key();
+				final long segment = fragSegIter.value();
+				if (!Label.regular(fragment) || !Label.regular(segment)) {
+					LOG.warn(() -> "Ignoring assignment with an irregular id: fragment=%s segment=%s".formatted(fragment, segment));
+					continue;
+				}
+				fragmentToSegmentMap.put(fragment, Long.valueOf(segment));
 			}
 			syncILut(fragmentToSegmentMap, segmentToFragmentsMap);
 
@@ -396,6 +402,11 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			return Optional.empty();
 		}
 
+		if (!Label.regular(fragment1) || !Label.regular(fragment2)) {
+			LOG.warn(() -> "Cannot merge an irregular id: %s %s".formatted(fragment1, fragment2));
+			return Optional.empty();
+		}
+
 		if (getSegment(fragment1) == getSegment(fragment2)) {
 			LOG.debug(
 					"fragments {} {} are in the same segment {} {} -- no action necessary",
@@ -429,7 +440,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take care of it instead.
 		synchronized (writeLock) {
 			if (getSegment(intoFragmentId) == intoFragmentId) {
-				fragmentToSegmentMap.put(intoFragmentId, Long.valueOf(newSegmentId.getAsLong()));
+				final long newSegment = newSegmentId.getAsLong();
+				if (!Label.regular(newSegment)) {
+					LOG.warn(() -> "Cannot merge into an irregular segment id: %s".formatted(newSegment));
+					return Optional.empty();
+				}
+				fragmentToSegmentMap.put(intoFragmentId, Long.valueOf(newSegment));
 			}
 
 			final Merge merge = new Merge(fromFragmentId, intoFragmentId, fragmentToSegmentMap.get(intoFragmentId));

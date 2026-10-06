@@ -229,7 +229,10 @@ class LabelSourceStatePreferencePaneNode(
 					ObjectField.SubmitOn.FOCUS_LOST
 				)
 				lastSelectionField.valueProperty().addListener { _, _, newId ->
-					val activeFragment = newId.toLong()
+					val activeFragment = newId
+					/* the field was updated from the selection, not edited */
+					if (activeFragment == selectedSegments.selectedIds.lastSelection)
+						return@addListener
 					if (selectedSegments.selectedIds.isActive(activeFragment))
 						selectedSegments.selectedIds.activateAlso(activeFragment)
 					else

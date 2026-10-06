@@ -7,7 +7,9 @@ import javafx.collections.ObservableList;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.undo.EventHistory;
+import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.undo.HasHistory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,12 +71,23 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 
 	private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled) {
 
+		/* warn but drop any merge into a reserved Id  */
+		if (action instanceof Merge merge && mergesReservedId(merge)) {
+			LOG.warn("Dropping merge with a reserved id: {}", merge);
+			return;
+		}
+
 		/* track the disabled actions, but don't apply them. */
         if (isEnabled)
 			applyImpl(action);
 		var toggleableAction = new Pair<>( action, (BooleanProperty)new SimpleBooleanProperty(isEnabled));
 		toggleableAction.getValue().addListener(_ -> reapplyActionsAndNotify());
 		this.actions.add(toggleableAction);
+	}
+
+	private static boolean mergesReservedId(final Merge merge) {
+
+		return !Label.regular(merge.fromFragmentId) || !Label.regular(merge.intoFragmentId) || !Label.regular(merge.segmentId);
 	}
 
 	@Override
