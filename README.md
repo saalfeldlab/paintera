@@ -252,7 +252,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `F2`                     | Toggle menu bar visibility                                                                                                                                        |
 | `Shift` + `F2`           | Toggle menu bar mode (overlay views, or above views)                                                                                                              |
 | `F3`                     | Toggle status bar visibility                                                                                                                                      |
-| `Shift` + `F3`           | Toggle status bar mode (overlay views, or below views)                                                                                                            | `P`                      | Toggle visibility of side panel menu on right hand side                                                                                                           |
+| `Shift` + `F3`           | Toggle status bar mode (overlay views, or below views)                                                                                                            |
 | `F11`                    | Toggle fullscreen                                                                                                                                                 |
 | **Project Controls**     |                                                                                                                                                                   |
 | `Ctrl` + `C`             | Show dialog to commit canvas and/or assignments                                                                                                                   |
@@ -262,6 +262,9 @@ Usage: Paintera [--add-n5-container=<container>...
 | **Help**                 |                                                                                                                                                                   |
 | `F1`                     | Open Readme (this page) in your browser                                                                                                                           |
 | `F4`                     | Show Key bindings                                                                                                                                                 |
+| `F5`                     | Toggle tool bar visibility                                                                                                                                        |
+| `Shift` + `F5`           | Toggle tool bar mode (overlay views, or above side panel)                                                                                                         |
+| `F6`                     | Toggle crosshairs visibility                                                                                                                                      |
 | **Bookmarks**            |                                                                                                                                                                   |
 | `B`                      | Bookmark current location with the current view settings                                                                                                          |
 | `Shift` + `B`            | Open dialog to add a location bookmark and include a text note                                                                                                    |
@@ -317,17 +320,20 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Ctrl` + `Shift` + `C`               | Show ARGB stream seed spinner                                       |
 
 #### Merge/Split Labels
-| Action                               | Description                                                                |
-|--------------------------------------|----------------------------------------------------------------------------|
-| `Shift` + right click                | Split label id under cursor from id that was last toggled active (if any)  |
-| `Shift` + left click                 | Merge label id under cursor with id that was last toggled active (if any)  |
-| `Ctrl` + `Enter`                     | Merge all selected label ids                                               |
+| Action                | Description                                                               |
+|-----------------------|---------------------------------------------------------------------------|
+| `Shift` + right click | Split label id under cursor from id that was last toggled active (if any) |
+| `Shift` + left click  | Merge label id under cursor with id that was last toggled active (if any) |
+| `Ctrl` + `Enter`      | Merge all selected label ids                                              |  
+| `Ctrl` + `Z`          | Undo previous merge/split action                                          |  
+| `Ctrl` + `Shift` + Z` | Redo previous merge/split action                                          |  
 
 #### Flood Fill
-| Action                               | Description                                                                                  |
-|--------------------------------------|----------------------------------------------------------------------------------------------|
-| `F` + left click                     | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any)    |
-| `Shift` + `F` + left click           | Flood-fill in all image planes with label id that was last toggled active (if any)           |
+| Action                     | Description                                                   |
+|----------------------------|---------------------------------------------------------------|
+| `F` + left click           | 2D Flood-fill in current viewer plane with the active label id |
+| `Shift` + `F` + left click | 3D Flood-fill in with the active label id                     |
+| `ESc`                      | Cancel running flood fill operation, if possible              |
 
 #### Shape Interpolation mode
 - The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
