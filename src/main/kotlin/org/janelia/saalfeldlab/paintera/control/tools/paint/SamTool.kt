@@ -504,7 +504,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 				}.also { primaryClickToggleExcludeAction = it }
 
 				KEY_PRESSED(SEGMENT_ANYTHING__RESET_PROMPT) {
-					createToolNode = { apply { addStyleClass(Style.RESET_ICON) } }
+					createToolNode = { apply { addStyleClass(Style.RESET_ICON, Style.IGNORE_DISABLE) } }
 					onAction {
 						resetPromptAndPrediction()
 						primaryClickLabel = null
@@ -515,7 +515,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
 				KEY_PRESSED(SEGMENT_ANYTHING__ACCEPT_SEGMENTATION) {
 					name = "apply last segmentation result to canvas"
-					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON) } }
+					createToolNode = { apply { addStyleClass(Style.ACCEPT_ICON, Style.IGNORE_DISABLE) } }
 					verify(" label is not valid ") { isLabelValid }
 					onAction {
 						lastPrediction ?: return@onAction
