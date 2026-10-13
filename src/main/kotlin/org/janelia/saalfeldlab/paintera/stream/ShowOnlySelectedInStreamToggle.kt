@@ -8,14 +8,12 @@ class ShowOnlySelectedInStreamToggle(private val stream: AbstractHighlightingARG
 
 	fun toggleNonSelectionVisibility() {
 		if (nonSelectionIsVisible) {
-			alphaMemory = stream.alpha
+			alphaMemory = stream.getAlpha()
 			nonSelectionIsVisible = false
-			stream.alpha = 0
+			stream.setAlpha(0)
 		} else {
-			stream.alpha = alphaMemory
+			stream.setAlpha(alphaMemory)
 			nonSelectionIsVisible = true
 		}
 	}
-
-
 }
