@@ -32,7 +32,9 @@ package org.janelia.saalfeldlab.bdv.fx.viewer.render;
 import bdv.cache.CacheControl;
 import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjector;
 import org.janelia.saalfeldlab.bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
-import bdv.img.cache.VolatileCachedCellImg;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.FilteredProjector;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.RenderFilter;
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.RenderFilters;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -43,20 +45,16 @@ import bdv.viewer.render.EmptyProjector;
 import bdv.viewer.render.MipmapOrdering;
 import bdv.viewer.render.MipmapOrdering.Level;
 import bdv.viewer.render.MipmapOrdering.MipmapHints;
-import bdv.viewer.render.Prefetcher;
-import org.janelia.saalfeldlab.paintera.data.SlicedRenderSource;
 import bdv.viewer.render.SimpleVolatileProjector;
 import bdv.viewer.render.VolatileProjector;
 import javafx.animation.AnimationTimer;
-import net.imglib2.Dimensions;
+import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
-import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.volatiles.CacheHints;
@@ -67,7 +65,6 @@ import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
@@ -79,7 +76,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -265,7 +261,7 @@ public class MultiResolutionRendererGeneric<T> {
 
 	private long[] iobudget = new long[]{100l * 1000000l, 10l * 1000000l};
 
-	private boolean prefetchCells = true;
+	private final SliceMipmapFactory sliceMipmapFactory = new SliceMipmapFactory(true);
 
 	private final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg;
 
@@ -734,7 +730,7 @@ public class MultiResolutionRendererGeneric<T> {
 					timepoint,
 					viewerTransform,
 					screenScaleIndex,
-					Views.zeroMin(screenImage),
+					screenImage,
 					Views.offsetInterval(ArrayImgs.bytes(renderMaskArrays[0], renderTargetSize[0], renderTargetSize[1]), screenImage),
 					interpolation,
 					true
@@ -755,7 +751,7 @@ public class MultiResolutionRendererGeneric<T> {
 						timepoint,
 						viewerTransform,
 						screenScaleIndex,
-						Views.zeroMin(renderImage),
+						renderImage,
 						Views.offsetInterval(ArrayImgs.bytes(maskArray, renderTargetSize[0], renderTargetSize[1]), screenImage),
 						interpolation,
 						false
@@ -828,20 +824,32 @@ public class MultiResolutionRendererGeneric<T> {
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[screenScaleIndex];
 		final AffineTransform3D screenTransform = viewerTransform.copy();
 		screenTransform.preConcatenate(screenScaleTransform);
-		final int bestLevel = MipmapTransforms.getBestMipMapLevel(screenTransform, source.getSpimSource(), timepoint);
+		final Source<U> spimSource = source.getSpimSource();
+		final int bestLevel = MipmapTransforms.getBestMipMapLevel(screenTransform, spimSource, timepoint);
 		LOG.debug("Using bestLevel={}", bestLevel);
+		final CacheHints blockingRender = new CacheHints(LoadingStrategy.BLOCKING, 0, true);
+
+		final List<RenderFilter> filters = getFilters(source);
+		if (!filters.isEmpty()) {
+			final CacheHints noPrefetch = new CacheHints(LoadingStrategy.DONTLOAD, 0, false);
+			final Level level = new Level(bestLevel, 0, 0, blockingRender, noPrefetch);
+			return filteredProjector(source, filters, List.of(level), timepoint, viewerTransform, screenScaleIndex, screenImage, interpolation, preMultiply);
+		}
+
+		SliceMipmapFactory.setCacheHints(spimSource, timepoint, bestLevel, blockingRender);
+		final RandomAccessible<U> renderedAccess = SliceMipmapFactory.interpolatedImgAtSlice(
+				spimSource,
+				timepoint,
+				bestLevel,
+				viewerTransform,
+				screenScaleTransform,
+				spimSource.getInterpolatedSource(timepoint, bestLevel, interpolation)
+		);
+
 		return new SimpleVolatileProjector<>(
-				getTransformedSource(
-						source.getSpimSource(),
-						timepoint,
-						viewerTransform,
-						screenScaleTransform,
-						bestLevel,
-						new CacheHints(LoadingStrategy.BLOCKING, 0, true),
-						interpolation
-				),
+				renderedAccess,
 				source.getConverter(),
-				Views.stack(screenImage)
+				Views.stack(Views.zeroMin(screenImage))
 		);
 	}
 
@@ -861,7 +869,6 @@ public class MultiResolutionRendererGeneric<T> {
 				source.getSpimSource().getName()
 		);
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[screenScaleIndex];
-		final ArrayList<RandomAccessible<V>> renderList = new ArrayList<>();
 		final Source<V> spimSource = source.getSpimSource();
 		LOG.debug("Creating single source volatile projector for type={}", spimSource.getType());
 
@@ -873,40 +880,23 @@ public class MultiResolutionRendererGeneric<T> {
 		screenTransform.preConcatenate(screenScaleTransform);
 		final MipmapHints hints = ordering.getMipmapHints(screenTransform, t, previousTimepoint);
 		final List<Level> levels = hints.getLevels();
-
-		if (prefetchCells) {
-			Collections.sort(levels, MipmapOrdering.prefetchOrderComparator);
-			for (final Level l : levels) {
-				final CacheHints cacheHints = l.getPrefetchCacheHints();
-				if (cacheHints == null || cacheHints.getLoadingStrategy() != LoadingStrategy.DONTLOAD)
-					prefetch(
-							spimSource,
-							t,
-							viewerTransform,
-							screenScaleTransform,
-							l.getMipmapLevel(),
-							cacheHints,
-							screenImage,
-							interpolation
-					);
-			}
-		}
-
-		Collections.sort(levels, MipmapOrdering.renderOrderComparator);
-		for (final Level l : levels) {
-			renderList.add(getTransformedSource(
-					spimSource,
-					t,
-					viewerTransform,
-					screenScaleTransform,
-					l.getMipmapLevel(),
-					l.getRenderCacheHints(),
-					interpolation
-			));
-		}
-
 		if (hints.renewHintsAfterPaintingOnce())
 			newFrameRequest = true;
+
+		final List<RenderFilter> filters = getFilters(source);
+		if (!filters.isEmpty())
+			return filteredProjector(source, filters, levels, t, viewerTransform, screenScaleIndex, screenImage, interpolation, preMultiply);
+
+		final List<RandomAccessible<V>> renderList = sliceMipmapFactory.create(
+				spimSource,
+				t,
+				viewerTransform,
+				screenScaleTransform,
+				levels,
+				screenImage,
+				interpolation,
+				level -> spimSource.getInterpolatedSource(t, level, interpolation)
+		);
 
 		LOG.debug("Creating projector. Pre-multiply? {}", preMultiply);
 
@@ -914,7 +904,7 @@ public class MultiResolutionRendererGeneric<T> {
 			return new VolatileHierarchyProjectorPreMultiply<>(
 					renderList,
 					source.getConverter(),
-					Views.stack(screenImage),
+					Views.stack(Views.zeroMin(screenImage)),
 					Views.stack(mask),
 					renderingTaskExecutor
 			);
@@ -922,100 +912,42 @@ public class MultiResolutionRendererGeneric<T> {
 			return new VolatileHierarchyProjector<>(
 					renderList,
 					source.getConverter(),
-					Views.stack(screenImage),
+					Views.stack(Views.zeroMin(screenImage)),
 					Views.stack(mask),
 					renderingTaskExecutor
 			);
 	}
 
-	private static <T> RandomAccessible<T> getTransformedSource(
-			final Source<T> source,
-			final int timepoint,
-			final AffineTransform3D viewerTransform,
-			final AffineTransform3D screenScaleTransform,
-			final int mipmapIndex,
-			final CacheHints cacheHints,
-			final Interpolation interpolation) {
+	private static List<RenderFilter> getFilters(final SourceAndConverter<?> source) {
 
-		final RandomAccessibleInterval<T> img = source.getSource(timepoint, mipmapIndex);
-		if (VolatileCachedCellImg.class.isInstance(img))
-			((VolatileCachedCellImg<?, ?>) img).setCacheHints(cacheHints);
-		else if (source instanceof SlicedRenderSource && ((SlicedRenderSource) source).isSliced())
-			((SlicedRenderSource) source).setSliceCacheHints(mipmapIndex, cacheHints);
-
-		final RealRandomAccessible<T> ipimg = source.getInterpolatedSource(timepoint, mipmapIndex, interpolation);
-
-		final AffineTransform3D sourceToScreen = viewerTransform.copy();
-		final AffineTransform3D sourceTransform = new AffineTransform3D();
-		source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
-		sourceToScreen.concatenate(sourceTransform);
-		sourceToScreen.preConcatenate(screenScaleTransform);
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(
-					"Getting transformed source {} (name={}) for t={} level={} transform={} screen-scale={} hints={} " +
-							"interpolation={}",
-					source,
-					source.getName(),
-					timepoint,
-					mipmapIndex,
-					sourceToScreen,
-					screenScaleTransform,
-					cacheHints,
-					interpolation
-			);
-		}
-
-		return RealViews.affine(ipimg, sourceToScreen);
+		return source instanceof RenderFilters filtered ? filtered.getFilters().getValue() : List.of();
 	}
 
-	private static <T> void prefetch(
-			final Source<T> source,
-			final int timepoint,
+	private <U> VolatileProjector filteredProjector(
+			final SourceAndConverter<U> source,
+			final List<RenderFilter> filters,
+			final List<Level> levels,
+			final int t,
 			final AffineTransform3D viewerTransform,
-			final AffineTransform3D screenScaleTransform,
-			final int mipmapIndex,
-			final CacheHints prefetchCacheHints,
-			final Dimensions screenInterval,
-			final Interpolation interpolation) {
+			final int screenScaleIndex,
+			final RandomAccessibleInterval<ARGBType> screenImage,
+			final Interpolation interpolation,
+			final boolean preMultiply) {
 
-		final RandomAccessibleInterval<T> img = source.getSource(timepoint, mipmapIndex);
-		if (VolatileCachedCellImg.class.isInstance(img)) {
-			final VolatileCachedCellImg<?, ?> cellImg = (VolatileCachedCellImg<?, ?>) img;
-
-			CacheHints hints = prefetchCacheHints;
-			if (hints == null) {
-				final CacheHints d = cellImg.getDefaultCacheHints();
-				hints = new CacheHints(LoadingStrategy.VOLATILE, d.getQueuePriority(), false);
-			}
-			cellImg.setCacheHints(hints);
-			final int[] cellDimensions = cellImg.getCellGrid().getCellDimensions();
-			final long[] dimensions = cellImg.dimensionsAsLongArray();
-			final RandomAccess<?> cellsRandomAccess = cellImg.getCells().randomAccess();
-
-			final AffineTransform3D sourceToScreen = viewerTransform.copy();
-			final AffineTransform3D sourceTransform = new AffineTransform3D();
-			source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
-			sourceToScreen.concatenate(sourceTransform);
-			sourceToScreen.preConcatenate(screenScaleTransform);
-
-			Prefetcher.fetchCells(
-					sourceToScreen,
-					cellDimensions,
-					dimensions,
-					screenInterval,
-					interpolation,
-					cellsRandomAccess
-			);
-		} else if (source instanceof SlicedRenderSource && ((SlicedRenderSource) source).isSliced()) {
-			/* an nD source's getSource is a sliced view; prefetch its backing's cells at the current slice instead */
-			final AffineTransform3D sourceToScreen = viewerTransform.copy();
-			final AffineTransform3D sourceTransform = new AffineTransform3D();
-			source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
-			sourceToScreen.concatenate(sourceTransform);
-			sourceToScreen.preConcatenate(screenScaleTransform);
-			((SlicedRenderSource) source).prefetchSlice(mipmapIndex, sourceToScreen, screenInterval, interpolation, prefetchCacheHints);
-		}
+		return FilteredProjector.create(
+				source,
+				filters,
+				sliceMipmapFactory,
+				levels,
+				t,
+				viewerTransform,
+				screenScaleTransforms[screenScaleIndex],
+				interpolation,
+				new FinalDimensions(getImageSize(getScreenImages(screenScaleIndex).peek())),
+				screenImage,
+				renderingTaskExecutor,
+				preMultiply
+		);
 	}
 
 	public synchronized void setScreenScales(final double[] screenScales) {

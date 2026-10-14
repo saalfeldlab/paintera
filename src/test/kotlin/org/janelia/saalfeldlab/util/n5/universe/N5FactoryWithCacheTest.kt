@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.util.n5.universe
 
 import org.janelia.saalfeldlab.n5.N5KeyValueReader
 import org.janelia.saalfeldlab.n5.N5KeyValueWriter
+import org.janelia.saalfeldlab.n5.universe.N5Factory
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader
@@ -14,6 +15,17 @@ import java.nio.file.Path
 import kotlin.test.assertTrue
 
 class N5FactoryWithCacheTest {
+
+    @Test
+    fun `open s3`() {
+        val n5Factory = N5Factory()
+//        n5Factory.s3Configuration { config ->
+//            config.region(software.amazon.awssdk.regions.Region.US_EAST_1)
+//        }
+//        n5Factory.openReader("s3://janelia-cosem-datasets.s3.us-east-1/jrc_fly-vnc-1/jrc_fly-vnc-1.zarr")
+        val t = n5Factory.openReader("https://janelia-cosem-datasets.s3.us-east-1.amazonaws.com/jrc_fly-vnc-1/jrc_fly-vnc-1.zarr")
+        println(t)
+    }
 
 	@Test
 	fun `no extension, no scheme, should be N5`(@TempDir tmpPath: Path ) {
