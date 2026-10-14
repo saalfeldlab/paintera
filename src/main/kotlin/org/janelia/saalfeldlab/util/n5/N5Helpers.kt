@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.n5.SerializationKeys
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.n5.metadata.LabelBlockLookupGroup
 import org.janelia.saalfeldlab.util.n5.universe.N5ContainerDoesntExist
+import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.nio.file.Paths
@@ -204,7 +205,7 @@ object N5Helpers {
 			return N5ContainerState(n5).let { it to discoverAndParseRecursive(it.reader, dataset) }
 
 
-		val containerState = N5ContainerStateCache.cache.getOrPut(n5.uri.toString()) {
+		val containerState = N5ContainerStateCache.cache.getOrPut(canonicalString(n5)) {
 			N5ContainerState(n5)
 		} ?: return null
 		val node = containerState.let { container ->
@@ -519,10 +520,19 @@ object N5Helpers {
 	class MaxIDNotSpecified(message: String) : PainteraException(message)
 	class NotAPainteraDataset(val container: N5Reader, val group: String) : PainteraException(String.format("Group %s in container %s is not a Paintera dataset.", group, container))
 
+	/**
+	 * A [File] for a location that is a path on the default filesystem, including mounted filesystems.
+	 * null for any URI that is not accessible as a [File].
+	 */
+	private fun URI.toFileOrNull(): File? =
+		runCatching { Paths.get(this).toFile() }
+			.getOrNull() ?: File(toString()).takeIf { it.isAbsolute }
+
 	private const val URI_KEY = "uri"
 	internal fun N5Reader.serializeTo(json: JsonObject) {
-		if (!uri.equals(paintera.projectDirectory.actualDirectory.toURI())) {
-			json[URI_KEY] = uri.toString()
+		val location = canonicalString(uri)
+		if (location != canonicalString(paintera.projectDirectory.actualDirectory.toURI())) {
+			json[URI_KEY] = location
 		}
 	}
 
@@ -743,40 +753,57 @@ object N5Helpers {
 	fun canonicalString(n5Location: N5Reader) = canonicalString(n5Location.uri)
 
 	/**
-	 * Get a canonical string representation of the location of the N5 container.
-	 * Mainly used for extracting a canonical path from a file URI. For non-file
-	 * URIs, [URI.toString] is returned.
-	 *
-	 * The main file URI benefit is that since Java 24, `canonicalPath` on a File
-	 * will resolve the network map to the UNC path, which is more descriptive
-	 * and shareable.
+	 * The canonical form of the location of the N5 container, for storing and comparing.
+	 * A file location is the `file:` URI of its canonical path, which since Java 24 resolves
+	 * a mapped network drive to its UNC path. For non-file URIs, [URI.toString] is returned.
 	 *
 	 * @param n5Location
 	 * @return
 	 */
 	@JvmStatic
-	fun canonicalString(n5Location: URI): String {
-		if (n5Location.scheme == "file" || n5Location.scheme.isNullOrBlank()) {
-			/* get the canonical path if possible, otherwise return the path */
-			runCatching {
-				return Paths.get(n5Location).toFile().canonicalPath
-			}
-			return n5Location.path
-		}
-		return n5Location.toString()
-
-	}
+	fun canonicalString(n5Location: URI): String =
+		n5Location.toFileOrNull()?.toCanonicalFileUriStringOrNull() ?: n5Location.toString()
 
 	/**
-	 * [URI.create] called with [n5Location] before forwarding to [canonicalString(URI)].
-	 * on error [n5Location] is returned directly.
+	 * A string with no scheme, or a drive letter, is treated as aa file path.
+	 * Anything else is parsed as a URI, and forwarded to [canonicalString(URI)].
+     *
+	 * On error [n5Location] is returned directly.
 	 */
 	@JvmStatic
 	fun canonicalString(n5Location: String): String {
 		runCatching {
-			val parsedUri = StorageFormat.parseUri(n5Location).b
-			return canonicalString(parsedUri)
+			if (!URI_SCHEME_PATTERN.containsMatchIn(n5Location))
+				return File(n5Location).toCanonicalFileUriStringOrNull() ?: n5Location
+			return canonicalString(StorageFormat.parseUri(n5Location).b)
 		}
 		return n5Location
 	}
+
+	/**
+	 * The [canonicalString] as shown to the user: the path of a file location, without the `file:` scheme.
+	 * Any other location keeps its scheme.
+	 */
+	@JvmStatic
+	fun displayString(n5Location: String): String {
+		val canonical = canonicalString(n5Location)
+		if (!canonical.startsWith("file:"))
+			return canonical
+		return runCatching { Paths.get(URI(canonical)).toString() }.getOrDefault(canonical)
+	}
+
+	/** [displayString(String)], using [canonicalString(URI)] for the [URI] parameter. */
+	@JvmStatic
+	fun displayString(n5Location: URI): String = displayString(canonicalString(n5Location))
+
+	/** [displayString(URI)], using [N5Reader.getURI] for the [URI] parameter. */
+	@JvmStatic
+	fun displayString(n5Location: N5Reader): String = displayString(n5Location.uri)
+
+	/* at least two characters to handle drive letters on windows */
+	private val URI_SCHEME_PATTERN = Regex("^[A-Za-z][A-Za-z0-9+.-]+:")
+
+	/* no trailing slash, which `toUri` adds only if the directory exists */
+	private fun File.toCanonicalFileUriStringOrNull(): String? =
+		runCatching { canonicalFile.toPath().toUri().toString().removeSuffix("/") }.getOrNull()
 }

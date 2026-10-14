@@ -30,7 +30,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.BrowseRecentFavo
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.OpenSourceNode
 import org.janelia.saalfeldlab.paintera.ui.hGrow
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctDisplayStrings
 import java.io.File
 import java.util.function.Consumer
 
@@ -58,7 +58,7 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 		}
 	}
 
-	private val recentContainers = FXCollections.observableArrayList(PainteraCache.RECENT_CONTAINERS.distinctCanonicalStrings())
+	private val recentContainers = FXCollections.observableArrayList(PainteraCache.RECENT_CONTAINERS.distinctDisplayStrings())
 
 	val browseButton: MenuButton = BrowseRecentFavorites.menuButton(
 		"_Find",

@@ -61,7 +61,7 @@ private val showVersion by LazyForeignValue(::paintera) { MenuItem("Show _Versio
 private val recentProjectURIs: ObservableList<URI> = FXCollections.observableArrayList()
 private val recentProjectCanonicalStrings: ObservableList<String> = FXCollections.observableArrayList<String>().apply {
 	recentProjectURIs.subscribe {
-		val recentCanonicalString = recentProjectURIs.map { N5Helpers.canonicalString(it) }
+		val recentCanonicalString = recentProjectURIs.map { N5Helpers.displayString(it) }
 		setAll(recentCanonicalString)
 	}
 }

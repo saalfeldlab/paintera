@@ -20,6 +20,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.util.Subscription
+import net.imglib2.util.Intervals
 import javafx.scene.shape.Rectangle
 import net.imglib2.Interval
 import net.imglib2.RealInterval
@@ -281,9 +282,18 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsec)
 		meshManager.refreshMeshes()
 
-		sliceMeshRefresh = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView
-			?.activeIntervalProperty
-			?.subscribe { _, _ -> meshManager.updateScene() }
+		sliceMeshRefresh = (backend as? SourceStateBackendN5<*, *>)?.metadataState?.xyzView?.let { xyzView ->
+			var lastCrop = xyzView.xyzCrop
+			xyzView.activeIntervalProperty.subscribe { _, _ ->
+				val crop = xyzView.xyzCrop
+                val cropChanged = (crop == null) != (lastCrop == null) || (crop != null && !Intervals.equals(crop, lastCrop))
+				lastCrop = crop
+				if (cropChanged)
+					meshManager.refreshMeshes()
+				else
+					meshManager.updateScene()
+			}
+		}
 
 		// TODO make resolution/offset configurable
 	}

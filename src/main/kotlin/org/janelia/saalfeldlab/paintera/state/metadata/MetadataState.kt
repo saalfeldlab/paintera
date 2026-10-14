@@ -9,7 +9,6 @@ import net.imglib2.type.NativeType
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.universe.N5TreeNode
-import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
@@ -449,7 +448,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5container: String, dataset: String = ""): MetadataState? {
-            val container = StorageFormat.parseUri(n5container).b.toString()
+            val container = N5Helpers.canonicalString(n5container)
 
             val newContainerState by lazy(LazyThreadSafetyMode.NONE) {
                 Paintera.n5Factory.openWriterOrReaderOrNull(n5container)?.let {
@@ -492,7 +491,7 @@ class MetadataUtils {
             val newContainerState by lazy(LazyThreadSafetyMode.NONE) { N5ContainerState(reader) }
             /* Realistically, the null case should never be triggered, but the return type of `getOrPut` is nullable,
              * so this is the safe thing to do. In either case, it should be the same result. */
-            val containerState = N5ContainerStateCache.cache.getOrPut(reader.uri.toString()) { newContainerState }
+            val containerState = N5ContainerStateCache.cache.getOrPut(N5Helpers.canonicalString(reader)) { newContainerState }
                 ?: newContainerState
 
             return createMetadataState(containerState, dataset)
