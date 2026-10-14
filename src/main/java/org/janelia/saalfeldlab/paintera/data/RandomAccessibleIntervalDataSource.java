@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import bdv.viewer.Interpolation;
+import bdv.viewer.MaskUtils;
 import io.github.oshai.kotlinlogging.KLogger;
 import io.github.oshai.kotlinlogging.KotlinLogging;
 import kotlin.Triple;
@@ -16,6 +17,8 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.type.mask.Masked;
+import net.imglib2.type.mask.MaskedType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.Views;
@@ -241,6 +244,27 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 				interpolation.apply(method)
 		);
 		return boundToCrop(interpolated, level, typeSupplier);
+	}
+
+	/* mask 0 past the data and past the crop, so a screen-space filter can tell the extension from the data */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Override
+	public RealRandomAccessible<? extends Masked<T>> getInterpolatedMaskedSource(final int t, final int level, final Interpolation method) {
+
+		final RealRandomAccessible<MaskedType<T>> interpolated = MaskUtils.extendAndInterpolateMasked((RandomAccessibleInterval) getMaskedSource(t, level), method);
+		final MaskedType<T> outside = interpolated.getType().createVariable();
+		outside.setMask(0);
+		return boundToCrop(interpolated, level, outside);
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Override
+	public RealRandomAccessible<? extends Masked<D>> getInterpolatedMaskedDataSource(final int t, final int level, final Interpolation method) {
+
+		final RealRandomAccessible<MaskedType<D>> interpolated = MaskUtils.extendAndInterpolateMasked((RandomAccessibleInterval) Masked.withConstant(getDataSource(t, level), 1), method);
+		final MaskedType<D> outside = interpolated.getType().createVariable();
+		outside.setMask(0);
+		return boundToCrop(interpolated, level, outside);
 	}
 
 	protected <A extends Type<A>> RealRandomAccessible<A> boundToCrop(final RealRandomAccessible<A> interpolated, final int level, final A outside) {
