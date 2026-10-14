@@ -9,6 +9,7 @@ jobs:
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         # should match the platforms we build installers for
         os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-14, macos-15, macos-15-intel]
@@ -17,24 +18,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Set Version
-        shell: bash
-        run: echo "VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           java-version: 25
           distribution: 'zulu'
+      # the artifact name ends with the commit hash; `[0-9a-f]` keeps `macos-15` from matching `macos-15-intel`
       - name: Download Installer
         uses: actions/download-artifact@v4
         with:
-          name: Paintera-${{ matrix.os }}-${{ env.VERSION }}
+          pattern: Paintera-${{ matrix.os }}-[0-9a-f]*
+          merge-multiple: true
           path: installer
       - name: Verify (Linux)
         if: runner.os == 'Linux'
         run: |
+          find installer -type f
+          deb="$PWD/$(find installer -name '*.deb' | head -n 1)"
+          dpkg-deb --info "$deb"
           sudo apt-get update -qq
-          sudo apt-get install -y "$PWD/$(find installer -name '*.deb' | head -n 1)"
+          # the post-install script registers desktop menu entries (xdg-desktop-menu), which fails on a runner
+          # without a desktop; the files are unpacked anyway, so only require what these checks depend on
+          sudo apt-get install -y "$deb" || echo "::warning::apt-get install exited with $?"
+          dpkg -s paintera | grep -E '^Status: install ok (unpacked|half-configured|installed)'
+          dpkg -s libblosc1 | grep '^Status: install ok installed'
           root=$(dpkg -L paintera | grep -m 1 '/bin/Paintera$' | sed 's#/bin/Paintera$##')
           bash .github/scripts/verify-installer.sh "$root"
       - name: Install (Windows)

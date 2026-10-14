@@ -15,8 +15,8 @@ import java.util.Comparator;
 import java.util.stream.Stream;
 
 /**
- * Checks the native libraries of an installed Paintera. Run with the installed app's own runtime, classpath, and
- * the `java-options` of its `Paintera.cfg`, see `verify-installer.sh`. Not part of the app.
+ * Checks the native libraries of an installed Paintera. Run with the installed app's classpath and the
+ * `java-options` of its `Paintera.cfg`, see `verify-installer.sh`. Not part of the app.
  */
 public class InstallerRuntimeCheck {
 
