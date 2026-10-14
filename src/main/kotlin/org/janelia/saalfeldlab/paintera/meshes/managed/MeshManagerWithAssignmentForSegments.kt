@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes.managed
 import gnu.trove.set.TLongSet
 import gnu.trove.set.hash.TLongHashSet
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
@@ -26,7 +27,7 @@ import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
 import org.janelia.saalfeldlab.paintera.state.label.FragmentLabelMeshCacheKey
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -81,7 +82,11 @@ class MeshManagerWithAssignmentForSegments(
 
 
 	private class RelevantBindingsAndProperties(private val key: Long, private val stream: AbstractHighlightingARGBStream) {
-		val colorProperty = stream.createObservableBinding { calculateColor() }
+		val colorProperty = SimpleObjectProperty(calculateColor())
+
+		fun updateColor() {
+			colorProperty.set(calculateColor())
+		}
 
 		private fun calculateColor(): Color = Colors.toColor(stream.argb(key) or 0xFF000000.toInt())
 	}
@@ -98,6 +103,16 @@ class MeshManagerWithAssignmentForSegments(
 
 	private val segmentFragmentBiMap = ConcurrentHashMap<Long, Fragments>()
 	private val relevantBindingsAndPropertiesMap = ConcurrentHashMap<Long, RelevantBindingsAndProperties>()
+
+	init {
+		/* one listener for all meshes: a binding per mesh adds a listener to the stream that removes itself once
+		 * it is garbage collected, which shrinks the stream's listener list while it is being notified */
+		argbStream.addListener {
+			InvokeOnJavaFXApplicationThread {
+				relevantBindingsAndPropertiesMap.values.forEach { it.updateColor() }
+			}
+		}
+	}
 
 	@Synchronized
 	override fun releaseMeshState(key: Long, state: MeshGenerator.State) {
