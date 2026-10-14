@@ -9,3 +9,4 @@
 --temp "${project.build.directory}/installer-work"
 --resource-dir "${project.build.directory}/packaging/linux"
 --java-options "${jpackage.java-options}"
+--linux-package-deps libblosc1

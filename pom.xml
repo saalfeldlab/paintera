@@ -215,13 +215,6 @@
 			<version>${alphanumeric-comparator.version}</version>
 		</dependency>
 
-		<!-- add blosc-java so we don't need to install blosc separately -->
-		<dependency>
-			<groupId>com.scalableminds</groupId>
-			<artifactId>blosc-java</artifactId>
-			<version>0.3-1.21.6</version>
-		</dependency>
-
 		<!--		logging -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -978,6 +971,7 @@
 		<id>build-installer</id>
 			<properties>
 				<matrix.os>${os.name}</matrix.os>
+				<blosc.native.dir>${project.build.directory}/blosc-native</blosc.native.dir>
 			</properties>
 			<build>
 				<plugins>
@@ -1032,6 +1026,22 @@
 											<includes>
 												<include>paintera.svg</include>
 											</includes>
+										</resource>
+									</resources>
+								</configuration>
+							</execution>
+							<execution>
+								<!-- the native blosc library JNA loads from `-Djna.library.path=$APPDIR/native`; skipped if the directory does not exist -->
+								<id>copy-blosc-native</id>
+								<phase>prepare-package</phase>
+								<goals>
+									<goal>copy-resources</goal>
+								</goals>
+								<configuration>
+									<outputDirectory>${project.build.directory}/dependency/native</outputDirectory>
+									<resources>
+										<resource>
+											<directory>${blosc.native.dir}</directory>
 										</resource>
 									</resources>
 								</configuration>

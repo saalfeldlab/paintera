@@ -8,8 +8,14 @@ on:
   pull_request:
     branches: [master]
 
+env:
+  BLOSC_NATIVE_DIR: ${{ github.workspace }}/blosc-native
+
 jobs:
+  blosc:
+    uses: ./.github/workflows/build-blosc.yml
   build:
+    needs: blosc
     permissions:
       contents: read
       packages: read
@@ -53,9 +59,15 @@ jobs:
           server-id: github
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
+      - name: Download Blosc
+        if: runner.os != 'Linux'
+        uses: actions/download-artifact@v4
+        with:
+          name: blosc-${{ matrix.os }}
+          path: ${{ env.BLOSC_NATIVE_DIR }}
       - name: "Build with Maven"
         if: runner.os != 'MacOS'
-        run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+        run: mvn -B clean install -DskipTests -Pbuild-installer "-Dmatrix.os=${{ matrix.os }}" "-Dblosc.native.dir=${{ env.BLOSC_NATIVE_DIR }}" --file pom.xml --no-transfer-progress
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Setup MacOS Signing"
@@ -81,7 +93,7 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
       - name: "Build with Maven"
         if: runner.os == 'MacOS'
-        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" --file pom.xml --no-transfer-progress
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" "-Dblosc.native.dir=${{ env.BLOSC_NATIVE_DIR }}" --file pom.xml --no-transfer-progress
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Verify Signature"

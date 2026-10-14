@@ -1,0 +1,55 @@
+name: Build Blosc
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  BLOSC_VERSION: 1.21.6
+  BLOSC_NATIVE_DIR: ${{ github.workspace }}/blosc-native
+
+jobs:
+  blosc:
+    strategy:
+      matrix:
+        # should match the platforms we build installers for, except linux which depends on libblosc1 directly
+        os: [windows-latest, macos-14, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Cache Blosc
+        id: cache-blosc
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BLOSC_NATIVE_DIR }}
+          key: blosc-${{ env.BLOSC_VERSION }}-${{ matrix.os }}
+      # get windows blosc from conda-forge
+      - name: Get Blosc (Windows)
+        if: runner.os == 'Windows' && steps.cache-blosc.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          "$CONDA/Scripts/conda.exe" create -y -p "$RUNNER_TEMP/blosc-env" --override-channels -c conda-forge "blosc=${BLOSC_VERSION}"
+          mkdir -p "${BLOSC_NATIVE_DIR}"
+          cp "$RUNNER_TEMP/blosc-env/Library/bin/"*.dll "${BLOSC_NATIVE_DIR}/"
+          test -f "${BLOSC_NATIVE_DIR}/blosc.dll" || { echo "ERROR: blosc.dll was not found in the conda-forge package"; exit 1; }
+          ls -l "${BLOSC_NATIVE_DIR}"
+      # get macos blosc from homebrew
+      - name: Get Blosc (macOS)
+        if: runner.os == 'macOS' && steps.cache-blosc.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          brew install c-blosc
+          installed=$(brew list --versions c-blosc | awk '{print $2}')
+          [ "$installed" = "${BLOSC_VERSION}" ] || echo "::warning::Homebrew c-blosc is ${installed}, expected ${BLOSC_VERSION}"
+          mkdir -p "${BLOSC_NATIVE_DIR}"
+          cp -L "$(brew --prefix c-blosc)/lib/libblosc.dylib" "${BLOSC_NATIVE_DIR}/"
+          otool -L "${BLOSC_NATIVE_DIR}/libblosc.dylib"
+          if otool -L "${BLOSC_NATIVE_DIR}/libblosc.dylib" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)|libblosc'; then
+            echo "ERROR: libblosc.dylib depends on libraries outside the system"; exit 1
+          fi
+          ls -l "${BLOSC_NATIVE_DIR}"
+      - name: Upload Blosc
+        uses: actions/upload-artifact@v4
+        with:
+          name: blosc-${{ matrix.os }}
+          path: ${{ env.BLOSC_NATIVE_DIR }}
+          if-no-files-found: error
