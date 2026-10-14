@@ -953,6 +953,18 @@
         </plugins>
 	</build>
 	<profiles>
+		<!-- puts the example Render Filter plugin in examples/unsharp-mask-filter on the classpath; install it first with `mvn install` there -->
+		<profile>
+			<id>example-filter</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.janelia.saalfeldlab</groupId>
+					<artifactId>paintera-unsharp-mask-filter</artifactId>
+					<version>0.1.0-SNAPSHOT</version>
+					<scope>runtime</scope>
+				</dependency>
+			</dependencies>
+		</profile>
 		<profile>
 			<id>run-ui-tests</id>
 			<build>

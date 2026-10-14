@@ -124,6 +124,10 @@ fun <A, B, C : Type<C>> RandomAccessibleInterval<A>.convertWith(other: RandomAcc
 	return Converters.convert(this, other, converter, type)
 }
 
+fun <A, B> RandomAccessible<A>.convert(typeSupplier: () -> B, converter: (A, B) -> Unit): RandomAccessible<B> {
+	return Converters.convert2(this, Converter<A, B> { from, to -> converter(from, to) }, typeSupplier)
+}
+
 fun <T, R : Type<R>> RealRandomAccessible<T>.convert(type: R, converter: (T, R) -> Unit): RealRandomAccessible<R> {
 	return ConvertedRealRandomAccessible(this, converter) { type.copy() }
 }
