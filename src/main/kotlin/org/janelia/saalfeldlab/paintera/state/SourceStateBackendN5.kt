@@ -159,7 +159,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		}
 
 
-		val virtualCropInterval = object : SimpleObjectProperty<Interval?>(null) {
+		val virtualCropInterval = object : SimpleObjectProperty<Interval?>(metadataState.xyzView.xyzCrop) {
 
 			override fun set(newValue: Interval?) {
 				/* let the super handle this error case */
