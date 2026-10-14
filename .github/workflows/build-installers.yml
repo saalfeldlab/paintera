@@ -109,3 +109,7 @@ jobs:
           path: |
             ${{ env.DMG_PATH }}
             ./target/installer-${{ matrix.os }}/*
+  # install the installers and check the installed apps, without adding anything to the installers
+  verify:
+    needs: build
+    uses: ./.github/workflows/verify-installers.yml
