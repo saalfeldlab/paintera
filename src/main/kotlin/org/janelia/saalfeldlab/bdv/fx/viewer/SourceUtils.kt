@@ -26,6 +26,8 @@ private class UnwrappedDataSource<D>(val dataSource : DataSource<D, *>) : Source
 
 	override fun getInterpolatedSource(t: Int, level: Int, method: Interpolation?) = dataSource.getInterpolatedDataSource(t, level, method)
 
+	override fun getInterpolatedMaskedSource(t: Int, level: Int, method: Interpolation?) = dataSource.getInterpolatedMaskedDataSource(t, level, method)
+
 	override fun getSourceTransform(t: Int, level: Int, transform: AffineTransform3D?) {
 		dataSource.getSourceTransform(t, level, transform)
 	}
