@@ -52,8 +52,8 @@ jobs:
           Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
       - name: Verify (Windows)
         if: runner.os == 'Windows'
-        shell: bash
-        run: bash .github/scripts/verify-installer.sh "/c/Program Files/Paintera"
+        shell: pwsh
+        run: .github/scripts/verify-installer.ps1 -Root "C:\Program Files\Paintera"
       - name: Verify (macOS)
         if: runner.os == 'macOS'
         run: |
