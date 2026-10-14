@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -57,7 +58,7 @@ class ReadOnlyN5ContainerStateTest {
 		}
 
 		private fun verifyCacheContains(path: String) {
-			assertTrue(N5ContainerStateCache.cache.containsKey(path))
+			assertTrue(N5ContainerStateCache.cache.containsKey(N5Helpers.canonicalString(path)))
 		}
 
 		private fun assertReadOnly(container: N5ContainerState) {

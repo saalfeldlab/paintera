@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.util
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.paintera.config.PainteraDirectoriesConfig
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.io.IOException
@@ -64,9 +63,10 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 	}
 
 	fun appendLine(line : String, maxNumLines : Int = 10) {
+		val canonicalLine = N5Helpers.canonicalString(line)
 		val lines: MutableList<String> = readLines().toMutableList().apply {
-			remove(line)
-			add(line)
+			removeAll { it.canonicalOrNull() == canonicalLine }
+			add(canonicalLine)
 		}
 		try {
 			LOG.debug { "Writing lines to $cacheKey: $lines" }
@@ -82,10 +82,7 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 		private val LOG = KotlinLogging.logger { }
 
 		/** the canonical form of a cached line, or null if it cannot be parsed as a URI */
-		private fun String.canonicalOrNull(): String? = runCatching {
-			val uri = StorageFormat.parseUri(this).b.takeIf { it.isAbsolute } ?: URI("file", this, null)
-			N5Helpers.canonicalString(uri)
-		}.getOrNull()
+		private fun String.canonicalOrNull(): String? = runCatching { N5Helpers.canonicalString(this) }.getOrNull()
 
 		@JvmStatic
 		fun readLines(cache: PainteraCache) = cache.readLines()
@@ -95,17 +92,12 @@ enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 
 		private fun PainteraCache.asUris(): List<URI> = readLines()
 			.reversed()
-			.mapNotNull { recentString ->
-				val stringAsUri =
-					this.runCatching { StorageFormat.parseUri(recentString).b.takeIf { uri -> uri.isAbsolute } }.getOrNull()
-				stringAsUri ?: this.runCatching { URI("file", recentString, null) }.getOrNull()
-			}
+			.mapNotNull { recentString -> runCatching { URI(N5Helpers.canonicalString(recentString)) }.getOrNull() }
 
-		fun PainteraCache.distinctCanonicalURIs() = asUris()
-			.distinctBy { recent -> N5Helpers.canonicalString(recent) }
+		fun PainteraCache.distinctCanonicalURIs() = asUris().distinct()
 
-		fun PainteraCache.distinctCanonicalStrings() = asUris()
-			.map { N5Helpers.canonicalString(it) }
+		fun PainteraCache.distinctDisplayStrings() = asUris()
+			.map { N5Helpers.displayString(it) }
 			.distinct()
 
 		private val DEPRECATED_MAPPINGS = mapOf(

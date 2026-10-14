@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerStateCache
 import org.janelia.saalfeldlab.paintera.ui.dialogs.open.menu.n5.N5OpenSourceHelper
 import org.janelia.saalfeldlab.util.PainteraCache
+import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.nio.file.Paths
 
 private val LOG = KotlinLogging.logger {}
@@ -48,9 +49,10 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 	}
 
 	override fun reparseSelection(selection: String) {
-		n5Factory.remove(selection)
+		val canonicalSelection = N5Helpers.canonicalString(selection)
+		n5Factory.remove(canonicalSelection)
 		containerState?.reader?.let {
-			N5ContainerStateCache.cache -= selection
+			N5ContainerStateCache.cache -= canonicalSelection
 			parseN5LoaderCache.invalidate(it)
 		}
 		selectionChanged(selection)
@@ -66,8 +68,9 @@ internal class OpenSourceActionState(delegate: OpenSourceModel = OpenSourceModel
 				statusProperty.unbind()
 				statusProperty.set("Opening container...")
 			}
-			val state = N5ContainerStateCache.cache.getOrPut(newSelection) {
-				val n5 = n5Factory.openReaderOrNull(newSelection)
+			val canonicalSelection = N5Helpers.canonicalString(newSelection)
+			val state = N5ContainerStateCache.cache.getOrPut(canonicalSelection) {
+				val n5 = n5Factory.openReaderOrNull(canonicalSelection)
 				ensureActive()
 				n5?.let { N5ContainerState(it) }
 			}

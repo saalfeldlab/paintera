@@ -84,7 +84,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	}
 
 	private fun VBox.addContainerAndDatasetChildren(n5ContainerState: N5ContainerState, metadataState: MetadataState) {
-		val containerLocation = N5Helpers.canonicalString(n5ContainerState.uri)
+		val containerLocation = N5Helpers.displayString(n5ContainerState.uri)
 
 		val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
 		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `$containerLocation'")

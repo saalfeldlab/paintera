@@ -330,7 +330,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			return null;
 
 		/* get the canonical form of the container as a string  */
-		String container = N5Helpers.canonicalString(project);
+		String container = N5Helpers.displayString(project);
 		LOG.debug("Return project={}", container);
 		return container;
 	}
