@@ -413,7 +413,7 @@
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.21.2</version>
+			<version>1.23.2</version>
 		</dependency>
 
 
@@ -501,7 +501,7 @@
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.11.2</version>
+            <version>1.11.4</version>
         </dependency>
 	</dependencies>
 
