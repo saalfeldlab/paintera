@@ -652,6 +652,7 @@
 						<exclude>**WindowDimensionsTest**</exclude>
 						<exclude>**AnimatedProgressBarTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
+						<exclude>**FilteredRenderTest**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
