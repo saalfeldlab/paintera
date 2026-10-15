@@ -20,6 +20,12 @@ import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.RawCompression
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.filters.RenderFiltersConfig
+import org.janelia.saalfeldlab.paintera.filters.RenderFiltersConfigAdapter
+import org.janelia.saalfeldlab.paintera.filters.clahe.ClaheConfig
+import org.janelia.saalfeldlab.paintera.filters.clahe.ClaheConfigAdapter
+import org.janelia.saalfeldlab.paintera.filters.depthblur.DepthBlurConfig
+import org.janelia.saalfeldlab.paintera.filters.depthblur.DepthBlurConfigAdapter
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
@@ -142,6 +148,9 @@ class VirtualCropSerializationTest {
 			})
 			.registerTypeAdapter(N5BackendRaw::class.java, Deserializer<UnsignedByteType, VolatileUnsignedByteType>())
 			.registerTypeHierarchyAdapter(RealInterval::class.java, RealIntervalSerializer())
+			.registerTypeAdapter(RenderFiltersConfig::class.java, RenderFiltersConfigAdapter())
+			.registerTypeAdapter(ClaheConfig::class.java, ClaheConfigAdapter())
+			.registerTypeAdapter(DepthBlurConfig::class.java, DepthBlurConfigAdapter())
 			.create()
 
 		val json = gson.toJsonTree(state).asJsonObject

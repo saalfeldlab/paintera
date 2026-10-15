@@ -1,9 +1,13 @@
 package org.janelia.saalfeldlab.paintera.state.raw
 
+import org.janelia.saalfeldlab.paintera.filters.RenderFiltersModel
+import org.janelia.saalfeldlab.paintera.filters.RenderFilterPlugins
+import org.janelia.saalfeldlab.paintera.filters.RenderFiltersConfig
 import bdv.cache.SharedQueue
 import bdv.viewer.Interpolation
 import bdv.viewer.SourceAndConverter
 import com.google.gson.*
+import javafx.beans.binding.Bindings
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -12,6 +16,7 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import net.imglib2.realtransform.AffineTransform3D
@@ -19,6 +24,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.FilteredSourceAndConverter
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
@@ -44,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withC
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.DeserializerFactory
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.filters.RenderFiltersUI
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.translation
@@ -58,6 +65,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.Serializa
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.IS_VISIBLE
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.NAME
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.OFFSET
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RENDER_FILTERS
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState.SerializationKeys.RESOLUTION
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.util.Colors
@@ -97,9 +105,21 @@ open class ConnectomicsRawState<D, T>(
 
 	override fun converter(): ARGBColorConverter<T> = converter
 
-	val channels: ChannelComposition<D, T>? = ChannelComposition.of(backend, source, converter)
+	val renderFiltersConfig = RenderFiltersConfig()
 
-	override fun getSourceAndConverter(): SourceAndConverter<T> = channels?.sourceAndConverter ?: super.getSourceAndConverter()
+	private val intensityRange = Bindings.createObjectBinding({ converter.min..converter.max }, converter.minProperty(), converter.maxProperty())
+
+	private val renderFilters = RenderFiltersModel(renderFiltersConfig, renderFiltersConfig.filterConfigs.map { filterConfig ->
+		val plugin = RenderFilterPlugins.forConfig(filterConfig)
+		val model = plugin.newModel(filterConfig, (backend as? SourceStateBackendN5<*, *>)?.metadataState, intensityRange)
+		RenderFiltersModel.Entry(model) { plugin.newUI(model) }
+	})
+
+	val channels: ChannelComposition<D, T>? = ChannelComposition.of(backend, source, converter, renderFilters.filtersProperty)
+
+	private val filteredSourceAndConverter = FilteredSourceAndConverter(source, converter, renderFilters.filtersProperty)
+
+	override fun getSourceAndConverter(): SourceAndConverter<T> = channels?.sourceAndConverter ?: filteredSourceAndConverter
 
 	override fun getDefaultMode(): ControlMode {
 		return RawSourceMode()
@@ -143,6 +163,13 @@ open class ConnectomicsRawState<D, T>(
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
 		box.children.add(channels?.preferencePaneNode() ?: RawSourceStateConverterNode(converter, this).converterNode)
+		box.children.add(RenderFiltersUI(renderFilters).apply {
+			channels?.let { channels ->
+				/* the filters apply to a single active channel */
+				disableProperty().bind(channels.activeChannelsProperty.map { it.size != 1 })
+				Tooltip.install(this, Tooltip("Render filters apply with one active channel"))
+			}
+		})
 
 		val backendMeta = backend.createMetaDataNode()
 		val metaDataContents = VBox(backendMeta)
@@ -168,6 +195,7 @@ open class ConnectomicsRawState<D, T>(
 		converter().maxProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().alphaProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().colorProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+		renderFilters.filtersProperty.subscribe { _, _ -> paintera.orthogonalViews().requestRepaint() }
 	}
 
 	companion object {
@@ -188,6 +216,7 @@ open class ConnectomicsRawState<D, T>(
 		const val RESOLUTION = "resolution"
 		const val OFFSET = "offset"
 		const val CHANNELS = "channelComposite"
+		const val RENDER_FILTERS = "renderFilters"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -211,6 +240,7 @@ open class ConnectomicsRawState<D, T>(
 				map.add(OFFSET, context[state.offset])
 				map.addVirtualCrop(state.backend, context)
 				state.channels?.let { map.add(CHANNELS, it.toJson(context)) }
+				context[state.renderFiltersConfig].takeUnless { it.isJsonNull }?.let { map.add(RENDER_FILTERS, it) }
 				map.addAxes(state.backend)
 				map.addSlicePositions(state.backend)
 			}
@@ -280,6 +310,7 @@ open class ConnectomicsRawState<D, T>(
 					conv.get<String>(CONVERTER_COLOR) { converter.color = Colors.toARGBType(it) }
 				}
 				json.get<JsonObject>(CHANNELS) { channels?.fromJson(it, context) }
+				context.get<RenderFiltersConfig>(json, RENDER_FILTERS) { renderFiltersConfig.set(it) }
 			}
 			}
 
