@@ -10,6 +10,7 @@ import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.value.ObservableValue
 import javafx.scene.Node
 import javafx.scene.paint.Color
 import net.imglib2.RandomAccessibleInterval
@@ -17,12 +18,15 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.FilteredSourceAndConverter
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.RenderFilter
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.ChannelCompositeSource
+import org.janelia.saalfeldlab.paintera.data.n5.ChannelSliceSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
@@ -43,7 +47,8 @@ class ChannelComposition<D, T> private constructor(
     val metadataState: MetadataState,
     private val source: N5DataSource<*, *>,
     val axis: Int,
-    plainConverter: ARGBColorConverter<T>
+    plainConverter: ARGBColorConverter<T>,
+    private val filters: ObservableValue<List<RenderFilter>>
 ) where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 
     val numChannels: Int = metadataState.datasetAttributes.dimensions[axis].toInt()
@@ -70,6 +75,9 @@ class ChannelComposition<D, T> private constructor(
     private lateinit var renderConverter: CompositeConverter<T>
     private var addedTo: PainteraBaseView? = null
 
+    private var singleChannelSourceAndConverter: FilteredSourceAndConverter<T>? = null
+    private var singleChannelConverter: ARGBColorConverter<T>? = null
+
     init {
         rebuild(activeChannels)
         _activeChannels.subscribe { _, channels -> rebuild(channels) }
@@ -77,7 +85,7 @@ class ChannelComposition<D, T> private constructor(
 
     @Suppress("UNCHECKED_CAST")
     val sourceAndConverter: SourceAndConverter<T>
-        get() = SourceAndConverter(compositeSource, renderConverter) as SourceAndConverter<T>
+        get() = singleChannelSourceAndConverter ?: SourceAndConverter(compositeSource, renderConverter) as SourceAndConverter<T>
 
     val defaultRange: Pair<Double, Double>
         get() = metadataState.minIntensity to metadataState.maxIntensity
@@ -116,6 +124,13 @@ class ChannelComposition<D, T> private constructor(
             compositeSource = ChannelCompositeSource(source, axis, channels.map { it.toLong() }.toLongArray())
             renderConverter = converter.boundOver(channels)
         }
+        singleChannelConverter?.unbindAll()
+        singleChannelConverter = null
+        singleChannelSourceAndConverter = channels.singleOrNull()?.let { channel ->
+            val plain = ARGBColorConverter.InvertingImp0<T>().also { it.bindTo(channel) }
+            singleChannelConverter = plain
+            FilteredSourceAndConverter(ChannelSliceSource<D, T>(source, axis, channel.toLong()), plain, filters)
+        }
         addedTo?.let {
             it.sourceInfo().refreshVisibleSourcesAndConverters()
             it.orthogonalViews().requestRepaint()
@@ -134,6 +149,20 @@ class ChannelComposition<D, T> private constructor(
                 render.channelAlphaProperty(idx).bind(channelAlphaProperty(channel))
             }
         }
+
+    private fun ARGBColorConverter<T>.bindTo(channel: Int) {
+        colorProperty().bind(converter.colorProperty(channel))
+        minProperty().bind(converter.minProperty(channel))
+        maxProperty().bind(converter.maxProperty(channel))
+        alphaProperty().bind(converter.alphaProperty().multiply(converter.channelAlphaProperty(channel)))
+    }
+
+    private fun ARGBColorConverter<*>.unbindAll() {
+        colorProperty().unbind()
+        minProperty().unbind()
+        maxProperty().unbind()
+        alphaProperty().unbind()
+    }
 
     private fun ARGBCompositeColorConverter<*, *, *>.unbindAll() {
         alphaProperty().unbind()
@@ -195,12 +224,17 @@ class ChannelComposition<D, T> private constructor(
         const val CONVERTER_KEY = "converter"
 
         /** The composition of an N5 [backend]'s channel axis, or null when it has none or a single channel */
-        fun <D, T> of(backend: SourceStateBackend<D, T>, source: DataSource<D, T>, plainConverter: ARGBColorConverter<T>): ChannelComposition<D, T>?
+        fun <D, T> of(
+            backend: SourceStateBackend<D, T>,
+            source: DataSource<D, T>,
+            plainConverter: ARGBColorConverter<T>,
+            filters: ObservableValue<List<RenderFilter>>
+        ): ChannelComposition<D, T>?
                 where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
             val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState ?: return null
             val n5Source = source as? N5DataSource<*, *> ?: return null
             val axis = channelAxis(metadataState) ?: return null
-            return ChannelComposition(metadataState, n5Source, axis, plainConverter)
+            return ChannelComposition(metadataState, n5Source, axis, plainConverter, filters)
         }
 
         /** The channel axis of [metadataState] when it has more than one channel */

@@ -6,8 +6,8 @@ import bdv.viewer.SourceAndConverter
 import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
+import org.janelia.saalfeldlab.bdv.fx.viewer.render.screenspace.RenderFilters
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileLabelMultisetType
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterVolatileType
 
 //FIXME Caleb: These are both private because imho this is a bit of a hack.
@@ -25,6 +25,8 @@ private class UnwrappedDataSource<D>(val dataSource : DataSource<D, *>) : Source
 	override fun getSource(t: Int, level: Int) = dataSource.getDataSource(t, level)
 
 	override fun getInterpolatedSource(t: Int, level: Int, method: Interpolation?) = dataSource.getInterpolatedDataSource(t, level, method)
+
+	override fun getInterpolatedMaskedSource(t: Int, level: Int, method: Interpolation?) = dataSource.getInterpolatedMaskedDataSource(t, level, method)
 
 	override fun getSourceTransform(t: Int, level: Int, transform: AffineTransform3D?) {
 		dataSource.getSourceTransform(t, level, transform)
@@ -44,7 +46,7 @@ private class UnwrappedDataSource<D>(val dataSource : DataSource<D, *>) : Source
 }
 
 
-private class WrappedSourceAndConverter<D>(val sourceAndConverter : SourceAndConverter<*>, source : Source<D>, converter : Converter<D, ARGBType>) : SourceAndConverter<D>(source, converter) {
+private open class WrappedSourceAndConverter<D>(val sourceAndConverter : SourceAndConverter<*>, source : Source<D>, converter : Converter<D, ARGBType>) : SourceAndConverter<D>(source, converter) {
 
 	override fun equals(other: Any?): Boolean {
 		return sourceAndConverter == ((other as? WrappedSourceAndConverter<*>)?.sourceAndConverter ?: other)
@@ -55,6 +57,9 @@ private class WrappedSourceAndConverter<D>(val sourceAndConverter : SourceAndCon
 	}
 }
 
+private class WrappedFilteredSourceAndConverter<D>(sourceAndConverter: SourceAndConverter<*>, source: Source<D>, converter: Converter<D, ARGBType>, filtered: RenderFilters) :
+	WrappedSourceAndConverter<D>(sourceAndConverter, source, converter), RenderFilters by filtered
+
 internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndConverter<*>): SourceAndConverter<*> {
 	val data = sourceAndConverter.spimSource as? DataSource<D, *> ?: return sourceAndConverter
 	val unwrappedDataSource = UnwrappedDataSource(data)
@@ -63,5 +68,8 @@ internal fun <D : Any> getDataSourceAndConverter(sourceAndConverter: SourceAndCo
 		(it as? HighlightingStreamConverterVolatileType<*, *>)?.nonVolatileConverter ?: it
 	} as Converter<D, ARGBType>
 
-	return WrappedSourceAndConverter(sourceAndConverter, unwrappedDataSource, converter)
+	/* the filters of a filtered source read its data the same way */
+	val filtered = sourceAndConverter as? RenderFilters
+		?: return WrappedSourceAndConverter(sourceAndConverter, unwrappedDataSource, converter)
+	return WrappedFilteredSourceAndConverter(sourceAndConverter, unwrappedDataSource, converter, filtered)
 }

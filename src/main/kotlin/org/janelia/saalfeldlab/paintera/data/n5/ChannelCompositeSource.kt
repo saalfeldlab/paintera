@@ -16,10 +16,12 @@ import net.imglib2.converter.Converters
 import net.imglib2.img.list.ListImg
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.mask.Masked
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.Views
 import net.imglib2.view.composite.RealComposite
+import org.janelia.saalfeldlab.bdv.fx.viewer.MaskUtils
 import org.janelia.saalfeldlab.paintera.data.SlicedRenderSource
 
 /**
@@ -69,6 +71,9 @@ class ChannelCompositeSource<D, T>(
 		}
 		return Converters.convert(interpolated, viewerConverter, VolatileWithSet(null, true))
 	}
+
+	override fun getInterpolatedMaskedSource(t: Int, level: Int, method: Interpolation): RealRandomAccessible<out Masked<VolatileWithSet<RealComposite<T>>>> =
+		MaskUtils.maskedInside(getInterpolatedSource(t, level, method), composite(t, level))
 
 	@Suppress("UNCHECKED_CAST")
 	private fun zero(): T = (source.type as T).createVariable().apply { setZero(); isValid = true }
