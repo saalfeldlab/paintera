@@ -157,7 +157,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		it.activateCurrent()
 	}
 
-	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
+	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService, lockedSegments)
 
 	private val commitHandler = CommitHandler(this, this::fragmentSegmentAssignment)
 

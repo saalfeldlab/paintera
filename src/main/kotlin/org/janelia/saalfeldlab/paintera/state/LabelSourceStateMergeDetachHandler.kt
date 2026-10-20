@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.fx.actions.verifyPermission
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.undo.HasHistory
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -27,7 +28,8 @@ class LabelSourceStateMergeDetachHandler(
 	private val source: DataSource<out IntegerType<*>, *>,
 	private val selectedIds: SelectedIds,
 	private val assignment: FragmentSegmentAssignment,
-	private val idService: IdService
+	private val idService: IdService,
+	private val lockedSegments: LockedSegments
 ) {
 
 	fun makeActionSets(activeViewer: () -> ViewerPanelFX?): List<ActionSet> {
@@ -38,6 +40,7 @@ class LabelSourceStateMergeDetachHandler(
 				onAction { activeViewer()?.let { mergeFragments(it) } }
 			}
 			KEY_PRESSED(LabelSourceStateKeys.FRAG_SEG_ASSIGNMENT_MERGE_SELECTED) {
+				verify("selected ids are not locked") { selectedIds.activeIdsCopyAsArray.none { isLocked(it) } }
 				onAction { FragmentSegmentAssignment.mergeAllSelected(assignment, selectedIds, idService) }
 			}
 		}
@@ -72,6 +75,8 @@ class LabelSourceStateMergeDetachHandler(
 		synchronized(viewer) {
 			val lastSelection = selectedIds.lastSelection.takeUnless { it == Label.INVALID } ?: return
 			val id = viewer.idAtMouseCoordinates().takeUnless { !Label.isForeground(it) } ?: return
+			if (isLocked(id) || isLocked(lastSelection))
+				return
 
 			LOG.debug { "Merging fragments: $id -- last selection: $lastSelection" }
 			assignment.getMergeAction(id, lastSelection) { idService.next() }
@@ -85,6 +90,8 @@ class LabelSourceStateMergeDetachHandler(
         synchronized(viewer) {
             val lastSelection = selectedIds.lastSelection.takeUnless { it == Label.INVALID } ?: return
             val labelId = viewer.idAtMouseCoordinates().takeUnless { !Label.isForeground(it) } ?: return
+            if (isLocked(labelId) || isLocked(lastSelection))
+                return
             val detachAction = assignment.getDetachAction(labelId, lastSelection).getOrNull() ?: return
 
             val previousSegment = assignment.getSegment(lastSelection)
@@ -96,6 +103,8 @@ class LabelSourceStateMergeDetachHandler(
             assignment.apply(detachAction)
         }
 	}
+
+	private fun isLocked(fragment: Long) = lockedSegments.isLocked(assignment.getSegment(fragment))
 
 	private fun ViewerPanelFX.idAtMouseCoordinates(): Long {
 		val screenScaleTransform = AffineTransform3D().also {
