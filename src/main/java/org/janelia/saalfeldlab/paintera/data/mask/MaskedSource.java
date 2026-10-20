@@ -97,6 +97,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
+import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
@@ -210,6 +212,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private final BooleanProperty showCanvasOverBackground = new SimpleBooleanProperty(this, "show canvas", true);
 	private final AtomicInteger busyAlertCount = new AtomicInteger();
 
+	private final RandomAccessible<BoolType>[] acceptPaintMasks;
+	private volatile IntFunction<RandomAccessible<BoolType>> acceptPaintMaskFactory = _ -> null;
+	private volatile Supplier<LongPredicate> paintedLabelFilterFactory = () -> null;
+
 	public MaskedSource(
 			final DataSource<D, T> source,
 			final SharedQueue queue,
@@ -286,6 +292,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		this.canvases = new TmpVolatileHelpers.RaiWithInvalidate[source.getNumMipmapLevels()];
 		this.dMasks = new RealRandomAccessible[this.canvases.length];
 		this.tMasks = new RealRandomAccessible[this.canvases.length];
+		this.acceptPaintMasks = new RandomAccessible[this.canvases.length];
 		this.nextCacheDirectory = nextCacheDirectory;
 
 		this.pacD = pacD;
@@ -561,10 +568,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	public void applyMask(
 			final SourceMask mask,
 			final Interval paintedInterval,
-			final Predicate<Long> acceptAsPainted) {
+			final Predicate<Long> callerAcceptAsPainted) {
 
 		if (mask == null || Intervals.isEmpty(Intervals.intersect(mask.getRai(), paintedInterval)))
 			return;
+		final Predicate<Long> acceptAsPainted = withPaintedLabelFilter(callerAcceptAsPainted);
 		final var applyMaskThread = new Thread(() -> {
 			Thread.currentThread().setName("apply mask");
 			synchronized (this) {
@@ -605,6 +613,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						grid,
 						paintedIntervalOverCanvas,
 						acceptAsPainted,
+						acceptPaintMasks[maskInfo.level],
 						paintPool);
 			} finally {
 				paintPool.shutdown();
@@ -678,10 +687,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			final List<Interval> intervals,
 			final DoubleProperty progressBinding,
-			final Predicate<Long> acceptAsPainted) {
+			final Predicate<Long> callerAcceptAsPainted) {
 
 		if (mask == null)
 			return;
+		final Predicate<Long> acceptAsPainted = withPaintedLabelFilter(callerAcceptAsPainted);
 
 		int nThreads = Runtime.getRuntime().availableProcessors();
 		final ExecutorService applyService = Executors.newFixedThreadPool(nThreads, new ThreadFactoryBuilder().setNameFormat("apply-thread-%d").build());
@@ -729,6 +739,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						grid,
 						intervalOverCanvas,
 						acceptAsPainted,
+						acceptPaintMasks[maskInfo.level],
 						paintPixelService);
 
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -808,6 +819,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			this.tMasks[level] = ConstantUtils.constantRealRandomAccessible(
 					new VolatileUnsignedLongType(Label.INVALID),
 					NUM_DIMENSIONS);
+			this.acceptPaintMasks[level] = null;
 		}
 	}
 
@@ -1213,6 +1225,30 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	}
 
 	/**
+	 * Factory of the {@link AcceptPaintMasks} per level, called when a mask is set. null means no mask
+	 */
+	public void setPaintMask(final IntFunction<RandomAccessible<BoolType>> acceptPaintMaskAtLevel) {
+
+		this.acceptPaintMaskFactory = acceptPaintMaskAtLevel;
+	}
+
+	/**
+	 * Supplier of a filter over the painted labels, called at the start of each apply. null means no filter
+	 */
+	public void setPaintedLabelFilter(final Supplier<LongPredicate> paintedLabelFilterFactory) {
+
+		this.paintedLabelFilterFactory = paintedLabelFilterFactory;
+	}
+
+	private Predicate<Long> withPaintedLabelFilter(final Predicate<Long> acceptAsPainted) {
+
+		final LongPredicate filter = this.paintedLabelFilterFactory.get();
+		if (filter == null)
+			return acceptAsPainted;
+		return label -> acceptAsPainted.test(label) && filter.test(label);
+	}
+
+	/**
 	 * Downsample affected blocks of img.
 	 *
 	 * @param source
@@ -1228,6 +1264,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final CellGrid grid,
 			final List<Interval> paintedIntervals,
 			final int[] steps,
+			final RandomAccessible<BoolType> acceptPaintMaskAtTarget,
 			final ExecutorService propagationExecutor) {
 
 		/* img is the (possibly nD) canvas's current 3D slice; write through it, addressed by the carried 3D grid */
@@ -1258,7 +1295,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					final long[] max = new long[intersectedCellMax.length];
 					System.arraycopy(intersectedCellMin, 0, min, 0, min.length);
 					System.arraycopy(intersectedCellMax, 0, max, 0, max.length);
-					final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps)));
+					final var future = propagationExecutor.submit(() -> new Pair<>(blockId, downsample(source, Views.interval(img, min, max), steps, acceptPaintMaskAtTarget)));
 					labelsForBlockFutures.add(future);
 				}
 			}
@@ -1285,7 +1322,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private static <T extends IntegerType<T>> Set<Long> downsample(
 			final RandomAccessible<T> source,
 			final RandomAccessibleInterval<T> target,
-			final int[] steps) {
+			final int[] steps,
+			final RandomAccessible<BoolType> acceptPaintMaskAtTarget) {
 
 		LOG.debug(
 				"Downsampling ({} {}) with steps {}",
@@ -1301,6 +1339,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		final RandomAccess<T> zeroMinSourceRA = zeroMinSource.randomAccess();
 		final RandomAccess<T> zeroMinTargetRA = zeroMinTarget.randomAccess();
+		final RandomAccess<BoolType> zeroMinAcceptRA = acceptPaintMaskAtTarget == null ? null : Views.zeroMin(Views.interval(acceptPaintMaskAtTarget, target)).randomAccess();
 
 		final ReusableIntervalIterator sourceIntervalIterator = new ReusableIntervalIterator(sourceInterval);
 		final long[] sourcePosMin = new long[zeroMinSource.numDimensions()];
@@ -1313,6 +1352,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 		var sourceTileIterable = new IntervalIterable(sourceIntervalIterator);
 		for (long[] targetPos : new IntervalIterable(new LocalizingIntervalIterator(zeroMinTarget))) {
+			if (zeroMinAcceptRA != null && !zeroMinAcceptRA.setPositionAndGet(targetPos).get())
+				continue;
+
 			for (int i = 0; i < sourcePosMin.length; i++) {
 				sourcePosMin[i] = targetPos[i] * steps[i];
 				sourcePosMax[i] = sourcePosMin[i] + steps[i] - 1;
@@ -1472,6 +1514,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				source.getGrid(targetDownsampleLevel),
 				paintedIntervalsAtLevel(paintedBlocksAtPaintedScale, initialPaintLevel, intervalAtPaintedScale, targetDownsampleLevel),
 				steps,
+				acceptPaintMasks[targetDownsampleLevel],
 				propagationExecutor);
 		for (Entry<Long, Set<Long>> entry : blocksModifiedByLabel.entrySet()) {
 			final TLongSet blocks = new TLongHashSet();
@@ -1571,15 +1614,29 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					final RandomAccessibleInterval<RandomAccess<UnsignedLongType>> maskOverInterval = Views.interval(new BundleView<>(Views.raster(higherResMask)), interval);
 					final HashSet<Long> labels = new HashSet<>();
 
-					LoopBuilder.setImages(canvasAtHighResInterval, maskOverInterval)
-							.multiThreaded()
-							.forEachPixel((canvasRa, maskVal) -> {
-								final long maskLabel = maskVal.get().get();
-								if (maskLabel != Label.INVALID) {
-									canvasRa.get().set(maskLabel);
-									labels.add(maskLabel);
-								}
-							});
+					final RandomAccessible<BoolType> acceptPaintMaskAtHighRes = acceptPaintMasks[higherResLevel];
+					if (acceptPaintMaskAtHighRes == null) {
+						LoopBuilder.setImages(canvasAtHighResInterval, maskOverInterval)
+								.multiThreaded()
+								.forEachPixel((canvasRa, maskVal) -> {
+									final long maskLabel = maskVal.get().get();
+									if (maskLabel != Label.INVALID) {
+										canvasRa.get().set(maskLabel);
+										labels.add(maskLabel);
+									}
+								});
+					} else {
+						final RandomAccessibleInterval<RandomAccess<BoolType>> acceptOverInterval = Views.interval(new BundleView<>(acceptPaintMaskAtHighRes), interval);
+						LoopBuilder.setImages(canvasAtHighResInterval, maskOverInterval, acceptOverInterval)
+								.multiThreaded()
+								.forEachPixel((canvasRa, maskVal, acceptVal) -> {
+									final long maskLabel = maskVal.get().get();
+									if (maskLabel != Label.INVALID && acceptVal.get().get()) {
+										canvasRa.get().set(maskLabel);
+										labels.add(maskLabel);
+									}
+								});
+					}
 					final long canvasBlockId = xyzToSourceBlock(blockId, higherResLevel);
 					synchronized (affectedBlocksByLabel) {
 						for (Long modifiedLabel : labels) {
@@ -1701,6 +1758,19 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Predicate<Long> acceptAsPainted,
 			final ExecutorService threadPool) {
 
+		return paintAffectedPixels(relevantBlocks, mask, canvas, grid, paintedInterval, acceptAsPainted, null, threadPool);
+	}
+
+	public static <M extends BooleanType<M>, C extends IntegerType<C>> Map<Long, TLongHashSet> paintAffectedPixels(
+			final TLongSet relevantBlocks,
+			final SourceMask mask,
+			final RandomAccessibleInterval<C> canvas,
+			final CellGrid grid,
+			final Interval paintedInterval,
+			final Predicate<Long> acceptAsPainted,
+			final RandomAccessible<BoolType> acceptPaintMask,
+			final ExecutorService threadPool) {
+
 		final long[] currentMin = new long[grid.numDimensions()];
 		final long[] currentMax = new long[grid.numDimensions()];
 		final long[] gridPosition = new long[grid.numDimensions()];
@@ -1732,7 +1802,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Future<BlockLabels> job = threadPool.submit(() -> {
 				LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
 				final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
-				final Set<Long> labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+				final Set<Long> labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted, acceptPaintMask);
 				return new BlockLabels(blockId, labelsForBlock);
 			});
 			jobs.add(job);
@@ -2038,6 +2108,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setAtMaskLevel(store, vstore, maskLevel, isPaintedForeground);
 		LOG.debug("Created mask at scale level {}", maskLevel);
 		setMaskScaleLevels(maskLevel);
+		setAcceptPaintMasks();
 	}
 
 	private void setMasks(
@@ -2049,6 +2120,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setAtMaskLevel(mask, vmask, maskLevel, acceptMask);
 		LOG.debug("Created mask at scale level {}", maskLevel);
 		setMaskScaleLevels(maskLevel);
+		setAcceptPaintMasks();
+	}
+
+	private void setAcceptPaintMasks() {
+
+		final IntFunction<RandomAccessible<BoolType>> factory = this.acceptPaintMaskFactory;
+		for (int level = 0; level < getNumMipmapLevels(); ++level)
+			this.acceptPaintMasks[level] = factory.apply(level);
 	}
 
 	private void setMaskScaleLevels(final int maskLevel) {

@@ -60,6 +60,9 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource
+import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskConfig
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks.rejectLockedLabels
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
@@ -112,7 +115,28 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-	val lockedSegments = LockedSegmentsOnlyLocal({})
+	val paintMaskConfig = PaintMaskConfig(fragmentSegmentAssignment)
+
+	val lockedSegments = LockedSegmentsOnlyLocal({}).also { locked ->
+		@Suppress("UNCHECKED_CAST")
+		(source as? MaskedSource<D, T>)?.let { maskedSource ->
+			val isLocked = LongPredicate { fragment -> locked.isLocked(fragmentSegmentAssignment.getSegment(fragment)) }
+			val hasLockedLabels = { locked.lockedSegmentsCopy().isNotEmpty() }
+
+            /* this stops masked values from being applied to the canvas*/
+			maskedSource.setPaintMask { level ->
+				val rejectLockedIDs = rejectLockedLabels(isLocked).takeIf { !paintMaskConfig.paintOverLockedLabelsProperty.get() && hasLockedLabels() }
+				val segmentMask = paintMaskConfig.segmentMask()
+				val acceptPredicates = listOfNotNull(rejectLockedIDs, segmentMask)
+				val canvas = maskedSource.getReadOnlyDataCanvas(0, level)
+				val background = maskedSource.getReadOnlyDataBackground(0, level)
+				AcceptPaintMasks.compose(canvas, background, acceptPredicates)
+			}
+
+			/* this stops a given labe from being painted, based on some predicate */
+			maskedSource.setPaintedLabelFilter { rejectLockedLabels(isLocked).takeIf { hasLockedLabels() } }
+		}
+	}
 
 	val selectedIds = SelectedIds()
 

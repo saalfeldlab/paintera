@@ -1,10 +1,12 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
@@ -14,6 +16,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.util.n5.SpatialMapping;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -96,20 +99,47 @@ public class SourceMask implements Mask {
 			final RandomAccessibleInterval<C> canvas,
 			final Predicate<Long> acceptAsPainted) {
 
+		return applyMaskToCanvas(canvas, acceptAsPainted, null);
+	}
+
+	/**
+	 * @param acceptPaintMask {@link AcceptPaintMasks} that is true where the canvas may be written; null accepts everywhere
+	 */
+	public <C extends IntegerType<C>> Set<Long> applyMaskToCanvas(
+			final RandomAccessibleInterval<C> canvas,
+			final Predicate<Long> acceptAsPainted,
+			final RandomAccessible<BoolType> acceptPaintMask) {
+
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(Views.extendValue(getRai(), Label.INVALID), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
-		final var labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
-			final HashSet<Long> labelsForChunk = new HashSet<>();
-			chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
-				final long label = maskVal.getIntegerLong();
-				if (acceptAsPainted.test(label)) {
-					bundledCanvasVal.get().setInteger(label);
-					labelsForChunk.add(label);
-				}
+		final List<HashSet<Long>> labels;
+		if (acceptPaintMask == null) {
+			labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
+				final HashSet<Long> labelsForChunk = new HashSet<>();
+				chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
+					final long label = maskVal.getIntegerLong();
+					if (acceptAsPainted.test(label)) {
+						bundledCanvasVal.get().setInteger(label);
+						labelsForChunk.add(label);
+					}
+				});
+				return labelsForChunk;
 			});
-			return labelsForChunk;
-		});
+		} else {
+			final IntervalView<RandomAccess<BoolType>> bundledAccept = Views.interval(new BundleView<>(acceptPaintMask), canvas);
+			labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas, bundledAccept).multiThreaded().forEachChunk(chunk -> {
+				final HashSet<Long> labelsForChunk = new HashSet<>();
+				chunk.forEachPixel((maskVal, bundledCanvasVal, bundledAcceptVal) -> {
+					final long label = maskVal.getIntegerLong();
+					if (acceptAsPainted.test(label) && bundledAcceptVal.get().get()) {
+						bundledCanvasVal.get().setInteger(label);
+						labelsForChunk.add(label);
+					}
+				});
+				return labelsForChunk;
+			});
+		}
 		final var allLabels = new HashSet<Long>();
 		for (HashSet<Long> labelSet : labels) {
 			allLabels.addAll(labelSet);

@@ -8,6 +8,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.RealViews
 import net.imglib2.realtransform.Scale3D
 import net.imglib2.type.label.Label
+import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
@@ -347,7 +348,8 @@ class ViewerMask private constructor(
 
     override fun <C : IntegerType<C>> applyMaskToCanvas(
         canvas: RandomAccessibleInterval<C>,
-        acceptAsPainted: Predicate<Long>
+        acceptAsPainted: Predicate<Long>,
+        acceptPaintMask: RandomAccessible<BoolType>?
     ): Set<Long> {
 
         val allPaintedLabels = applyMaskToCanvas(
@@ -357,7 +359,8 @@ class ViewerMask private constructor(
             currentMaskToSourceWithDepthTransform,
             paintDepthFactor,
             depthScale,
-            acceptAsPainted
+            acceptAsPainted,
+            acceptPaintMask
         )
         paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
         return allPaintedLabels
@@ -463,6 +466,12 @@ class ViewerMask private constructor(
             return if (xStart > xEnd) null else xStart to xEnd
         }
 
+        private fun accepts(acceptRA: RandomAccess<BoolType>?, canvasRA: Localizable): Boolean {
+            acceptRA ?: return true
+            acceptRA.setPosition(canvasRA)
+            return acceptRA.get().get()
+        }
+
         fun <C : IntegerType<C>> applyMaskToCanvas(
             canvas: RandomAccessibleInterval<C>,
             viewerImg: RandomAccessibleInterval<UnsignedLongType>,
@@ -470,7 +479,8 @@ class ViewerMask private constructor(
             currentMaskToSourceWithDepthTransform: AffineTransform3D,
             paintDepthFactor: Double,
             depthScale: Double,
-            acceptAsPainted: Predicate<Long>
+            acceptAsPainted: Predicate<Long>,
+            acceptPaintMask: RandomAccessible<BoolType>? = null
         ): Set<Long> {
 
             val extendedViewerImg = Views.extendBorder(viewerImg)
@@ -500,6 +510,7 @@ class ViewerMask private constructor(
             val allPaintedLabels = (minZ..maxZ).toList().parallelStream().map { z ->
                 val canvasRA = canvas.randomAccess()
                 val viewerRA = viewerImgInSourceOverCanvas.randomAccess()
+                val acceptRA = acceptPaintMask?.randomAccess(canvas)
                 val realMinMaskPoint = DoubleArray(3)
                 val realMaxMaskPoint = DoubleArray(3)
                 val minMaskPoint = LongArray(3)
@@ -526,8 +537,10 @@ class ViewerMask private constructor(
                         if (centerZ.absoluteValue <= zLimit) {
                             val paintVal = viewerRA.get().get()
                             if (acceptAsPainted.test(paintVal) && centerZ.absoluteValue < minDistInMask) {
-                                canvasRA.get().setInteger(paintVal)
-                                paintedLabelSet += paintVal
+                                if (accepts(acceptRA, canvasRA)) {
+                                    canvasRA.get().setInteger(paintVal)
+                                    paintedLabelSet += paintVal
+                                }
                             } else {
                                 realMinMaskPoint[0] = p0 + MIN_CORNER_OFFSET[0]
                                 realMinMaskPoint[1] = p1 + MIN_CORNER_OFFSET[1]
@@ -559,8 +572,10 @@ class ViewerMask private constructor(
                                             val maskPixelInterval = FinalRealInterval(canvasMinPositionInMask, canvasMaxPositionInMask, false)
                                             val canvasInterval = maskToSourceWithDepth.estimateBounds(maskPixelInterval)
                                             if (!Intervals.isEmpty(Intervals.intersect(realIntervalOverSource, canvasInterval))) {
-                                                canvasRA.get().setInteger(maskId)
-                                                paintedLabelSet += maskId
+                                                if (accepts(acceptRA, canvasRA)) {
+                                                    canvasRA.get().setInteger(maskId)
+                                                    paintedLabelSet += maskId
+                                                }
                                                 break
                                             }
                                         }
