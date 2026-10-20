@@ -263,7 +263,12 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : MaskedSourceActionState<S, D, T>
 		where D : IntegerType<D>, T : RealType<T>, T : Volatile<D> {
 
-	val paintSelection get() = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
+	val paintSelection
+		get() = {
+			selectedIds.lastSelection.takeIf {
+				Label.regular(it) && !sourceState.lockedSegments.isLocked(sourceState.fragmentSegmentAssignment.getSegment(it))
+			}
+		}
 	val brushProperties get() = sourceState.brushProperties
 
 	/**

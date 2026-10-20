@@ -72,7 +72,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			currentLabelToPaintAtomic.setRelease(value)
 			updateStatus()
 		}
-	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
+	private val isLabelValid get() = currentLabelToPaint != Label.INVALID && statePaintContext?.isLocked(currentLabelToPaint) != true
 
 	val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
 		it.first?.let { viewer ->
@@ -134,6 +134,11 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 	private val selectedIdListener: (obs: Observable) -> Unit = {
 		statePaintContext?.selectedIds?.lastSelection?.let { setCurrentLabel(it) }
+		InvokeOnJavaFXApplicationThread { paint2D.setOverlayValidState() }
+	}
+
+	private val lockedSegmentsListener: (obs: Observable) -> Unit = {
+		InvokeOnJavaFXApplicationThread { paint2D.setOverlayValidState() }
 	}
 
 	override fun activate() {
@@ -141,6 +146,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		setCurrentLabel()
 		paint2D.setOverlayValidState()
 		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
+		statePaintContext?.lockedSegments?.addListener(lockedSegmentsListener)
 		activeViewerProperty.get()?.viewer()?.scene?.addEventFilter(KEY_PRESSED, filterSpaceHeldDown)
 		paint2D.apply {
 			activeViewer?.apply {
@@ -153,13 +159,19 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	override fun deactivate() {
 		paintClickOrDrag?.apply { busySubmitPaint() }
 		paint2D.setBrushOverlayVisible(false)
+		statePaintContext?.lockedSegments?.removeListener(lockedSegmentsListener)
 		activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
 		setCurrentLabel(Label.INVALID)
 		super.deactivate()
 	}
 
 	private fun PaintActions2D.setOverlayValidState() {
-		setBrushOverlayValid(isLabelValid, if (isLabelValid) null else "No Id Selected")
+		val reason = when {
+			isLabelValid -> null
+			currentLabelToPaint == Label.INVALID -> "No Id Selected"
+			else -> "Id is locked"
+		}
+		setBrushOverlayValid(isLabelValid, reason)
 	}
 
 	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {

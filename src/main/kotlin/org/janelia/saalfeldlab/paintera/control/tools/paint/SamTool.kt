@@ -130,7 +130,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 	override val keyTrigger = SEGMENT_ANYTHING__TOGGLE_MODE
 
 	internal var currentLabelToPaint: Long = Label.INVALID
-	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
+	private val isLabelValid get() = currentLabelToPaint != Label.INVALID && statePaintContext?.isLocked(currentLabelToPaint) != true
 
 	private val primaryClickLabelProperty = SimpleObjectProperty<SamPointLabel>(null)
 	private var primaryClickLabel: SamPointLabel? by primaryClickLabelProperty.nullable()
