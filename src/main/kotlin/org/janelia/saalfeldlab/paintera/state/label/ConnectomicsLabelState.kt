@@ -615,6 +615,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		const val CONVERTER_ACTIVE_FRAGMENT_ALPHA = "activeFragmentAlpha"
 		const val CONVERTER_ACTIVE_SEGMENT_ALPHA  = "activeSegmentAlpha"
 		const val BACKGROUND_ID_VISIBLE           = "backgroundIdVisible"
+		const val CONVERTER_HIDE_LOCKED_SEGMENTS  = "hideLockedSegments"
+		const val CONVERTER_COLOR_FROM_SEGMENT_ID = "colorFromSegmentId"
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
@@ -644,6 +646,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						m.addProperty(CONVERTER_ACTIVE_FRAGMENT_ALPHA, activeFragmentAlphaProperty().get())
 						m.addProperty(CONVERTER_ACTIVE_SEGMENT_ALPHA, activeSegmentAlphaProperty().get())
 						if (stream.overrideAlpha.get(Label.BACKGROUND) != null) m.addProperty(BACKGROUND_ID_VISIBLE, false)
+						m.addProperty(CONVERTER_HIDE_LOCKED_SEGMENTS, hideLockedSegmentsProperty().get())
+						m.addProperty(CONVERTER_COLOR_FROM_SEGMENT_ID, colorFromSegmentIdProperty().get())
 
 						userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
 						/* the background id is persisted via BACKGROUND_ID_VISIBLE, not here */
@@ -737,6 +741,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 									get<Int>(CONVERTER_ACTIVE_FRAGMENT_ALPHA) { alpha -> state.converter.activeFragmentAlphaProperty().value = alpha }
 									get<Int>(CONVERTER_ACTIVE_SEGMENT_ALPHA) { alpha -> state.converter.activeSegmentAlphaProperty().value = alpha }
 									if (get<Boolean>(BACKGROUND_ID_VISIBLE) == false) stream.overrideAlpha.put(Label.BACKGROUND, 0)
+									get<Boolean>(CONVERTER_HIDE_LOCKED_SEGMENTS) { hide -> state.converter.hideLockedSegmentsProperty().value = hide }
+									get<Boolean>(CONVERTER_COLOR_FROM_SEGMENT_ID) { fromSegment -> state.converter.colorFromSegmentIdProperty().value = fromSegment }
 								}
 							}
 
