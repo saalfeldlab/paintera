@@ -53,12 +53,13 @@ class ToolBarConfigSerializer : PainteraSerialization.PainteraAdapter<ToolBarCon
 		context: JsonSerializationContext?,
 	) = if (src.isDefault()) JsonNull.INSTANCE else JsonObject().apply {
 		addProperty(IS_VISIBLE_KEY, src.isVisible)
+		addProperty(MODE_KEY, src.mode.name)
 	}
 
 	override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): ToolBarConfig {
 		json ?: return ToolBarConfig()
 		val config = ToolBarConfig().apply {
-			json.get<String>(IS_VISIBLE_KEY)?.let { isVisible = it.toBoolean() }
+			json.get<Boolean>(IS_VISIBLE_KEY)?.let { isVisible = it }
 			json.get<String>(MODE_KEY)?.runCatching { mode = ToolBarConfig.Mode.valueOf(this) }
 		}
 		return config
