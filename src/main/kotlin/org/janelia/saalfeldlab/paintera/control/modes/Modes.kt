@@ -53,6 +53,7 @@ interface ControlMode {
 	val allowedActions: AllowedActions
 	val statusProperty: StringProperty
 
+	val modeSettings: ObservableList<ModeSetting>
 	companion object {
 		internal val keyAndMouseBindings = KeyAndMouseBindings(PainteraBaseKeys.namedCombinationsCopy())
 	}
@@ -408,6 +409,7 @@ interface ToolMode : SourceMode {
 }
 
 abstract class AbstractSourceMode : SourceMode {
+	final override val modeSettings: ObservableList<ModeSetting> = FXCollections.observableArrayList()
 	final override val activeSourceStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
 	final override val activeViewerProperty = SimpleObjectProperty<ViewerAndTransforms?>()
 

@@ -61,6 +61,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource
 import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskConfig
+import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskModel
 import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks
 import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks.rejectLockedLabels
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -115,7 +116,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-	val paintMaskConfig = PaintMaskConfig(fragmentSegmentAssignment)
+	private val paintMaskConfig = PaintMaskConfig()
+
+	internal val paintMaskModel = PaintMaskModel(paintMaskConfig, fragmentSegmentAssignment) { selectedSegments.selectedSegmentsCopyAsArray }
 
 	val lockedSegments = LockedSegmentsOnlyLocal({}).also { locked ->
 		@Suppress("UNCHECKED_CAST")
@@ -125,8 +128,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
             /* this stops masked values from being applied to the canvas*/
 			maskedSource.setPaintMask { level ->
-				val rejectLockedIDs = rejectLockedLabels(isLocked).takeIf { !paintMaskConfig.paintOverLockedLabelsProperty.get() && hasLockedLabels() }
-				val segmentMask = paintMaskConfig.segmentMask()
+				val rejectLockedIDs = rejectLockedLabels(isLocked).takeIf { !paintMaskModel.paintOverLockedLabelsProperty.get() && hasLockedLabels() }
+				val segmentMask = paintMaskModel.segmentMask()
 				val acceptPredicates = listOfNotNull(rejectLockedIDs, segmentMask)
 				val canvas = maskedSource.getReadOnlyDataCanvas(0, level)
 				val background = maskedSource.getReadOnlyDataBackground(0, level)
@@ -618,6 +621,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
+        const val PAINT_MASK                      = "paintMask"
 		//@formatter:on
 	}
 
@@ -659,6 +663,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
+				state.paintMaskConfig.takeUnless { it.isDefault() }?.let { map.add(PAINT_MASK, context[it]) }
 			}
 			return map
 		}
@@ -740,6 +745,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 							isVisible = context[json, IS_VISIBLE]!!
 							context.get<LongArray>(json, SELECTED_IDS) { selectedIds.activate(*it) }
 							context.get<ManagedMeshSettings<*>>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it as ManagedMeshSettings<Long>) }
+							context.get<PaintMaskConfig>(json, PAINT_MASK) { paintMaskConfig.copyFrom(it) }
 							context.get<LongArray>(json, LOCKED_SEGMENTS)?.forEach {
 								lockedSegments.lock(it)
 							}

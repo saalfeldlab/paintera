@@ -28,6 +28,8 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
+import org.janelia.saalfeldlab.paintera.control.actions.state.PaintContextActionState
+import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskUI
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
@@ -43,6 +45,11 @@ open class PaintLabelMode : ViewLabelMode() {
 	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext<Nothing, Nothing>(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
+	private val paintContextBinding = activeSourceStateProperty.createNullableValueBinding {
+        (it as? ConnectomicsLabelState<Nothing, Nothing>)?.let { labelState ->
+                PaintContextActionState.FromState(labelState) as PaintContextActionState<*, *, *>
+            }
+    }
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
 	private val samTool = SamTool(activeSourceStateProperty, this)
 	private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
@@ -60,6 +67,9 @@ open class PaintLabelMode : ViewLabelMode() {
 		)
 	}
 
+	init {
+		modeSettings += PaintMaskUI(paintContextBinding.map { context -> context?.paintMaskModel })
+	}
 	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			*super.activeViewerActions.toTypedArray(),
