@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import java.util.function.BiFunction
@@ -107,5 +108,36 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
 			return buttonType?.getOrNull()
 		}
 
-	}
+        /**
+         * For operations that act on the committed data, ensure that any uncommited work is committed prior to the action.
+         * Prompt the user to commit the canvas is necessary, otherwise signal to cancel the operation this gates.
+         *
+         * @param sourceState the source state to commit
+         * @param headerText the header text
+         * @param cancelButtonText the cancel button text
+         * @param okButtonText the ok button text
+         * @return `true` if nothing to commit, or if commit succeeded, `false` otherwise
+         */
+        internal fun commitCanvasOrCancel(
+            sourceState: ConnectomicsLabelState<*, *>,
+            headerText: (Int, String) -> String,
+            cancelButtonText: String,
+            okButtonText: String,
+        ): Boolean {
+            if ((sourceState.dataSource as? MaskedSource<*, *>)?.affectedBlocks?.isNotEmpty() != true)
+                return true
+
+            val committed = showCommitDialog(
+                sourceState,
+                paintera.baseView.sourceInfo().indexOf(sourceState.dataSource),
+                false,
+                headerText,
+                true,
+                cancelButtonText,
+                okButtonText,
+                fragmentSegmentAssignmentState = sourceState.fragmentSegmentAssignment
+            )
+            return committed == ButtonType.OK
+        }
+    }
 }
