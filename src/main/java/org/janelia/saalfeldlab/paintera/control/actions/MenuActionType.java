@@ -25,7 +25,8 @@ public enum MenuActionType implements ActionType {
 	DetachViewer,
 
 	OpenProject,
-	ExportSource;
+	ExportSource,
+	ExportIds;
 
 	public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 

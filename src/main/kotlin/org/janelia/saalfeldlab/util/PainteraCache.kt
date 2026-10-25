@@ -20,7 +20,8 @@ private fun getCachePath(groupKey: String?, cacheKey : String) = Paths.get(Paint
 enum class PainteraCache(groupKey : String?, private val cacheKey : String) {
 	RECENT_PROJECTS(RECENT_CACHE_DIR, "projects"),
 	RECENT_CONTAINERS(RECENT_CACHE_DIR, "containers"),
-	RECENT_EXPORT_LOCATIONS(RECENT_CACHE_DIR, "export_containers");
+	RECENT_EXPORT_LOCATIONS(RECENT_CACHE_DIR, "export_containers"),
+	RECENT_METRICS_EXPORT_DIRECTORIES(RECENT_CACHE_DIR, "metrics_export_directories");
 
 	val cachePath: Path = getCachePath(groupKey, cacheKey)
 

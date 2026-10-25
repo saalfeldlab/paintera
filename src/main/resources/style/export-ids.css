@@ -1,0 +1,44 @@
+.export-ids {
+    -fx-padding: 5;
+    -fx-spacing: 10;
+    -fx-pref-width: 520;
+}
+
+.export-ids-options {
+    -fx-spacing: 10;
+}
+
+.export-ids-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 10;
+}
+
+.export-ids-row-label {
+    -fx-min-width: 80;
+}
+
+.export-ids-field {
+    -fx-max-width: infinity;
+}
+
+.export-ids-columns {
+    -fx-alignment: center-left;
+    -fx-spacing: 20;
+}
+
+.export-ids-column-checks {
+    -fx-hgap: 20;
+    -fx-vgap: 5;
+}
+
+.export-ids-location {
+    -fx-spacing: 5;
+}
+
+.export-ids-progress {
+    -fx-spacing: 8;
+}
+
+.export-ids-summary {
+    -fx-spacing: 3;
+}
