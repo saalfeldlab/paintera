@@ -8,8 +8,6 @@ import javafx.geometry.Insets
 import javafx.collections.FXCollections
 import javafx.scene.control.*
 import javafx.scene.effect.InnerShadow
-import javafx.scene.layout.Background
-import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
@@ -128,7 +126,7 @@ class OpenSourceUI(val model: OpenSourceModel) : VBox(10.0), CombinesErrorMessag
 		)
 
 		val statusBar = TextField().apply {
-			background = Background(BackgroundFill(Color.TRANSPARENT, null, null))
+			styleClass += "selectable-label"
 			isEditable = false
 			textProperty().bind(model.statusProperty)
 		}

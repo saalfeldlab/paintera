@@ -426,7 +426,8 @@ class Paintera : Application() {
 			"style/paint.css",
 			"style/raw-source.css",
 			"style/mesh.css",
-			"style/open-source.css"
+			"style/open-source.css",
+			"style/selectable-label.css"
 		)
 
 		private fun registerPainteraStylesheets(styleable: Scene) {
