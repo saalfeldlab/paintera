@@ -29,7 +29,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.state.PaintContextActionState
-import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskUI
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskUI
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
@@ -68,7 +68,7 @@ open class PaintLabelMode : ViewLabelMode() {
 	}
 
 	init {
-		modeSettings += PaintMaskUI(paintContextBinding.map { context -> context?.paintMaskModel })
+		modeSettings += LabelMaskUI(paintContextBinding.map { context -> context?.labelMaskModel })
 	}
 	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(

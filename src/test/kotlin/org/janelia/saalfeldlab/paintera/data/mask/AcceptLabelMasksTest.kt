@@ -13,14 +13,14 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
-import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks.rejectLockedLabels
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks.rejectLockedLabels
 import org.junit.jupiter.api.Test
 import java.util.concurrent.Executors
 import java.util.function.LongPredicate
 import kotlin.test.assertEquals
 
 /** Mask over a paint operation that accepts or rejects modifications to the underlying data */
-class AcceptPaintMasksTest {
+class AcceptLabelMasksTest {
 
 	private val dimensions = longArrayOf(32, 8, 1)
 	private val grid = CellGrid(dimensions, intArrayOf(8, 8, 1))
@@ -43,7 +43,7 @@ class AcceptPaintMasksTest {
 	private fun unpaintedCanvas(): ArrayImg<UnsignedLongType, *> = ArrayImgs.unsignedLongs(*dimensions).also { img -> img.forEach { it.set(Label.INVALID) } }
 
 	private fun paintedStripes(
-		acceptPaintMask: RandomAccessible<BoolType>?,
+		acceptLabelMask: RandomAccessible<BoolType>?,
 		canvas: ArrayImg<UnsignedLongType, *> = unpaintedCanvas(),
 	): Set<Int> {
 		val maskRai = ArrayImgs.unsignedLongs(*dimensions).apply { forEach { it.set(painted) } }
@@ -51,7 +51,7 @@ class AcceptPaintMasksTest {
 		val blocks = TLongHashSet().apply { for (block in 0 until numBlocks) add(block.toLong()) }
 		val pool = Executors.newFixedThreadPool(4)
 		try {
-			MaskedSource.paintAffectedPixels(blocks, mask, canvas, grid, interval, { it == painted }, acceptPaintMask, pool)
+			MaskedSource.paintAffectedPixels(blocks, mask, canvas, grid, interval, { it == painted }, acceptLabelMask, pool)
 		} finally {
 			pool.shutdown()
 		}
@@ -66,8 +66,8 @@ class AcceptPaintMasksTest {
 		return stripes
 	}
 
-    private fun accept(maskLockedIds: LongPredicate? = null, segmentMask: AcceptPaintMasks.SegmentMask? = null) =
-        AcceptPaintMasks.compose(unpaintedCanvas(), background(), listOfNotNull(maskLockedIds?.let(::rejectLockedLabels), segmentMask))
+    private fun accept(maskLockedIds: LongPredicate? = null, segmentMask: AcceptLabelMasks.SegmentMask? = null) =
+        AcceptLabelMasks.compose(unpaintedCanvas(), background(), listOfNotNull(maskLockedIds?.let(::rejectLockedLabels), segmentMask))
 
 	/* SelectedSegments only computes its segments on a change, so the ids are activated after it exists */
 	private fun selectedSegments(vararg labels: Long, assignment: FragmentSegmentAssignmentOnlyLocal = newAssignment()): SelectedSegments {
@@ -100,34 +100,34 @@ class AcceptPaintMasksTest {
 				1 -> type.set(5)
 			}
 		}
-		val mask = AcceptPaintMasks.compose(canvas, background(), listOf(rejectLockedLabels { it == 5L }))
+		val mask = AcceptLabelMasks.compose(canvas, background(), listOf(rejectLockedLabels { it == 5L }))
 		assertEquals(setOf(0, 2, 3), paintedStripes(mask, canvas))
 	}
 
 	@Test
 	fun `whitelist paints only the listed labels`() {
-		assertEquals(setOf(1), paintedStripes(accept(segmentMask = AcceptPaintMasks.SegmentMask.Whitelist(selectedSegments(6)))))
+		assertEquals(setOf(1), paintedStripes(accept(segmentMask = AcceptLabelMasks.SegmentMask.Whitelist(selectedSegments(6)))))
 	}
 
 	@Test
 	fun `whitelisting background paints only unlabeled voxels`() {
-		assertEquals(setOf(3), paintedStripes(accept(segmentMask = AcceptPaintMasks.SegmentMask.Whitelist(selectedSegments(Label.BACKGROUND)))))
+		assertEquals(setOf(3), paintedStripes(accept(segmentMask = AcceptLabelMasks.SegmentMask.Whitelist(selectedSegments(Label.BACKGROUND)))))
 	}
 
 	@Test
 	fun `blacklist paints everything but the listed labels`() {
-		assertEquals(setOf(0, 2, 3), paintedStripes(accept(segmentMask = AcceptPaintMasks.SegmentMask.Blacklist(selectedSegments(6)))))
+		assertEquals(setOf(0, 2, 3), paintedStripes(accept(segmentMask = AcceptLabelMasks.SegmentMask.Blacklist(selectedSegments(6)))))
 	}
 
 	@Test
 	fun `lock with a blacklist rejects what either rejects`() {
-		val mask = accept(maskLockedIds = { it == 5L }, segmentMask = AcceptPaintMasks.SegmentMask.Blacklist(selectedSegments(6)))
+		val mask = accept(maskLockedIds = { it == 5L }, segmentMask = AcceptLabelMasks.SegmentMask.Blacklist(selectedSegments(6)))
 		assertEquals(setOf(2, 3), paintedStripes(mask))
 	}
 
 	@Test
 	fun `lock with a whitelist rejects a whitelisted label that is locked`() {
-		val mask = accept(maskLockedIds = { it == 6L }, segmentMask = AcceptPaintMasks.SegmentMask.Whitelist(selectedSegments(5, 6)))
+		val mask = accept(maskLockedIds = { it == 6L }, segmentMask = AcceptLabelMasks.SegmentMask.Whitelist(selectedSegments(5, 6)))
 		assertEquals(setOf(0), paintedStripes(mask))
 	}
 
@@ -137,10 +137,10 @@ class AcceptPaintMasksTest {
 		/* fragments 6 and 7 are one segment, 100 */
 		assignment.apply(Merge(6, 7, 100))
 
-		val whitelisted = accept(segmentMask = AcceptPaintMasks.SegmentMask.Whitelist(selectedSegments(100, assignment = assignment)))
+		val whitelisted = accept(segmentMask = AcceptLabelMasks.SegmentMask.Whitelist(selectedSegments(100, assignment = assignment)))
 		assertEquals(setOf(1, 2), paintedStripes(whitelisted))
 
-		val listedByFragment = accept(segmentMask = AcceptPaintMasks.SegmentMask.Blacklist(selectedSegments(6, assignment = assignment)))
+		val listedByFragment = accept(segmentMask = AcceptLabelMasks.SegmentMask.Blacklist(selectedSegments(6, assignment = assignment)))
 		assertEquals(setOf(0, 3), paintedStripes(listedByFragment))
 	}
 

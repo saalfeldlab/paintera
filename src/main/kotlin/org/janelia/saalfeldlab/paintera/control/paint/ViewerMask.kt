@@ -349,7 +349,7 @@ class ViewerMask private constructor(
     override fun <C : IntegerType<C>> applyMaskToCanvas(
         canvas: RandomAccessibleInterval<C>,
         acceptAsPainted: Predicate<Long>,
-        acceptPaintMask: RandomAccessible<BoolType>?
+        acceptOverSourceMask: RandomAccessible<BoolType>?
     ): Set<Long> {
 
         val allPaintedLabels = applyMaskToCanvas(
@@ -360,7 +360,7 @@ class ViewerMask private constructor(
             paintDepthFactor,
             depthScale,
             acceptAsPainted,
-            acceptPaintMask
+            acceptOverSourceMask
         )
         paintera.baseView.orthogonalViews().requestRepaint(sourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
         return allPaintedLabels
@@ -480,7 +480,7 @@ class ViewerMask private constructor(
             paintDepthFactor: Double,
             depthScale: Double,
             acceptAsPainted: Predicate<Long>,
-            acceptPaintMask: RandomAccessible<BoolType>? = null
+            acceptLabelMask: RandomAccessible<BoolType>? = null
         ): Set<Long> {
 
             val extendedViewerImg = Views.extendBorder(viewerImg)
@@ -510,7 +510,7 @@ class ViewerMask private constructor(
             val allPaintedLabels = (minZ..maxZ).toList().parallelStream().map { z ->
                 val canvasRA = canvas.randomAccess()
                 val viewerRA = viewerImgInSourceOverCanvas.randomAccess()
-                val acceptRA = acceptPaintMask?.randomAccess(canvas)
+                val acceptRA = acceptLabelMask?.randomAccess(canvas)
                 val realMinMaskPoint = DoubleArray(3)
                 val realMaxMaskPoint = DoubleArray(3)
                 val minMaskPoint = LongArray(3)

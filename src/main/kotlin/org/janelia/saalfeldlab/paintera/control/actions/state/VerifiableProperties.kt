@@ -270,7 +270,7 @@ interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : Mask
 			}
 		}
 	val brushProperties get() = sourceState.brushProperties
-	val paintMaskModel get() = sourceState.paintMaskModel
+	val labelMaskModel get() = sourceState.labelMaskModel
 
 	/**
 	 * PaintContextActionSTate from the current active mode

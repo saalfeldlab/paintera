@@ -335,6 +335,18 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Shift` + `F` + left click | 3D Flood-fill in with the active label id                     |
 | `ESc`                      | Cancel running flood fill operation, if possible              |
 
+#### Label Mask
+
+When a paintable label source is active, the bottom right of the panel will contain a "Mode Configuration" panel 
+with a "Label Mask" setting.
+
+The "Label Mask" restricts which existing labels can be modified/painted/annotated in any way
+- Paint over Locked Labels
+    - By default locked labels are not modifiable. If this is toggled on, it will allow modifying locked labels
+- Segment Filter
+    - `Whitelist`: Only accept modification to whitelisted IDs
+    - `Blacklist`: Reject any modification to blacklisted IDs
+
 #### Shape Interpolation mode
 - The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
 
@@ -382,6 +394,23 @@ See [Technical Notes](#)
 | `Left Click Drag`      | Create box prompt for automatic segmentation                          |
 | `Ctrl+Scroll`          | Increase or decrease the prediction threshold to use for segmentation |
 
+___
+### Metrics
+
+#### Export IDs
+
+Export label metrics for a data source to a CSV file.
+Note that some export metrics will only be possible for Paintera style label sources, and label-multiset datasets.
+
+- If the data source has a virtual crop, the export can respect the crop, or use the full image
+- Optional Columns
+    - fragment id, segment id, locked, voxel count
+- Sort by ID or Count
+
+The exported CSV file has a few `#` commented rows at the top starting with metadata relevant to the export
+- Source path, dataset, export volume, timestamp
+
+___
 ## Supported Data
 
 Paintera supports single and multi-channel raw data and label data from N5, Zarr, and HDF5 data, stored locally and on AWS or Google Cloud storage.

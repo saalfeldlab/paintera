@@ -103,18 +103,18 @@ public class SourceMask implements Mask {
 	}
 
 	/**
-	 * @param acceptPaintMask {@link AcceptPaintMasks} that is true where the canvas may be written; null accepts everywhere
+	 * @param acceptOverSourceMask {@link AcceptLabelMasks} that is true where the canvas may be written; null accepts everywhere
 	 */
 	public <C extends IntegerType<C>> Set<Long> applyMaskToCanvas(
 			final RandomAccessibleInterval<C> canvas,
 			final Predicate<Long> acceptAsPainted,
-			final RandomAccessible<BoolType> acceptPaintMask) {
+			final RandomAccessible<BoolType> acceptOverSourceMask) {
 
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(Views.extendValue(getRai(), Label.INVALID), canvas);
 		final IntervalView<RandomAccess<C>> bundledCanvas = Views.interval(new BundleView<>(canvas), canvas);
 
 		final List<HashSet<Long>> labels;
-		if (acceptPaintMask == null) {
+		if (acceptOverSourceMask == null) {
 			labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas).multiThreaded().forEachChunk(chunk -> {
 				final HashSet<Long> labelsForChunk = new HashSet<>();
 				chunk.forEachPixel((maskVal, bundledCanvasVal) -> {
@@ -127,7 +127,7 @@ public class SourceMask implements Mask {
 				return labelsForChunk;
 			});
 		} else {
-			final IntervalView<RandomAccess<BoolType>> bundledAccept = Views.interval(new BundleView<>(acceptPaintMask), canvas);
+			final IntervalView<RandomAccess<BoolType>> bundledAccept = Views.interval(new BundleView<>(acceptOverSourceMask), canvas);
 			labels = LoopBuilder.setImages(maskOverCanvas, bundledCanvas, bundledAccept).multiThreaded().forEachChunk(chunk -> {
 				final HashSet<Long> labelsForChunk = new HashSet<>();
 				chunk.forEachPixel((maskVal, bundledCanvasVal, bundledAcceptVal) -> {

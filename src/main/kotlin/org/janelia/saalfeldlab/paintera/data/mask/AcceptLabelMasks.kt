@@ -6,7 +6,6 @@ import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.util.convertWith
 import java.util.function.LongPredicate
@@ -14,7 +13,7 @@ import java.util.function.LongPredicate
 /**
  * [RandomAccessible<BoolType>]s that are true where an applied mask can write to the canvas
  */
-object AcceptPaintMasks {
+object AcceptLabelMasks {
 
 	/**
      * Predicate that determines which segments to accept to reject modification to
@@ -23,13 +22,13 @@ object AcceptPaintMasks {
 
 		protected fun matches(label: Long) = selectedSegments.isSegmentSelected(selectedSegments.assignment.getSegment(label))
 
-		/** Allow painting only over labels in the [Whitelist#selectedSegments] */
+		/** Accept label modifications only over labels in the [Whitelist.selectedSegments]*/
 		class Whitelist(selectedSegments: SelectedSegments) : SegmentMask(selectedSegments) {
 
 			override fun test(label: Long) = matches(label)
 		}
 
-        /** Allow painting everywhere except labels in the [Blacklist#selectedSegments] */
+        /** Reject label modification over all labels in [Blacklist.selectedSegments] */
 		class Blacklist(selectedSegments: SelectedSegments) : SegmentMask(selectedSegments) {
 
 			override fun test(label: Long) = !matches(label)

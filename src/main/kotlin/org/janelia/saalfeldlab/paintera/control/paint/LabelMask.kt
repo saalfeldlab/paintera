@@ -14,21 +14,21 @@ import javafx.scene.control.Label
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.modes.ModeSetting
-import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskConfig.SegmentMaskMode
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentMaskMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
-import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks
-import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks.SegmentMask.Blacklist
-import org.janelia.saalfeldlab.paintera.data.mask.AcceptPaintMasks.SegmentMask.Whitelist
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks.SegmentMask.Blacklist
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks.SegmentMask.Whitelist
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.ui.IdListSection
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-/** Binding layer between [PaintMaskConfig], [PaintMaskUI], and the actual PaintMask logic  */
-class PaintMaskModel(
-    config: PaintMaskConfig,
+/** Binding layer between [LabelMaskConfig], [LabelMaskUI], and the actual LabelMask logic  */
+class LabelMaskModel(
+    config: LabelMaskConfig,
     assignment: FragmentSegmentAssignmentState,
     val currentSelection: () -> LongArray,
 ) {
@@ -42,7 +42,7 @@ class PaintMaskModel(
     private val segments = SelectedSegments(ids, assignment)
 
     /** Segment mask for [ids]; null if no filter is set or the list is empty */
-    fun segmentMask(): AcceptPaintMasks.SegmentMask? {
+    fun segmentMask(): AcceptLabelMasks.SegmentMask? {
         if (ids.isEmpty)
             return null
         return when (segmentMaskModeProperty.get()) {
@@ -53,7 +53,7 @@ class PaintMaskModel(
     }
 }
 
-class PaintMaskConfig {
+class LabelMaskConfig {
 
 	enum class SegmentMaskMode(val label: String) {
 		Whitelist("Whitelist"),
@@ -62,12 +62,12 @@ class PaintMaskConfig {
 
 	val paintOverLockedLabelsProperty = SimpleBooleanProperty(false)
 
-	/** Whitelist or blacklist of [ids]; null if neither applies */
+	/** Whitelist or blacklist of [ids], or null if no label label mask */
 	val segmentMaskModeProperty = SimpleObjectProperty<SegmentMaskMode?>(null)
 
 	val ids = SelectedIds()
 
-	fun copyFrom(other: PaintMaskConfig) {
+	fun copyFrom(other: LabelMaskConfig) {
 		paintOverLockedLabelsProperty.set(other.paintOverLockedLabelsProperty.get())
 		segmentMaskModeProperty.set(other.segmentMaskModeProperty.get())
 		ids.activate(*other.ids.activeIdsCopyAsArray)
@@ -76,9 +76,9 @@ class PaintMaskConfig {
 	fun isDefault() = !paintOverLockedLabelsProperty.get() && segmentMaskModeProperty.get() == null && ids.isEmpty
 }
 
-class PaintMaskUI(model: ObservableValue<PaintMaskModel?>) : ModeSetting {
+class LabelMaskUI(model: ObservableValue<LabelMaskModel?>) : ModeSetting {
 
-	override val title = "Paint Mask"
+	override val title = "Label Mask"
 
 	private val paintOverLocked = CheckBox("Paint over Locked Labels")
 	private val segmentMask = IdListSection()
@@ -90,7 +90,7 @@ class PaintMaskUI(model: ObservableValue<PaintMaskModel?>) : ModeSetting {
 		model.subscribe { activeModel -> bind(activeModel) }
 	}
 
-	private fun bind(model: PaintMaskModel?) {
+	private fun bind(model: LabelMaskModel?) {
 		boundPaintOverLocked?.let { paintOverLocked.selectedProperty().unbindBidirectional(it) }
 		boundPaintOverLocked = model?.paintOverLockedLabelsProperty?.also { paintOverLocked.selectedProperty().bindBidirectional(it) }
 		segmentMask.bind(model?.segmentMaskModeProperty, model?.ids, model?.currentSelection ?: { longArrayOf() })
@@ -99,9 +99,9 @@ class PaintMaskUI(model: ObservableValue<PaintMaskModel?>) : ModeSetting {
 }
 
 @Plugin(type = PainteraSerialization.PainteraAdapter::class)
-class PaintMaskConfigSerializer : PainteraSerialization.PainteraAdapter<PaintMaskConfig> {
+class LabelMaskConfigSerializer : PainteraSerialization.PainteraAdapter<LabelMaskConfig> {
 
-    override fun serialize(src: PaintMaskConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+    override fun serialize(src: LabelMaskConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
         if (src.isDefault())
             return JsonNull.INSTANCE
         return JsonObject().apply {
@@ -112,8 +112,8 @@ class PaintMaskConfigSerializer : PainteraSerialization.PainteraAdapter<PaintMas
         }
     }
 
-    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): PaintMaskConfig {
-        val config = PaintMaskConfig()
+    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): LabelMaskConfig {
+        val config = LabelMaskConfig()
         if (!json.isJsonObject)
             return config
         return config.apply {
@@ -125,7 +125,7 @@ class PaintMaskConfigSerializer : PainteraSerialization.PainteraAdapter<PaintMas
         }
     }
 
-    override fun getTargetClass() = PaintMaskConfig::class.java
+    override fun getTargetClass() = LabelMaskConfig::class.java
 
     companion object {
         private const val PAINT_OVER_LOCKED_LABELS_KEY = "paintOverLockedLabels"

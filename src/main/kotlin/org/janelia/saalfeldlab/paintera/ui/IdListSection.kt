@@ -15,7 +15,7 @@ import javafx.util.Subscription
 import net.imglib2.type.label.Label
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.control.paint.PaintMaskConfig.SegmentMaskMode
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentMaskMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 
 internal class IdListSection : VBox(3.0) {
