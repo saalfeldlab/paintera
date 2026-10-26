@@ -19,7 +19,8 @@ import org.janelia.saalfeldlab.util.PainteraCache
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.LongAdder
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -83,10 +84,10 @@ class ExportIdsState(
 			ensureActive()
 			path.parent?.let { Files.createDirectories(it) }
 			val commentLines = listOf(
-				"source: ${N5Helpers.canonicalString(metadataState.reader)}",
+				"source: ${N5Helpers.displayString(metadataState.reader)}",
 				"dataset: ${metadataState.dataset}",
 				"volume: min=${exportRegion.minAsLongArray().contentToString()} max=${exportRegion.maxAsLongArray().contentToString()}",
-				"exported: ${Instant.now()}",
+				"exported: ${OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS)}",
 			)
 			val completed = Files.newBufferedWriter(path).use { writer ->
 				metrics.writeCsv(writer, segmentColumn, fragmentColumn, lockedColumn, countPixels, sortBy, commentLines) { isActive }
