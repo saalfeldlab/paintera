@@ -27,7 +27,7 @@ import org.janelia.saalfeldlab.fx.ui.AnimatedProgressBar
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.PainteraCache
-import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctCanonicalStrings
+import org.janelia.saalfeldlab.util.PainteraCache.Companion.distinctDisplayStrings
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -139,7 +139,7 @@ class ExportIdsUI(private val model: ExportIdsModel) : VBox() {
 			}
 		}
 		val controls = HBox(directoryField, browse).apply { styleClass += "export-ids-location" }
-		val recents = FXCollections.observableArrayList(PainteraCache.RECENT_METRICS_EXPORT_DIRECTORIES.distinctCanonicalStrings())
+		val recents = FXCollections.observableArrayList(PainteraCache.RECENT_METRICS_EXPORT_DIRECTORIES.distinctDisplayStrings())
 		if (directoryField.text.isNullOrBlank())
 			recents.firstOrNull()?.let { directoryField.text = it }
 		controls.children += MatchSelectionMenuButton(recents, "_Recents", null, { removed ->
