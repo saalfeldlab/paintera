@@ -35,6 +35,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 private val LOG = KotlinLogging.logger { }
 
+private const val OVERLAY_TEXT = "Fill 2D"
+
 open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, override val mode: ToolMode? = null) :
 	PaintTool(activeSourceStateProperty, mode) {
 
@@ -105,6 +107,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			painteraActionSet("fill 2d", PaintActionType.Fill) {
 				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
 					name = "fill 2d"
+						verify { fillLabel() != Label.INVALID }
 					keysExclusive = false
 					verifyEventNotNull()
 					onAction {
@@ -195,19 +198,15 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 		fillJob = null
 	}
 
-	private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
+	private inner class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
 
 		val brushDepthProperty = SimpleDoubleProperty().apply { subscribe { _ -> viewer?.display?.drawOverlays() } }
 		private val brushDepth by brushDepthProperty.nonnullVal()
 
 		override val overlayText: String
-			get() = when {
+			get() = paintInvalidReason?.reason ?: when {
 				brushDepth > 1 -> "$OVERLAY_TEXT depth= $brushDepth"
 				else -> OVERLAY_TEXT
 			}
-
-		companion object {
-			private const val OVERLAY_TEXT = "Fill 2D"
-		}
 	}
 }

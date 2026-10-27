@@ -7,6 +7,9 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.Cursor;
 import org.janelia.saalfeldlab.paintera.ui.overlays.BrushOverlay;
 
+import javax.annotation.Nullable;
+import java.util.function.Supplier;
+
 public class PaintActions2D {
 
 	private static final double BRUSH_RADIUS_SCALE_FACTOR = 1.1;
@@ -38,15 +41,10 @@ public class PaintActions2D {
 		this.brushOverlay.setCursor(cursor);
 	}
 
-	public void setBrushOverlayValid(final boolean valid, final String reason) {
+    /// @param getText to show when provided, or `null` to remove overlay text
+	public void setBrushOverlayText(@Nullable final Supplier<String> getText) {
 
-		brushOverlay.setCanPaint(valid);
-		brushOverlay.setReason(reason);
-	}
-
-	public void setBrushOverlayValid(final boolean valid) {
-
-		brushOverlay.setCanPaint(valid);
+		brushOverlay.setTextProvider(getText);
 	}
 
 	public void changeBrushRadius(final double sign) {

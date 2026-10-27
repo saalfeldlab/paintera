@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.setStatus
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.ui.dialogs.invalidPaintSelectionWarning
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.jvm.optionals.getOrNull
@@ -52,6 +53,11 @@ object DilateLabel : MenuAction("_Expand...") {
 	init {
 		verifyPermission(PaintActionType.Dilate, PaintActionType.Erase, PaintActionType.Background, PaintActionType.Fill)
 		onActionWithState<DilateLabelState<*, *>> {
+
+			paintInvalidReason?.let {
+				invalidPaintSelectionWarning(it)
+				return@onActionWithState
+			}
 
 			resetAsyncState()
 			isBusy = false

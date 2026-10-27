@@ -38,18 +38,19 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.invalidPaintSelectionWarning
 
 
 open class PaintLabelMode : ViewLabelMode() {
 
 	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext<Nothing, Nothing>(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
-
 	private val paintContextBinding = activeSourceStateProperty.createNullableValueBinding {
-        (it as? ConnectomicsLabelState<Nothing, Nothing>)?.let { labelState ->
-                PaintContextActionState.FromState(labelState) as PaintContextActionState<*, *, *>
-            }
-    }
+		@Suppress("UNCHECKED_CAST")
+		(it as? ConnectomicsLabelState<Nothing, Nothing>)?.let { labelState -> PaintContextActionState.FromState(labelState) as PaintContextActionState<*, *, *> }
+	}
+	val paintContext by paintContextBinding.nullableVal()
+
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
 	private val samTool = SamTool(activeSourceStateProperty, this)
 	private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
@@ -121,6 +122,11 @@ open class PaintLabelMode : ViewLabelMode() {
 				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
 			}
 			onAction { event ->
+				paintContext?.paintInvalidReason?.let {
+					invalidPaintSelectionWarning(it, activeViewerProperty.get()?.viewer()?.scene?.window)
+					return@onAction
+				}
+
 				val switchModes = {
 					newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let {
 						paintera.baseView.changeMode(it)
@@ -145,6 +151,11 @@ open class PaintLabelMode : ViewLabelMode() {
 				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
 			}
 			onAction {
+				paintContext?.paintInvalidReason?.let {
+					invalidPaintSelectionWarning(it, activeViewerProperty.get()?.viewer()?.scene?.window)
+					return@onAction
+				}
+
 				switchTool(samTool)
 			}
 		}

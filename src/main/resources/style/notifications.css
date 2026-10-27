@@ -1,0 +1,4 @@
+.notification-bar.warning > .pane {
+    -fx-background-color: orange, -fx-inner-border, -fx-body-color;
+    -fx-effect: dropshadow(three-pass-box, orange, 8, 0.4, 0, 0);
+}
