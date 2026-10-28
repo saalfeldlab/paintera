@@ -145,7 +145,7 @@ class LabelMultisetCacheLoader(private val n5: N5Reader, private val dataset: St
 		val n = Intervals.numElements(*cellSize).toInt()
 		val access = bytes
 			?.let { LabelUtils.fromBytes(bytes, n) }
-			?: VolatileHelpers.newEmptyAccess(n, true)
+			?: VolatileLabelMultisetArray(n, true, LongArray(n) { Label.BACKGROUND })
 		return Cell(cellSize, cellMin, access)
 	}
 
