@@ -29,6 +29,8 @@ import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.javafx.asFlow
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
@@ -1097,8 +1099,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private fun startPredictionJob() {
         val maskSource = maskedSource ?: return
-        val overlay = viewerMask?.let { currentViewerMask }
-        val paintMask = overlay?.viewerMask ?: return
+
 
         // clear the last prediction, so errors here aren't hidden by the last successful prediction
         lastPrediction = null
@@ -1107,7 +1108,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             val predictor = getSamPredictor() ?: return@launch
 
-            while (isActive) {
+            /* We need the mask to not be busy before we try and generate a prediction. Wait here if needed */
+	        @OptIn(ExperimentalCoroutinesApi::class)
+	        maskSource.isApplyingMaskProperty().asFlow().first { !it }
+	        val overlay = viewerMask?.let { currentViewerMask }
+	        val paintMask = overlay?.viewerMask ?: return@launch
+
+	        while (isActive) {
 
                 val request = promptChannel.receive()
                 try {
