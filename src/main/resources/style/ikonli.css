@@ -108,3 +108,21 @@
     -icons-color: gray;
     -fx-stroke: -icons-color;
 }
+
+.locked-segment-cell .button.font-icon {
+    -size: 1.5em;
+}
+
+.locked-segment-cell .button.font-icon > .ikonli-font-icon {
+    -fx-icon-size: 1.2em;
+}
+
+.unlock-segment .ikonli-font-icon, .unlock-segment.ikonli-font-icon {
+    -icons-color: -reject;
+    -fx-icon-code: "fas-lock-open";
+}
+
+.go-to-segment .ikonli-font-icon, .go-to-segment.ikonli-font-icon {
+    -icons-color: -help-blue;
+    -fx-icon-code: "fas-external-link-square-alt";
+}

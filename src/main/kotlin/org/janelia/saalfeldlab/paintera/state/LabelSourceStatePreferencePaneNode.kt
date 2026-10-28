@@ -6,6 +6,7 @@ import javafx.application.Platform
 import javafx.beans.Observable
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -38,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -53,15 +55,16 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.kordamp.ikonli.fontawesome.FontAwesome
 import java.text.DecimalFormat
 import java.util.concurrent.atomic.AtomicLong
-import org.janelia.saalfeldlab.labels.Label.Companion as Imglib2Labels
 
 //TODO maybe rename this? Or make it subclass Pane/Node like the name indicates
-class LabelSourceStatePreferencePaneNode(
+class LabelSourceStatePreferencePaneNode @JvmOverloads constructor(
 	private val source: DataSource<*, *>,
 	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
 	private val converter: HighlightingStreamConverter<*>,
 	private val meshManager: MeshManagerWithAssignmentForSegments,
 	private val brushProperties: BrushProperties?,
+	private val lockedSegments: LockedSegmentsState? = null,
+	private val goToSegment: ((Long) -> Unit)? = null,
 ) {
 
 	private val stream = converter.stream
@@ -82,7 +85,7 @@ class LabelSourceStatePreferencePaneNode(
 
 			val nodes = arrayOf(
 				HighlightingStreamConverterConfigNode(converter).node,
-				SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
+				SelectedIdsNode(selectedIds, assignment, selectedSegments, lockedSegments, goToSegment).node,
 				LabelSourceStateMeshPaneNode(source, meshManager, meshInfos).node,
 				assignmentHistory?.let { AssignmentsNode(it) },
 				when (source) {
@@ -98,7 +101,77 @@ class LabelSourceStatePreferencePaneNode(
 		private val selectedIds: SelectedIds?,
 		private val assignment: FragmentSegmentAssignmentState?,
 		private val selectedSegments: SelectedSegments,
+		private val lockedSegments: LockedSegmentsState?,
+		private val goToSegment: ((Long) -> Unit)?,
 	) {
+
+		private inner class LockedSegmentCell : ListCell<Long>() {
+
+			private var segment: Long? = null
+
+			private val unlockButton = Buttons.withTooltip(null, "Unlock segment") {
+				segment?.let { lockedSegments?.unlock(it) }
+			}.apply {
+				addStyleClass(Style.UNLOCK_ICON)
+			}
+
+			private val goToButton = Buttons.withTooltip(null, "Go to segment") {
+				segment?.let { goToSegment?.invoke(it) }
+			}.apply {
+				addStyleClass(Style.GO_TO_ICON)
+				isVisible = goToSegment != null
+				isManaged = goToSegment != null
+			}
+
+			private val idLabel = Label().apply { maxWidth = Double.MAX_VALUE }
+
+			private val row = HBox(5.0, idLabel, goToButton, unlockButton).apply {
+				alignment = Pos.CENTER_LEFT
+				HBox.setHgrow(idLabel, Priority.ALWAYS)
+			}
+
+			init {
+				addStyleClass("locked-segment-cell")
+			}
+
+			override fun updateItem(item: Long?, empty: Boolean) {
+				super.updateItem(item, empty)
+				segment = item.takeUnless { empty }
+				idLabel.text = segment?.toString()
+				graphic = row.takeIf { segment != null }
+			}
+		}
+
+		private fun lockedSegmentsPane(locked: LockedSegmentsState): TitledPane {
+			val items = FXCollections.observableArrayList<Long>()
+			val listView = ListView(items).apply {
+				prefHeight = 150.0
+				setCellFactory { LockedSegmentCell() }
+				setOnMouseClicked { event ->
+					if (event.clickCount == 2)
+						selectionModel.selectedItem?.let { segment ->
+							val fragments = assignment?.getFragments(segment)?.toArray()?.takeIf { it.isNotEmpty() } ?: longArrayOf(segment)
+							selectedIds?.activate(*fragments)
+						}
+				}
+			}
+			return TitledPane("Locked Segments", listView).apply {
+				isExpanded = false
+				val update: (Observable) -> Unit = {
+					val segments = locked.lockedSegmentsCopy().sortedArray().toList()
+					InvokeOnJavaFXApplicationThread {
+						items.setAll(segments)
+						text = "Locked Segments (${segments.size})"
+						isVisible = segments.isNotEmpty()
+						isManaged = segments.isNotEmpty()
+						if (segments.isEmpty())
+							isExpanded = false
+					}
+				}
+				locked.addListener(update)
+				update(locked)
+			}
+		}
 
 		class SelectedSegmentsConverter(val selectedSegments: SelectedSegments) : LabelIdsConverter() {
 
@@ -310,6 +383,7 @@ class LabelSourceStatePreferencePaneNode(
 				grid.add(lastSelectionHelp, 3, 0)
 				grid.add(fragmentSelectionHelp, 3, 1)
 				grid.add(segmentSelectionHelp, 3, 2)
+                lockedSegments?.let { grid.add(lockedSegmentsPane(it), 0, 3, 4, 1) }
 				grid.columnConstraints += ColumnConstraints().also { it.hgrow = Priority.NEVER }
 
 				val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {

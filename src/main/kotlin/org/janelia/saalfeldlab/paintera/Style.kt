@@ -16,7 +16,6 @@ import javafx.scene.layout.Region
 import javafx.scene.text.Font
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.kordamp.ikonli.Ikon
-import org.kordamp.ikonli.fontawesome.FontAwesome
 import org.kordamp.ikonli.javafx.FontIcon
 import java.util.Base64
 import java.util.function.Consumer
@@ -84,7 +83,9 @@ enum class Style(val style: String, vararg classes: String) : StyleGroup by Styl
 	ADD_ICON("add", FONT_ICON),
 	REMOVE_ICON("remove", FONT_ICON),
 	ACCEPT_ICON("accept", FONT_ICON),
-	REJECT_ICON("reject", FONT_ICON, IGNORE_DISABLE);
+	REJECT_ICON("reject", FONT_ICON, IGNORE_DISABLE),
+	UNLOCK_ICON("unlock-segment", FONT_ICON),
+	GO_TO_ICON("go-to-segment", FONT_ICON);
 
 
 
@@ -94,7 +95,7 @@ enum class Style(val style: String, vararg classes: String) : StyleGroup by Styl
 
 	companion object {
 
-		fun fontAwesome(icon : FontAwesome) : StyleGroup {
+		fun fontAwesome(icon : Ikon) : StyleGroup {
 			val name = icon.description.removePrefix("fa-")
 			return StyleGroup.of(name, *FONT_ICON.classes).also {
 				val dynamicCssRule = """

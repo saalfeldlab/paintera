@@ -50,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
+import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -118,8 +119,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	private val labelMaskConfig = LabelMaskConfig()
 
-	internal val labelMaskModel = LabelMaskModel(labelMaskConfig, fragmentSegmentAssignment) { selectedSegments.selectedSegmentsCopyAsArray }
-
 	val lockedSegments = LockedSegmentsOnlyLocal({}).also { locked ->
 		@Suppress("UNCHECKED_CAST")
 		(source as? MaskedSource<D, T>)?.let { maskedSource ->
@@ -144,6 +143,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	val selectedIds = SelectedIds()
 
 	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+
+	internal val labelMaskModel = LabelMaskModel(labelMaskConfig, selectedSegments)
 
 	private val fragmentsInSelectedSegments = selectedSegments.createObservableBinding { FragmentsInSelectedSegments(selectedSegments) }
 
@@ -252,6 +253,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 					showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
 					paintera.baseView.orthogonalViews().requestRepaint()
 				}
+			}
+			KEY_PRESSED(CYCLE_LOCKED_SEGMENTS_STYLE) {
+				onAction { converter.hideLockedSegmentsProperty().apply { value = !value } }
 			}
 			KEY_PRESSED ( ARGB_STREAM__INCREMENT_SEED) {
 				onAction { streamSeedSetter.incrementStreamSeed() }
@@ -388,7 +392,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			compositeProperty(),
 			converter(),
 			meshManager,
-			brushProperties
+			brushProperties,
+			lockedSegments,
+			{ segment: Long -> GoToLabel.goTo(this, segment) }
 		).node.let { it as? VBox ?: VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
