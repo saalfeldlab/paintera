@@ -303,6 +303,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Ctrl` + `A`                         | Select all label ids                                                                                  |
 | `Ctrl` + `Shift` + `A`               | Select all label ids in current view                                                                  |
 | `Shift` + `V`                        | Toggle visibility of not-selected label ids in current source dataset (if dataset is a label source)  |
+| `D`                                  | Cycle the visualization style of locked labels ids in current source dataset (hidden, or visible).    |
 #### Drawing Labels
 | Action                               | Description                                                                                  |
 |--------------------------------------|----------------------------------------------------------------------------------------------|

@@ -29,8 +29,9 @@ import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
 import org.janelia.saalfeldlab.paintera.control.actions.state.PaintContextActionState
-import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskUI
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskSetting
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
+import org.janelia.saalfeldlab.paintera.control.actions.state.InvalidLabelReason
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -68,9 +69,12 @@ open class PaintLabelMode : ViewLabelMode() {
 		)
 	}
 
-	init {
-		modeSettings += LabelMaskUI(paintContextBinding.map { context -> context?.labelMaskModel })
+	override val modeSettings: ObservableList<ModeSetting> by lazy {
+		FXCollections.observableArrayList(
+			LabelMaskSetting.forObservableSourceState(activeSourceStateProperty)
+		)
 	}
+
 	override val activeViewerActions: List<ActionSet> by lazy {
 		listOf(
 			*super.activeViewerActions.toTypedArray(),
@@ -178,6 +182,12 @@ open class PaintLabelMode : ViewLabelMode() {
 	}
 
 	override fun switchTool(tool: Tool?): Job? {
+		//TODO: this probably belong in the Tool activate, as a pre-activate check.
+		if (tool is PaintTool && paintContext?.labelMaskModel?.rejectsAllSegments == true) {
+			/* warn if the paint tool could not paint */
+			invalidPaintSelectionWarning(InvalidLabelReason.LabelMaskEmptyWhitelist, activeViewerProperty.get()?.viewer()?.scene?.window)
+			return null
+		}
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }

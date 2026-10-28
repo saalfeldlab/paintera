@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui
 
 import javafx.beans.InvalidationListener
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.geometry.Pos
@@ -13,16 +14,18 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.util.Subscription
 import net.imglib2.type.label.Label
+import org.controlsfx.control.ToggleSwitch
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentMaskMode
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentFilterMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 
 internal class IdListSection : VBox(3.0) {
 
+	private val enabledSwitch = ToggleSwitch("Segment Filter")
 	private val group = ToggleGroup()
-	private val modeButtons = (listOf<SegmentMaskMode?>(null) + SegmentMaskMode.entries).associateWith { mode ->
-		ToggleButton(mode?.label ?: "None").apply {
+	private val modeButtons = SegmentFilterMode.entries.associateWith { mode ->
+		ToggleButton(mode.label).apply {
 			toggleGroup = group
 			userData = mode
 		}
@@ -36,7 +39,8 @@ internal class IdListSection : VBox(3.0) {
 		HBox.setHgrow(textField, Priority.ALWAYS)
 	}
 
-	private var modeProperty: ObjectProperty<SegmentMaskMode?>? = null
+	private var enabledProperty: BooleanProperty? = null
+	private var modeProperty: ObjectProperty<SegmentFilterMode>? = null
 	private var modeSubscription: Subscription? = null
 	private var ids: SelectedIds? = null
 	private var currentSelection: () -> LongArray = { longArrayOf() }
@@ -52,23 +56,24 @@ internal class IdListSection : VBox(3.0) {
 				MenuItem("Clear").apply { setOnAction { ids?.deactivateAll() } }
 			)
 		}
-		children += HBox(0.0).apply {
+		val modeRow = HBox(0.0).apply {
 			children += modeButtons.values
 			modeButtons.values.forEach {
 				it.maxWidth = Double.MAX_VALUE
 				HBox.setHgrow(it, Priority.ALWAYS)
 			}
 		}
-		children += HBox(5.0, field.textField, presets).apply { alignment = Pos.CENTER_LEFT }
+		val idsRow = HBox(5.0, field.textField, presets).apply { alignment = Pos.CENTER_LEFT }
+		val filterSettings = VBox(3.0, modeRow, idsRow).apply { disableProperty().bind(enabledSwitch.selectedProperty().not()) }
+		children += listOf(enabledSwitch, filterSettings)
 
-		/* one button is always selected; clicking the selected one does not clear it */
 		group.selectedToggleProperty().subscribe { old, new ->
 			if (new == null)
 				old?.let { group.selectToggle(it) }
 			else
-				modeProperty?.set(new.userData as SegmentMaskMode?)
+				modeProperty?.set(new.userData as SegmentFilterMode)
 		}
-		group.selectToggle(modeButtons[null])
+		group.selectToggle(modeButtons[SegmentFilterMode.Blacklist])
 
 		field.valueProperty().subscribe { _, ids ->
 			if (updating)
@@ -82,19 +87,29 @@ internal class IdListSection : VBox(3.0) {
 		isDisable = true
 	}
 
-	/** Binds [mode] and [ids], or unbinds with nulls */
-	fun bind(mode: ObjectProperty<SegmentMaskMode?>?, ids: SelectedIds?, currentSelection: () -> LongArray = { longArrayOf() }) {
+	/** Binds [filterEnabled], [mode] and [segmentIds], or unbinds with nulls */
+	fun bind(
+		filterEnabled: BooleanProperty?,
+		mode: ObjectProperty<SegmentFilterMode>?,
+		segmentIds: SelectedIds?,
+		currentSelection: () -> LongArray = { longArrayOf() }
+	) {
 		modeSubscription?.unsubscribe()
+		enabledProperty?.let { enabledSwitch.selectedProperty().unbindBidirectional(it) }
 		ids?.removeListener(idsListener)
 
-		modeProperty = mode
-		this@IdListSection.ids = ids
+		modeProperty = null
+		ids = segmentIds
 		this.currentSelection = currentSelection
 
+		enabledProperty = filterEnabled?.also { enabledSwitch.selectedProperty().bindBidirectional(it) }
+		mode?.value?.let { group.selectToggle(modeButtons[it]) }
+		modeProperty = mode
+
 		modeSubscription = mode?.subscribe { selected -> group.selectToggle(modeButtons[selected]) }
-		ids?.addListener(idsListener)
+		segmentIds?.addListener(idsListener)
 		updateField()
-		isDisable = mode == null || ids == null
+		isDisable = filterEnabled == null || mode == null || segmentIds == null
 	}
 
 	private fun updateField() {

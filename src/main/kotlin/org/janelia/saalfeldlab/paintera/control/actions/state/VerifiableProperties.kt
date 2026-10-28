@@ -276,6 +276,7 @@ interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : Mask
             return when {
                 selection == null -> InvalidLabelReason.NoLabelSelected
                 isLocked -> InvalidLabelReason.LabelLocked
+                labelMaskModel.rejectsAllSegments -> InvalidLabelReason.LabelMaskEmptyWhitelist
                 else -> null
             }
 		}

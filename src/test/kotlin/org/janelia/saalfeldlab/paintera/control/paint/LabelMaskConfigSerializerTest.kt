@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.paint
 
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonNull
-import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentMaskMode
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig.SegmentFilterMode
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -29,29 +29,57 @@ class LabelMaskConfigSerializerTest {
 	}
 
 	@Test
-	fun `all values round trip`() {
-		val restored = roundTrip(LabelMaskConfig().apply {
-			paintOverLockedLabelsProperty.set(true)
-			segmentMaskModeProperty.set(SegmentMaskMode.Blacklist)
-			ids.activate(7L, 3L, 0L)
-		})
-		assertTrue(restored.paintOverLockedLabelsProperty.get())
-		assertEquals(SegmentMaskMode.Blacklist, restored.segmentMaskModeProperty.get())
-		assertContentEquals(longArrayOf(0L, 3L, 7L), restored.ids.activeIdsCopyAsArray.sortedArray())
+	fun `enabled filter is written as a nested segment filter`() {
+		val json = gson.toJsonTree(LabelMaskConfig().apply {
+			segmentFilterEnabledProperty.set(true)
+			segmentFilterModeProperty.set(SegmentFilterMode.Blacklist)
+		}).asJsonObject
+		assertEquals(setOf("segmentFilter"), json.keySet())
+		val filter = json.getAsJsonObject("segmentFilter")
+		assertEquals(setOf("segmentMaskMode", "ids"), filter.keySet())
+		assertEquals("Blacklist", filter.get("segmentMaskMode").asString)
 	}
 
 	@Test
-	fun `ids round trip without a mode`() {
-		val restored = roundTrip(LabelMaskConfig().apply { ids.activate(5L) })
-		assertFalse(restored.paintOverLockedLabelsProperty.get())
-		assertEquals(null, restored.segmentMaskModeProperty.get())
-		assertContentEquals(longArrayOf(5L), restored.ids.activeIdsCopyAsArray)
+	fun `all values round trip`() {
+		val restored = roundTrip(LabelMaskConfig().apply {
+			paintOverLockedLabelsProperty.set(true)
+			segmentFilterEnabledProperty.set(true)
+			segmentFilterModeProperty.set(SegmentFilterMode.Whitelist)
+			segmentIds.activate(7L, 3L, 0L)
+		})
+		assertTrue(restored.paintOverLockedLabelsProperty.get())
+		assertTrue(restored.segmentFilterEnabledProperty.get())
+		assertEquals(SegmentFilterMode.Whitelist, restored.segmentFilterModeProperty.get())
+		assertContentEquals(longArrayOf(0L, 3L, 7L), restored.segmentIds.activeIdsCopyAsArray.sortedArray())
+	}
+
+	@Test
+	fun `filter settings are not written while the filter is off`() {
+		val config = LabelMaskConfig().apply {
+			segmentFilterModeProperty.set(SegmentFilterMode.Whitelist)
+			segmentIds.activate(5L)
+		}
+		assertEquals(JsonNull.INSTANCE, gson.toJsonTree(config))
+
+		config.paintOverLockedLabelsProperty.set(true)
+		assertEquals(setOf("paintOverLockedLabels"), gson.toJsonTree(config).asJsonObject.keySet())
+
+		val restored = roundTrip(config)
+		assertFalse(restored.segmentFilterEnabledProperty.get())
+		assertEquals(SegmentFilterMode.Blacklist, restored.segmentFilterModeProperty.get())
+		assertTrue(restored.segmentIds.isEmpty)
 	}
 
 	@Test
 	fun `unknown mode is ignored`() {
-		val json = gson.toJsonTree(LabelMaskConfig().apply { segmentMaskModeProperty.set(SegmentMaskMode.Whitelist) }).asJsonObject
-		json.addProperty("segmentMaskMode", "Nonsense")
-		assertEquals(null, gson.fromJson(json, LabelMaskConfig::class.java).segmentMaskModeProperty.get())
+		val json = gson.toJsonTree(LabelMaskConfig().apply {
+			segmentFilterEnabledProperty.set(true)
+			segmentFilterModeProperty.set(SegmentFilterMode.Whitelist)
+		}).asJsonObject
+		json.getAsJsonObject("segmentFilter").addProperty("segmentMaskMode", "Nonsense")
+		val restored = gson.fromJson(json, LabelMaskConfig::class.java)
+		assertTrue(restored.segmentFilterEnabledProperty.get())
+		assertEquals(SegmentFilterMode.Blacklist, restored.segmentFilterModeProperty.get())
 	}
 }

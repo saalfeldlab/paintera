@@ -14,10 +14,11 @@ internal class ModeSettingsPane : TitledPane("Mode Settings", VBox(10.0)) {
 	private val sections = content as VBox
 
 	private val panes = IdentityHashMap<ModeSetting, TitledPane>()
+	/* If a child was expanded, and we change modes, retain the expand state of the UI. */
+	private val childExpandStateMap = mutableMapOf<String, Boolean>()
 	private var modeSubscription: Subscription? = null
 
 	init {
-		isExpanded = false
 		sections.padding = Insets(5.0)
 		paintera.baseView.activeModeProperty.subscribe { mode ->
 			modeSubscription?.unsubscribe()
@@ -40,8 +41,14 @@ internal class ModeSettingsPane : TitledPane("Mode Settings", VBox(10.0)) {
 			return
 		}
 		content = sections
+		isExpanded = true
 		sections.children.setAll(settings.map { setting ->
-			panes.getOrPut(setting) { TitledPane(setting.title, setting.node).apply { isExpanded = false } }
+			panes.getOrPut(setting) {
+				TitledPane(setting.title, setting.node).apply {
+					isExpanded = childExpandStateMap[setting.title] ?: false
+					expandedProperty().subscribe { expanded -> childExpandStateMap[setting.title] = expanded }
+				}
+			}
 		})
 	}
 }
