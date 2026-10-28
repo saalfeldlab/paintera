@@ -19,6 +19,7 @@ public enum MenuActionType implements ActionType {
 	OrthoslicesContextMenu,
 	SaveProject,
 	CommitCanvas,
+	ClearCanvas,
 	CreateLabelSource,
 	CreateVirtualSource,
 	LoadProject,

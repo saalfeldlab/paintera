@@ -36,6 +36,8 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
@@ -263,6 +265,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			KEY_PRESSED(ARGB_STREAM__DECREMENT_SEED) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
+		},
+		painteraActionSet(CLEAR_CANVAS, MenuActionType.ClearCanvas) {
 			KEY_PRESSED(CLEAR_CANVAS) {
 				verify { dataSource is MaskedSource<*,*> }
 				onAction {
