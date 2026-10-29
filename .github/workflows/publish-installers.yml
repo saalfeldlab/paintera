@@ -55,8 +55,8 @@ jobs:
           mv Paintera-ubuntu-24.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
           mv Paintera-ubuntu-26.04-*/*.deb Paintera-${{ env.VERSION }}-ubuntu-26.04_x86_64.deb
           mv Paintera-macos-15-intel-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-15-Intel.dmg
-          mv Paintera-macos-14-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-14-AppleSilicon.dmg
           mv Paintera-macos-15-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-15-AppleSilicon.dmg
+          mv Paintera-macos-26-*/*.dmg Paintera-${{ env.VERSION }}-MacOS-26-AppleSilicon.dmg
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -70,5 +70,5 @@ jobs:
             Paintera-${{ env.VERSION }}-ubuntu-24.04_x86_64.deb
             Paintera-${{ env.VERSION }}-ubuntu-26.04_x86_64.deb
             Paintera-${{ env.VERSION }}-MacOS-15-Intel.dmg
-            Paintera-${{ env.VERSION }}-MacOS-14-AppleSilicon.dmg
             Paintera-${{ env.VERSION }}-MacOS-15-AppleSilicon.dmg
+            Paintera-${{ env.VERSION }}-MacOS-26-AppleSilicon.dmg
