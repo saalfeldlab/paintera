@@ -263,11 +263,26 @@ interface MaskedSourceActionState<S, D, T> : LabelActionState<S, D, T>
 interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : MaskedSourceActionState<S, D, T>
 		where D : IntegerType<D>, T : RealType<T>, T : Volatile<D> {
 
-	val paintSelection get() = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
 	val brushProperties get() = sourceState.brushProperties
+	val labelMaskModel get() = sourceState.labelMaskModel
+
+	val paintInvalidReason: InvalidLabelReason?
+		get() {
+            val selection = selectedIds.lastSelection.takeIf { Label.regular(it) }
+            val isLocked = selection?.let {
+                val segment = sourceState.fragmentSegmentAssignment.getSegment(it)
+                sourceState.lockedSegments.isLocked(segment)
+            } ?: false
+            return when {
+                selection == null -> InvalidLabelReason.NoLabelSelected
+                isLocked -> InvalidLabelReason.LabelLocked
+                labelMaskModel.rejectsAllSegments -> InvalidLabelReason.LabelMaskEmptyWhitelist
+                else -> null
+            }
+		}
 
 	/**
-	 * PaintContextActionSTate from the current active mode
+	 * PaintContextActionState from the current active mode
 	 */
 	open class FromCurrentMode<S : ConnectomicsLabelState<D, T>, D, T> :
 		PainteraActionState(),
@@ -290,6 +305,7 @@ interface PaintContextActionState<S : ConnectomicsLabelState<D, T>, D, T> : Mask
 
 		override var maskedSource = sourceState.dataSource as MaskedSource<D, T>
 	}
+
 }
 
 

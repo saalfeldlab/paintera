@@ -28,7 +28,10 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.actions.paint.ReplaceLabel
+import org.janelia.saalfeldlab.paintera.control.actions.state.PaintContextActionState
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskSetting
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
+import org.janelia.saalfeldlab.paintera.control.actions.state.InvalidLabelReason
 import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -36,12 +39,18 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.invalidPaintSelectionWarning
 
 
 open class PaintLabelMode : ViewLabelMode() {
 
 	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext<Nothing, Nothing>(binding) }
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
+	private val paintContextBinding = activeSourceStateProperty.createNullableValueBinding {
+		@Suppress("UNCHECKED_CAST")
+		(it as? ConnectomicsLabelState<Nothing, Nothing>)?.let { labelState -> PaintContextActionState.FromState(labelState) as PaintContextActionState<*, *, *> }
+	}
+	val paintContext by paintContextBinding.nullableVal()
 
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
 	private val samTool = SamTool(activeSourceStateProperty, this)
@@ -57,6 +66,12 @@ open class PaintLabelMode : ViewLabelMode() {
 			fill3DTool,
 			intersectTool,
 			samTool
+		)
+	}
+
+	override val modeSettings: ObservableList<ModeSetting> by lazy {
+		FXCollections.observableArrayList(
+			LabelMaskSetting.forObservableSourceState(activeSourceStateProperty)
 		)
 	}
 
@@ -111,6 +126,11 @@ open class PaintLabelMode : ViewLabelMode() {
 				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
 			}
 			onAction { event ->
+				paintContext?.paintInvalidReason?.let {
+					invalidPaintSelectionWarning(it, activeViewerProperty.get()?.viewer()?.scene?.window)
+					return@onAction
+				}
+
 				val switchModes = {
 					newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let {
 						paintera.baseView.changeMode(it)
@@ -135,6 +155,11 @@ open class PaintLabelMode : ViewLabelMode() {
 				activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
 			}
 			onAction {
+				paintContext?.paintInvalidReason?.let {
+					invalidPaintSelectionWarning(it, activeViewerProperty.get()?.viewer()?.scene?.window)
+					return@onAction
+				}
+
 				switchTool(samTool)
 			}
 		}
@@ -157,6 +182,12 @@ open class PaintLabelMode : ViewLabelMode() {
 	}
 
 	override fun switchTool(tool: Tool?): Job? {
+		//TODO: this probably belong in the Tool activate, as a pre-activate check.
+		if (tool is PaintTool && paintContext?.labelMaskModel?.rejectsAllSegments == true) {
+			/* warn if the paint tool could not paint */
+			invalidPaintSelectionWarning(InvalidLabelReason.LabelMaskEmptyWhitelist, activeViewerProperty.get()?.viewer()?.scene?.window)
+			return null
+		}
 		val switchToolJob = super.switchTool(tool)
 		/*SAM Tool restrict the active ViewerPanel, so we don't want it changing on mouseover of the other views, for example */
 		(tool as? SamTool)?.let { runBlocking { switchToolJob?.join() } }

@@ -1,6 +1,10 @@
 @import url(ikonli.css);
 @import url(toolbar.css);
 
+.label-mask-ui {
+    -fx-padding: 8 0 0 0;
+}
+
 .font-icon.paint-brush > .ikonli-font-icon{
     -fx-icon-code: "fa-paint-brush";
 }

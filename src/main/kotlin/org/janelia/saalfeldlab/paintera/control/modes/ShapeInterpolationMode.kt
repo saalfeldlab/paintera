@@ -50,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.PromptFromInterpolant.*
 import org.janelia.saalfeldlab.paintera.control.modes.ShapeInterpolationMode.SamAutoInterpolantStyle
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskSetting
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
@@ -77,6 +78,12 @@ private val LOG = KotlinLogging.logger { }
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, private val previousMode: ControlMode) : AbstractToolMode() {
 
 	internal val samSliceCache = SamSliceCache()
+
+	override val modeSettings: ObservableList<ModeSetting> by lazy {
+		FXCollections.observableArrayList(
+			LabelMaskSetting.forObservableSourceState(activeSourceStateProperty)
+		)
+	}
 
 	private val paintBrushTool by lazy { ShapeInterpolationPaintBrushTool(activeSourceStateProperty, this) }
 	private val fill2DTool by lazy { ShapeInterpolationFillTool(controller, activeSourceStateProperty, this) }

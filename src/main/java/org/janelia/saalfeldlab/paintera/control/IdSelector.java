@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.LongPredicate;
 import java.util.function.Supplier;
@@ -166,15 +167,19 @@ public class IdSelector {
 
 	public void toggleLock(final FragmentSegmentAssignment assignment, final LockedSegments lock) {
 
-		final long lastSelection = selectedIds.getLastSelection();
-		if (!Label.regular(lastSelection))
-			return;
+		final long[] segments = Arrays.stream(selectedIds.getActiveIdsCopyAsArray())
+				.filter(Label::regular)
+				.map(assignment::getSegment)
+				.distinct()
+				.toArray();
 
-		final long segment = assignment.getSegment(lastSelection);
-		if (lock.isLocked(segment))
-			lock.unlock(segment);
-		else
-			lock.lock(segment);
+		final boolean anyLocked = Arrays.stream(segments).anyMatch(lock::isLocked);
+		for (final long segment : segments) {
+			if (anyLocked)
+				lock.unlock(segment);
+			else
+				lock.lock(segment);
+		}
 	}
 
 	private abstract class SelectMaximumCount implements Consumer<MouseEvent> {

@@ -31,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.ui.SettingsView
 import org.janelia.saalfeldlab.paintera.ui.SlicePositionsPane
 import org.janelia.saalfeldlab.paintera.ui.StatusBar
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
+import org.janelia.saalfeldlab.paintera.ui.ModeSettingsPane
 import org.janelia.saalfeldlab.paintera.ui.menus.menuBar
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.ui.vGrow
@@ -168,12 +169,16 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 		maxWidthProperty().bind(sideBarWidthProperty)
 	}
 
+	private val modeSettingsPane = ModeSettingsPane().apply {
+		maxWidthProperty().bind(sideBarWidthProperty)
+	}
 	internal val rightGroup = VBox().apply {
 		alignment = Pos.TOP_RIGHT
 		isFillWidth = true
 		children += rightTopGroup
 		children += scrollPane
 		children += slicePositionsPane
+		children += modeSettingsPane
 		managedProperty().bind(visibleProperty())
 
 	}

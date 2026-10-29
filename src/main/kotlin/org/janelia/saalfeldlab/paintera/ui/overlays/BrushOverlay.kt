@@ -8,16 +8,18 @@ import javafx.scene.canvas.GraphicsContext
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText.Companion.applyCursorTextStyle
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.util.function.Supplier
 
 class BrushOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayInViewer(viewerProperty) {
 
 	private var width = 0.0
 	private var height = 0.0
-	var canPaint = true
-	var reason: String? = null
+
+	var textProvider: Supplier<String?>? = null
 
 	init {
 		cursor = Cursor.NONE
@@ -59,13 +61,9 @@ class BrushOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOver
 						lineWidth = STROKE_WIDTH
 						strokeOval(x - physicalRadius, y - physicalRadius, 2 * physicalRadius, 2 * physicalRadius)
 
-						/* Overlay reason text if not valid */
-						if (!canPaint) {
-							reason?.let {
-								fill = Color.WHITE.deriveColor(0.0, 0.0, 0.0, .75)
-								font = Font.font(font.family, 20.0)
-								fillText(it, x - 50, y - physicalRadius - 5)
-							}
+						textProvider?.get()?.let {
+							applyCursorTextStyle()
+							fillText(it, x - 50, y - physicalRadius - 5)
 						}
 					}
 				}

@@ -132,7 +132,7 @@ internal class CloseLabelUI(val model: CloseLabelModel) : VBox(10.0) {
 		children += HBox(10.0).apply {
 			children += TextField().apply {
 				prefColumnCount = 6
-				background = null
+				styleClass += "selectable-label"
 				isEditable = false
 				HBox.setHgrow(this, Priority.NEVER)
 				model.statusProperty.subscribe { status ->

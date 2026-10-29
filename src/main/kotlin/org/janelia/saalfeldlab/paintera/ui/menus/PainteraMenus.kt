@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.menus
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.beans.binding.Bindings
+import javafx.beans.binding.Bindings.createBooleanBinding
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
@@ -17,6 +18,8 @@ import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.control.actions.ActionMenu
 import org.janelia.saalfeldlab.paintera.control.actions.OpenSource
+import org.janelia.saalfeldlab.paintera.metrics.labels.ExportIds
+import org.janelia.saalfeldlab.paintera.metrics.labels.getValidExportIdSources
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDataset
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToCoordinate
 import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
@@ -120,11 +123,17 @@ private val actionMenuItems by LazyForeignValue(::paintera) {
 }
 
 private val actionMenu by LazyForeignValue(::paintera) { ActionMenu("_Actions", null, *actionMenuItems) }
+private val metricsMenu by LazyForeignValue(::paintera) {
+	ActionMenu("_Metrics", null, ExportIds.menuItem).apply {
+        val sources = paintera.baseView.sourceInfo().trackSources()
+        visibleProperty().bind(createBooleanBinding({ getValidExportIdSources().isNotEmpty() }, sources))
+	}
+}
 private val helpMenu by LazyForeignValue(::paintera) { ActionMenu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
 
 val menuBar by LazyForeignValue(::paintera) {
-	MenuBar(fileMenu, sourcesMenu, actionMenu, viewMenu, helpMenu).apply {
+	MenuBar(fileMenu, sourcesMenu, actionMenu, metricsMenu, viewMenu, helpMenu).apply {
 		/* only lock minWidth once layout has computed a real prefWidth */
 		widthProperty().subscribe { w -> if (w.toDouble() > 0) minWidth = prefWidth(-1.0) }
 		padding = Insets.EMPTY

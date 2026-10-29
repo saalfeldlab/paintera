@@ -87,10 +87,10 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 					onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
 				}
 			},
-			painteraActionSet("fill", PaintActionType.Fill) {
-				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+			painteraActionSet("fill", PaintActionType.Fill) {				MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
 					keysExclusive = false
 					verifyEventNotNull()
+						verify { statePaintContext?.paintSelection?.invoke() != null }
 					onAction {
 						lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
 						setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
@@ -145,7 +145,9 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 		)
 	}
 
-	private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :
-		CursorOverlayWithText(viewerProperty)
+	private inner class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
+
+		override val overlayText get() = paintInvalidReason?.reason ?: "Fill 3D"
+	}
 }
 

@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.UpdateSignal
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.requestRepaintOverIntervals
 import org.janelia.saalfeldlab.paintera.control.actions.paint.morph.setStatus
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.ui.dialogs.invalidPaintSelectionWarning
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.jvm.optionals.getOrNull
@@ -53,6 +54,11 @@ object CloseGaps : MenuAction("_Close Gaps...") {
 	init {
 		verifyPermission(PaintActionType.Paint, PaintActionType.Fill)
 		onActionWithState<CloseLabelState<*, *>> {
+
+			paintInvalidReason?.let {
+				invalidPaintSelectionWarning(it)
+				return@onActionWithState
+			}
 
 			resetAsyncState()
 			isBusy = false

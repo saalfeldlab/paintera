@@ -1,0 +1,4 @@
+.text-field.selectable-label {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}

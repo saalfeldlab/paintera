@@ -36,6 +36,8 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
@@ -50,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
+import org.janelia.saalfeldlab.paintera.control.actions.navigation.GoToLabel
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
@@ -60,6 +63,10 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskConfig
+import org.janelia.saalfeldlab.paintera.control.paint.LabelMaskModel
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks
+import org.janelia.saalfeldlab.paintera.data.mask.AcceptLabelMasks.rejectLockedLabels
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
@@ -112,11 +119,34 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-	val lockedSegments = LockedSegmentsOnlyLocal({})
+	private val labelMaskConfig = LabelMaskConfig()
+
+	val lockedSegments = LockedSegmentsOnlyLocal({}).also { locked ->
+		@Suppress("UNCHECKED_CAST")
+		(source as? MaskedSource<D, T>)?.let { maskedSource ->
+			val isLocked = LongPredicate { fragment -> locked.isLocked(fragmentSegmentAssignment.getSegment(fragment)) }
+			val hasLockedLabels = { locked.lockedSegmentsCopy().isNotEmpty() }
+
+            /* this stops masked values from being applied to the canvas*/
+			maskedSource.setAcceptOverSourceMask { level ->
+				val rejectLockedIDs = rejectLockedLabels(isLocked).takeIf { !labelMaskModel.paintOverLockedLabelsProperty.get() && hasLockedLabels() }
+				val segmentMask = labelMaskModel.segmentMask()
+				val acceptPredicates = listOfNotNull(rejectLockedIDs, segmentMask)
+				val canvas = maskedSource.getReadOnlyDataCanvas(0, level)
+				val background = maskedSource.getReadOnlyDataBackground(0, level)
+				AcceptLabelMasks.compose(canvas, background, acceptPredicates)
+			}
+
+			/* this stops a given label from being painted, based on some predicate */
+			maskedSource.setAcceptPaintLabelFilter { rejectLockedLabels(isLocked).takeIf { hasLockedLabels() } }
+		}
+	}
 
 	val selectedIds = SelectedIds()
 
 	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+
+	internal val labelMaskModel = LabelMaskModel(labelMaskConfig, selectedSegments)
 
 	private val fragmentsInSelectedSegments = selectedSegments.createObservableBinding { FragmentsInSelectedSegments(selectedSegments) }
 
@@ -157,7 +187,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		it.activateCurrent()
 	}
 
-	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
+	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService, lockedSegments)
 
 	private val commitHandler = CommitHandler(this, this::fragmentSegmentAssignment)
 
@@ -226,12 +256,17 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 					paintera.baseView.orthogonalViews().requestRepaint()
 				}
 			}
+			KEY_PRESSED(CYCLE_LOCKED_SEGMENTS_STYLE) {
+				onAction { converter.hideLockedSegmentsProperty().apply { value = !value } }
+			}
 			KEY_PRESSED ( ARGB_STREAM__INCREMENT_SEED) {
 				onAction { streamSeedSetter.incrementStreamSeed() }
 			}
 			KEY_PRESSED(ARGB_STREAM__DECREMENT_SEED) {
 				onAction { streamSeedSetter.decrementStreamSeed() }
 			}
+		},
+		painteraActionSet(CLEAR_CANVAS, MenuActionType.ClearCanvas) {
 			KEY_PRESSED(CLEAR_CANVAS) {
 				verify { dataSource is MaskedSource<*,*> }
 				onAction {
@@ -361,7 +396,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 			compositeProperty(),
 			converter(),
 			meshManager,
-			brushProperties
+			brushProperties,
+			lockedSegments,
+			{ segment: Long -> GoToLabel.goTo(this, segment) }
 		).node.let { it as? VBox ?: VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
@@ -588,12 +625,15 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		const val CONVERTER_ACTIVE_FRAGMENT_ALPHA = "activeFragmentAlpha"
 		const val CONVERTER_ACTIVE_SEGMENT_ALPHA  = "activeSegmentAlpha"
 		const val BACKGROUND_ID_VISIBLE           = "backgroundIdVisible"
+		const val CONVERTER_HIDE_LOCKED_SEGMENTS  = "hideLockedSegments"
+		const val CONVERTER_COLOR_FROM_SEGMENT_ID = "colorFromSegmentId"
         const val INTERPOLATION                   = "interpolation"
         const val IS_VISIBLE                      = "isVisible"
         const val RESOLUTION                      = "resolution"
         const val OFFSET                          = "offset"
         const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
         const val LOCKED_SEGMENTS                 = "lockedSegments"
+        const val LABEL_MASK                      = "labelMask"
 		//@formatter:on
 	}
 
@@ -616,6 +656,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 						m.addProperty(CONVERTER_ACTIVE_FRAGMENT_ALPHA, activeFragmentAlphaProperty().get())
 						m.addProperty(CONVERTER_ACTIVE_SEGMENT_ALPHA, activeSegmentAlphaProperty().get())
 						if (stream.overrideAlpha.get(Label.BACKGROUND) != null) m.addProperty(BACKGROUND_ID_VISIBLE, false)
+						m.addProperty(CONVERTER_HIDE_LOCKED_SEGMENTS, hideLockedSegmentsProperty().get())
+						m.addProperty(CONVERTER_COLOR_FROM_SEGMENT_ID, colorFromSegmentIdProperty().get())
 
 						userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
 						/* the background id is persisted via BACKGROUND_ID_VISIBLE, not here */
@@ -635,6 +677,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.addSlicePositions(state.backend)
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
+				state.labelMaskConfig.takeUnless { it.isDefault() }?.let { map.add(LABEL_MASK,context[it]) }
 			}
 			return map
 		}
@@ -708,6 +751,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 									get<Int>(CONVERTER_ACTIVE_FRAGMENT_ALPHA) { alpha -> state.converter.activeFragmentAlphaProperty().value = alpha }
 									get<Int>(CONVERTER_ACTIVE_SEGMENT_ALPHA) { alpha -> state.converter.activeSegmentAlphaProperty().value = alpha }
 									if (get<Boolean>(BACKGROUND_ID_VISIBLE) == false) stream.overrideAlpha.put(Label.BACKGROUND, 0)
+									get<Boolean>(CONVERTER_HIDE_LOCKED_SEGMENTS) { hide -> state.converter.hideLockedSegmentsProperty().value = hide }
+									get<Boolean>(CONVERTER_COLOR_FROM_SEGMENT_ID) { fromSegment -> state.converter.colorFromSegmentIdProperty().value = fromSegment }
 								}
 							}
 
@@ -716,6 +761,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 							isVisible = context[json, IS_VISIBLE]!!
 							context.get<LongArray>(json, SELECTED_IDS) { selectedIds.activate(*it) }
 							context.get<ManagedMeshSettings<*>>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it as ManagedMeshSettings<Long>) }
+							context.get<LabelMaskConfig>(json, LABEL_MASK) { labelMaskConfig.copyFrom(it) }
 							context.get<LongArray>(json, LOCKED_SEGMENTS)?.forEach {
 								lockedSegments.lock(it)
 							}

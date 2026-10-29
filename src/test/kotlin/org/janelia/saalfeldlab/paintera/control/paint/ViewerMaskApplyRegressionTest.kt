@@ -2,13 +2,16 @@ package org.janelia.saalfeldlab.paintera.control.paint
 
 import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
+import net.imglib2.Localizable
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealRandomAccessible
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
+import net.imglib2.position.FunctionRandomAccessible
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.Scale3D
 import net.imglib2.type.label.Label
+import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.Intervals
@@ -23,7 +26,9 @@ import org.janelia.saalfeldlab.util.raster
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.function.BiConsumer
 import java.util.function.Predicate
+import java.util.function.Supplier
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
@@ -58,6 +63,56 @@ class ViewerMaskApplyRegressionTest {
         for (scenario in scenarios)
             if (regressionTest(scenario, scenario.toString())) anyPainted = true
         assertTrue(anyPainted) { "scenarios painted nothing - the parity test is not exercising the paint path" }
+    }
+
+    @Test
+    fun rejectedVoxelsAreNotPainted() {
+        var anyRejectedWouldHaveBeenPainted = false
+        for (scenario in scenarios) {
+            val unmasked = scenario.freshCanvas()
+            referenceApply.applyToSource(
+                unmasked,
+                scenario.viewerImg,
+                scenario.viewerImgInSource,
+                scenario.maskToSourceWithDepth,
+                scenario.paintDepthFactor,
+                scenario.depthScale,
+                accept
+            )
+
+            val splitX = scenario.canvasMin[0] + scenario.canvasDims[0] / 2
+            val acceptHighX = FunctionRandomAccessible(
+                3,
+                BiConsumer { position, out -> out.set(position.getLongPosition(0) >= splitX) }
+            ) { BoolType() }
+            val masked = scenario.freshCanvas()
+            ViewerMask.applyMaskToCanvas(
+                masked,
+                scenario.viewerImg,
+                scenario.viewerImgInSource,
+                scenario.maskToSourceWithDepth,
+                scenario.paintDepthFactor,
+                scenario.depthScale,
+                accept,
+                acceptHighX
+            )
+
+            val unmaskedCursor = Views.flatIterable(unmasked).cursor()
+            val maskedCursor = Views.flatIterable(masked).cursor()
+            val at = LongArray(3)
+            while (unmaskedCursor.hasNext()) {
+                val unmaskedValue = unmaskedCursor.next().get()
+                val maskedValue = maskedCursor.next().get()
+                unmaskedCursor.localize(at)
+                if (at[0] < splitX) {
+                    assertEquals(Label.INVALID, maskedValue) { "[$scenario] rejected voxel ${at.toList()} was painted" }
+                    if (unmaskedValue != Label.INVALID)
+                        anyRejectedWouldHaveBeenPainted = true
+                } else
+                    assertEquals(unmaskedValue, maskedValue) { "[$scenario] accepted voxel ${at.toList()} differs from the unmasked paint" }
+            }
+        }
+        assertTrue(anyRejectedWouldHaveBeenPainted) { "no scenario paints into the rejected region - the test is not exercising the mask" }
     }
 
     /**

@@ -68,24 +68,16 @@ object ExportSourceDialog {
 
 	/** Prompt to commit first, or otherwise cancel */
 	private fun commitCanvasOrCancel(state: ExportSourceState): Boolean {
-		if (!state.hasUncommittedCanvas)
-			return true
-
 		val sourceState = state.sourceStateProperty.value ?: return true
-		val committed = CommitHandler.showCommitDialog(
-			sourceState,
-			paintera.baseView.sourceInfo().indexOf(sourceState.dataSource),
-			false,
-			{ index, name -> "The export writes committed data only.\nCommit source $index: $name before exporting?" },
-			true,
-			"_Cancel Export",
-			"Commi_t and Export",
-			fragmentSegmentAssignmentState = sourceState.fragmentSegmentAssignment
-		)
-		return committed == ButtonType.OK
+		return CommitHandler.commitCanvasOrCancel(
+            sourceState,
+            { index, name -> "The export writes committed data only.\nCommit source $index: $name before exporting?" },
+            "_Cancel Export",
+            "Commi_t and Export"
+        )
 	}
 
-	/**
+    /**
 	 * Pick the smallest data type that can hold all values less than or equal to maxId value.
 	 *
 	 * @param maxId the maximum ID value

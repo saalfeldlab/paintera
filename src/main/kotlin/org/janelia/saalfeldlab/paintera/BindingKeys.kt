@@ -114,6 +114,7 @@ enum class LabelSourceStateKeys(lateInitNamedKeyCombo : LateInitNamedKeyCombinat
     SELECT_ALL                                           ( CONTROL_DOWN + A),
     SELECT_ALL_IN_CURRENT_VIEW                           ( CONTROL_DOWN + SHIFT_DOWN + A),
     LOCK_SEGMENT                                         ( L),
+    CYCLE_LOCKED_SEGMENTS_STYLE                          ( D, "cycle locked segments style"),
     NEXT_ID                                              ( N),
     DELETE_ID                                            ( SHIFT_DOWN + BACK_SPACE),
     COMMIT_DIALOG                                        ( C + CONTROL_DOWN),

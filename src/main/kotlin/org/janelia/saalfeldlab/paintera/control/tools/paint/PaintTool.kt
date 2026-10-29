@@ -17,8 +17,11 @@ import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType
+import org.janelia.saalfeldlab.paintera.control.actions.state.InvalidLabelReason
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
+import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
@@ -48,6 +51,9 @@ abstract class PaintTool(
 
 	val brushPropertiesBinding = activePaintContextBinding.createNullableValueBinding { it?.brushProperties }
 	val brushProperties by brushPropertiesBinding.nullableVal()
+
+	/** Reason if invalid. `null` if valid, or not applicable */
+	protected val paintInvalidReason: InvalidLabelReason? get() = (mode as? PaintLabelMode)?.paintContext?.paintInvalidReason
 
 	var isPainting = false
 		protected set
@@ -148,6 +154,9 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val paintSelection: () -> Long?
 	val brushProperties: BrushProperties
 
+	val lockedSegments: LockedSegmentsState
+
+	fun isLocked(fragment: Long): Boolean
 	fun refreshMeshes()
 	fun maskForLabel(label: Long): Converter<D, BoolType>
 	fun blocksWithLabel(level: Int, vararg labels: Long): List<Interval>
@@ -163,8 +172,12 @@ private data class ConnectomicsLabelStatePaintContext<D, T>(val state: Connectom
 	override val dataSource: MaskedSource<D, T> = state.dataSource as MaskedSource<D, T>
 	override val assignment = state.fragmentSegmentAssignment
 	override val selectedIds = state.selectedIds
-	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
+	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) && !isLocked(it) } }
 	override val brushProperties: BrushProperties = state.brushProperties
+
+	override val lockedSegments = state.lockedSegments
+
+	override fun isLocked(fragment: Long) = state.lockedSegments.isLocked(assignment.getSegment(fragment))
 
 	override fun refreshMeshes() = state.refreshMeshes()
 	override fun maskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)

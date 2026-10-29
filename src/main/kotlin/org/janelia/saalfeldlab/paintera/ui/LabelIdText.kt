@@ -12,12 +12,21 @@ object LabelIdText {
 
 	private val ID_ENTRY = Regex("""0*(\d+)(?:\.0*)?""")
 
-	fun parseIds(text: String?): List<Long> = text.orEmpty()
+	private fun parseEntries(text: String?): List<Long> = text.orEmpty()
 		.split(',', '\n')
 		.map { it.trim() }
 		.filter { it.isNotEmpty() }
 		.mapNotNull { entry -> ID_ENTRY.matchEntire(entry)?.groupValues?.get(1)?.toULongOrNull()?.toLong() }
-		.filter { Label.regular(it) }
+    /**
+     * parse [text] to a list of valid IDs
+     *
+     * @param text to parse.
+     * @return the valid IDs
+     */
+    fun parseIds(text: String?): List<Long> = parseEntries(text).filter { Label.regular(it) }
+
+	/** Like [parseIds], but also accepts the background id `0` */
+	fun parseIdsOrBackground(text: String?): List<Long> = parseEntries(text).filter { Label.regular(it) || it == Label.BACKGROUND }
 
 	fun parseId(text: String?): Long? = parseIds(text).firstOrNull()
 
@@ -27,13 +36,16 @@ object LabelIdText {
 }
 
 /** For an `ObjectField`: throws [InvalidUserInput] when no entry is valid, so the field keeps its value. */
-open class LabelIdsConverter : StringConverter<LongArray>() {
+open class LabelIdsConverter(private val allowBackground: Boolean = false, private val allowEmpty: Boolean = false) : StringConverter<LongArray>() {
 
 	override fun toString(ids: LongArray?): String = ids?.let { LabelIdText.format(it) } ?: ""
 
-	override fun fromString(string: String?): LongArray = LabelIdText.parseIds(string)
-		.ifEmpty { throw InvalidUserInput("No valid id in: $string") }
-		.toLongArray()
+	override fun fromString(string: String?): LongArray {
+		if (allowEmpty && string.isNullOrBlank())
+			return longArrayOf()
+		val ids = if (allowBackground) LabelIdText.parseIdsOrBackground(string) else LabelIdText.parseIds(string)
+		return ids.ifEmpty { throw InvalidUserInput("No valid id in: $string") }.toLongArray()
+	}
 }
 
 /** For an `ObjectField` holding one id; an id that is not [Label.regular] renders blank. */

@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import javafx.animation.Interpolator
 import javafx.beans.Observable
 import javafx.beans.binding.Bindings
@@ -72,7 +71,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			currentLabelToPaintAtomic.setRelease(value)
 			updateStatus()
 		}
-	private val isLabelValid get() = currentLabelToPaint != Label.INVALID
+	private val isLabelValid get() = currentLabelToPaint != Label.INVALID && statePaintContext?.isLocked(currentLabelToPaint) != true
 
 	val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
 		it.first?.let { viewer ->
@@ -104,6 +103,8 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 			paintera.baseView.isDisabledProperty.addListener { _, _, disabled ->
 				setBrushOverlayVisible(!disabled)
 			}
+			/* the label is only invalid when the selection can't be painted with; erase and temporary ids replace it */
+			setBrushOverlayText { paintInvalidReason?.takeUnless { isLabelValid }?.reason }
 		}
 	}
 
@@ -139,12 +140,10 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 	override fun activate() {
 		super.activate()
 		setCurrentLabel()
-		paint2D.setOverlayValidState()
 		statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
 		activeViewerProperty.get()?.viewer()?.scene?.addEventFilter(KEY_PRESSED, filterSpaceHeldDown)
 		paint2D.apply {
 			activeViewer?.apply {
-				setOverlayValidState()
 				setBrushOverlayVisible(true)
 			}
 		}
@@ -156,10 +155,6 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
 		setCurrentLabel(Label.INVALID)
 		super.deactivate()
-	}
-
-	private fun PaintActions2D.setOverlayValidState() {
-		setBrushOverlayValid(isLabelValid, if (isLabelValid) null else "No Id Selected")
 	}
 
 	internal fun setCurrentLabel(label: Long = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID) {
@@ -204,11 +199,13 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 		MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
 			name = END_SELECTION_PAINT
+			verify { isPainting }
 			onAction { endPaint() }
 		}
 
 		KEY_RELEASED(KeyCode.SPACE) {
 			name = END_SELECTION_PAINT
+			verify { isPainting }
 			onAction { endPaint() }
 		}
 
@@ -230,6 +227,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		}
 		MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
 			name = END_ERASE
+			verify { isPainting }
 			onAction { endPaint() }
 		}
 
@@ -247,6 +245,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 		/* If in drag state without triggering the mouse press, start paint/erase here */
 		MOUSE_DRAGGED {
 			name = "start-paint-on-drag"
+			verify { isLabelValid }
 			verifyEventNotNull()
 			verifyPainteraNotDisabled()
 			verify { it!!.isPrimaryButtonDown}
