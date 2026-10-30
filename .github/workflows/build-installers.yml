@@ -93,7 +93,7 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
       - name: "Build with Maven"
         if: runner.os == 'MacOS'
-        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign -Djavafx.platform=mac "-Dmatrix.os=${{ matrix.os }}" "-Dblosc.native.dir=${{ env.BLOSC_NATIVE_DIR }}" --file pom.xml --no-transfer-progress
+        run: mvn -B clean install -DskipTests -Pbuild-installer -Pmacos-sign "-Dmatrix.os=${{ matrix.os }}" "-Dblosc.native.dir=${{ env.BLOSC_NATIVE_DIR }}" --file pom.xml --no-transfer-progress
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Verify Signature"
