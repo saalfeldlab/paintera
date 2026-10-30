@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         # should match the platforms we build installers for, except linux which depends on libblosc1 directly
-        os: [windows-latest, macos-14, macos-15, macos-15-intel]
+        os: [windows-latest, macos-15, macos-15-intel, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Cache Blosc

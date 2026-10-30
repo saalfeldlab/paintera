@@ -80,6 +80,7 @@
 		<!-- SciJava Overrides -->
 		<logback.version>1.5.22</logback.version>
 		<label-utilities-n5.version>0.4.0</label-utilities-n5.version>
+		<imglib2-label-multisets.version>0.16.0</imglib2-label-multisets.version>
 		<n5.version>4.0.2</n5.version>
         <n5-universe.version>3.1.0</n5-universe.version>
         <n5-aws-s3.version>5.1.0</n5-aws-s3.version>
@@ -298,6 +299,10 @@
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-simple</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
@@ -469,12 +474,6 @@
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-params</artifactId>
 			<version>${junit-jupiter.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.controlsfx</groupId>
-			<artifactId>fxsampler</artifactId>
-			<version>1.0.11</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
