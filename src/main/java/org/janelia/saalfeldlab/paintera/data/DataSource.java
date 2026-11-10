@@ -10,6 +10,7 @@ import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
+import net.imglib2.type.mask.Masked;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
@@ -26,6 +27,12 @@ public interface DataSource<D, T> extends Source<T>, Invalidate<Long> {
 	RandomAccessibleInterval<D> getDataSource(int t, int level);
 
 	RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method);
+
+	/** the data as {@link #getInterpolatedMaskedSource}: mask 0 past the data where the backing can tell */
+	default RealRandomAccessible<? extends Masked<D>> getInterpolatedMaskedDataSource(final int t, final int level, final Interpolation method) {
+
+		return Masked.withConstant(getInterpolatedDataSource(t, level, method), 1);
+	}
 
 	D getDataType();
 

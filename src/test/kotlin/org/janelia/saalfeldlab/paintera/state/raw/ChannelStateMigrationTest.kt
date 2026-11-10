@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.data.n5.ChannelCompositeSource
+import org.janelia.saalfeldlab.paintera.data.n5.ChannelSliceSource
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBCompositeColorConverterSerializer
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState
@@ -134,6 +135,7 @@ class ChannelStateMigrationTest {
 		assertEquals(listOf(1), channels.activeChannels)
 		/* no saved converter: the defaults, sized to the dataset's channels */
 		assertEquals(3, channels.converter.numChannels())
-		assertEquals(1, assertIs<ChannelCompositeSource<*, *>>(loaded.sourceAndConverter.spimSource).numChannels)
+		/* a single active channel renders as a plain source */
+		assertEquals(1L, assertIs<ChannelSliceSource<*, *>>(loaded.sourceAndConverter.spimSource).channel)
 	}
 }

@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.util
 import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
+import net.imglib2.Localizable
 import net.imglib2.RealInterval
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.iterator.IntervalIterator
@@ -146,6 +147,7 @@ class IntervalHelpers {
 			return FinalRealInterval(newMin, newMax)
 		}
 
+        fun Interval.forEachPosition(action: (Localizable) -> Unit) = Intervals.positions(this).forEach(action)
 
 		@JvmStatic
 		fun RealInterval.shrinkBy(toShrinkBy: Double): RealInterval =
