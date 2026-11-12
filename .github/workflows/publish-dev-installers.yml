@@ -1,0 +1,68 @@
+# Rolling pre-release built from every push to `dev`
+name: Publish Dev Installers
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: dev-release
+  cancel-in-progress: true
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      suffix: ${{ steps.suffix.outputs.suffix }}
+    steps:
+      - name: Compute Suffix
+        id: suffix
+        run: echo "suffix=dev-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+  build_installers:
+    name: Build Installers
+    needs: version
+    uses: ./.github/workflows/build-installers.yml
+    with:
+      version-suffix: ${{ needs.version.outputs.suffix }}
+    secrets: inherit
+
+  create_release:
+    needs: [version, build_installers]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.suffix }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Need full history for git-cliff
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+      - name: Generate Prerelease Log
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: -u --strip header
+      - name: Rename Artifacts
+        run: |
+          mv Paintera-windows-latest-*/*.msi Paintera-${VERSION}-Windows.msi
+          mv Paintera-ubuntu-22.04-*/*.deb Paintera-${VERSION}-ubuntu-22.04_x86_64.deb
+          mv Paintera-ubuntu-24.04-*/*.deb Paintera-${VERSION}-ubuntu-24.04_x86_64.deb
+          mv Paintera-ubuntu-26.04-*/*.deb Paintera-${VERSION}-ubuntu-26.04_x86_64.deb
+          mv Paintera-macos-15-intel-*/*.dmg Paintera-${VERSION}-MacOS-15-Intel.dmg
+          mv Paintera-macos-15-*/*.dmg Paintera-${VERSION}-MacOS-15-AppleSilicon.dmg
+          mv Paintera-macos-26-*/*.dmg Paintera-${VERSION}-MacOS-26-AppleSilicon.dmg
+      - name: Replace Dev Release
+        env:
+          NOTES: ${{ steps.git-cliff.outputs.content }}
+        run: |
+          gh release delete dev --cleanup-tag --yes || true
+          gh release create dev --prerelease --target "$GITHUB_SHA" \
+            --title "Paintera ${VERSION}" \
+            --notes "$NOTES" \
+            Paintera-${VERSION}-*

@@ -5,6 +5,11 @@ name: Build Installers
 
 on:
   workflow_call:
+    inputs:
+      version-suffix:
+        description: 'If set, the project version becomes <version without -SNAPSHOT>-<suffix>'
+        type: string
+        default: ''
   pull_request:
     branches: [master]
 
@@ -59,6 +64,14 @@ jobs:
           server-id: github
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
+      - name: Apply Version Suffix
+        if: inputs.version-suffix != ''
+        shell: bash
+        run: |
+          current=$(mvn -B -q -ntp help:evaluate -Dexpression=project.version -DforceStdout)
+          mvn -B -ntp versions:set -DnewVersion="${current%-SNAPSHOT}-${{ inputs.version-suffix }}" -DgenerateBackupPoms=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Blosc
         if: runner.os != 'Linux'
         uses: actions/download-artifact@v4
