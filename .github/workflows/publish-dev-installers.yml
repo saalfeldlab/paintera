@@ -14,11 +14,27 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      suffix: ${{ steps.suffix.outputs.suffix }}
+      base: ${{ steps.version.outputs.base }}
+      suffix: ${{ steps.version.outputs.suffix }}
     steps:
-      - name: Compute Suffix
-        id: suffix
-        run: echo "suffix=dev-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v6
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+      - name: Compute Version
+        id: version
+        run: |
+          current=$(mvn -B -q -ntp help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "base=${current%-SNAPSHOT}" >> $GITHUB_OUTPUT
+          echo "suffix=dev-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_installers:
     name: Build Installers
@@ -34,7 +50,8 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSION: ${{ needs.version.outputs.suffix }}
+      VERSION: ${{ needs.version.outputs.base }}-dev
+      RELEASE_TITLE: ${{ needs.version.outputs.base }} dev prerelease
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout Repository
@@ -61,8 +78,9 @@ jobs:
         env:
           NOTES: ${{ steps.git-cliff.outputs.content }}
         run: |
+          notes="${NOTES/\#\# \[unreleased\]/## ${RELEASE_TITLE}}"
           gh release delete dev --cleanup-tag --yes || true
           gh release create dev --prerelease --target "$GITHUB_SHA" \
-            --title "Paintera ${VERSION}" \
-            --notes "$NOTES" \
+            --title "$RELEASE_TITLE" \
+            --notes "$notes" \
             Paintera-${VERSION}-*
