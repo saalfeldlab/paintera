@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import ch.qos.logback.classic.Level
+import com.google.gson.JsonObject
 import com.sun.javafx.application.PlatformImpl
 import com.sun.javafx.stage.StageHelper
 import com.sun.javafx.stage.WindowHelper
@@ -38,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraSplashScreen
 import org.janelia.saalfeldlab.paintera.ui.SplashScreenFinishPreloader
 import org.janelia.saalfeldlab.paintera.ui.SplashScreenUpdateNotification
 import org.janelia.saalfeldlab.paintera.ui.SplashScreenUpdateNumItemsNotification
+import org.janelia.saalfeldlab.paintera.ui.dialogs.NewerProjectVersionDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.debug.DebugModeProperty
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
@@ -258,7 +260,8 @@ class Paintera : Application() {
 
 	fun loadProject(projectDirectory: String? = null) {
 		projectDirectory?.let { pathOrUri ->
-			if (n5Factory.openReaderOrNull(pathOrUri) == null) {
+			val reader = n5Factory.openReaderOrNull(pathOrUri)
+			if (reader == null) {
 				val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
 				alert.headerText = "Paintera Project Not Found"
 				alert.contentText = """
@@ -268,6 +271,12 @@ class Paintera : Application() {
 				alert.showAndWait()
 				return
 			}
+			val projectVersion = reader.getAttribute("/", PainteraMainWindow.PAINTERA_KEY, JsonObject::class.java)
+				?.get(PainteraMainWindow.VERSION_KEY)
+				?.takeIf { it.isJsonPrimitive }
+				?.asString
+			if (NewerProjectVersionDialog.isNewerThanCurrent(projectVersion) && !NewerProjectVersionDialog.showAndWaitForContinue())
+				return
 		}
 
 		paintera.baseView.sourceInfo().apply {

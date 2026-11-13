@@ -330,11 +330,11 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		@JvmStatic
 		val NAME = "Paintera"
 
-		private const val PAINTERA_KEY = "paintera"
+		internal const val PAINTERA_KEY = "paintera"
 
 		private const val SOURCES_KEY = "sourceInfo"
 
-		private const val VERSION_KEY = "version"
+		internal const val VERSION_KEY = "version"
 
 		private const val GLOBAL_TRANSFORM_KEY = "globalTransform"
 
