@@ -60,11 +60,14 @@ jobs:
           fetch-depth: 0  # Need full history for git-cliff
       - name: Download Artifacts
         uses: actions/download-artifact@v4
+      - name: Find Latest Release
+        id: latest-release
+        run: echo "tag=$(gh release view --json tagName --jq .tagName)" >> $GITHUB_OUTPUT
       - name: Generate Prerelease Log
         id: git-cliff
         uses: orhun/git-cliff-action@v4
         with:
-          args: -u --strip header
+          args: ${{ steps.latest-release.outputs.tag }}..HEAD --strip header --ignore-tags '^dev$'
       - name: Rename Artifacts
         run: |
           mv Paintera-windows-latest-*/*.msi Paintera-${VERSION}-Windows.msi
