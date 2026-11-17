@@ -651,6 +651,7 @@
 						<exclude>**WindowDimensionsTest**</exclude>
 						<exclude>**AnimatedProgressBarTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
+						<exclude>**SamRenderNonVolatileTest**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

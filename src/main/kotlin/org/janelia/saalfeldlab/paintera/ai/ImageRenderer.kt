@@ -25,7 +25,7 @@ object ImageRenderer {
 
     private val LOG = KotlinLogging.logger { }
 
-    suspend fun renderBufferedImage(state: RenderUnitState, screenScales: DoubleArray): BufferedImage {
+    suspend fun renderBufferedImage(state: RenderUnitState, screenScales: DoubleArray, useVolatileIfAvailable: Boolean = false): BufferedImage {
         val threadGroup = ThreadGroup(this.toString())
         val sharedQueue = SharedQueue(PainteraBaseView.reasonableNumFetcherThreads(), 50)
 
@@ -41,7 +41,7 @@ object ImageRenderer {
             skipOverlays = true,
             screenScales = screenScales,
             dimensions = longArrayOf(state.width, state.height),
-            useVolatileIfAvailable = false
+            useVolatileIfAvailable = useVolatileIfAvailable
         )
 
         val renderedImage = CompletableDeferred<BufferedImage>()
