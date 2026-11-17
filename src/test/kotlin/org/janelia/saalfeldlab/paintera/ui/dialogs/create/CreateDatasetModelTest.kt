@@ -2,7 +2,12 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create
 
 import bdv.cache.SharedQueue
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
+import net.imglib2.type.volatiles.VolatileUnsignedLongType
+import org.janelia.saalfeldlab.n5.universe.StorageFormat
+import org.janelia.saalfeldlab.paintera.testdata.TestData
+import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.DatasetAttributes
 import org.janelia.saalfeldlab.n5.RawCompression
@@ -39,5 +44,43 @@ class CreateDatasetModelTest {
 		assertEquals(listOf(32, 16, 8), model.blockSize.asIntArray().toList())
 		assertEquals(listOf(3L, 4L), model.additionalAxes.map { it.sizeProperty.value })
 		assertEquals(listOf(1, 2), model.additionalAxes.map { it.blockSizeProperty.value })
+	}
+
+	/** The non-spatial resolution and offset of a paintera group live in its OME-NGFF block, not the paintera attributes. */
+	@Test
+	fun `non-spatial resolution and offset come from a paintera group source`(@TempDir tmp: Path) {
+		TestData.registerLabelBlockLookupAdapter()
+		val testCase = TestData.creatableLabelDatasetCases.first { it.format == StorageFormat.N5 && it.dataType == TestData.DataType.UINT64 }
+		val writer = TestData.newWriter(testCase, tmp)
+		val group = "nd-labels"
+		N5Data.createPainteraLabelDataset(
+			writer,
+			group,
+			longArrayOf(16, 16, 16, 3, 2),
+			intArrayOf(8, 8, 8, 1, 1),
+			doubleArrayOf(2.0, 3.0, 4.0, 1.0, 0.5),
+			doubleArrayOf(0.0, 0.0, 0.0, 0.0, 10.0),
+			arrayOf(doubleArrayOf(2.0, 2.0, 2.0)),
+			"pixel",
+			null,
+			labelMultisetType = false,
+			overwrite = false,
+			axes = arrayOf(
+				Axis(Axis.SPACE, "x", "pixel", false),
+				Axis(Axis.SPACE, "y", "pixel", false),
+				Axis(Axis.SPACE, "z", "pixel", false),
+				Axis(Axis.CHANNEL, "c", null, false),
+				Axis(Axis.TIME, "t", "seconds", false)
+			)
+		)
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), group)!!
+		val source = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, group, SharedQueue(1), 0)
+
+		val model = DefaultCreateDatasetModel()
+		model.populateFrom(source)
+
+		assertEquals(listOf(2.0, 3.0, 4.0), model.resolution.asDoubleArray().toList())
+		assertEquals(listOf(1.0, 0.5), model.additionalAxes.map { it.resolutionProperty.value })
+		assertEquals(listOf(0.0, 10.0), model.additionalAxes.map { it.offsetProperty.value })
 	}
 }

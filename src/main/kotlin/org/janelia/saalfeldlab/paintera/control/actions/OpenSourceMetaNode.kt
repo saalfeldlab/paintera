@@ -217,16 +217,15 @@ class OpenSourceMetaNode(private val model: OpenSourceModel) : TitledPane() {
         translationCells: Array<Pair<TextField, DoubleProperty>>
     ) {
         for (idx in resolutionCells.indices) {
-            val spatialIdx = axes[idx].toXyzIdx() ?: continue
+            val xyzIndices = axes[idx].toXyzIdx() ?: continue
             val resolutionProperty = resolutionCells[idx].second
-            val physicalTranslation = SimpleDoubleProperty(translation[spatialIdx])
+            /* the `resolution`, and `translation` extensions returns a copy, inplace is not modifying the MetadataState */
+            val physicalTranslation = SimpleDoubleProperty(translation[xyzIndices])
             subscriptions += resolutionProperty.subscribe { _, newResolution ->
-                resolution[spatialIdx] = newResolution.toDouble()
-                updateTransform(resolution, translation)
+                updateTransform(resolution = resolution.also { it[xyzIndices] = newResolution.toDouble() })
             }
             subscriptions += physicalTranslation.subscribe { _, newTranslation ->
-                translation[spatialIdx] = newTranslation.toDouble()
-                updateTransform(resolution, translation)
+                updateTransform(translation = translation.also { it[xyzIndices] = newTranslation.toDouble() })
             }
             subscriptions += translationSpace.bindAxis(translationCells[idx].second, physicalTranslation, resolutionProperty)
         }

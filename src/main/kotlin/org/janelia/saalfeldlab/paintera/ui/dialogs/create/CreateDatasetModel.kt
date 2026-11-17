@@ -22,13 +22,11 @@ import net.imglib2.img.cell.AbstractCellImg
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
-import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
+import org.janelia.saalfeldlab.paintera.state.metadata.ngffMetadataCopy
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleGroup
 import java.io.File
 
 private val LOG = KotlinLogging.logger { }
@@ -192,13 +190,7 @@ internal class DefaultCreateDatasetModel(
 
 			val attributes = metadataState.datasetAttributes
 
-			/* the highest-res NGFF child, when the source has one; its scale/translation carry the non-spatial axes */
-			val highestRes = when (val metadata = metadataState.metadata) {
-				is N5PainteraDataMultiscaleGroup -> metadata.dataGroupMetadata.childrenMetadata.firstOrNull()
-				is NgffSingleScaleAxesMetadata -> metadata
-				is SpatialMultiscaleMetadata<*> -> metadata.childrenMetadata.firstOrNull() as? NgffSingleScaleAxesMetadata
-				else -> null
-			}
+			val highestRes = metadataState.ngffMetadataCopy(0)
 			val nonSpatial = metadataState.xyzView.nonSpatialAxes
 			additionalAxes.setAll(nonSpatial.map { axisIndex ->
 				val sourceAxis = metadataState.axes[axisIndex]
@@ -208,8 +200,8 @@ internal class DefaultCreateDatasetModel(
 					blockSize = attributes.blockSize.getOrElse(axisIndex) { 1 },
 					type = type,
 					unit = sourceAxis.unit ?: "",
-					resolution = highestRes?.scale?.getOrNull(axisIndex) ?: 1.0,
-					offset = highestRes?.translation?.getOrNull(axisIndex) ?: 0.0
+					resolution = highestRes.scale[axisIndex],
+					offset = highestRes.translation[axisIndex]
 				)
 			})
 		}
