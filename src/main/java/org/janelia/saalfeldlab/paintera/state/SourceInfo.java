@@ -22,6 +22,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
 import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.slf4j.Logger;
@@ -205,10 +206,18 @@ public class SourceInfo {
 	/** The state registered for {@code source}, or the one rendering through it, e.g. a channel composite */
 	public SourceState<?, ?> getState(final Source<?> source) {
 
-		final SourceState<?, ?> state = states.get(source);
+		final var key = DataSource.dataSourceKey(source);
+		final var state = states.get(key);
 		if (state != null)
 			return state;
-		return states.values().stream().filter(it -> it.getSourceAndConverter().getSpimSource() == source).findFirst().orElse(null);
+		return states.values().stream()
+				.filter(sourceState -> {
+					final var spimSource = sourceState.getSourceAndConverter().getSpimSource();
+					final var sourceKey = DataSource.dataSourceKey(spimSource);
+					return sourceKey.equals(key);
+				})
+				.findFirst()
+				.orElse(null);
 	}
 
 	public ObservableList<Source<?>> trackSources() {

@@ -191,7 +191,6 @@ internal class StatusBar() : HBox() {
 			val sourceInfo = paintera.baseView.sourceInfo()
 			val currentSource = sourceInfo.currentSourceProperty()
 			val currentState = sourceInfo.currentState()
-			/* the value under the mouse is read from the source the viewer renders, e.g. a channel composite */
 			val renderSource = Bindings.createObjectBinding(
 				{ currentState.value?.sourceAndConverter?.spimSource },
 				currentState,

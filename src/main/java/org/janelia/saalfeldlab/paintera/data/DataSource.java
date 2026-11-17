@@ -23,6 +23,25 @@ import java.util.stream.IntStream;
  */
 public interface DataSource<D, T> extends Source<T>, Invalidate<Long> {
 
+	/** When comparing Source from a DataSource, its useful to have both Source<D> and Source<T> compare equally
+	 * for certain lookups (e.g. SourceAndConverter, SourceState). In this case, both  Source<D> and Source<T> should
+	 * return a canonical Source (generally the DataSource<D,T> instance, which IS Source<T>) */
+	static Source<?> dataSourceKey(final Source<?> source) {
+
+		return source instanceof NonVolatileSource ? ((NonVolatileSource<?>)source).getDataSource() : source;
+	}
+
+	/** The non-volatile {@code <D>} view of this DataSource */
+	default Source<D> getDataSource() {
+
+		return new NonVolatileSource<>(this);
+	}
+
+	//TODO Caleb: Since we now expose Source<D> directly, we probably should deprecate and migrate away from
+	//	getDataSource(time,level), getInterpolatedDataSource(time,level,method), and getDataType().
+	// That would be a large commit, and require some restructuring of how t,l RAI are accessed/stored.
+	// It would also require inverting the delegation. Currently NonVolatileSource delegates to DataSource, but
+	// when deprecating these methods, they should then delegate to the non volatile Source<D> methods
 	RandomAccessibleInterval<D> getDataSource(int t, int level);
 
 	RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method);

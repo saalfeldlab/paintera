@@ -10,7 +10,7 @@ import kotlinx.coroutines.selects.select
 import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
+import org.janelia.saalfeldlab.bdv.fx.viewer.SourceUtils
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.BaseRenderUnit
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -80,7 +80,7 @@ object ImageRenderer {
         val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource?.takeIf { excludeActiveSource }
         val sacs = state.sources
             .filterNot { it.spimSource == activeSourceToSkip }
-            .map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
+            .map { sac -> SourceUtils.nonVolatileSourceAndConverter(sac) }
             .toList()
         return RenderUnitState(
             globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },
