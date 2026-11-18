@@ -120,7 +120,8 @@ internal object OpenProjectDialog {
 
 	/* a valid project is an N5 container whose root attributes contain the `paintera` key */
 	private fun File.containsPainteraProject(): Boolean = runCatching {
-		Paintera.n5Factory.openReaderOrNull(toURI().toString())
+
+		Paintera.n5Factory.openReaderOrNull(toPath().toUri().toString())
 			?.getAttribute("/", PAINTERA_PROJECT_KEY, JsonElement::class.java)
 			?.isJsonObject == true
 	}.getOrDefault(false)
