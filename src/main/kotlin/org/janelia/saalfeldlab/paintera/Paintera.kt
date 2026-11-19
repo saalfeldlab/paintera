@@ -437,6 +437,7 @@ class Paintera : Application() {
 			"style/mesh.css",
 			"style/open-source.css",
 			"style/selectable-label.css",
+			"style/source-tabs.css",
 			"style/export-ids.css",
 			"style/notifications.css"
 		)

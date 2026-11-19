@@ -1,0 +1,22 @@
+.source-drag-handle {
+    -fx-padding: 0 0 0 8;
+    -fx-opacity: 0.45;
+}
+
+.source-drag-handle:hover {
+    -fx-opacity: 1.0;
+}
+
+.source-title:dragging {
+    -fx-opacity: 0.4;
+}
+
+.titled-pane:drop-above {
+    -fx-border-color: -help-blue transparent transparent transparent;
+    -fx-border-width: 3 0 0 0;
+}
+
+.titled-pane:drop-below {
+    -fx-border-color: transparent transparent -help-blue transparent;
+    -fx-border-width: 0 0 3 0;
+}
