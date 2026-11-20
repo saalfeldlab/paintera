@@ -28,6 +28,9 @@ import org.janelia.saalfeldlab.paintera.util.PainteraUtils.intervalInSourceSpace
 import org.janelia.saalfeldlab.util.intersect
 import org.janelia.saalfeldlab.util.isNotEmpty
 import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.util.n5.SpatialMapping
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
+import org.janelia.saalfeldlab.paintera.state.metadata.ngffMetadataCopy
 import org.janelia.saalfeldlab.util.union
 import org.janelia.saalfeldlab.paintera.state.metadata.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.transform
@@ -75,9 +78,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			children += Separator(Orientation.HORIZONTAL)
 			children += newVirtualCropInputGrid(metadataState)
 
-			metadataState.metadata.childrenMetadata.zip(metadataState.sourceToXyzTransforms).forEachIndexed { idx, (scale, transform) ->
+			metadataState.metadata.childrenMetadata.forEachIndexed { idx, scale ->
 				val title = "Scale $idx: ${scale.name}"
-				val scaleMetadataGrid = singleScaleMetadataNode(SingleScaleMetadataState(n5ContainerState, scale), true, transform)
+				val scaleMetadataGrid = singleScaleMetadataNode(SingleScaleMetadataState(n5ContainerState, scale), true, metadataState.ngffMetadataCopy(idx))
 				children += TitledPanes.createCollapsed(title, scaleMetadataGrid)
 			}
 		}
@@ -264,7 +267,11 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			?.smallestContainingInterval
 	}
 
-	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride: AffineTransform3D? = null): Node {
+	fun singleScaleMetadataNode(
+		metadataState: MetadataState,
+		asScaleLevel: Boolean = false,
+		ngffMetadata: NgffSingleScaleAxesMetadata = metadataState.ngffMetadataCopy()
+	): Node {
 		val n5ContainerState = metadataState.n5ContainerState
 
 		val resolutionLabel = Labels.withTooltip("Resolution", "Resolution of the source dataset")
@@ -285,14 +292,9 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			}
 		}
 
-		val resolution = transformOverride?.let {
-			doubleArrayOf(it.get(0, 0), it.get(1, 1), it.get(2, 2))
-		} ?: metadataState.resolution
-
-		val translation = transformOverride?.translation ?: metadataState.translation
-
-		val resolutionField = getSpatialFieldWithInitialDoubleArray(resolution)
-		val offsetField = getSpatialFieldWithInitialDoubleArray(translation)
+		val ngffSpatialMapping = SpatialMapping.of(ngffMetadata.axes)
+		val resolutionField = getSpatialFieldWithInitialDoubleArray(ngffSpatialMapping.toSpatial(ngffMetadata.scale, 1.0))
+		val offsetField = getSpatialFieldWithInitialDoubleArray(ngffSpatialMapping.toSpatial(ngffMetadata.translation, 0.0))
 
 		val spatialMapping = metadataState.xyzView.spatialMapping()
 		val blockSize = spatialMapping.toSpatial(metadataState.datasetAttributes.blockSize, 1)

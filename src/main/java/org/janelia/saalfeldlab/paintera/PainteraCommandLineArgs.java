@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.state.raw.ChannelComposition;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataStateKt;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
@@ -577,14 +578,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 							.flatMap(md -> Optional.ofNullable(MetadataUtils.createMetadataState(containerState, md)))
 							.get();
 
-					//TODO currenctly this always updates the metadataState with options.resolution and offset.
-					//	However, options.resolution and options.offset have default values if not provided.
-					//	So, if the metadata specifies resolution for example, and no resolution is specified
-					//	via command line to override, it will still be overridden withe default (identity).
-					// 	It would be better to either reomve the default, or only override if the default
-					//	value is explicitly specified.
-
-					metadataState.updateTransform(options.resolution, options.offset);
+					if (options.resolution != null || options.offset != null) {
+						var res = options.resolution != null ? options.resolution : MetadataStateKt.getResolution(metadataState);
+						var trans = options.offset != null ? options.offset : MetadataStateKt.getTranslation(metadataState);
+						metadataState.updateTransform(res, trans);
+					}
 
 					Optional.ofNullable(options.min).ifPresent(metadataState::setMinIntensity);
 					Optional.ofNullable(options.max).ifPresent(metadataState::setMinIntensity);
@@ -621,10 +619,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			String[] datasets = null;
 
 			@Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", split = ",")
-			double[] resolution = new double[]{1.0, 1.0, 1.0};
+			double[] resolution = null;
 
 			@Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", split = ",")
-			double[] offset = new double[]{0.0, 0.0, 0.0};
+			double[] offset = null;
 
 			@Option(names = {"-R", "--reverse-array-attributes"}, paramLabel = "REVERT")
 			Boolean reverseArrayAttributes = false;

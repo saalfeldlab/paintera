@@ -58,6 +58,13 @@ class SpatialMapping(
             xyzSourceAxes[slot].takeIf { it >= 0 }?.let { sourceValues[it] } ?: outOfBounds }
     }
 
+    fun toSpatial(sourceValues: DoubleArray, outOfBounds: Double): DoubleArray {
+        requireSourceShape(sourceValues.size)
+
+        return DoubleArray(3) { slot ->
+            xyzSourceAxes[slot].takeIf { it >= 0 }?.let { sourceValues[it] } ?: outOfBounds }
+    }
+
     fun toSpatial(sourceValues: IntArray, outOfBounds: Int): IntArray {
         val sourceValuesLong = sourceValues.map { it.toLong() }.toLongArray()
         return toSpatial(sourceValuesLong, outOfBounds.toLong()).map { it.toInt() }.toIntArray()

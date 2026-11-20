@@ -26,6 +26,8 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.i
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.fallbackAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.getAxes
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.isLabelMultiset
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.util.n5.*
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiscaleGroup
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiscaleGroup
@@ -60,7 +62,7 @@ interface MetadataState {
         get() = N5URI.normalizeGroupPath(group)
 
     fun updateTransform(newTransform: AffineTransform3D)
-    fun updateTransform(resolution: DoubleArray, offset: DoubleArray)
+    fun updateTransform(resolution: DoubleArray = this.resolution, translation: DoubleArray = this.translation)
 
     fun <D, T> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> where D : NativeType<D>, T : Volatile<D>, T : NativeType<T>
 
@@ -109,6 +111,33 @@ val MetadataState.resolution: DoubleArray
 val MetadataState.translation: DoubleArray
     get() = transform.translation
 
+/**
+ * Construct a new [NgffSingleScaleAxesMetadata] from the current MetadataState.
+ *
+ * This is useful for getting a metadata object that contains the potentially overridden metadata
+ * that Paintera supports during Open Source, which include Axis order, Resolution, Translation, Unit
+ * */
+fun MetadataState.ngffMetadataCopy(level: Int = 0): NgffSingleScaleAxesMetadata {
+    val metadata = (this as? MultiScaleMetadataState)?.metadata?.childrenMetadata?.get(level) ?: this@ngffMetadataCopy.metadata as? N5SpatialDatasetMetadata
+
+    val attributes = metadata?.attributes ?: datasetAttributes
+    val numDimensions = attributes.numDimensions
+
+    /* a spatial-only array (e.g. the parser's default offset) has nothing for the non-spatial axes */
+    val scaleFromMetadata = metadata?.resolution?.takeIf { it.size == numDimensions } ?: DoubleArray(numDimensions) { 1.0 }
+    val translationFromMetadata = metadata?.offset?.takeIf { it.size == numDimensions } ?: DoubleArray(numDimensions)
+
+    val spatialMapping = xyzView.spatialMapping()
+    val sourceToXyz = (this as? MultiScaleMetadataState)?.sourceToXyzTransforms?.get(level) ?: this@ngffMetadataCopy.sourceToXyz
+    val xyzRes = DoubleArray(3) { i -> sourceToXyz[i, i] }
+
+
+    val scaleFromMetadataState = spatialMapping.toSource(xyzRes, scaleFromMetadata)
+    val translationFromMetadataState = spatialMapping.toSource(sourceToXyz.translation, translationFromMetadata)
+
+    return NgffSingleScaleAxesMetadata("", scaleFromMetadataState, translationFromMetadataState, axes.copyOf(), attributes)
+}
+
 open class SingleScaleMetadataState(
     final override var n5ContainerState: N5ContainerState,
     final override val metadata: N5SpatialDatasetMetadata,
@@ -146,8 +175,8 @@ open class SingleScaleMetadataState(
         }
     }
 
-    override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
-        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
+    override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
+        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)
         updateTransform(newTransform)
     }
 
@@ -211,24 +240,9 @@ open class MultiScaleMetadataState(
      * pyramid that downsamples time reports it; [sourceToXyzTransforms] is 3D and cannot.
      */
     val scaleFactors: Array<DoubleArray> by lazy {
-        val levelScales = metadata.childrenMetadata.mapIndexed { level, levelMetadata -> levelScale(level, levelMetadata) }
+        val levelScales = metadata.childrenMetadata.indices.map { level -> ngffMetadataCopy(level).scale }
         val highestResScale = levelScales[0]
         Array(levelScales.size) { level -> DoubleArray(highestResScale.size) { levelScales[level][it] / highestResScale[it] } }
-    }
-
-    /* the nD scale where the container stores one, otherwise the 3D transform diagonal at the spatial axes and 1 elsewhere */
-    private fun levelScale(level: Int, levelMetadata: N5SpatialDatasetMetadata): DoubleArray {
-        val numDimensions = levelMetadata.attributes.numDimensions
-        (levelMetadata as? NgffSingleScaleAxesMetadata)?.scale?.takeIf { it.size == numDimensions }?.let {
-            return it
-        }
-        val sLevelToXyz = sourceToXyzTransforms[level]
-        return DoubleArray(numDimensions) { 1.0 }.also { scale ->
-            xyzView.xyzSourceAxes.forEachIndexed { slot, axis ->
-                if (axis >= 0)
-                    scale[axis] = sLevelToXyz.get(slot, slot)
-            }
-        }
     }
 
     override fun copy(): MultiScaleMetadataState {
@@ -237,8 +251,8 @@ open class MultiScaleMetadataState(
         }
     }
 
-    override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
-        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
+    override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) {
+        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, translation)
         updateTransform(newTransform)
     }
 

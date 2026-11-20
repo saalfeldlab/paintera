@@ -11,6 +11,7 @@ import net.imglib2.type.numeric.integer.AbstractIntegerType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import org.janelia.saalfeldlab.n5.DataType
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
@@ -27,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
 import org.janelia.saalfeldlab.paintera.state.metadata.PainteraDataMultiscaleMetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.translation
+import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.paintera.testdata.TestData
 import org.janelia.saalfeldlab.paintera.testdata.TestData.TestCase
@@ -315,6 +317,122 @@ class ExportSourceStateTest {
 		assertArrayEquals(dimensions, N5Utils.open<UnsignedLongType>(wholeWriter, "exported/s0").dimensionsAsLongArray()) { "the whole source for $testCase" }
 		assertArrayEquals(sourceTranslation, MetadataUtils.createMetadataState(N5ContainerState(wholeWriter), "exported")!!.translation, 1e-9) { "the source translation for $testCase" }
 		wholeWriter.remove("")
+	}
+
+	@ParameterizedTest
+	@FieldSource("croppedExportCases")
+	fun `an overridden resolution and translation reach the source, backend and export`(testCase: TestCase, @TempDir tmp: Path) {
+		val writer = TestData.newWriter(testCase, tmp)
+		val dimensions = TestData.defaultDimensions(testCase)
+		val dataset = TestData.createRaw(writer, testCase, "labels", dimensions, resolution = doubleArrayOf(4.0, 4.0, 40.0), offset = doubleArrayOf(100.0, 200.0, 300.0)) { scaleDataset, scaleDimensions, scaleIndex ->
+			if (scaleIndex == 0)
+				fillWithLabels(writer, scaleDataset, scaleDimensions)
+		}
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		/* some test datasets ignore the requested resolution and offset, so override relative to what was read */
+		val expectedResolution = metadataState.resolution.also { it[0] = 8.0; it[2] = 25.0 }
+		val expectedTranslation = metadataState.translation.also { it[1] = -3.5 }
+		metadataState.updateTransform(resolution = expectedResolution, translation = expectedTranslation)
+		metadataState.axes = metadataState.axes.map { axis -> Axis(axis.type, axis.name, "micrometer", false) }.toTypedArray()
+		assertArrayEquals(expectedResolution, metadataState.resolution, 1e-9) { "state resolution for $testCase" }
+		assertArrayEquals(expectedTranslation, metadataState.translation, 1e-9) { "state translation for $testCase" }
+
+		val queue = SharedQueue(1)
+		val executor = Executors.newSingleThreadExecutor()
+		val backend = N5BackendLabel.createFrom<UnsignedLongType, VolatileUnsignedLongType>(metadataState, executor)
+		assertArrayEquals(expectedResolution, backend.resolution, 1e-9) { "backend resolution for $testCase" }
+		assertArrayEquals(expectedTranslation, backend.translation, 1e-9) { "backend translation for $testCase" }
+
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, "labels", queue, 0)
+		val s0ToGlobal = AffineTransform3D().also { dataSource.getSourceTransform(0, 0, it) }
+		assertArrayEquals(expectedResolution, doubleArrayOf(s0ToGlobal.get(0, 0), s0ToGlobal.get(1, 1), s0ToGlobal.get(2, 2)), 1e-9) { "source scale for $testCase" }
+		assertArrayEquals(expectedTranslation, s0ToGlobal.translation, 1e-9) { "source translation for $testCase" }
+
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor) as MaskedSource
+		val exportLocation = tmp.resolve("export.n5").absolutePathString()
+		val exportState = ExportSourceState().apply {
+			backendProperty.set(backend)
+			sourceProperty.set(masked)
+			scaleLevelProperty.set(0)
+			dataTypeProperty.set(DataType.UINT64)
+			segmentFragmentMappingProperty.set(false)
+			exportLocationProperty.set(exportLocation)
+			datasetProperty.set("exported")
+		}
+		var exportFailure: Throwable? = null
+		runBlocking {
+			val job = exportState.exportSource()!!
+			job.invokeOnCompletion { cause -> exportFailure = cause }
+			job.join()
+		}
+		assertNull(exportFailure) { "export failed for $testCase: $exportFailure" }
+
+		val exportWriter = Paintera.n5Factory.newWriter(exportLocation)
+		val exportedMetadata = MetadataUtils.createMetadataState(N5ContainerState(exportWriter), "exported")!!
+		assertArrayEquals(expectedResolution, exportedMetadata.resolution, 1e-9) { "exported resolution for $testCase" }
+		assertArrayEquals(expectedTranslation, exportedMetadata.translation, 1e-9) { "exported translation for $testCase" }
+		assertEquals(List(3) { "micrometer" }, exportedMetadata.axes.take(3).map { it.unit }) { "exported units for $testCase" }
+		exportWriter.remove("")
+	}
+
+	@ParameterizedTest
+	@FieldSource("croppedExportCases")
+	fun `swapped axis roles are exported with the source order resolution and translation`(testCase: TestCase, @TempDir tmp: Path) {
+		val writer = TestData.newWriter(testCase, tmp)
+		val dimensions = TestData.defaultDimensions(testCase)
+		val dataset = TestData.createRaw(writer, testCase, "labels", dimensions) { scaleDataset, scaleDimensions, scaleIndex ->
+			if (scaleIndex == 0)
+				fillWithLabels(writer, scaleDataset, scaleDimensions)
+		}
+		val metadataState = MetadataUtils.createMetadataState(N5ContainerState(writer), dataset)!!.also { it.isLabel = true }
+		metadataState.updateTransform(resolution = doubleArrayOf(2.0, 3.0, 5.0), translation = doubleArrayOf(7.0, 11.0, 13.0))
+		val unswappedResolution = metadataState.resolution
+
+		/* x and z trade roles, so the same source values read as different canonical ones */
+		val swappedAxes = metadataState.axes.map { axis ->
+			val name = when (axis.name) {
+				"x" -> "z"
+				"z" -> "x"
+				else -> axis.name
+			}
+			Axis(axis.type, name, axis.unit, false)
+		}.toTypedArray()
+		metadataState.axes = swappedAxes
+		val expectedResolution = metadataState.resolution
+		val expectedTranslation = metadataState.translation
+		assertFalse(unswappedResolution.contentEquals(expectedResolution)) { "swapping x and z must change the canonical resolution for $testCase" }
+
+		val queue = SharedQueue(1)
+		val executor = Executors.newSingleThreadExecutor()
+		val backend = N5BackendLabel.createFrom<UnsignedLongType, VolatileUnsignedLongType>(metadataState, executor)
+		val dataSource = N5DataSource<UnsignedLongType, VolatileUnsignedLongType>(metadataState, "labels", queue, 0)
+		val canvasDir = tmp.resolve("canvas").absolutePathString()
+		val masked = Masks.maskedSource(dataSource, queue, canvasDir, { canvasDir }, CommitCanvasN5(metadataState), executor) as MaskedSource
+		val exportLocation = tmp.resolve("export.n5").absolutePathString()
+		val exportState = ExportSourceState().apply {
+			backendProperty.set(backend)
+			sourceProperty.set(masked)
+			scaleLevelProperty.set(0)
+			dataTypeProperty.set(DataType.UINT64)
+			segmentFragmentMappingProperty.set(false)
+			exportLocationProperty.set(exportLocation)
+			datasetProperty.set("exported")
+		}
+		var exportFailure: Throwable? = null
+		runBlocking {
+			val job = exportState.exportSource()!!
+			job.invokeOnCompletion { cause -> exportFailure = cause }
+			job.join()
+		}
+		assertNull(exportFailure) { "export failed for $testCase: $exportFailure" }
+
+		val exportWriter = Paintera.n5Factory.newWriter(exportLocation)
+		val exportedMetadata = MetadataUtils.createMetadataState(N5ContainerState(exportWriter), "exported")!!
+		assertEquals(swappedAxes.map { it.name }, exportedMetadata.axes.map { it.name }) { "exported axis roles for $testCase" }
+		assertArrayEquals(expectedResolution, exportedMetadata.resolution, 1e-9) { "exported resolution for $testCase" }
+		assertArrayEquals(expectedTranslation, exportedMetadata.translation, 1e-9) { "exported translation for $testCase" }
+		exportWriter.remove("")
 	}
 
 	/** Fill [dataset] with a repeating pattern of label ids, so the export has something to match. */

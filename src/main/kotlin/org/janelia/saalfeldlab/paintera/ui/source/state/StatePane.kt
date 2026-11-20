@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
 import javafx.css.PseudoClass
+import javafx.scene.Cursor
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -17,6 +18,8 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.Style
 import org.janelia.saalfeldlab.paintera.addStyleClass
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.kordamp.ikonli.fontawesome6.FontAwesomeSolid
+import org.kordamp.ikonli.javafx.FontIcon
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.Consumer
@@ -39,6 +42,8 @@ class StatePane(
 		alignment = Pos.CENTER_RIGHT
 		LOG.debug("_pane width is {} ({})", this.width, width)
 	}
+
+	val titleBox = HBox()
 
 	init {
 		val closeButton = Button(null).apply {
@@ -70,26 +75,32 @@ class StatePane(
 			backgroundProperty().bind(editableProperty().createNonNullValueBinding { if (it) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND })
 			HBox.setHgrow(this, Priority.ALWAYS)
 		}
-		val titleBox = HBox(
-			nameField,
-			NamedNode.bufferNode(),
-			activeSource,
-			visibilityButton,
-			closeButton
-		).apply {
+		val dragHandle = Label(null, FontIcon(FontAwesomeSolid.GRIP_LINES)).apply {
+			styleClass += "source-drag-handle"
+			cursor = Cursor.OPEN_HAND
+			tooltip = Tooltip("Drag to reorder")
+			setOnMousePressed { cursor = Cursor.CLOSED_HAND }
+			setOnMouseReleased { cursor = Cursor.OPEN_HAND }
+		}
+		titleBox.apply {
+			val bufferNode = NamedNode.bufferNode()
+			styleClass += "source-title"
+			children.setAll(nameField, bufferNode, activeSource, visibilityButton, closeButton, dragHandle)
 			alignment = Pos.CENTER
 			padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING)
+			/* all these nodes can receive he drag event for reordering the source tabs */
+			listOf(this, bufferNode, dragHandle, dragHandle.graphic).forEach { it.styleClass += DRAG_TARGET_STYLE }
 		}
 		pane.graphic = titleBox
 		pane.contentDisplay = ContentDisplay.GRAPHIC_ONLY
-		// TODO how to get underlined in TextField?
-//        nameField.underlineProperty().bind(_isCurrentSource)
 
 	}
 
 	companion object {
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		internal const val DRAG_TARGET_STYLE = "valid-drag-target"
 
 		private const val LEFT_PADDING = 0.0
 

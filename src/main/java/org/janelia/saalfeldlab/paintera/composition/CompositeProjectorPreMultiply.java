@@ -10,6 +10,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 
 			final ArrayList<Composite<ARGBType, ARGBType>> activeComposites = new ArrayList<>();
 			for (final var activeSource : sources) {
-				activeComposites.add(composites.get(activeSource.getSpimSource()));
+				activeComposites.add(composites.get(DataSource.dataSourceKey(activeSource.getSpimSource())));
 			}
 
 			projector.setComposites(activeComposites);

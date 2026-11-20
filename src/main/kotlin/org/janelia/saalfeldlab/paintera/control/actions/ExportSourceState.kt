@@ -32,8 +32,6 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import org.janelia.saalfeldlab.n5.universe.StorageFormat
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
-import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis
-import org.janelia.saalfeldlab.n5.universe.metadata.axes.AxisMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.NgffSingleScaleAxesMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata
 import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser
@@ -47,10 +45,9 @@ import org.janelia.saalfeldlab.paintera.state.cropAtLevel
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendLabel
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.offset
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.resolution
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.ngffMetadataCopy
 import org.janelia.saalfeldlab.paintera.ui.dialogs.AnimatedProgressBarAlert
 import org.janelia.saalfeldlab.paintera.ui.dialogs.PainteraAlerts
 import org.janelia.saalfeldlab.util.PainteraCache
@@ -168,13 +165,6 @@ class ExportSourceState {
 		/* export from the source data */
 		val metadataState = (backend as? SourceStateBackendN5<*, *>)?.metadataState ?: return null
 		val metadata = (metadataState as? MultiScaleMetadataState)?.metadata?.childrenMetadata[scaleLevel] ?: metadataState.metadata as? N5SpatialDatasetMetadata
-		val translation = when {
-			metadataState is MultiScaleMetadataState && metadataState.highestResMetadata != metadata -> metadataState.downscaleTranslation(scaleLevel)
-			metadata is NgffSingleScaleAxesMetadata -> metadata.translation
-			metadata is N5SpatialDatasetMetadata -> metadata.offset
-			else -> backend.translation
-		}
-
 
 		val imgSize = source.grids[scaleLevel].run { gridDimensions.apply { forEachIndexed { idx, size -> set(idx, size * cellDimensions[idx]) } } }
 
@@ -183,7 +173,7 @@ class ExportSourceState {
 			source.getSourceTransformCopy(0, scaleLevel),
 			doubleArrayOf(1.0, 1.0, 1.0),
 			backend.resolution,
-			translation,
+			backend.translation,
 			source.voxelDimensions?.unit() ?: "pixel",
 			DatasetAttributes(
 				imgSize,
@@ -193,6 +183,9 @@ class ExportSourceState {
 			)
 		)
 
+
+		val ngffMetadata = metadataState.ngffMetadataCopy(scaleLevel)
+		val spatialMapping = metadataState.xyzView.spatialMapping()
 
 		val compression = compressionProperty.value ?: sourceMetadata.attributes.compression
 
@@ -216,7 +209,7 @@ class ExportSourceState {
 		/* the crop over this level, in source order with the non-spatial axes whole; null exports the whole dataset block for block */
 		val cropInterval = metadataState.xyzView.xyzCrop?.takeIf { exportCropProperty.value }?.let { cropInterval(metadataState, scaleLevel, sourceAttributes.dimensions, it) }
 		val exportRAI = cropInterval?.let { Views.zeroMin(Views.interval(committedRAI, it)) } ?: committedRAI
-		val exportTranslation = cropInterval?.let { translation.withCropOffset(it, sourceMetadata.resolution, metadataState.xyzView.spatialMapping()) } ?: translation
+		val exportTranslation = cropInterval?.let { ngffMetadata.translation.withCropOffset(it, ngffMetadata.scale, spatialMapping) } ?: ngffMetadata.translation
 		val exportDimensions = cropInterval?.dimensionsAsLongArray() ?: sourceAttributes.dimensions
 
 		val exportAttributes = DatasetAttributes(exportDimensions, sourceAttributes.chunkSize, dataType, compression)
@@ -249,7 +242,7 @@ class ExportSourceState {
 		val incrementWritten = { -> blocksWritten.update { it + 1 } }
 
 		val exportJob = CoroutineScope(Dispatchers.Default).launch {
-			val createdAttributes = exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, sourceMetadata, exportTranslation)
+			val createdAttributes = exportOmeNGFFMetadata(writer, dataset, scaleLevel, exportAttributes, ngffMetadata, exportTranslation)
 			writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/isLabel", true)
 			if (maxIdProperty.value > -1)
 				writer.setAttribute(dataset, "$PAINTERA_NAMESPACE/$MAX_ID_KEY", maxIdProperty.value)
@@ -430,52 +423,20 @@ private fun GsonKeyValueN5Reader.anyBlockExists(dataset: String, sourceGrid: Cel
 	return false
 }
 
-internal fun MultiScaleMetadataState.downscaleTranslation(scaleLevel: Int) = downscaleTranslation(
-	highestResMetadata.resolution,
-	highestResMetadata.offset,
-	metadata.childrenMetadata[scaleLevel].resolution
-)
-
-internal fun downscaleTranslation(s0Resolution: DoubleArray, s0Offset: DoubleArray, sNResolution: DoubleArray): DoubleArray {
-
-	return DoubleArray(s0Offset.size) { idx ->
-		s0Offset[idx] + (sNResolution[idx] - s0Resolution[idx]) / 2.0
-	}
-}
-
 /** [fill] wherever the source left an axis undefined; a >3D dataset without spatial metadata reads back as `NaN` there, which is not valid JSON. */
 private fun DoubleArray.definedOr(fill: Double) = DoubleArray(size) { if (this[it].isFinite()) this[it] else fill }
-
-private fun fallbackAxes(unit: String, numDimensions: Int): Array<Axis> {
-	val axes = mutableListOf<Axis>().apply {
-		for (idx in 0 until numDimensions) {
-			val axis = when(idx) {
-				0 -> Axis(Axis.SPACE, "x", unit, false)
-				1 -> Axis(Axis.SPACE, "y", unit, false)
-				2 -> Axis(Axis.SPACE, "z", unit, false)
-				3 -> Axis(Axis.CHANNEL, "c", null, true)
-				4 -> Axis(Axis.TIME, "t", null, true)
-				else -> Axis(Axis.CHANNEL, "c$idx", null, true)
-			}
-			add(axis)
-		}
-	}
-	return axes.toTypedArray()
-}
 
 internal fun exportOmeNGFFMetadata(
 	writer: N5Writer,
 	dataset: String,
 	scaleLevel: Int,
 	datasetAttributes: DatasetAttributes,
-	sourceMetadata: N5SpatialDatasetMetadata,
-	translation: DoubleArray = sourceMetadata.offset,
+	sourceMetadata: NgffSingleScaleAxesMetadata,
+	translation: DoubleArray = sourceMetadata.translation,
 ): DatasetAttributes {
 	val scaleLevelDataset = "$dataset/s$scaleLevel"
 	writer.createGroup(dataset)
 	val createdAttributes = writer.createDataset(scaleLevelDataset, datasetAttributes)
-
-	val axes = (sourceMetadata as? AxisMetadata)?.axes ?: fallbackAxes(sourceMetadata.unit(), datasetAttributes.numDimensions)
 
 	/* zarr2 containers get OME-Zarr 0.4 metadata; everything else get 0.5 */
 	val ngffVersion = if (writer is ZarrKeyValueWriter) "0.4" else "0.5"
@@ -483,9 +444,9 @@ internal fun exportOmeNGFFMetadata(
 		datasetAttributes.numDimensions,
 		dataset,
 		ngffVersion,
-		axes,
+		sourceMetadata.axes,
 		arrayOf("s$scaleLevel"),
-		arrayOf(sourceMetadata.resolution.definedOr(1.0)),
+		arrayOf(sourceMetadata.scale.definedOr(1.0)),
 		arrayOf(translation.definedOr(0.0))
 	)
 

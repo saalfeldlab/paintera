@@ -10,7 +10,7 @@ import kotlinx.coroutines.selects.select
 import net.imglib2.parallel.TaskExecutors
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.bdv.fx.viewer.ViewerPanelFX
-import org.janelia.saalfeldlab.bdv.fx.viewer.getDataSourceAndConverter
+import org.janelia.saalfeldlab.bdv.fx.viewer.SourceUtils
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.BaseRenderUnit
 import org.janelia.saalfeldlab.bdv.fx.viewer.render.RenderUnitState
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -25,7 +25,7 @@ object ImageRenderer {
 
     private val LOG = KotlinLogging.logger { }
 
-    suspend fun renderBufferedImage(state: RenderUnitState, screenScales: DoubleArray): BufferedImage {
+    suspend fun renderBufferedImage(state: RenderUnitState, screenScales: DoubleArray, useVolatileIfAvailable: Boolean = false): BufferedImage {
         val threadGroup = ThreadGroup(this.toString())
         val sharedQueue = SharedQueue(PainteraBaseView.reasonableNumFetcherThreads(), 50)
 
@@ -41,7 +41,7 @@ object ImageRenderer {
             skipOverlays = true,
             screenScales = screenScales,
             dimensions = longArrayOf(state.width, state.height),
-            useVolatileIfAvailable = false
+            useVolatileIfAvailable = useVolatileIfAvailable
         )
 
         val renderedImage = CompletableDeferred<BufferedImage>()
@@ -80,7 +80,7 @@ object ImageRenderer {
         val activeSourceToSkip = paintera.currentSource?.sourceAndConverter?.spimSource?.takeIf { excludeActiveSource }
         val sacs = state.sources
             .filterNot { it.spimSource == activeSourceToSkip }
-            .map { sac -> getDataSourceAndConverter<Any>(sac) } // to ensure non-volatile
+            .map { sac -> SourceUtils.nonVolatileSourceAndConverter(sac) }
             .toList()
         return RenderUnitState(
             globalToViewerTransform?.copy() ?: AffineTransform3D().also { state.getViewerTransform(it) },

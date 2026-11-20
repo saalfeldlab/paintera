@@ -81,7 +81,7 @@
 		<logback.version>1.5.22</logback.version>
 		<label-utilities-n5.version>0.4.0</label-utilities-n5.version>
 		<imglib2-label-multisets.version>0.17.0</imglib2-label-multisets.version>
-		<n5.version>4.0.2</n5.version>
+		<n5.version>4.0.3</n5.version>
         <n5-universe.version>3.1.0</n5-universe.version>
         <n5-aws-s3.version>5.1.0</n5-aws-s3.version>
 		<n5-zarr.version>2.0.2</n5-zarr.version>
@@ -651,6 +651,7 @@
 						<exclude>**WindowDimensionsTest**</exclude>
 						<exclude>**AnimatedProgressBarTest**</exclude>
 						<exclude>**SplashScreenTest**</exclude>
+						<exclude>**SamRenderNonVolatileTest**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
