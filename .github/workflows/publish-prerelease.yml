@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       base: ${{ steps.version.outputs.base }}
+      slug: ${{ steps.version.outputs.slug }}
       suffix: ${{ steps.version.outputs.suffix }}
     steps:
       - uses: actions/checkout@v6
@@ -44,7 +45,9 @@ jobs:
         run: |
           current=$(mvn -B -q -ntp help:evaluate -Dexpression=project.version -DforceStdout)
           echo "base=${current%-SNAPSHOT}" >> $GITHUB_OUTPUT
-          echo "suffix=${RELEASE_TAG}-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          slug="${RELEASE_TAG//[^A-Za-z0-9._-]/-}"
+          echo "slug=${slug}" >> $GITHUB_OUTPUT
+          echo "suffix=${slug}-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -62,7 +65,7 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSION: ${{ needs.version.outputs.base }}-${{ inputs.tag }}
+      VERSION: ${{ needs.version.outputs.base }}-${{ needs.version.outputs.slug }}
       RELEASE_TITLE: ${{ needs.version.outputs.base }} ${{ inputs.tag }} prerelease
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
