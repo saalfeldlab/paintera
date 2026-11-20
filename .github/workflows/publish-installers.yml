@@ -33,15 +33,18 @@ jobs:
           echo "VERSION=$tag_name" >> $GITHUB_ENV
           if [[ $tag_name == paintera-* ]]; then
             echo "PRERELEASE=false" >> $GITHUB_ENV
+            echo "PREVIOUS_TAG=$(gh release view --json tagName --jq .tagName)" >> $GITHUB_ENV
           else
             echo "PRERELEASE=true" >> $GITHUB_ENV
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Release Notes
         if: env.PRERELEASE == 'false'
         id: git-cliff
         uses: orhun/git-cliff-action@v4
         with:
-          args: -l --strip header
+          args: ${{ env.PREVIOUS_TAG }}..${{ env.VERSION }} --strip header --ignore-tags '^dev$'
       - name: Generate Prerelease Log
         if: env.PRERELEASE == 'true'
         id: git-cliff-pre
